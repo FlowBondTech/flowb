@@ -7,6 +7,11 @@ export interface FlowBConfig {
   plugins?: {
     danz?: DANZPluginConfig;
     egator?: EGatorPluginConfig;
+    neynar?: NeynarPluginConfig;
+    privy?: PrivyPluginConfig;
+    points?: PointsPluginConfig;
+    cdp?: CDPPluginConfig;
+    trading?: TradingPluginConfig;
     [key: string]: any;
   };
 }
@@ -18,6 +23,32 @@ export interface DANZPluginConfig {
 
 export interface EGatorPluginConfig {
   apiBaseUrl: string;
+}
+
+export interface NeynarPluginConfig {
+  apiKey: string;
+}
+
+export interface PrivyPluginConfig {
+  appId: string;
+  appSecret: string;
+}
+
+export interface PointsPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
+export interface CDPPluginConfig {
+  apiKeyName: string;
+  apiKeyPrivateKey: string;
+  walletSecret: string;
+  accountAddress: string;
+}
+
+export interface TradingPluginConfig extends CDPPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
 }
 
 // ============================================================================
@@ -103,4 +134,23 @@ export interface ToolInput {
   category?: string;
   dance_style?: string;
   query?: string;
+  wallet_address?: string;
+  challenge_id?: string;
+  farcaster_username?: string;
+  farcaster_channel?: string;
+  page?: number;
+  event_numbers?: string;
+  event_id?: string;
+  dance_move?: string;
+  photo_file_id?: string;
+  referral_code?: string;
+  // Trading fields
+  token_from?: string;
+  token_to?: string;
+  amount?: string;
+  slippage_bps?: number;
+  // Battle fields
+  battle_id?: string;
+  pool_type?: "winner_take_all" | "top_3" | "proportional";
+  entry_fee?: string;
 }

@@ -18,6 +18,20 @@ app.listen({ port, host }, (err, address) => {
   console.log(`[flowb] Server listening on ${address}`);
 });
 
+// Start Telegram bot if token available
+const tgToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+if (tgToken) {
+  Promise.all([
+    import("./telegram/bot.js"),
+    import("./services/privy.js"),
+  ]).then(([{ startTelegramBot }, { PrivyClient }]) => {
+    const privy = config.plugins?.privy
+      ? new PrivyClient(config.plugins.privy)
+      : undefined;
+    startTelegramBot(tgToken, core, privy);
+  }).catch(err => console.error("[flowb-telegram] Failed to start:", err));
+}
+
 // Graceful shutdown
 function shutdown(signal: string) {
   console.log(`[flowb] ${signal} received, shutting down...`);
