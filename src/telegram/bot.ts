@@ -37,16 +37,6 @@ import {
   filterEventsByDate,
   filterEventsByCategory,
   parseSearchIntent,
-  // Trading
-  formatTradingMenuHtml,
-  buildTradingMenuKeyboard,
-  buildSwapConfirmKeyboard,
-  formatSwapPreviewHtml,
-  parseTradeIntent,
-  // Battles
-  formatBattleMenuHtml,
-  buildBattleMenuKeyboard,
-  buildBattleJoinKeyboard,
   // Flow
   formatFlowMenuHtml,
   buildFlowMenuKeyboard,
@@ -216,7 +206,7 @@ export function startTelegramBot(
   privy?: PrivyClient,
 ): void {
   const bot = new Bot(token);
-  const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+  const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
   // Prefer FlowB's own /connect page (serves Telegram Login Widget).
   // Falls back to external DANZ connect URL or localhost for dev.
   const danzConnectUrl =
@@ -554,169 +544,6 @@ export function startTelegramBot(
     await sendCoreAction(ctx, core, "challenges");
   });
 
-  // ========================================================================
-  // Trading Commands
-  // ========================================================================
-
-  bot.command("trade", async (ctx) => {
-    const tgId = ctx.from!.id;
-    await ensureVerified(tgId);
-    const args = ctx.match?.trim();
-
-    if (!args) {
-      await ctx.reply(formatTradingMenuHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildTradingMenuKeyboard(),
-      });
-      return;
-    }
-
-    // Parse "10 USDC to ETH"
-    const intent = parseTradeIntent(args);
-    if (!intent.valid) {
-      await ctx.reply(
-        "Usage: <code>/trade 10 USDC to ETH</code>\n\nSupported: USDC, ETH, WETH, DEGEN",
-        { parse_mode: "HTML" },
-      );
-      return;
-    }
-
-    // Get price preview first
-    await ctx.replyWithChatAction("typing");
-    const result = await core.execute("price", {
-      action: "price",
-      user_id: userId(tgId),
-      platform: "telegram",
-      token_from: intent.fromToken,
-      token_to: intent.toToken,
-      amount: intent.amount,
-    });
-
-    // Extract buy amount from result for preview
-    const buyMatch = result.match(/= ([\d.]+) /);
-    const rateMatch = result.match(/1 \w+ = ([\d.]+) /);
-    const buyAmount = buyMatch ? buyMatch[1] : "?";
-    const rate = rateMatch ? rateMatch[1] : "?";
-
-    await ctx.reply(
-      formatSwapPreviewHtml(intent.fromToken, intent.toToken, intent.amount, buyAmount, rate),
-      {
-        parse_mode: "HTML",
-        reply_markup: buildSwapConfirmKeyboard(
-          intent.fromToken.toLowerCase(),
-          intent.toToken.toLowerCase(),
-          intent.amount,
-        ),
-      },
-    );
-    core.awardPoints(userId(tgId), "telegram", "price_checked").catch(() => {});
-  });
-
-  bot.command("price", async (ctx) => {
-    const tgId = ctx.from!.id;
-    await ensureVerified(tgId);
-    const args = ctx.match?.trim();
-
-    const token = args?.toUpperCase() || "ETH";
-    await ctx.replyWithChatAction("typing");
-
-    const result = await core.execute("price", {
-      action: "price",
-      user_id: userId(tgId),
-      platform: "telegram",
-      token_from: token,
-      token_to: "USDC",
-      amount: "1",
-    });
-
-    await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-    core.awardPoints(userId(tgId), "telegram", "price_checked").catch(() => {});
-  });
-
-  bot.command("balance", async (ctx) => {
-    const tgId = ctx.from!.id;
-    await ensureVerified(tgId);
-    await ctx.replyWithChatAction("typing");
-
-    const result = await core.execute("balance", {
-      action: "balance",
-      user_id: userId(tgId),
-      platform: "telegram",
-    });
-
-    await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-    core.awardPoints(userId(tgId), "telegram", "portfolio_viewed").catch(() => {});
-  });
-
-  bot.command("battle", async (ctx) => {
-    const tgId = ctx.from!.id;
-    await ensureVerified(tgId);
-    const args = ctx.match?.trim();
-
-    if (!args) {
-      await ctx.reply(formatBattleMenuHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildBattleMenuKeyboard(),
-      });
-      return;
-    }
-
-    // /battle status POOLID
-    if (args.startsWith("status ")) {
-      const poolId = args.slice(7).trim();
-      const result = await core.execute("battle-status", {
-        action: "battle-status",
-        user_id: userId(tgId),
-        platform: "telegram",
-        battle_id: poolId,
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      return;
-    }
-
-    // /battle create TITLE | FEE | TYPE
-    if (args.startsWith("create ")) {
-      const createArgs = args.slice(7).trim();
-      const createParts = createArgs.split("|").map((s: string) => s.trim());
-      const title = createParts[0] || "DANZ Battle";
-      const fee = createParts[1] || "5";
-      const poolType = (createParts[2] || "winner_take_all") as "winner_take_all" | "top_3" | "proportional";
-
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("create-battle", {
-        action: "create-battle",
-        user_id: userId(tgId),
-        platform: "telegram",
-        query: title,
-        entry_fee: fee,
-        pool_type: poolType,
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      core.awardPoints(userId(tgId), "telegram", "battle_created").catch(() => {});
-      return;
-    }
-
-    // /battle join POOLID
-    if (args.startsWith("join ")) {
-      const poolId = args.slice(5).trim();
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("join-battle", {
-        action: "join-battle",
-        user_id: userId(tgId),
-        platform: "telegram",
-        battle_id: poolId,
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      core.awardPoints(userId(tgId), "telegram", "battle_joined").catch(() => {});
-      return;
-    }
-
-    // Otherwise show menu
-    await ctx.reply(formatBattleMenuHtml(), {
-      parse_mode: "HTML",
-      reply_markup: buildBattleMenuKeyboard(),
-    });
-  });
 
   // ========================================================================
   // Flow Commands
@@ -1317,19 +1144,6 @@ export function startTelegramBot(
           user_id: userId(tgId),
           platform: "telegram",
         });
-
-        // If CDP is configured, auto-process payouts
-        if (core.cdp) {
-          const payouts = await core.processPayouts();
-          if (payouts.processed > 0) {
-            await ctx.reply(
-              markdownToHtml(result) + `\n\n\u2705 ${payouts.processed} payout(s) sent!`,
-              { parse_mode: "HTML" },
-            );
-            return;
-          }
-        }
-
         await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
         return;
       }
@@ -1339,184 +1153,6 @@ export function startTelegramBot(
         await sendCoreAction(ctx, core, "reward-history");
         return;
       }
-    }
-
-    // Trading callbacks: tr:confirm:FROM:TO:AMT, tr:cancel, tr:price:F:T, tr:bal, tr:port
-    if (data.startsWith("tr:")) {
-      const parts = data.split(":");
-      const action = parts[1];
-
-      if (action === "confirm") {
-        const from = parts[2];
-        const to = parts[3];
-        const amount = parts[4];
-
-        if (!from || !to || !amount) {
-          await ctx.answerCallbackQuery({ text: "Invalid swap data." });
-          return;
-        }
-
-        await ctx.answerCallbackQuery({ text: "Executing swap..." });
-        await ctx.editMessageText(
-          `\u23f3 <b>Executing swap...</b>\n\n${amount} ${from.toUpperCase()} \u2192 ${to.toUpperCase()}\n\nThis may take a moment.`,
-          { parse_mode: "HTML" },
-        );
-
-        const result = await core.execute("swap", {
-          action: "swap",
-          user_id: userId(tgId),
-          platform: "telegram",
-          token_from: from,
-          token_to: to,
-          amount,
-        });
-
-        await ctx.editMessageText(markdownToHtml(result), { parse_mode: "HTML" });
-        core.awardPoints(userId(tgId), "telegram", "trade_executed").catch(() => {});
-        return;
-      }
-
-      if (action === "cancel") {
-        await ctx.answerCallbackQuery({ text: "Swap cancelled." });
-        await ctx.editMessageText("Swap cancelled.", {
-          reply_markup: buildTradingMenuKeyboard(),
-        });
-        return;
-      }
-
-      if (action === "price") {
-        const from = parts[2] || "eth";
-        const to = parts[3] || "usdc";
-        await ctx.answerCallbackQuery();
-        await ctx.replyWithChatAction("typing");
-
-        const result = await core.execute("price", {
-          action: "price",
-          user_id: userId(tgId),
-          platform: "telegram",
-          token_from: from,
-          token_to: to,
-          amount: "1",
-        });
-
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-        core.awardPoints(userId(tgId), "telegram", "price_checked").catch(() => {});
-        return;
-      }
-
-      if (action === "bal") {
-        await ctx.answerCallbackQuery();
-        await ctx.replyWithChatAction("typing");
-        const result = await core.execute("balance", {
-          action: "balance",
-          user_id: userId(tgId),
-          platform: "telegram",
-        });
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-        core.awardPoints(userId(tgId), "telegram", "portfolio_viewed").catch(() => {});
-        return;
-      }
-
-      if (action === "port") {
-        await ctx.answerCallbackQuery();
-        await ctx.replyWithChatAction("typing");
-        const result = await core.execute("portfolio", {
-          action: "portfolio",
-          user_id: userId(tgId),
-          platform: "telegram",
-        });
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-        core.awardPoints(userId(tgId), "telegram", "portfolio_viewed").catch(() => {});
-        return;
-      }
-
-      await ctx.answerCallbackQuery();
-      return;
-    }
-
-    // Battle callbacks: bt:list, bt:create, bt:join:ID, bt:status:ID
-    if (data.startsWith("bt:")) {
-      const parts = data.split(":");
-      const action = parts[1];
-
-      if (action === "list") {
-        await ctx.answerCallbackQuery();
-        const result = await core.execute("battle-status", {
-          action: "battle-status",
-          user_id: userId(tgId),
-          platform: "telegram",
-        });
-        await ctx.reply(markdownToHtml(result), {
-          parse_mode: "HTML",
-          reply_markup: buildBattleMenuKeyboard(),
-        });
-        return;
-      }
-
-      if (action === "create") {
-        await ctx.answerCallbackQuery();
-        await ctx.reply(
-          [
-            "\u2795 <b>Create a Battle Pool</b>",
-            "",
-            "Send the command with details:",
-            "",
-            "<code>/battle create TITLE | FEE | TYPE</code>",
-            "",
-            "Example:",
-            "<code>/battle create ETHDenver Dance-Off | 10 | winner_take_all</code>",
-            "",
-            "Types: winner_take_all, top_3, proportional",
-          ].join("\n"),
-          { parse_mode: "HTML" },
-        );
-        return;
-      }
-
-      if (action === "join") {
-        const poolIdShort = parts[2];
-        if (!poolIdShort) {
-          await ctx.answerCallbackQuery({ text: "Missing pool ID." });
-          return;
-        }
-        await ctx.answerCallbackQuery({ text: "Joining battle..." });
-        await ctx.replyWithChatAction("typing");
-
-        // Need to resolve short ID to full ID
-        const statusResult = await core.execute("battle-status", {
-          action: "battle-status",
-          user_id: userId(tgId),
-          platform: "telegram",
-        });
-
-        // Try joining with short ID (Supabase will match UUID prefix)
-        const result = await core.execute("join-battle", {
-          action: "join-battle",
-          user_id: userId(tgId),
-          platform: "telegram",
-          battle_id: poolIdShort,
-        });
-
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-        core.awardPoints(userId(tgId), "telegram", "battle_joined").catch(() => {});
-        return;
-      }
-
-      if (action === "status") {
-        const poolIdShort = parts[2];
-        await ctx.answerCallbackQuery();
-        const result = await core.execute("battle-status", {
-          action: "battle-status",
-          user_id: userId(tgId),
-          platform: "telegram",
-          battle_id: poolIdShort,
-        });
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-        return;
-      }
-
-      await ctx.answerCallbackQuery();
-      return;
     }
 
     // Flow callbacks: fl:share, fl:list, fl:crew-create, fl:crew-list, fl:going:ID, fl:maybe:ID, fl:whos:ID, etc.
@@ -1884,90 +1520,6 @@ export function startTelegramBot(
       .replace(/^(?:hey\s+)?flowb[,!.\s]*/i, "")
       .trim();
 
-    // ---- Trading intents ----
-    // "price ETH", "price of DEGEN", "how much is ETH"
-    const priceMatch = cleaned.match(
-      /^(?:price\s+(?:of\s+)?|how\s+much\s+is\s+|what(?:'s| is)\s+(?:the\s+)?price\s+(?:of\s+)?)(\w+)$/,
-    );
-    if (priceMatch) {
-      const token = priceMatch[1].toUpperCase();
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("price", {
-        action: "price",
-        user_id: userId(tgId),
-        platform: "telegram",
-        token_from: token,
-        token_to: "USDC",
-        amount: "1",
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      core.awardPoints(userId(tgId), "telegram", "price_checked").catch(() => {});
-      return;
-    }
-
-    // "trade 10 USDC to ETH", "swap 0.5 ETH for DEGEN"
-    const tradeIntent = parseTradeIntent(cleaned);
-    if (tradeIntent.valid) {
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("price", {
-        action: "price",
-        user_id: userId(tgId),
-        platform: "telegram",
-        token_from: tradeIntent.fromToken,
-        token_to: tradeIntent.toToken,
-        amount: tradeIntent.amount,
-      });
-
-      const buyMatch = result.match(/= ([\d.]+) /);
-      const rateMatch = result.match(/1 \w+ = ([\d.]+) /);
-      const buyAmount = buyMatch ? buyMatch[1] : "?";
-      const rate = rateMatch ? rateMatch[1] : "?";
-
-      await ctx.reply(
-        formatSwapPreviewHtml(tradeIntent.fromToken, tradeIntent.toToken, tradeIntent.amount, buyAmount, rate),
-        {
-          parse_mode: "HTML",
-          reply_markup: buildSwapConfirmKeyboard(
-            tradeIntent.fromToken.toLowerCase(),
-            tradeIntent.toToken.toLowerCase(),
-            tradeIntent.amount,
-          ),
-        },
-      );
-      core.awardPoints(userId(tgId), "telegram", "price_checked").catch(() => {});
-      return;
-    }
-
-    // "balance", "my balance", "wallet", "portfolio"
-    if (/^(?:my\s+)?(?:balance|wallet|portfolio|bag|bags)$/.test(cleaned)) {
-      await ctx.replyWithChatAction("typing");
-      const action = cleaned.includes("portfolio") || cleaned.includes("bag") ? "portfolio" : "balance";
-      const result = await core.execute(action, {
-        action,
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      core.awardPoints(userId(tgId), "telegram", "portfolio_viewed").catch(() => {});
-      return;
-    }
-
-    // ---- Battle intents ----
-    // "start a battle", "create a battle", "new battle", "battle", "battles"
-    if (/^(?:start|create|new|open)\s+(?:a\s+)?battle/.test(cleaned) || cleaned === "battle" || cleaned === "battles") {
-      // Show open pools + battle menu
-      const battleResult = await core.execute("battle-status", {
-        action: "battle-status",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(battleResult), {
-        parse_mode: "HTML",
-        reply_markup: buildBattleMenuKeyboard(),
-      });
-      return;
-    }
-
     // ---- Flow intents ----
     // "flow", "my flow", "friends", "crew", "crews", "who's going", "whos going", "schedule"
     if (/^(?:my\s+)?(?:flow|friends|crew|crews|squad)$/.test(cleaned)) {
@@ -2060,15 +1612,6 @@ export function startTelegramBot(
       return;
     }
 
-    // "trade", "trading", "swap"
-    if (/^(?:trade|trading|swap|dex)$/.test(cleaned)) {
-      await ctx.reply(formatTradingMenuHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildTradingMenuKeyboard(),
-      });
-      return;
-    }
-
     // Try to parse as an event search intent
     const intent = parseSearchIntent(text);
 
@@ -2086,15 +1629,13 @@ export function startTelegramBot(
     // Not recognized - show menu with all options
     await ctx.reply(
       [
-        `I can help with events, trading, Farcaster &amp; more! Try:`,
+        `I can help with events, crews &amp; more! Try:`,
         ``,
-        `\u2022 <i>"price ETH"</i> \u2014 live token price`,
-        `\u2022 <i>"trade 10 USDC to ETH"</i> \u2014 swap tokens`,
-        `\u2022 <i>"start a battle"</i> \u2014 stake on a dance-off`,
-        `\u2022 <i>"salsa events in Denver"</i> \u2014 find events`,
-        `\u2022 <i>"fc trending"</i> \u2014 trending Farcaster casts`,
+        `\u2022 <i>"events in Denver"</i> \u2014 find events`,
+        `\u2022 <i>"who's going"</i> \u2014 see your crew's plans`,
+        `\u2022 <i>"my schedule"</i> \u2014 your RSVP'd events`,
+        `\u2022 <i>"my crew"</i> \u2014 crew coordination`,
         `\u2022 <i>"fc profile dwr"</i> \u2014 look up a profile`,
-        `\u2022 <i>"balance"</i> \u2014 check your wallet`,
         ``,
         `Or tap a button below:`,
       ].join("\n"),
@@ -2367,29 +1908,6 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
         reply_markup: buildFlowMenuKeyboard(),
       });
       break;
-
-    case "trade":
-      await ctx.answerCallbackQuery();
-      await ctx.reply(formatTradingMenuHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildTradingMenuKeyboard(),
-      });
-      break;
-
-    case "battles": {
-      await ctx.answerCallbackQuery();
-      // Show open pools + battle menu
-      const battleResult = await core.execute("battle-status", {
-        action: "battle-status",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(battleResult), {
-        parse_mode: "HTML",
-        reply_markup: buildBattleMenuKeyboard(),
-      });
-      break;
-    }
 
     case "farcaster":
       await ctx.answerCallbackQuery();

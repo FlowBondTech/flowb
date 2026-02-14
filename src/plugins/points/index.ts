@@ -385,7 +385,7 @@ export class PointsPlugin implements FlowBPlugin {
     if (!userId) return "User ID required.";
 
     const code = await this.getReferralCode(cfg, userId, platform || "api");
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
     return `**Your Referral Link**\n\nShare this with friends:\nhttps://t.me/${botUsername}?start=ref_${code}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
   }
 

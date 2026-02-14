@@ -58,7 +58,7 @@ export function buildApp(core: FlowBCore) {
     "/auth/telegram",
     async (request, reply) => {
       const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
-      const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+      const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
       if (!botToken) {
         return reply.status(500).send({ error: "Bot token not configured" });
       }
@@ -95,7 +95,7 @@ export function buildApp(core: FlowBCore) {
 
   // Serves the connect page with the Telegram Login Widget embedded
   app.get("/connect", async (request, reply) => {
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
     const callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
     return reply.type("text/html").send(connectPage(botUsername, callbackUrl));
   });

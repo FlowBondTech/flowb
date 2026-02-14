@@ -740,12 +740,21 @@ export function formatFlowAttendanceBadge(goingCount: number, maybeCount: number
 // ==========================================================================
 
 export function markdownToHtml(md: string): string {
-  return md
+  // Protect URLs from italic replacement (underscores in URLs)
+  const urls: string[] = [];
+  let s = md.replace(/https?:\/\/[^\s)]+/g, (url) => {
+    urls.push(url);
+    return `\x00URL${urls.length - 1}\x00`;
+  });
+  s = s
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/_(.+?)_/g, "<i>$1</i>")
     .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
     .replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;")
     .replace(/<(?!\/?(?:b|i|a|code|pre)[\s>])/g, "&lt;");
+  // Restore URLs
+  urls.forEach((url, i) => { s = s.replace(`\x00URL${i}\x00`, url); });
+  return s;
 }
 
 // ==========================================================================

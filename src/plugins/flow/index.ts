@@ -278,7 +278,7 @@ export class FlowPlugin implements FlowBPlugin {
       }, "user_id,platform");
     }
 
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
     const link = `https://t.me/${botUsername}?start=f_${code}`;
 
     return [
@@ -487,7 +487,7 @@ export class FlowPlugin implements FlowBPlugin {
       role: "admin",
     });
 
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
     const link = `https://t.me/${botUsername}?start=g_${joinCode}`;
 
     return [
@@ -588,7 +588,7 @@ export class FlowPlugin implements FlowBPlugin {
     if (!membership?.length) return "You're not in this crew.";
 
     const group = membership[0].flowb_groups;
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
     const link = `https://t.me/${botUsername}?start=g_${group.join_code}`;
 
     return [
