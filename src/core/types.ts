@@ -12,6 +12,7 @@ export interface FlowBConfig {
     points?: PointsPluginConfig;
     cdp?: CDPPluginConfig;
     trading?: TradingPluginConfig;
+    flow?: FlowPluginConfig;
     [key: string]: any;
   };
 }
@@ -47,6 +48,11 @@ export interface CDPPluginConfig {
 }
 
 export interface TradingPluginConfig extends CDPPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
+export interface FlowPluginConfig {
   supabaseUrl: string;
   supabaseKey: string;
 }
@@ -153,4 +159,9 @@ export interface ToolInput {
   battle_id?: string;
   pool_type?: "winner_take_all" | "top_3" | "proportional";
   entry_fee?: string;
+  // Flow fields
+  group_id?: string;
+  friend_id?: string;
+  event_status?: "going" | "maybe";
+  visibility?: "friends" | "groups" | "public" | "private";
 }

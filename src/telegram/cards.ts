@@ -34,14 +34,14 @@ export function buildMenuKeyboard(): InlineKeyboard {
     .text("\ud83d\udccd Events", "mn:events")
     .text("\ud83d\udd0d Search", "mn:search")
     .row()
+    .text("\ud83c\udf0a My Flow", "mn:flow")
     .text("\u2705 Check In", "mn:checkin")
-    .text("\ud83c\udfc6 Points", "mn:points")
     .row()
+    .text("\ud83c\udfc6 Points", "mn:points")
     .text("\ud83d\udcc8 Trade", "mn:trade")
-    .text("\u2694\ufe0f Battles", "mn:battles")
     .row()
     .text("\ud83d\udcb0 Rewards", "mn:rewards")
-    .text("\ud83d\udce8 Invite", "mn:referral");
+    .text("\u2694\ufe0f Battles", "mn:battles");
 }
 
 /** Minimal back-to-menu row for appending to responses */
@@ -267,14 +267,20 @@ export function buildEventCardKeyboard(
   const short = eventId.slice(0, 8);
   const kb = new InlineKeyboard();
 
-  // Row 1: Actions
+  // Row 1: RSVP + Share
+  kb.text("\u2705 Going", `fl:going:${short}`);
+  kb.text("\ud83e\udd14 Maybe", `fl:maybe:${short}`);
+  kb.text("\ud83d\udc40 Who's In", `fl:whos:${short}`);
+
+  // Row 2: Actions
+  kb.row();
   kb.text("\u2b50 Save", `ec:save:${short}`);
   if (eventUrl) {
     kb.url("\ud83d\udd17 Open", eventUrl);
   }
   kb.text("\ud83d\udce4 Share", `ec:share:${short}`);
 
-  // Row 2: Navigation
+  // Row 3: Navigation
   kb.row();
   if (index > 0) {
     kb.text("\u25c0\ufe0f", `ec:prev`);
@@ -606,6 +612,125 @@ export function buildBattleJoinKeyboard(battleId: string, entryFee: string): Inl
     .text("\ud83d\udcca Status", `bt:status:${short}`)
     .row()
     .text("\u25c0\ufe0f Back", "bt:list");
+}
+
+// ==========================================================================
+// Flow (Friends & Crews)
+// ==========================================================================
+
+export function formatFlowMenuHtml(): string {
+  return [
+    `<b>Your Flow</b>`,
+    "",
+    "Connect with friends &amp; crews.",
+    "See who's going where. Never miss a night out.",
+    "",
+    "<b>/share</b> \u2014 invite a friend",
+    "<b>/crew</b> \u2014 create or join a crew",
+    "<b>/going</b> \u2014 RSVP to an event",
+    "<b>/whosgoing</b> \u2014 see your flow's plans",
+  ].join("\n");
+}
+
+export function buildFlowMenuKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\udd17 Share My Flow", "fl:share")
+    .text("\ud83d\udc65 My Flow", "fl:list")
+    .row()
+    .text("\ud83d\ude80 Create Crew", "fl:crew-create")
+    .text("\ud83d\udcc5 My Schedule", "fl:schedule")
+    .row()
+    .text("\ud83d\udc40 Who's Going", "fl:whos-going")
+    .row()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+export function formatFlowInviteAcceptedHtml(inviterName: string): string {
+  return [
+    `<b>You're in the flow!</b>`,
+    "",
+    `You and <b>${escapeHtml(inviterName)}</b> are now connected.`,
+    "You'll see each other's event plans and get notified when you're headed to the same spot.",
+  ].join("\n");
+}
+
+export function formatCrewJoinedHtml(crewEmoji: string, crewName: string, memberCount: number): string {
+  return [
+    `<b>Welcome to ${crewEmoji} ${escapeHtml(crewName)}!</b>`,
+    "",
+    `${memberCount} members in this crew.`,
+    "You'll see the crew's event plans and get notified together.",
+  ].join("\n");
+}
+
+export function formatCrewMenuHtml(): string {
+  return [
+    `<b>Crews</b>`,
+    "",
+    "Crews are group flows \u2014 your dance squad, festival friends, class cohort.",
+    "",
+    "<b>/crew create Name</b> \u2014 start a new crew",
+    "Or join one via an invite link!",
+  ].join("\n");
+}
+
+export function buildCrewMenuKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\ude80 Create Crew", "fl:crew-create")
+    .text("\ud83d\udcdd My Crews", "fl:crew-list")
+    .row()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+export function buildCrewDetailKeyboard(groupId: string): InlineKeyboard {
+  const short = groupId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\ud83d\udd17 Invite Link", `fl:crew-invite:${short}`)
+    .text("\ud83d\udc65 Members", `fl:crew-members:${short}`)
+    .row()
+    .text("\ud83d\udeaa Leave", `fl:crew-leave:${short}`)
+    .text("\u25c0\ufe0f Back", "fl:crew-list");
+}
+
+export function buildGoingKeyboard(eventId: string): InlineKeyboard {
+  const short = eventId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u2705 Going", `fl:going:${short}`)
+    .text("\ud83e\udd14 Maybe", `fl:maybe:${short}`)
+    .row()
+    .text("\ud83d\udc40 Who's Going", `fl:whos:${short}`)
+    .row()
+    .text("\u25c0\ufe0f Back", "ec:back");
+}
+
+export function formatWhosGoingHtml(
+  eventName: string,
+  going: string[],
+  maybe: string[],
+): string {
+  const lines = [`<b>Who's going to ${escapeHtml(eventName)}?</b>\n`];
+
+  if (going.length) {
+    lines.push(`<b>Going</b> (${going.length})`);
+    for (const name of going) lines.push(`  ${escapeHtml(name)}`);
+  }
+  if (maybe.length) {
+    if (going.length) lines.push("");
+    lines.push(`<b>Maybe</b> (${maybe.length})`);
+    for (const name of maybe) lines.push(`  ${escapeHtml(name)}`);
+  }
+  if (!going.length && !maybe.length) {
+    lines.push("No one from your flow yet. Be the first!");
+  }
+  return lines.join("\n");
+}
+
+export function formatFlowAttendanceBadge(goingCount: number, maybeCount: number): string {
+  if (goingCount === 0 && maybeCount === 0) return "";
+  const parts: string[] = [];
+  if (goingCount > 0) parts.push(`${goingCount} going`);
+  if (maybeCount > 0) parts.push(`${maybeCount} maybe`);
+  return `\n\ud83d\udc65 <i>${parts.join(", ")} from your flow</i>`;
 }
 
 // ==========================================================================

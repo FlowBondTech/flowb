@@ -35,6 +35,10 @@ export function loadConfig(): FlowBConfig {
         supabaseUrl: process.env.DANZ_SUPABASE_URL,
         supabaseKey: process.env.DANZ_SUPABASE_KEY!,
       } : undefined,
+      flow: process.env.DANZ_SUPABASE_URL ? {
+        supabaseUrl: process.env.DANZ_SUPABASE_URL,
+        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      } : undefined,
     },
   };
 }

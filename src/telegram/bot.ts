@@ -46,6 +46,17 @@ import {
   formatBattleMenuHtml,
   buildBattleMenuKeyboard,
   buildBattleJoinKeyboard,
+  // Flow
+  formatFlowMenuHtml,
+  buildFlowMenuKeyboard,
+  formatFlowInviteAcceptedHtml,
+  formatCrewJoinedHtml,
+  formatCrewMenuHtml,
+  buildCrewMenuKeyboard,
+  buildCrewDetailKeyboard,
+  buildGoingKeyboard,
+  formatWhosGoingHtml,
+  formatFlowAttendanceBadge,
   // UX helpers
   formatVerifiedHookHtml,
   buildBackToMenuKeyboard,
@@ -205,8 +216,41 @@ export function startTelegramBot(
     const tgId = ctx.from!.id;
     const session = await ensureVerified(tgId);
 
-    // Parse deep link arguments: /start ref_CODE or /start points
+    // Parse deep link arguments: /start ref_CODE, /start f_CODE, /start g_CODE, /start points
     const args = ctx.match?.trim();
+
+    // --- Personal flow invite: f_{code} ---
+    if (args?.startsWith("f_")) {
+      const flowCode = args.slice(2);
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      if (flowPlugin && flowCfg) {
+        const result = await flowPlugin.flowAccept(flowCfg, userId(tgId), { action: "flow-accept", referral_code: flowCode });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
+        core.awardPoints(userId(tgId), "telegram", "flow_accepted").catch(() => {});
+      }
+      return;
+    }
+
+    // --- Group flow invite: g_{code} ---
+    if (args?.startsWith("g_")) {
+      const crewCode = args.slice(2);
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      if (flowPlugin && flowCfg) {
+        const result = await flowPlugin.crewJoin(flowCfg, userId(tgId), { action: "crew-join", referral_code: crewCode });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
+        core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+      }
+      return;
+    }
+
     if (args?.startsWith("ref_")) {
       const refCode = args.slice(4);
       core.awardPoints(userId(tgId), "telegram", "referral_signup", { referral_code: refCode }).catch(() => {});
@@ -291,10 +335,6 @@ export function startTelegramBot(
 
   bot.command("mylist", async (ctx) => {
     await sendCoreAction(ctx, core, "my-list");
-  });
-
-  bot.command("schedule", async (ctx) => {
-    await sendCoreAction(ctx, core, "my-schedule");
   });
 
   bot.command("checkin", async (ctx) => {
@@ -580,6 +620,206 @@ export function startTelegramBot(
     await ctx.reply(formatBattleMenuHtml(), {
       parse_mode: "HTML",
       reply_markup: buildBattleMenuKeyboard(),
+    });
+  });
+
+  // ========================================================================
+  // Flow Commands
+  // ========================================================================
+
+  bot.command("flow", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const session = await ensureVerified(tgId);
+    if (!session.verified) {
+      await ctx.reply(formatConnectPromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildConnectKeyboard(danzConnectUrl),
+      });
+      return;
+    }
+
+    await ctx.reply(formatFlowMenuHtml(), {
+      parse_mode: "HTML",
+      reply_markup: buildFlowMenuKeyboard(),
+    });
+  });
+
+  bot.command("share", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    const result = await core.execute("flow-invite", {
+      action: "flow-invite",
+      user_id: userId(tgId),
+      platform: "telegram",
+    });
+    await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+    core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
+  });
+
+  bot.command("crew", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const session = await ensureVerified(tgId);
+    if (!session.verified) {
+      await ctx.reply(formatConnectPromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildConnectKeyboard(danzConnectUrl),
+      });
+      return;
+    }
+
+    const args = ctx.match?.trim();
+
+    // /crew create Salsa Wolves
+    if (args?.startsWith("create ")) {
+      const name = args.slice(7).trim();
+      if (!name) {
+        await ctx.reply("Usage: <code>/crew create Crew Name</code>", { parse_mode: "HTML" });
+        return;
+      }
+      const result = await core.execute("crew-create", {
+        action: "crew-create",
+        user_id: userId(tgId),
+        platform: "telegram",
+        query: name,
+      });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      core.awardPoints(userId(tgId), "telegram", "crew_created").catch(() => {});
+      return;
+    }
+
+    // /crew list
+    if (!args || args === "list") {
+      const result = await core.execute("crew-list", {
+        action: "crew-list",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      await ctx.reply(markdownToHtml(result), {
+        parse_mode: "HTML",
+        reply_markup: buildCrewMenuKeyboard(),
+      });
+      return;
+    }
+
+    // /crew members GROUPID
+    if (args.startsWith("members ")) {
+      const groupId = args.slice(8).trim();
+      const result = await core.execute("crew-members", {
+        action: "crew-members",
+        user_id: userId(tgId),
+        platform: "telegram",
+        group_id: groupId,
+      });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
+    // /crew invite GROUPID
+    if (args.startsWith("invite ")) {
+      const groupId = args.slice(7).trim();
+      const result = await core.execute("crew-invite", {
+        action: "crew-invite",
+        user_id: userId(tgId),
+        platform: "telegram",
+        group_id: groupId,
+      });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
+    // /crew leave GROUPID
+    if (args.startsWith("leave ")) {
+      const groupId = args.slice(6).trim();
+      const result = await core.execute("crew-leave", {
+        action: "crew-leave",
+        user_id: userId(tgId),
+        platform: "telegram",
+        group_id: groupId,
+      });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
+    // Default: show crew menu
+    await ctx.reply(formatCrewMenuHtml(), {
+      parse_mode: "HTML",
+      reply_markup: buildCrewMenuKeyboard(),
+    });
+  });
+
+  bot.command("going", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const session = await ensureVerified(tgId);
+    if (!session.verified) {
+      await ctx.reply(formatConnectPromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildConnectKeyboard(danzConnectUrl),
+      });
+      return;
+    }
+
+    // If no args, show current schedule
+    const args = ctx.match?.trim();
+    if (!args) {
+      await sendCoreAction(ctx, core, "my-schedule");
+      return;
+    }
+
+    // If viewing a card, RSVP to the current event
+    const eventSession = getSession(tgId);
+    if (eventSession?.filteredEvents?.length) {
+      const currentEvent = eventSession.filteredEvents[eventSession.cardIndex];
+      if (currentEvent) {
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          await flowPlugin.rsvpWithDetails(
+            flowCfg, userId(tgId), currentEvent.id, currentEvent.title,
+            currentEvent.startTime, currentEvent.locationName || null,
+          );
+          await ctx.reply(
+            `<b>You're going!</b> ${currentEvent.title}\n\nYour flow will see this.`,
+            { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard() },
+          );
+          core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+
+          // Fire notifications in background
+          notifyFlowAboutRsvp(core, userId(tgId), currentEvent.id, currentEvent.title, bot).catch(() => {});
+          return;
+        }
+      }
+    }
+
+    await ctx.reply("Browse events first, then tap Going!", { reply_markup: buildFlowMenuKeyboard() });
+  });
+
+  bot.command("whosgoing", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+
+    const result = await core.execute("whos-going", {
+      action: "whos-going",
+      user_id: userId(tgId),
+      platform: "telegram",
+    });
+    await ctx.reply(markdownToHtml(result), {
+      parse_mode: "HTML",
+      reply_markup: buildFlowMenuKeyboard(),
+    });
+  });
+
+  bot.command("schedule", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+
+    const result = await core.execute("my-schedule", {
+      action: "my-schedule",
+      user_id: userId(tgId),
+      platform: "telegram",
+    });
+    await ctx.reply(markdownToHtml(result), {
+      parse_mode: "HTML",
+      reply_markup: buildFlowMenuKeyboard(),
     });
   });
 
@@ -1184,6 +1424,208 @@ export function startTelegramBot(
       return;
     }
 
+    // Flow callbacks: fl:share, fl:list, fl:crew-create, fl:crew-list, fl:going:ID, fl:maybe:ID, fl:whos:ID, etc.
+    if (data.startsWith("fl:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+
+      if (action === "share") {
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("flow-invite", {
+          action: "flow-invite",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
+        return;
+      }
+
+      if (action === "list") {
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("flow-list", {
+          action: "flow-list",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
+        return;
+      }
+
+      if (action === "schedule") {
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("my-schedule", {
+          action: "my-schedule",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
+        return;
+      }
+
+      if (action === "whos-going") {
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("whos-going", {
+          action: "whos-going",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
+        return;
+      }
+
+      if (action === "crew-create") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          [
+            "\ud83d\ude80 <b>Create a Crew</b>",
+            "",
+            "Send the command with your crew name:",
+            "",
+            "<code>/crew create Salsa Wolves</code>",
+            "",
+            "Tip: start with an emoji for flair!",
+            "<code>/crew create \ud83d\udc3a Salsa Wolves</code>",
+          ].join("\n"),
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      if (action === "crew-list") {
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("crew-list", {
+          action: "crew-list",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildCrewMenuKeyboard(),
+        });
+        return;
+      }
+
+      if (action === "crew-invite") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("crew-invite", {
+          action: "crew-invite",
+          user_id: userId(tgId),
+          platform: "telegram",
+          group_id: groupIdShort,
+        });
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        return;
+      }
+
+      if (action === "crew-members") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery();
+        const result = await core.execute("crew-members", {
+          action: "crew-members",
+          user_id: userId(tgId),
+          platform: "telegram",
+          group_id: groupIdShort,
+        });
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        return;
+      }
+
+      if (action === "crew-leave") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery({ text: "Leaving crew..." });
+        const result = await core.execute("crew-leave", {
+          action: "crew-leave",
+          user_id: userId(tgId),
+          platform: "telegram",
+          group_id: groupIdShort,
+        });
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        return;
+      }
+
+      // RSVP from event card: fl:going:EVENTID_SHORT or fl:maybe:EVENTID_SHORT
+      if (action === "going" || action === "maybe") {
+        const eventIdShort = parts[2];
+        const session = getSession(tgId);
+        const event = session?.filteredEvents?.find((e) => e.id.startsWith(eventIdShort || ""));
+
+        if (!event) {
+          await ctx.answerCallbackQuery({ text: "Event not found." });
+          return;
+        }
+
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          const status = action as "going" | "maybe";
+          await flowPlugin.rsvpWithDetails(
+            flowCfg, userId(tgId), event.id, event.title,
+            event.startTime, event.locationName || null, status,
+          );
+          const emoji = action === "going" ? "\u2705" : "\ud83e\udd14";
+          await ctx.answerCallbackQuery({ text: `${emoji} ${event.title}` });
+
+          // Check who else from flow is going
+          const attendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, userId(tgId), event.id);
+          const badge = formatFlowAttendanceBadge(attendance.going.length, attendance.maybe.length);
+
+          await ctx.reply(
+            `<b>${emoji} ${action === "going" ? "You're going!" : "Marked as maybe."}</b> ${event.title}${badge}`,
+            { parse_mode: "HTML" },
+          );
+
+          core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+
+          // Notify flow in background
+          if (action === "going") {
+            notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+          }
+        }
+        return;
+      }
+
+      // Who's going to specific event: fl:whos:EVENTID_SHORT
+      if (action === "whos") {
+        const eventIdShort = parts[2];
+        const session = getSession(tgId);
+        const event = session?.filteredEvents?.find((e) => e.id.startsWith(eventIdShort || ""));
+
+        if (!event) {
+          await ctx.answerCallbackQuery({ text: "Event not found." });
+          return;
+        }
+
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          const attendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, userId(tgId), event.id);
+          const goingNames = attendance.going.map((id) => id.replace("telegram_", "@"));
+          const maybeNames = attendance.maybe.map((id) => id.replace("telegram_", "@"));
+
+          await ctx.answerCallbackQuery();
+          await ctx.reply(
+            formatWhosGoingHtml(event.title, goingNames, maybeNames),
+            { parse_mode: "HTML" },
+          );
+        }
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     // Dance move: dm:EVENTID:MOVEID
     if (data.startsWith("dm:")) {
       const parts = data.split(":");
@@ -1392,6 +1834,52 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Flow intents ----
+    // "flow", "my flow", "friends", "crew", "crews", "who's going", "whos going", "schedule"
+    if (/^(?:my\s+)?(?:flow|friends|crew|crews|squad)$/.test(cleaned)) {
+      await ctx.reply(formatFlowMenuHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildFlowMenuKeyboard(),
+      });
+      return;
+    }
+
+    if (/^(?:who(?:'?s| is)\s+going|whos\s+going)/.test(cleaned)) {
+      const result = await core.execute("whos-going", {
+        action: "whos-going",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      await ctx.reply(markdownToHtml(result), {
+        parse_mode: "HTML",
+        reply_markup: buildFlowMenuKeyboard(),
+      });
+      return;
+    }
+
+    if (/^(?:my\s+)?schedule$/.test(cleaned)) {
+      const result = await core.execute("my-schedule", {
+        action: "my-schedule",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      await ctx.reply(markdownToHtml(result), {
+        parse_mode: "HTML",
+        reply_markup: buildFlowMenuKeyboard(),
+      });
+      return;
+    }
+
+    if (/^(?:share|invite|share\s+(?:my\s+)?(?:flow|link))$/.test(cleaned)) {
+      const result = await core.execute("flow-invite", {
+        action: "flow-invite",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
     // "trade", "trading", "swap"
     if (/^(?:trade|trading|swap|dex)$/.test(cleaned)) {
       await ctx.reply(formatTradingMenuHtml(), {
@@ -1545,6 +2033,72 @@ async function sendCoreAction(ctx: any, core: FlowBCore, action: string): Promis
   });
 }
 
+/**
+ * Notify flow friends & crew members when someone RSVPs to an event.
+ * Runs in background (fire-and-forget from the command handler).
+ */
+async function notifyFlowAboutRsvp(
+  core: FlowBCore,
+  uid: string,
+  eventId: string,
+  eventName: string,
+  bot: Bot,
+): Promise<void> {
+  const flowPlugin = core.getFlowPlugin();
+  const flowCfg = core.getFlowConfig();
+  if (!flowPlugin || !flowCfg) return;
+
+  const targets = await flowPlugin.computeNotifyTargets(flowCfg, uid, eventId);
+  const senderName = uid.replace("telegram_", "@");
+
+  // Notify friends
+  for (const friendId of targets.friends) {
+    const tgId = friendId.replace("telegram_", "");
+    if (!tgId || isNaN(Number(tgId))) continue;
+
+    try {
+      await bot.api.sendMessage(
+        Number(tgId),
+        `<b>${senderName}</b> is going to <b>${eventName}</b>! You in?`,
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard()
+            .text("\u2705 I'm going too", `fl:going:${eventId.slice(0, 8)}`)
+            .text("\ud83e\udd14 Maybe", `fl:maybe:${eventId.slice(0, 8)}`),
+        },
+      );
+      await flowPlugin.logNotification(flowCfg, friendId, "friend_rsvp", eventId, uid);
+    } catch (err) {
+      // User may have blocked the bot - skip silently
+    }
+  }
+
+  // Notify crew members
+  for (const crew of targets.crews) {
+    const crewLabel = `${crew.groupEmoji} ${crew.groupName}`;
+    for (const memberId of crew.userIds) {
+      const tgId = memberId.replace("telegram_", "");
+      if (!tgId || isNaN(Number(tgId))) continue;
+
+      try {
+        await bot.api.sendMessage(
+          Number(tgId),
+          `<b>${senderName}</b> from <b>${crewLabel}</b> is going to <b>${eventName}</b>!`,
+          {
+            parse_mode: "HTML",
+            reply_markup: new InlineKeyboard()
+              .text("\u2705 I'm going too", `fl:going:${eventId.slice(0, 8)}`)
+              .text("\ud83e\udd14 Maybe", `fl:maybe:${eventId.slice(0, 8)}`),
+          },
+        );
+        await flowPlugin.logNotification(flowCfg, memberId, "crew_rsvp", eventId, uid);
+      } catch (err) {
+        // User may have blocked the bot - skip silently
+      }
+    }
+  }
+}
+
 async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<void> {
   const tgId = ctx.from!.id;
 
@@ -1623,6 +2177,14 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
       });
       break;
     }
+
+    case "flow":
+      await ctx.answerCallbackQuery();
+      await ctx.reply(formatFlowMenuHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildFlowMenuKeyboard(),
+      });
+      break;
 
     case "trade":
       await ctx.answerCallbackQuery();

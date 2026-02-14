@@ -14,6 +14,7 @@ import { EGatorPlugin, formatEventList } from "../plugins/egator/index.js";
 import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
 import { TradingPlugin } from "../plugins/trading/index.js";
+import { FlowPlugin } from "../plugins/flow/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -60,6 +61,12 @@ export class FlowBCore {
       trading.configure(this.config.plugins.trading);
     }
     this.registerPlugin(trading);
+
+    const flow = new FlowPlugin();
+    if (this.config.plugins?.flow) {
+      flow.configure(this.config.plugins.flow);
+    }
+    this.registerPlugin(flow);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -258,6 +265,18 @@ export class FlowBCore {
       return { streak: 0, bonus: 0 };
     }
     return points.updateStreak(this.config.plugins.points, userId, platform);
+  }
+
+  /** Get the Flow plugin for direct access from the bot. */
+  getFlowPlugin(): FlowPlugin | null {
+    const flow = this.plugins.get("flow") as FlowPlugin | undefined;
+    if (!flow?.isConfigured() || !this.config.plugins?.flow) return null;
+    return flow;
+  }
+
+  /** Get the Flow plugin config. */
+  getFlowConfig(): import("../plugins/flow/index.js").FlowPluginConfig | null {
+    return this.config.plugins?.flow || null;
   }
 
   /** Get the list of all action names (for schema generation) */

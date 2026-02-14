@@ -38,6 +38,15 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   battle_joined:         { points: 10,  dailyCap: 50 },
   battle_won:            { points: 50,  dailyCap: 200 },
   battle_participated:   { points: 5,   dailyCap: 25 },
+  // Flow & social
+  flow_invite_sent:      { points: 2,   dailyCap: 20 },
+  flow_accepted:         { points: 15,  dailyCap: 30 },
+  crew_created:          { points: 20,  dailyCap: 20, once: true },
+  crew_joined:           { points: 10,  dailyCap: 30 },
+  crew_invite_sent:      { points: 3,   dailyCap: 15 },
+  event_rsvp:            { points: 5,   dailyCap: 25 },
+  friend_meetup:         { points: 10,  dailyCap: 30 },
+  crew_meetup:           { points: 15,  dailyCap: 30 },
   // Group & channel activity
   group_joined:          { points: 15,  dailyCap: 15, once: true },
   group_message:         { points: 1,   dailyCap: 30 },
