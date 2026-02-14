@@ -647,6 +647,24 @@ export function buildFlowMenuKeyboard(): InlineKeyboard {
     .text("\u25c0\ufe0f Menu", "mn:menu");
 }
 
+export function formatFlowShareHtml(link: string): string {
+  return [
+    `<b>Join my Flow</b>`,
+    "",
+    "Share this with friends \u2014 when they tap it, you'll be connected and see each other's event plans.",
+  ].join("\n");
+}
+
+export function buildFlowShareKeyboard(link: string): InlineKeyboard {
+  const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent("Join my Flow on FlowB! Tap the link to connect and see each other's event plans.")}`;
+  return new InlineKeyboard()
+    .url("\ud83d\udce4 Share with Friends", shareUrl)
+    .row()
+    .text("\ud83d\udd17 Copy Link", "fl:copy-link")
+    .row()
+    .text("\u25c0\ufe0f Back to Flow", "fl:menu");
+}
+
 export function formatFlowInviteAcceptedHtml(inviterName: string): string {
   return [
     `<b>You're in the flow!</b>`,

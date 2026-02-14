@@ -252,10 +252,8 @@ export class FlowPlugin implements FlowBPlugin {
    * Stored in flowb_user_points.referral_code (reuse existing field).
    * Returns the deep link for sharing.
    */
-  async flowInvite(cfg: FlowPluginConfig, uid?: string): Promise<string> {
-    if (!uid) return "User ID required.";
-
-    // Reuse referral_code from points table as personal flow code
+  /** Get or create the user's personal flow invite link */
+  async getInviteLink(cfg: FlowPluginConfig, uid: string): Promise<string> {
     const rows = await sbQuery<any[]>(cfg, "flowb_user_points", {
       select: "referral_code",
       user_id: `eq.${uid}`,
@@ -265,7 +263,6 @@ export class FlowPlugin implements FlowBPlugin {
     let code = rows?.[0]?.referral_code;
     if (!code) {
       code = generateCode(8);
-      // Try to set it - might already have a row, might not
       await sbUpsert(cfg, "flowb_user_points", {
         user_id: uid,
         platform: "telegram",
@@ -279,7 +276,13 @@ export class FlowPlugin implements FlowBPlugin {
     }
 
     const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    const link = `https://t.me/${botUsername}?start=f_${code}`;
+    return `https://t.me/${botUsername}?start=f_${code}`;
+  }
+
+  async flowInvite(cfg: FlowPluginConfig, uid?: string): Promise<string> {
+    if (!uid) return "User ID required.";
+
+    const link = await this.getInviteLink(cfg, uid);
 
     return [
       "**Join my Flow**",
@@ -373,12 +376,14 @@ export class FlowPlugin implements FlowBPlugin {
 
     const lines = ["**Your Flow**\n"];
 
-    // Friends section
+    // Friends section — resolve usernames
     if (friends?.length) {
+      const friendIds = friends.map((f) => f.friend_id);
+      const nameMap = await this.resolveNames(cfg, friendIds);
+
       lines.push(`**Friends** (${friends.length})`);
       for (const f of friends) {
-        const name = f.friend_id.replace("telegram_", "@");
-        lines.push(`  ${name}`);
+        lines.push(`  ${this.displayName(nameMap, f.friend_id)}`);
       }
       lines.push("");
     } else {
@@ -816,19 +821,22 @@ export class FlowPlugin implements FlowBPlugin {
     const maybe = attendance.filter((a) => a.status === "maybe");
     const eventName = attendance[0].event_name || "this event";
 
+    const allIds = attendance.map((a) => a.user_id);
+    const nameMap = await this.resolveNames(cfg, allIds);
+
     const lines = [`**Who's going to ${eventName}?**\n`];
 
     if (going.length) {
       lines.push(`**Going** (${going.length})`);
       for (const a of going) {
-        lines.push(`  ${a.user_id.replace("telegram_", "@")}`);
+        lines.push(`  ${this.displayName(nameMap, a.user_id)}`);
       }
     }
 
     if (maybe.length) {
       lines.push(`\n**Maybe** (${maybe.length})`);
       for (const a of maybe) {
-        lines.push(`  ${a.user_id.replace("telegram_", "@")}`);
+        lines.push(`  ${this.displayName(nameMap, a.user_id)}`);
       }
     }
 
@@ -859,6 +867,9 @@ export class FlowPlugin implements FlowBPlugin {
       return "**Your Flow's Schedule**\n\nNo upcoming RSVPs from your flow. You could be the trendsetter!";
     }
 
+    const allIds = attendance.map((a) => a.user_id);
+    const nameMap = await this.resolveNames(cfg, allIds);
+
     // Group by event
     const byEvent = new Map<string, { name: string; date: string | null; venue: string | null; going: string[]; maybe: string[] }>();
     for (const a of attendance) {
@@ -873,9 +884,9 @@ export class FlowPlugin implements FlowBPlugin {
         });
       }
       const entry = byEvent.get(key)!;
-      const displayName = a.user_id.replace("telegram_", "@");
-      if (a.status === "going") entry.going.push(displayName);
-      else entry.maybe.push(displayName);
+      const dn = this.displayName(nameMap, a.user_id);
+      if (a.status === "going") entry.going.push(dn);
+      else entry.maybe.push(dn);
     }
 
     const lines = ["**Your Flow's Schedule**\n"];
@@ -1120,5 +1131,27 @@ export class FlowPlugin implements FlowBPlugin {
     });
 
     return [...new Set((allMembers || []).map((m: any) => m.user_id))];
+  }
+
+  /** Resolve user IDs to display names via flowb_sessions table */
+  private async resolveNames(cfg: FlowPluginConfig, userIds: string[]): Promise<Map<string, string>> {
+    const nameMap = new Map<string, string>();
+    if (!userIds.length) return nameMap;
+    const sessions = await sbQuery<{ user_id: string; danz_username: string }[]>(cfg, "flowb_sessions", {
+      select: "user_id,danz_username",
+      user_id: `in.(${userIds.join(",")})`,
+    });
+    for (const s of sessions || []) {
+      if (s.danz_username) nameMap.set(s.user_id, s.danz_username);
+    }
+    return nameMap;
+  }
+
+  /** Get clickable display name for a user ID (markdown link to Telegram profile) */
+  private displayName(nameMap: Map<string, string>, uid: string): string {
+    const name = nameMap.get(uid) || uid.replace("telegram_", "@");
+    const tgId = uid.replace("telegram_", "");
+    // tg://user?id= links open the user's Telegram profile
+    return `[${name}](tg://user?id=${tgId})`;
   }
 }

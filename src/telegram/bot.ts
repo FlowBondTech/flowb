@@ -40,6 +40,8 @@ import {
   // Flow
   formatFlowMenuHtml,
   buildFlowMenuKeyboard,
+  formatFlowShareHtml,
+  buildFlowShareKeyboard,
   formatFlowInviteAcceptedHtml,
   formatCrewJoinedHtml,
   formatCrewMenuHtml,
@@ -569,12 +571,17 @@ export function startTelegramBot(
   bot.command("share", async (ctx) => {
     const tgId = ctx.from!.id;
     await ensureVerified(tgId);
-    const result = await core.execute("flow-invite", {
-      action: "flow-invite",
-      user_id: userId(tgId),
-      platform: "telegram",
+    const flowPlugin = core.getFlowPlugin();
+    const flowCfg = core.getFlowConfig();
+    if (!flowPlugin || !flowCfg) {
+      await ctx.reply("Flow not configured.");
+      return;
+    }
+    const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
+    await ctx.reply(formatFlowShareHtml(link), {
+      parse_mode: "HTML",
+      reply_markup: buildFlowShareKeyboard(link),
     });
-    await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
     core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
   });
 
@@ -1162,13 +1169,38 @@ export function startTelegramBot(
 
       if (action === "share") {
         await ctx.answerCallbackQuery();
-        const result = await core.execute("flow-invite", {
-          action: "flow-invite",
-          user_id: userId(tgId),
-          platform: "telegram",
-        });
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
+          await ctx.reply(formatFlowShareHtml(link), {
+            parse_mode: "HTML",
+            reply_markup: buildFlowShareKeyboard(link),
+          });
+        }
         core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
+        return;
+      }
+
+      if (action === "copy-link") {
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
+          await ctx.answerCallbackQuery();
+          await ctx.reply(link);
+        } else {
+          await ctx.answerCallbackQuery({ text: "Flow not configured." });
+        }
+        return;
+      }
+
+      if (action === "menu") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply(formatFlowMenuHtml(), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowMenuKeyboard(),
+        });
         return;
       }
 
@@ -1557,12 +1589,15 @@ export function startTelegramBot(
     }
 
     if (/^(?:share|invite|share\s+(?:my\s+)?(?:flow|link))$/.test(cleaned)) {
-      const result = await core.execute("flow-invite", {
-        action: "flow-invite",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      if (flowPlugin && flowCfg) {
+        const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
+        await ctx.reply(formatFlowShareHtml(link), {
+          parse_mode: "HTML",
+          reply_markup: buildFlowShareKeyboard(link),
+        });
+      }
       return;
     }
 
