@@ -24,8 +24,7 @@ CREATE INDEX IF NOT EXISTS idx_checkins_crew
 CREATE INDEX IF NOT EXISTS idx_checkins_user
   ON flowb_checkins (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_checkins_active
-  ON flowb_checkins (expires_at)
-  WHERE expires_at > now();
+  ON flowb_checkins (expires_at);
 
 -- ============================================================
 -- 2. Schedules (rich personal RSVP / schedule entries)
