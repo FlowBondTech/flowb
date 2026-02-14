@@ -58,6 +58,7 @@ export function buildApp(core: FlowBCore) {
     "/auth/telegram",
     async (request, reply) => {
       const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+      const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
       if (!botToken) {
         return reply.status(500).send({ error: "Bot token not configured" });
       }
@@ -69,14 +70,14 @@ export function buildApp(core: FlowBCore) {
       const { valid, error } = verifyTelegramAuth(authData, botToken);
       if (!valid) {
         app.log.warn(`[auth/telegram] Verification failed: ${error}`);
-        return reply.type("text/html").status(403).send(authErrorPage(error || "Verification failed"));
+        return reply.type("text/html").status(403).send(authErrorPage(error || "Verification failed", botUsername));
       }
 
       // Store the Telegram<->DANZ link
       const linkResult = await core.linkTelegramUser(authData);
       if (!linkResult.success) {
         app.log.error(`[auth/telegram] Link failed: ${linkResult.error}`);
-        return reply.type("text/html").status(500).send(authErrorPage(linkResult.error || "Link failed"));
+        return reply.type("text/html").status(500).send(authErrorPage(linkResult.error || "Link failed", botUsername));
       }
 
       app.log.info(
@@ -88,7 +89,7 @@ export function buildApp(core: FlowBCore) {
         .awardPoints(`telegram_${authData.id}`, "telegram", "verification_complete")
         .catch(() => {});
 
-      return reply.type("text/html").send(authSuccessPage(authData.first_name));
+      return reply.type("text/html").send(authSuccessPage(authData.first_name, botUsername));
     },
   );
 
@@ -172,7 +173,7 @@ function connectPage(botUsername: string, callbackUrl: string): string {
 </html>`;
 }
 
-function authSuccessPage(firstName: string): string {
+function authSuccessPage(firstName: string, botUsername: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -217,13 +218,13 @@ function authSuccessPage(firstName: string): string {
     <div class="check">&#x2705;</div>
     <h1>You're connected!</h1>
     <p>Welcome, <strong>${firstName}</strong>! Your Telegram account is now linked. Head back to the bot to start earning points.</p>
-    <a href="https://t.me/Flow_B_bot">Open FlowB Bot</a>
+    <a href="https://t.me/${botUsername}">Open FlowB Bot</a>
   </div>
 </body>
 </html>`;
 }
 
-function authErrorPage(error: string): string {
+function authErrorPage(error: string, botUsername: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -265,7 +266,7 @@ function authErrorPage(error: string): string {
   <div class="card">
     <h1>Connection Failed</h1>
     <p>${error}</p>
-    <a href="https://t.me/Flow_B_bot">Try again in the bot</a>
+    <a href="https://t.me/${botUsername}">Try again in the bot</a>
   </div>
 </body>
 </html>`;

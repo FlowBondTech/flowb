@@ -1,8 +1,9 @@
 /**
  * eGator Plugin for FlowB
  *
- * Aggregated event discovery from multiple sources via the AIeGator API.
- * Pulls from Ticketmaster, Luma, Eventbrite, DANZ, and more.
+ * Unified event aggregator. Pulls from multiple source adapters
+ * (Luma, Eventbrite, Brave Search, Tavily, Meetup, RA, Google Places)
+ * and merges results into a single deduplicated feed.
  */
 
 import type {
@@ -13,7 +14,16 @@ import type {
   EGatorPluginConfig,
   EventQuery,
   EventResult,
+  EventSourceAdapter,
 } from "../../core/types.js";
+
+import { LumaAdapter } from "./sources/luma.js";
+import { EventbriteAdapter } from "./sources/eventbrite.js";
+import { BraveSearchAdapter } from "./sources/brave.js";
+import { TavilyAdapter } from "./sources/tavily.js";
+import { MeetupAdapter } from "./sources/meetup.js";
+import { ResidentAdvisorAdapter } from "./sources/ra.js";
+import { GooglePlacesAdapter } from "./sources/google-places.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
   id = "egator";
@@ -26,13 +36,30 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   };
 
   private config: EGatorPluginConfig | null = null;
+  private adapters: EventSourceAdapter[] = [];
 
   configure(config: EGatorPluginConfig) {
     this.config = config;
+    this.adapters = [];
+
+    const sources = config.sources;
+    if (sources?.luma?.apiKey) this.adapters.push(new LumaAdapter(sources.luma.apiKey));
+    if (sources?.eventbrite?.apiKey) this.adapters.push(new EventbriteAdapter(sources.eventbrite.apiKey));
+    if (sources?.brave?.apiKey) this.adapters.push(new BraveSearchAdapter(sources.brave.apiKey));
+    if (sources?.tavily?.apiKey) this.adapters.push(new TavilyAdapter(sources.tavily.apiKey));
+    if (sources?.meetup) this.adapters.push(new MeetupAdapter());
+    if (sources?.ra) this.adapters.push(new ResidentAdvisorAdapter());
+    if (sources?.googlePlaces?.apiKey) this.adapters.push(new GooglePlacesAdapter(sources.googlePlaces.apiKey));
+
+    const names = this.adapters.map((a) => a.name);
+    if (names.length) {
+      console.log(`[egator] Sources: ${names.join(", ")}`);
+    }
   }
 
   isConfigured(): boolean {
-    return !!this.config?.apiBaseUrl;
+    // Configured if we have at least one adapter OR the legacy API URL
+    return this.adapters.length > 0 || !!this.config?.apiBaseUrl;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
@@ -52,6 +79,52 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   async getEvents(params: EventQuery): Promise<EventResult[]> {
     if (!this.config) return [];
+
+    const allEvents: EventResult[] = [];
+
+    // Fetch from all adapters in parallel
+    if (this.adapters.length > 0) {
+      const results = await Promise.allSettled(
+        this.adapters.map((adapter) =>
+          adapter.fetchEvents(params).catch((err) => {
+            console.error(`[egator] ${adapter.name} failed:`, err.message || err);
+            return [] as EventResult[];
+          })
+        )
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value.length) {
+          allEvents.push(...result.value);
+        }
+      }
+    }
+
+    // Fallback: legacy external API
+    if (allEvents.length === 0 && this.config.apiBaseUrl) {
+      const legacyEvents = await this.fetchLegacyApi(params);
+      allEvents.push(...legacyEvents);
+    }
+
+    // Sort by start time
+    allEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    // Deduplicate by title similarity
+    const seen = new Set<string>();
+    return allEvents.filter((e) => {
+      const key = e.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  // ========================================================================
+  // Legacy API fallback
+  // ========================================================================
+
+  private async fetchLegacyApi(params: EventQuery): Promise<EventResult[]> {
+    if (!this.config?.apiBaseUrl) return [];
 
     try {
       const res = await fetch(`${this.config.apiBaseUrl}/api/v1/discover`, {
@@ -85,7 +158,7 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
         url: e.url,
       }));
     } catch (err) {
-      console.error("[egator] API fetch failed:", err);
+      console.error("[egator] Legacy API fetch failed:", err);
       return [];
     }
   }

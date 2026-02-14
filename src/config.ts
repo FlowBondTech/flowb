@@ -1,4 +1,4 @@
-import type { FlowBConfig } from "./core/types.js";
+import type { FlowBConfig, EGatorPluginConfig } from "./core/types.js";
 
 export function loadConfig(): FlowBConfig {
   return {
@@ -7,9 +7,7 @@ export function loadConfig(): FlowBConfig {
         supabaseUrl: process.env.DANZ_SUPABASE_URL,
         supabaseKey: process.env.DANZ_SUPABASE_KEY!,
       } : undefined,
-      egator: process.env.EGATOR_API_URL ? {
-        apiBaseUrl: process.env.EGATOR_API_URL,
-      } : undefined,
+      egator: buildEgatorConfig(),
       neynar: process.env.NEYNAR_API_KEY ? {
         apiKey: process.env.NEYNAR_API_KEY,
         agentToken: process.env.NEYNAR_AGENT_TOKEN,
@@ -41,5 +39,27 @@ export function loadConfig(): FlowBConfig {
         supabaseKey: process.env.DANZ_SUPABASE_KEY!,
       } : undefined,
     },
+  };
+}
+
+function buildEgatorConfig(): EGatorPluginConfig | undefined {
+  const sources: EGatorPluginConfig["sources"] = {};
+  let hasSource = false;
+
+  if (process.env.LUMA_API_KEY) { sources.luma = { apiKey: process.env.LUMA_API_KEY }; hasSource = true; }
+  if (process.env.EVENTBRITE_API_KEY) { sources.eventbrite = { apiKey: process.env.EVENTBRITE_API_KEY }; hasSource = true; }
+  if (process.env.BRAVE_SEARCH_API_KEY) { sources.brave = { apiKey: process.env.BRAVE_SEARCH_API_KEY }; hasSource = true; }
+  if (process.env.TAVILY_API_KEY) { sources.tavily = { apiKey: process.env.TAVILY_API_KEY }; hasSource = true; }
+  if (process.env.EGATOR_MEETUP === "true") { sources.meetup = {}; hasSource = true; }
+  if (process.env.EGATOR_RA === "true") { sources.ra = {}; hasSource = true; }
+  if (process.env.GOOGLE_PLACES_API_KEY) { sources.googlePlaces = { apiKey: process.env.GOOGLE_PLACES_API_KEY }; hasSource = true; }
+
+  const apiBaseUrl = process.env.EGATOR_API_URL;
+
+  if (!hasSource && !apiBaseUrl) return undefined;
+
+  return {
+    apiBaseUrl,
+    sources: hasSource ? sources : undefined,
   };
 }

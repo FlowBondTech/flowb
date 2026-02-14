@@ -23,7 +23,23 @@ export interface DANZPluginConfig {
 }
 
 export interface EGatorPluginConfig {
-  apiBaseUrl: string;
+  apiBaseUrl?: string; // Legacy external API (optional fallback)
+  sources?: {
+    luma?: { apiKey: string };
+    eventbrite?: { apiKey: string };
+    brave?: { apiKey: string };
+    tavily?: { apiKey: string };
+    meetup?: {};
+    ra?: {};
+    googlePlaces?: { apiKey: string };
+  };
+}
+
+/** Adapter that fetches events from a single source */
+export interface EventSourceAdapter {
+  id: string;
+  name: string;
+  fetchEvents(params: EventQuery): Promise<EventResult[]>;
 }
 
 export interface NeynarPluginConfig {
