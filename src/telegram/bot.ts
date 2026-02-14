@@ -1769,6 +1769,39 @@ export function startTelegramBot(
       return;
     }
 
+    // Farcaster callbacks: fc:trending, fc:profile
+    if (data.startsWith("fc:")) {
+      const action = data.slice(3);
+
+      if (action === "trending") {
+        await ctx.answerCallbackQuery();
+        await ctx.replyWithChatAction("typing");
+        const result = await core.execute("farcaster-feed", {
+          action: "farcaster-feed",
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+        await ctx.reply(markdownToHtml(result), {
+          parse_mode: "HTML",
+          reply_markup: buildFarcasterMenuKeyboard(),
+        });
+        core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
+        return;
+      }
+
+      if (action === "profile") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "Who do you want to look up?\n\n<i>Type a Farcaster username, e.g. <b>dwr</b> or <b>vitalik.eth</b></i>",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     await ctx.answerCallbackQuery();
   });
 
@@ -1981,6 +2014,52 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Farcaster intents ----
+    // "farcaster", "fc", "trending casts", "fc trending"
+    if (/^(?:farcaster|fc|casts?)$/.test(cleaned)) {
+      await ctx.reply(formatFarcasterMenuHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildFarcasterMenuKeyboard(),
+      });
+      return;
+    }
+
+    // "fc trending", "trending casts", "trending on farcaster"
+    if (/^(?:(?:fc\s+)?trending(?:\s+casts?)?|trending\s+on\s+farcaster)$/.test(cleaned)) {
+      await ctx.replyWithChatAction("typing");
+      const result = await core.execute("farcaster-feed", {
+        action: "farcaster-feed",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      await ctx.reply(markdownToHtml(result), {
+        parse_mode: "HTML",
+        reply_markup: buildFarcasterMenuKeyboard(),
+      });
+      core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
+      return;
+    }
+
+    // "fc profile @vitalik", "farcaster profile dwr", "who is @jessepollak on fc"
+    const fcProfileMatch = cleaned.match(
+      /^(?:fc\s+(?:profile\s+)?|farcaster\s+(?:profile\s+)?|who\s+is\s+)@?(\w[\w.]+)(?:\s+on\s+(?:fc|farcaster))?$/,
+    );
+    if (fcProfileMatch) {
+      await ctx.replyWithChatAction("typing");
+      const result = await core.execute("farcaster-profile", {
+        action: "farcaster-profile",
+        user_id: userId(tgId),
+        platform: "telegram",
+        farcaster_username: fcProfileMatch[1],
+      });
+      await ctx.reply(markdownToHtml(result), {
+        parse_mode: "HTML",
+        reply_markup: buildFarcasterMenuKeyboard(),
+      });
+      core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
+      return;
+    }
+
     // "trade", "trading", "swap"
     if (/^(?:trade|trading|swap|dex)$/.test(cleaned)) {
       await ctx.reply(formatTradingMenuHtml(), {
@@ -2007,12 +2086,14 @@ export function startTelegramBot(
     // Not recognized - show menu with all options
     await ctx.reply(
       [
-        `I can help with events, trading, and battles! Try:`,
+        `I can help with events, trading, Farcaster &amp; more! Try:`,
         ``,
         `\u2022 <i>"price ETH"</i> \u2014 live token price`,
         `\u2022 <i>"trade 10 USDC to ETH"</i> \u2014 swap tokens`,
         `\u2022 <i>"start a battle"</i> \u2014 stake on a dance-off`,
         `\u2022 <i>"salsa events in Denver"</i> \u2014 find events`,
+        `\u2022 <i>"fc trending"</i> \u2014 trending Farcaster casts`,
+        `\u2022 <i>"fc profile dwr"</i> \u2014 look up a profile`,
         `\u2022 <i>"balance"</i> \u2014 check your wallet`,
         ``,
         `Or tap a button below:`,
@@ -2309,6 +2390,14 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
       });
       break;
     }
+
+    case "farcaster":
+      await ctx.answerCallbackQuery();
+      await ctx.reply(formatFarcasterMenuHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildFarcasterMenuKeyboard(),
+      });
+      break;
 
     case "challenges":
       await ctx.answerCallbackQuery();

@@ -28,6 +28,7 @@ export interface EGatorPluginConfig {
 
 export interface NeynarPluginConfig {
   apiKey: string;
+  agentToken?: string;
 }
 
 export interface PrivyPluginConfig {

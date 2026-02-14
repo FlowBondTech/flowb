@@ -12,6 +12,7 @@ export function loadConfig(): FlowBConfig {
       } : undefined,
       neynar: process.env.NEYNAR_API_KEY ? {
         apiKey: process.env.NEYNAR_API_KEY,
+        agentToken: process.env.NEYNAR_AGENT_TOKEN,
       } : undefined,
       privy: process.env.PRIVY_APP_ID ? {
         appId: process.env.PRIVY_APP_ID,

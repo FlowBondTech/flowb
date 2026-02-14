@@ -385,7 +385,8 @@ export class PointsPlugin implements FlowBPlugin {
     if (!userId) return "User ID required.";
 
     const code = await this.getReferralCode(cfg, userId, platform || "api");
-    return `**Your Referral Link**\n\nShare this with friends:\nhttps://t.me/FlowBBot?start=ref_${code}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_B_bot";
+    return `**Your Referral Link**\n\nShare this with friends:\nhttps://t.me/${botUsername}?start=ref_${code}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
   }
 
   private async getHistoryFormatted(cfg: PointsPluginConfig, userId?: string, platform?: string): Promise<string> {
