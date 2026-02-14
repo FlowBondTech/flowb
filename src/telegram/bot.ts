@@ -6,6 +6,7 @@
  */
 
 import { Bot, InlineKeyboard } from "grammy";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
 import { PrivyClient } from "../services/privy.js";
@@ -60,6 +61,9 @@ import {
   // UX helpers
   formatVerifiedHookHtml,
   buildBackToMenuKeyboard,
+  // Farcaster
+  formatFarcasterMenuHtml,
+  buildFarcasterMenuKeyboard,
 } from "./cards.js";
 
 const PAGE_SIZE = 3;
@@ -87,6 +91,77 @@ interface TgSession {
 }
 
 const sessions = new Map<number, TgSession>();
+
+// Supabase client for persistent session storage (survives restarts)
+const supabase: SupabaseClient | null =
+  process.env.DANZ_SUPABASE_URL && process.env.DANZ_SUPABASE_KEY
+    ? createClient(process.env.DANZ_SUPABASE_URL, process.env.DANZ_SUPABASE_KEY)
+    : null;
+
+let sessionTableReady = false;
+
+/** Check if flowb_sessions table exists, create if missing */
+async function ensureSessionTable(): Promise<boolean> {
+  if (sessionTableReady || !supabase) return sessionTableReady;
+  try {
+    const { error } = await supabase.from("flowb_sessions").select("user_id").limit(1);
+    if (error && (error.message.includes("does not exist") || error.message.includes("Could not find"))) {
+      // Try to create via raw REST (works with service role key)
+      const url = process.env.DANZ_SUPABASE_URL!;
+      const key = process.env.DANZ_SUPABASE_KEY!;
+      const res = await fetch(`${url}/rest/v1/rpc/`, {
+        method: "POST",
+        headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      });
+      // If RPC endpoint doesn't help, log the SQL for manual creation
+      console.warn("[flowb-telegram] flowb_sessions table not found. Create it with:");
+      console.warn(`  CREATE TABLE flowb_sessions (user_id TEXT PRIMARY KEY, verified BOOLEAN NOT NULL DEFAULT FALSE, privy_id TEXT, danz_username TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());`);
+      return false;
+    }
+    sessionTableReady = true;
+    console.log("[flowb-telegram] Session persistence ready (flowb_sessions)");
+  } catch (err) {
+    console.warn("[flowb-telegram] Session table check failed, using in-memory only");
+  }
+  return sessionTableReady;
+}
+
+/** Load persistent session fields from Supabase */
+async function loadPersistent(tgId: number): Promise<Partial<TgSession> | null> {
+  if (!supabase || !sessionTableReady) return null;
+  try {
+    const { data } = await supabase
+      .from("flowb_sessions")
+      .select("verified,privy_id,danz_username")
+      .eq("user_id", `telegram_${tgId}`)
+      .single();
+    if (data) {
+      return {
+        verified: data.verified ?? false,
+        privyId: data.privy_id ?? undefined,
+        danzUsername: data.danz_username ?? undefined,
+      };
+    }
+  } catch {}
+  return null;
+}
+
+/** Save persistent session fields to Supabase (fire-and-forget) */
+function savePersistent(tgId: number, session: TgSession): void {
+  if (!supabase || !sessionTableReady) return;
+  supabase
+    .from("flowb_sessions")
+    .upsert({
+      user_id: `telegram_${tgId}`,
+      verified: session.verified,
+      privy_id: session.privyId || null,
+      danz_username: session.danzUsername || null,
+      updated_at: new Date().toISOString(),
+    })
+    .then(({ error }: { error: any }) => {
+      if (error) console.error("[flowb-telegram] Session save error:", error.message);
+    });
+}
 
 function getSession(userId: number): TgSession | undefined {
   const s = sessions.get(userId);
@@ -118,6 +193,16 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     verified: partial.verified ?? existing?.verified ?? false,
   };
   sessions.set(userId, session);
+
+  // Persist to Supabase when identity/verification fields change
+  if (session.verified && (
+    partial.verified !== undefined ||
+    partial.privyId !== undefined ||
+    partial.danzUsername !== undefined
+  )) {
+    savePersistent(userId, session);
+  }
+
   return session;
 }
 
@@ -139,6 +224,9 @@ export function startTelegramBot(
     process.env.FLOWB_CONNECT_URL ||
     `http://localhost:${process.env.PORT || "8080"}/connect`;
 
+  // Check persistent session table on startup
+  ensureSessionTable().catch(() => {});
+
   // ========================================================================
   // Privy auto-verify
   // ========================================================================
@@ -146,6 +234,13 @@ export function startTelegramBot(
   async function ensureVerified(tgId: number): Promise<TgSession> {
     const existing = getSession(tgId);
     if (existing?.verified) return existing;
+
+    // Strategy 0: Load from DB (survives restarts)
+    const persisted = await loadPersistent(tgId);
+    if (persisted?.verified) {
+      console.log(`[flowb-telegram] Restored session from DB: ${persisted.danzUsername} (tg: ${tgId})`);
+      return setSession(tgId, persisted);
+    }
 
     // Strategy 1: Check Privy (if configured)
     if (privy) {
@@ -1725,7 +1820,12 @@ export function startTelegramBot(
       const action = isReply ? "group_reply" : "group_message";
       core.awardPoints(userId(tgId), "telegram", action).catch(() => {});
 
-      if (!ctx.message.text.toLowerCase().includes("flowb")) return;
+      const textLower = ctx.message.text.toLowerCase();
+      const isReplyToBot = ctx.message.reply_to_message?.from?.id === bot.botInfo?.id;
+      const mentioned = textLower.includes("flowb")
+        || textLower.includes(`@${botUsername.toLowerCase()}`)
+        || isReplyToBot;
+      if (!mentioned) return;
     }
 
     await ensureVerified(tgId);
@@ -1745,8 +1845,9 @@ export function startTelegramBot(
       return;
     }
 
-    // Strip "flowb" / "hey flowb" prefix for intent matching
+    // Strip "flowb" / "hey flowb" / "@flow_b_bot" prefix for intent matching
     const cleaned = lower
+      .replace(new RegExp(`@${botUsername.toLowerCase()}`, "g"), "")
       .replace(/^(?:hey\s+)?flowb[,!.\s]*/i, "")
       .trim();
 

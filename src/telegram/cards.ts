@@ -41,7 +41,9 @@ export function buildMenuKeyboard(): InlineKeyboard {
     .text("\ud83d\udcc8 Trade", "mn:trade")
     .row()
     .text("\ud83d\udcb0 Rewards", "mn:rewards")
-    .text("\u2694\ufe0f Battles", "mn:battles");
+    .text("\u2694\ufe0f Battles", "mn:battles")
+    .row()
+    .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
 }
 
 /** Minimal back-to-menu row for appending to responses */
@@ -877,4 +879,25 @@ export function parseTradeIntent(text: string): TradeIntent {
     toToken: match[3].toUpperCase(),
     valid: true,
   };
+}
+
+// ==========================================================================
+// Farcaster
+// ==========================================================================
+
+export function formatFarcasterMenuHtml(): string {
+  return [
+    `<b>Farcaster</b>`,
+    "",
+    "Look up profiles, check trending casts,",
+    "or verify your social challenges on-chain.",
+  ].join("\n");
+}
+
+export function buildFarcasterMenuKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Trending", "fc:trending")
+    .text("Search Profile", "fc:profile")
+    .row()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
 }
