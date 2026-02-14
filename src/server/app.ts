@@ -6,11 +6,15 @@ import {
   verifyTelegramAuth,
   parseTelegramAuthParams,
 } from "../services/telegram-auth.js";
+import { registerMiniAppRoutes } from "./routes.js";
 
 export function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
 
   app.register(cors);
+
+  // Register mini app API routes (auth, events, flow, notifications)
+  registerMiniAppRoutes(app, core);
 
   // Health check + plugin status
   app.get("/health", async () => {

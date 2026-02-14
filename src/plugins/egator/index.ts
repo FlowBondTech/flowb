@@ -2,7 +2,7 @@
  * eGator Plugin for FlowB
  *
  * Unified event aggregator. Pulls from multiple source adapters
- * (Luma, Eventbrite, Brave Search, Tavily, Meetup, RA, Google Places)
+ * (Luma, Eventbrite, Brave Search, Tavily, RA, Google Places)
  * and merges results into a single deduplicated feed.
  */
 
@@ -21,7 +21,6 @@ import { LumaAdapter } from "./sources/luma.js";
 import { EventbriteAdapter } from "./sources/eventbrite.js";
 import { BraveSearchAdapter } from "./sources/brave.js";
 import { TavilyAdapter } from "./sources/tavily.js";
-import { MeetupAdapter } from "./sources/meetup.js";
 import { ResidentAdvisorAdapter } from "./sources/ra.js";
 import { GooglePlacesAdapter } from "./sources/google-places.js";
 
@@ -47,7 +46,6 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     if (sources?.eventbrite?.apiKey) this.adapters.push(new EventbriteAdapter(sources.eventbrite.apiKey));
     if (sources?.brave?.apiKey) this.adapters.push(new BraveSearchAdapter(sources.brave.apiKey));
     if (sources?.tavily?.apiKey) this.adapters.push(new TavilyAdapter(sources.tavily.apiKey));
-    if (sources?.meetup) this.adapters.push(new MeetupAdapter());
     if (sources?.ra) this.adapters.push(new ResidentAdvisorAdapter());
     if (sources?.googlePlaces?.apiKey) this.adapters.push(new GooglePlacesAdapter(sources.googlePlaces.apiKey));
 

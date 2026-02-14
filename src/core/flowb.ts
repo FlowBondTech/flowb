@@ -13,7 +13,6 @@ import { DANZPlugin } from "../plugins/danz/index.js";
 import { EGatorPlugin, formatEventList } from "../plugins/egator/index.js";
 import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
-import { TradingPlugin } from "../plugins/trading/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
@@ -22,6 +21,7 @@ export class FlowBCore {
   private plugins: Map<string, FlowBPlugin> = new Map();
   private eventProviders: EventProvider[] = [];
   private config: FlowBConfig;
+  /** CDP client for backend onchain actions (not public-facing) */
   cdp: CDPClient | null = null;
   private verifiedHooks: Array<(tgId: number, username: string) => void> = [];
 
@@ -29,6 +29,17 @@ export class FlowBCore {
     this.config = config;
     this.initPlugins();
     this.initCDP();
+  }
+
+  private initCDP() {
+    if (this.config.plugins?.cdp) {
+      try {
+        this.cdp = new CDPClient(this.config.plugins.cdp);
+        console.log(`[flowb] CDP client initialized (address: ${this.cdp.address})`);
+      } catch (err) {
+        console.error("[flowb] CDP client init failed:", err);
+      }
+    }
   }
 
   private initPlugins() {
@@ -55,12 +66,6 @@ export class FlowBCore {
       points.configure(this.config.plugins.points);
     }
     this.registerPlugin(points);
-
-    const trading = new TradingPlugin();
-    if (this.config.plugins?.trading) {
-      trading.configure(this.config.plugins.trading);
-    }
-    this.registerPlugin(trading);
 
     const flow = new FlowPlugin();
     if (this.config.plugins?.flow) {
@@ -438,93 +443,4 @@ export class FlowBCore {
     }
   }
 
-  // ==========================================================================
-  // CDP / Payout System
-  // ==========================================================================
-
-  private initCDP() {
-    if (this.config.plugins?.cdp) {
-      try {
-        this.cdp = new CDPClient(this.config.plugins.cdp);
-        console.log(`[flowb] CDP client initialized (address: ${this.cdp.address})`);
-      } catch (err) {
-        console.error("[flowb] CDP client init failed:", err);
-      }
-    }
-  }
-
-  /** Process pending payout claims by sending USDC via CDP */
-  async processPayouts(): Promise<{ processed: number; failed: number; total: number }> {
-    if (!this.cdp || !this.config.plugins?.danz) {
-      return { processed: 0, failed: 0, total: 0 };
-    }
-
-    const cfg = this.config.plugins.danz;
-    const url = `${cfg.supabaseUrl}/rest/v1/payout_claims`;
-
-    // Fetch pending claims with linked wallets
-    const claimsRes = await fetch(
-      `${url}?status=eq.pending&select=id,privy_id,amount_usdc,challenge_id,user_wallets(wallet_address)&order=claimed_at.asc&limit=10`,
-      {
-        headers: {
-          apikey: cfg.supabaseKey,
-          Authorization: `Bearer ${cfg.supabaseKey}`,
-        },
-      },
-    );
-
-    if (!claimsRes.ok) return { processed: 0, failed: 0, total: 0 };
-    const claims = await claimsRes.json();
-    if (!claims?.length) return { processed: 0, failed: 0, total: 0 };
-
-    let processed = 0;
-    let failed = 0;
-
-    for (const claim of claims) {
-      const walletAddr = claim.user_wallets?.wallet_address;
-      if (!walletAddr) {
-        // No wallet linked, skip
-        continue;
-      }
-
-      const amount = Number(claim.amount_usdc);
-      if (amount <= 0) continue;
-
-      const result = await this.cdp.sendUSDC(walletAddr, amount);
-
-      // Update claim status
-      const newStatus = result.success ? "paid" : "failed";
-      const updateBody: Record<string, any> = {
-        status: newStatus,
-      };
-      if (result.txHash) {
-        updateBody.tx_hash = result.txHash;
-        updateBody.paid_at = new Date().toISOString();
-      }
-      if (result.error) {
-        updateBody.error_message = result.error;
-      }
-
-      await fetch(`${url}?id=eq.${claim.id}`, {
-        method: "PATCH",
-        headers: {
-          apikey: cfg.supabaseKey,
-          Authorization: `Bearer ${cfg.supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify(updateBody),
-      });
-
-      if (result.success) {
-        processed++;
-        console.log(`[flowb-cdp] Paid ${amount} USDC to ${walletAddr} (tx: ${result.txHash})`);
-      } else {
-        failed++;
-        console.error(`[flowb-cdp] Failed payout to ${walletAddr}: ${result.error}`);
-      }
-    }
-
-    return { processed, failed, total: claims.length };
-  }
 }

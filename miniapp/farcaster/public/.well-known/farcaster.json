@@ -1,0 +1,16 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "version": "1",
+    "name": "FlowB",
+    "iconUrl": "https://flowb-fc.netlify.app/icon.png",
+    "homeUrl": "https://flowb-fc.netlify.app",
+    "splashImageUrl": "https://flowb-fc.netlify.app/splash.png",
+    "splashBackgroundColor": "#0a0a0a",
+    "webhookUrl": "https://your-flowb-backend.fly.dev/api/v1/notifications/farcaster/webhook"
+  }
+}

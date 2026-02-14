@@ -47,6 +47,12 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   event_rsvp:            { points: 5,   dailyCap: 25 },
   friend_meetup:         { points: 10,  dailyCap: 30 },
   crew_meetup:           { points: 15,  dailyCap: 30 },
+  // Crew invite rewards (tiered by role)
+  crew_invite_sent_member:    { points: 2,  dailyCap: 20 },
+  crew_invite_sent_admin:     { points: 1,  dailyCap: 10 },
+  crew_invite_converted:      { points: 8,  dailyCap: 40 },
+  crew_invite_converted_admin: { points: 3, dailyCap: 15 },
+  crew_request_approved:      { points: 5,  dailyCap: 25 },
   // Group & channel activity
   group_joined:          { points: 15,  dailyCap: 15, once: true },
   group_message:         { points: 1,   dailyCap: 30 },

@@ -11,7 +11,6 @@ export interface FlowBConfig {
     privy?: PrivyPluginConfig;
     points?: PointsPluginConfig;
     cdp?: CDPPluginConfig;
-    trading?: TradingPluginConfig;
     flow?: FlowPluginConfig;
     [key: string]: any;
   };
@@ -29,7 +28,6 @@ export interface EGatorPluginConfig {
     eventbrite?: { apiKey: string };
     brave?: { apiKey: string };
     tavily?: { apiKey: string };
-    meetup?: {};
     ra?: {};
     googlePlaces?: { apiKey: string };
   };
@@ -57,21 +55,17 @@ export interface PointsPluginConfig {
   supabaseKey: string;
 }
 
+
+export interface FlowPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
 export interface CDPPluginConfig {
   apiKeyName: string;
   apiKeyPrivateKey: string;
   walletSecret: string;
   accountAddress: string;
-}
-
-export interface TradingPluginConfig extends CDPPluginConfig {
-  supabaseUrl: string;
-  supabaseKey: string;
-}
-
-export interface FlowPluginConfig {
-  supabaseUrl: string;
-  supabaseKey: string;
 }
 
 // ============================================================================
@@ -167,15 +161,6 @@ export interface ToolInput {
   dance_move?: string;
   photo_file_id?: string;
   referral_code?: string;
-  // Trading fields
-  token_from?: string;
-  token_to?: string;
-  amount?: string;
-  slippage_bps?: number;
-  // Battle fields
-  battle_id?: string;
-  pool_type?: "winner_take_all" | "top_3" | "proportional";
-  entry_fee?: string;
   // Flow fields
   group_id?: string;
   friend_id?: string;

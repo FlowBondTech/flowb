@@ -50,6 +50,13 @@ import {
   buildGoingKeyboard,
   formatWhosGoingHtml,
   formatFlowAttendanceBadge,
+  // Crew management
+  formatCrewSettingsHtml,
+  buildCrewSettingsKeyboard,
+  formatCrewBrowseHtml,
+  buildCrewBrowseKeyboard,
+  formatJoinRequestHtml,
+  buildJoinRequestKeyboard,
   // UX helpers
   formatVerifiedHookHtml,
   buildBackToMenuKeyboard,
@@ -60,6 +67,8 @@ import {
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
+const MOD_BOT_USERNAME = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+const MOD_MINIAPP_URL = process.env.FLOWB_MINIAPP_URL || "";
 
 interface TgSession {
   events: EventResult[];        // All fetched events (unfiltered)
@@ -209,6 +218,7 @@ export function startTelegramBot(
 ): void {
   const bot = new Bot(token);
   const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+  const miniAppUrl = process.env.FLOWB_MINIAPP_URL || "";
   // Prefer FlowB's own /connect page (serves Telegram Login Widget).
   // Falls back to external DANZ connect URL or localhost for dev.
   const danzConnectUrl =
@@ -287,7 +297,7 @@ export function startTelegramBot(
       await bot.api.sendMessage(
         tgId,
         formatVerifiedHookHtml(username),
-        { parse_mode: "HTML", reply_markup: buildMenuKeyboard() },
+        { parse_mode: "HTML", reply_markup: buildMenuKeyboard(miniAppUrl || undefined) },
       );
       console.log(`[flowb-telegram] Sent Verified! to ${tgId} (${username})`);
     } catch (err) {
@@ -315,7 +325,7 @@ export function startTelegramBot(
         const result = await flowPlugin.flowAccept(flowCfg, userId(tgId), { action: "flow-accept", referral_code: flowCode });
         await ctx.reply(markdownToHtml(result), {
           parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
+          reply_markup: buildFlowMenuKeyboard(botUsername),
         });
         core.awardPoints(userId(tgId), "telegram", "flow_accepted").catch(() => {});
       }
@@ -329,11 +339,51 @@ export function startTelegramBot(
       const flowCfg = core.getFlowConfig();
       if (flowPlugin && flowCfg) {
         const result = await flowPlugin.crewJoin(flowCfg, userId(tgId), { action: "crew-join", referral_code: crewCode });
-        await ctx.reply(markdownToHtml(result), {
-          parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
-        });
+        // Check if the result is a JSON join_request_created
+        if (result.includes('"join_request_created"')) {
+          await handleJoinRequestCreated(result, core, flowPlugin, flowCfg, bot, tgId);
+        } else {
+          await ctx.reply(markdownToHtml(result), {
+            parse_mode: "HTML",
+            reply_markup: buildFlowMenuKeyboard(botUsername),
+          });
+        }
         core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+      }
+      return;
+    }
+
+    // --- Personal tracked crew invite: gi_{code} ---
+    if (args?.startsWith("gi_")) {
+      const inviteCode = args.slice(3);
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      if (flowPlugin && flowCfg) {
+        const result = await flowPlugin.crewJoin(flowCfg, userId(tgId), { action: "crew-join", referral_code: inviteCode });
+
+        if (result.includes('"join_request_created"')) {
+          await handleJoinRequestCreated(result, core, flowPlugin, flowCfg, bot, tgId);
+        } else {
+          await ctx.reply(markdownToHtml(result), {
+            parse_mode: "HTML",
+            reply_markup: buildFlowMenuKeyboard(botUsername),
+          });
+
+          // Award points for joining + invite conversion
+          core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+
+          // Track invite attribution
+          const attr = flowPlugin._lastInviteAttribution;
+          if (attr) {
+            flowPlugin._lastInviteAttribution = null;
+            // Determine inviter role for tiered rewards
+            const inviterRole = await flowPlugin.getCrewRole(flowCfg, attr.inviterId, attr.groupId);
+            const convertAction = inviterRole === "admin" || inviterRole === "creator"
+              ? "crew_invite_converted_admin"
+              : "crew_invite_converted";
+            core.awardPoints(attr.inviterId, "telegram", convertAction).catch(() => {});
+          }
+        }
       }
       return;
     }
@@ -366,7 +416,7 @@ export function startTelegramBot(
 
       await ctx.reply(
         formatVerifiedGreetingHtml(session.danzUsername, totalPoints, streakResult.streak),
-        { parse_mode: "HTML", reply_markup: buildMenuKeyboard() },
+        { parse_mode: "HTML", reply_markup: buildMenuKeyboard(miniAppUrl || undefined) },
       );
     } else {
       await ctx.reply(formatConnectPromptHtml(), {
@@ -379,8 +429,17 @@ export function startTelegramBot(
   bot.command("menu", async (ctx) => {
     await ctx.reply(formatMenuHtml(), {
       parse_mode: "HTML",
-      reply_markup: buildMenuKeyboard(),
+      reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
     });
+  });
+
+  bot.command("app", async (ctx) => {
+    if (!miniAppUrl) {
+      await ctx.reply("Mini app not configured yet. Try /menu for inline options.");
+      return;
+    }
+    const kb = new InlineKeyboard().webApp("\u26a1 Open FlowB", miniAppUrl);
+    await ctx.reply("Tap to open the full FlowB experience:", { reply_markup: kb });
   });
 
   bot.command("events", async (ctx) => {
@@ -564,7 +623,7 @@ export function startTelegramBot(
 
     await ctx.reply(formatFlowMenuHtml(), {
       parse_mode: "HTML",
-      reply_markup: buildFlowMenuKeyboard(),
+      reply_markup: buildFlowMenuKeyboard(botUsername),
     });
   });
 
@@ -625,7 +684,7 @@ export function startTelegramBot(
       });
       await ctx.reply(markdownToHtml(result), {
         parse_mode: "HTML",
-        reply_markup: buildCrewMenuKeyboard(),
+        reply_markup: buildCrewMenuKeyboard(botUsername),
       });
       return;
     }
@@ -672,7 +731,7 @@ export function startTelegramBot(
     // Default: show crew menu
     await ctx.reply(formatCrewMenuHtml(), {
       parse_mode: "HTML",
-      reply_markup: buildCrewMenuKeyboard(),
+      reply_markup: buildCrewMenuKeyboard(botUsername),
     });
   });
 
@@ -708,7 +767,7 @@ export function startTelegramBot(
           );
           await ctx.reply(
             `<b>You're going!</b> ${currentEvent.title}\n\nYour flow will see this.`,
-            { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard() },
+            { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) },
           );
           core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
 
@@ -719,7 +778,7 @@ export function startTelegramBot(
       }
     }
 
-    await ctx.reply("Browse events first, then tap Going!", { reply_markup: buildFlowMenuKeyboard() });
+    await ctx.reply("Browse events first, then tap Going!", { reply_markup: buildFlowMenuKeyboard(botUsername) });
   });
 
   bot.command("whosgoing", async (ctx) => {
@@ -733,7 +792,7 @@ export function startTelegramBot(
     });
     await ctx.reply(markdownToHtml(result), {
       parse_mode: "HTML",
-      reply_markup: buildFlowMenuKeyboard(),
+      reply_markup: buildFlowMenuKeyboard(botUsername),
     });
   });
 
@@ -748,7 +807,7 @@ export function startTelegramBot(
     });
     await ctx.reply(markdownToHtml(result), {
       parse_mode: "HTML",
-      reply_markup: buildFlowMenuKeyboard(),
+      reply_markup: buildFlowMenuKeyboard(botUsername),
     });
   });
 
@@ -863,7 +922,7 @@ export function startTelegramBot(
             parse_mode: "HTML",
             reply_markup: buildEventCardKeyboard(
               event.id, newIndex, session.filteredEvents.length,
-              event.url, session.categoryFilter, session.dateFilter,
+              event.url, session.categoryFilter, session.dateFilter, botUsername,
             ),
           },
         );
@@ -926,7 +985,7 @@ export function startTelegramBot(
           {
             parse_mode: "HTML",
             reply_markup: buildEventCardKeyboard(
-              event.id, 0, filtered.length, event.url, category, session.dateFilter,
+              event.id, 0, filtered.length, event.url, category, session.dateFilter, botUsername,
             ),
           },
         );
@@ -963,7 +1022,7 @@ export function startTelegramBot(
           {
             parse_mode: "HTML",
             reply_markup: buildEventCardKeyboard(
-              event.id, 0, filtered.length, event.url, session.categoryFilter, dateFilter,
+              event.id, 0, filtered.length, event.url, session.categoryFilter, dateFilter, botUsername,
             ),
           },
         );
@@ -984,7 +1043,7 @@ export function startTelegramBot(
             parse_mode: "HTML",
             reply_markup: buildEventCardKeyboard(
               event.id, session.cardIndex, session.filteredEvents.length,
-              event.url, session.categoryFilter, session.dateFilter,
+              event.url, session.categoryFilter, session.dateFilter, botUsername,
             ),
           },
         );
@@ -1199,7 +1258,7 @@ export function startTelegramBot(
         await ctx.answerCallbackQuery();
         await ctx.reply(formatFlowMenuHtml(), {
           parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
+          reply_markup: buildFlowMenuKeyboard(botUsername),
         });
         return;
       }
@@ -1213,7 +1272,7 @@ export function startTelegramBot(
         });
         await ctx.reply(markdownToHtml(result), {
           parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
+          reply_markup: buildFlowMenuKeyboard(botUsername),
         });
         return;
       }
@@ -1227,7 +1286,7 @@ export function startTelegramBot(
         });
         await ctx.reply(markdownToHtml(result), {
           parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
+          reply_markup: buildFlowMenuKeyboard(botUsername),
         });
         return;
       }
@@ -1241,7 +1300,7 @@ export function startTelegramBot(
         });
         await ctx.reply(markdownToHtml(result), {
           parse_mode: "HTML",
-          reply_markup: buildFlowMenuKeyboard(),
+          reply_markup: buildFlowMenuKeyboard(botUsername),
         });
         return;
       }
@@ -1273,7 +1332,7 @@ export function startTelegramBot(
         });
         await ctx.reply(markdownToHtml(result), {
           parse_mode: "HTML",
-          reply_markup: buildCrewMenuKeyboard(),
+          reply_markup: buildCrewMenuKeyboard(botUsername),
         });
         return;
       }
@@ -1288,6 +1347,16 @@ export function startTelegramBot(
           group_id: groupIdShort,
         });
         await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        // Award tiered invite points
+        const flowPlugin = core.getFlowPlugin();
+        const flowCfg = core.getFlowConfig();
+        if (flowPlugin && flowCfg) {
+          const role = await flowPlugin.getCrewRole(flowCfg, userId(tgId), groupIdShort);
+          const pointAction = role === "admin" || role === "creator"
+            ? "crew_invite_sent_admin"
+            : "crew_invite_sent_member";
+          core.awardPoints(userId(tgId), "telegram", pointAction).catch(() => {});
+        }
         return;
       }
 
@@ -1381,6 +1450,310 @@ export function startTelegramBot(
             formatWhosGoingHtml(event.title, goingNames, maybeNames),
             { parse_mode: "HTML" },
           );
+        }
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    // Crew management callbacks: cr:approve, cr:deny, cr:settings, cr:toggle-public, cr:join-mode, cr:promote, cr:demote, cr:browse, cr:join-request
+    if (data.startsWith("cr:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+
+      if (!flowPlugin || !flowCfg) {
+        await ctx.answerCallbackQuery({ text: "Flow not configured." });
+        return;
+      }
+
+      // --- Approve join request ---
+      if (action === "approve") {
+        const requestIdShort = parts[2];
+        await ctx.answerCallbackQuery({ text: "Approving..." });
+
+        // Look up full request ID
+        const fullRequestId = await resolveRequestId(flowCfg, requestIdShort);
+        if (!fullRequestId) {
+          await ctx.reply("Request not found or already processed.");
+          return;
+        }
+
+        const result = await flowPlugin.crewApprove(flowCfg, userId(tgId), {
+          action: "crew-approve",
+          referral_code: fullRequestId,
+        });
+
+        try {
+          const parsed = JSON.parse(result);
+          if (parsed.type === "join_request_approved") {
+            // Notify the requester
+            const requesterTgId = parsed.userId.replace("telegram_", "");
+            if (requesterTgId && !isNaN(Number(requesterTgId))) {
+              try {
+                await bot.api.sendMessage(
+                  Number(requesterTgId),
+                  `<b>You're in!</b> Your request to join <b>${parsed.groupName}</b> was approved.`,
+                  { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) },
+                );
+              } catch {}
+            }
+
+            // Award points
+            core.awardPoints(parsed.userId, "telegram", "crew_joined").catch(() => {});
+            core.awardPoints(parsed.userId, "telegram", "crew_request_approved").catch(() => {});
+
+            // Update the admin's message
+            await ctx.editMessageText(
+              `<b>Approved</b> \u2014 ${parsed.userId.replace("telegram_", "@")} has been added to ${parsed.groupName}.`,
+              { parse_mode: "HTML" },
+            );
+          } else {
+            await ctx.reply(result);
+          }
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
+        return;
+      }
+
+      // --- Deny join request ---
+      if (action === "deny") {
+        const requestIdShort = parts[2];
+        await ctx.answerCallbackQuery({ text: "Denying..." });
+
+        const fullRequestId = await resolveRequestId(flowCfg, requestIdShort);
+        if (!fullRequestId) {
+          await ctx.reply("Request not found or already processed.");
+          return;
+        }
+
+        const result = await flowPlugin.crewDeny(flowCfg, userId(tgId), {
+          action: "crew-deny",
+          referral_code: fullRequestId,
+        });
+
+        try {
+          const parsed = JSON.parse(result);
+          if (parsed.type === "join_request_denied") {
+            // Notify the requester
+            const requesterTgId = parsed.userId.replace("telegram_", "");
+            if (requesterTgId && !isNaN(Number(requesterTgId))) {
+              try {
+                await bot.api.sendMessage(
+                  Number(requesterTgId),
+                  `Your request to join <b>${parsed.groupName}</b> was not approved this time. Keep exploring!`,
+                  { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) },
+                );
+              } catch {}
+            }
+
+            await ctx.editMessageText(
+              `<b>Denied</b> \u2014 ${parsed.userId.replace("telegram_", "@")}'s request for ${parsed.groupName}.`,
+              { parse_mode: "HTML" },
+            );
+          } else {
+            await ctx.reply(result);
+          }
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
+        return;
+      }
+
+      // --- Crew settings panel ---
+      if (action === "settings") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery();
+
+        const result = await flowPlugin.crewSettings(flowCfg, userId(tgId), {
+          action: "crew-settings",
+          group_id: groupIdShort,
+        });
+
+        try {
+          const settings = JSON.parse(result);
+          // Count members
+          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+            select: "user_id",
+            group_id: `eq.${settings.id}`,
+          });
+          const memberCount = members?.length || 0;
+
+          await ctx.reply(
+            formatCrewSettingsHtml(settings.name, settings.emoji, memberCount, settings.is_public, settings.join_mode),
+            {
+              parse_mode: "HTML",
+              reply_markup: buildCrewSettingsKeyboard(settings.id, settings.is_public, settings.join_mode),
+            },
+          );
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
+        return;
+      }
+
+      // --- Toggle public visibility ---
+      if (action === "toggle-public") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery({ text: "Toggling..." });
+
+        // Get current state first
+        const currentResult = await flowPlugin.crewSettings(flowCfg, userId(tgId), {
+          action: "crew-settings",
+          group_id: groupIdShort,
+        });
+
+        try {
+          const current = JSON.parse(currentResult);
+          const newVisibility = current.is_public ? "private" : "public";
+
+          await flowPlugin.crewSettings(flowCfg, userId(tgId), {
+            action: "crew-settings",
+            group_id: groupIdShort,
+            visibility: newVisibility,
+          });
+
+          const newPublic = !current.is_public;
+          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+            select: "user_id",
+            group_id: `eq.${current.id}`,
+          });
+          const memberCount = members?.length || 0;
+
+          await ctx.editMessageText(
+            formatCrewSettingsHtml(current.name, current.emoji, memberCount, newPublic, current.join_mode),
+            {
+              parse_mode: "HTML",
+              reply_markup: buildCrewSettingsKeyboard(current.id, newPublic, current.join_mode),
+            },
+          );
+        } catch {
+          await ctx.reply("Failed to update settings.");
+        }
+        return;
+      }
+
+      // --- Set join mode ---
+      if (action === "join-mode") {
+        const groupIdShort = parts[2];
+        const newMode = parts[3];
+        await ctx.answerCallbackQuery({ text: `Join mode: ${newMode}` });
+
+        const currentResult = await flowPlugin.crewSettings(flowCfg, userId(tgId), {
+          action: "crew-settings",
+          group_id: groupIdShort,
+        });
+
+        try {
+          const current = JSON.parse(currentResult);
+
+          await flowPlugin.crewSettings(flowCfg, userId(tgId), {
+            action: "crew-settings",
+            group_id: groupIdShort,
+            query: newMode,
+          });
+
+          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+            select: "user_id",
+            group_id: `eq.${current.id}`,
+          });
+          const memberCount = members?.length || 0;
+
+          await ctx.editMessageText(
+            formatCrewSettingsHtml(current.name, current.emoji, memberCount, current.is_public, newMode),
+            {
+              parse_mode: "HTML",
+              reply_markup: buildCrewSettingsKeyboard(current.id, current.is_public, newMode),
+            },
+          );
+        } catch {
+          await ctx.reply("Failed to update join mode.");
+        }
+        return;
+      }
+
+      // --- Promote member ---
+      if (action === "promote") {
+        const groupIdShort = parts[2];
+        const targetIdShort = parts[3];
+        await ctx.answerCallbackQuery({ text: "Promoting..." });
+
+        const result = await core.execute("crew-promote", {
+          action: "crew-promote",
+          user_id: userId(tgId),
+          platform: "telegram",
+          group_id: groupIdShort,
+          friend_id: `telegram_${targetIdShort}`,
+        });
+
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        return;
+      }
+
+      // --- Demote admin ---
+      if (action === "demote") {
+        const groupIdShort = parts[2];
+        const targetIdShort = parts[3];
+        await ctx.answerCallbackQuery({ text: "Demoting..." });
+
+        const result = await core.execute("crew-demote", {
+          action: "crew-demote",
+          user_id: userId(tgId),
+          platform: "telegram",
+          group_id: groupIdShort,
+          friend_id: `telegram_${targetIdShort}`,
+        });
+
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        return;
+      }
+
+      // --- Browse public crews ---
+      if (action === "browse") {
+        await ctx.answerCallbackQuery();
+        const result = await flowPlugin.crewBrowse(flowCfg);
+
+        try {
+          const crews = JSON.parse(result);
+          if (Array.isArray(crews)) {
+            await ctx.reply(
+              formatCrewBrowseHtml(crews),
+              {
+                parse_mode: "HTML",
+                reply_markup: buildCrewBrowseKeyboard(crews),
+              },
+            );
+          } else {
+            await ctx.reply(result, { parse_mode: "HTML" });
+          }
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
+        return;
+      }
+
+      // --- Join request from browse ---
+      if (action === "join-request") {
+        const groupIdShort = parts[2];
+        await ctx.answerCallbackQuery({ text: "Processing..." });
+
+        const result = await flowPlugin.crewRequestJoin(flowCfg, userId(tgId), groupIdShort);
+
+        if (result.includes('"join_request_created"')) {
+          await handleJoinRequestCreated(result, core, flowPlugin, flowCfg, bot, tgId);
+        } else {
+          await ctx.reply(markdownToHtml(result), {
+            parse_mode: "HTML",
+            reply_markup: buildFlowMenuKeyboard(botUsername),
+          });
+          // If it's a direct join (open mode), award points
+          if (result.includes("Welcome to")) {
+            core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+          }
         }
         return;
       }
@@ -1541,7 +1914,7 @@ export function startTelegramBot(
     if (lower === "menu" || lower === "/menu" || lower === "help" || lower === "hi" || lower === "hello") {
       await ctx.reply(formatMenuHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildMenuKeyboard(),
+        reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
       });
       return;
     }
@@ -1557,7 +1930,7 @@ export function startTelegramBot(
     if (/^(?:my\s+)?(?:flow|friends|crew|crews|squad)$/.test(cleaned)) {
       await ctx.reply(formatFlowMenuHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(),
+        reply_markup: buildFlowMenuKeyboard(botUsername),
       });
       return;
     }
@@ -1570,7 +1943,7 @@ export function startTelegramBot(
       });
       await ctx.reply(markdownToHtml(result), {
         parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(),
+        reply_markup: buildFlowMenuKeyboard(botUsername),
       });
       return;
     }
@@ -1583,7 +1956,7 @@ export function startTelegramBot(
       });
       await ctx.reply(markdownToHtml(result), {
         parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(),
+        reply_markup: buildFlowMenuKeyboard(botUsername),
       });
       return;
     }
@@ -1676,7 +2049,7 @@ export function startTelegramBot(
       ].join("\n"),
       {
         parse_mode: "HTML",
-        reply_markup: buildMenuKeyboard(),
+        reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
       },
     );
   });
@@ -1766,7 +2139,7 @@ async function sendEventCards(
     formatEventCardHtml(event, 0, events.length),
     {
       parse_mode: "HTML",
-      reply_markup: buildEventCardKeyboard(event.id, 0, events.length, event.url),
+      reply_markup: buildEventCardKeyboard(event.id, 0, events.length, event.url, undefined, undefined, MOD_BOT_USERNAME),
     },
   );
 
@@ -1857,6 +2230,90 @@ async function notifyFlowAboutRsvp(
   }
 }
 
+/**
+ * Handle a join_request_created JSON result: notify admin DMs and reply to requester.
+ */
+async function handleJoinRequestCreated(
+  result: string,
+  core: FlowBCore,
+  flowPlugin: import("../plugins/flow/index.js").FlowPlugin,
+  flowCfg: import("../plugins/flow/index.js").FlowPluginConfig,
+  bot: Bot,
+  requesterTgId: number,
+): Promise<void> {
+  try {
+    const data = JSON.parse(result);
+    const requestId = data.requestId;
+    const groupId = data.groupId;
+
+    // Notify the requester
+    await bot.api.sendMessage(
+      requesterTgId,
+      `Your request to join <b>${data.groupEmoji} ${data.groupName}</b> has been submitted. An admin will review it soon!`,
+      { parse_mode: "HTML" },
+    );
+
+    // DM all admins/creators
+    const admins = await flowPlugin.getCrewAdmins(flowCfg, groupId);
+    const requesterName = userId(requesterTgId).replace("telegram_", "@");
+
+    for (const adminId of admins) {
+      const adminTgId = adminId.replace("telegram_", "");
+      if (!adminTgId || isNaN(Number(adminTgId))) continue;
+
+      try {
+        await bot.api.sendMessage(
+          Number(adminTgId),
+          formatJoinRequestHtml(requesterName, data.groupEmoji, data.groupName),
+          {
+            parse_mode: "HTML",
+            reply_markup: buildJoinRequestKeyboard(requestId),
+          },
+        );
+      } catch {
+        // Admin may have blocked the bot
+      }
+    }
+  } catch (err) {
+    console.error("[flowb-telegram] handleJoinRequestCreated error:", err);
+  }
+}
+
+/** Resolve a short request ID (first 8 chars) to the full UUID via Supabase */
+async function resolveRequestId(
+  cfg: { supabaseUrl: string; supabaseKey: string },
+  shortId: string,
+): Promise<string | null> {
+  const rows = await sbQueryBot(cfg, "flowb_crew_join_requests", {
+    select: "id",
+    status: "eq.pending",
+    limit: "10",
+  });
+
+  if (!rows?.length) return null;
+  const match = rows.find((r: any) => r.id.startsWith(shortId));
+  return match?.id || null;
+}
+
+/** Simple Supabase query helper for bot-level queries */
+async function sbQueryBot(
+  cfg: { supabaseUrl: string; supabaseKey: string },
+  table: string,
+  params: Record<string, string>,
+): Promise<any[] | null> {
+  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  const res = await fetch(url.toString(), {
+    headers: {
+      apikey: cfg.supabaseKey,
+      Authorization: `Bearer ${cfg.supabaseKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<void> {
   const tgId = ctx.from!.id;
 
@@ -1864,7 +2321,7 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
     case "menu":
       await ctx.editMessageText(formatMenuHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildMenuKeyboard(),
+        reply_markup: buildMenuKeyboard(MOD_MINIAPP_URL || undefined),
       });
       break;
 
@@ -1940,7 +2397,7 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
       await ctx.answerCallbackQuery();
       await ctx.reply(formatFlowMenuHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(),
+        reply_markup: buildFlowMenuKeyboard(MOD_BOT_USERNAME),
       });
       break;
 

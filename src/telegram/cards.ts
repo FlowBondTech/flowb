@@ -29,8 +29,8 @@ export function formatMenuHtml(): string {
   ].join("\n");
 }
 
-export function buildMenuKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
+export function buildMenuKeyboard(miniAppUrl?: string): InlineKeyboard {
+  const kb = new InlineKeyboard()
     .text("\ud83d\udccd Events", "mn:events")
     .text("\ud83d\udd0d Search", "mn:search")
     .row()
@@ -44,6 +44,10 @@ export function buildMenuKeyboard(): InlineKeyboard {
     .text("\u2694\ufe0f Battles", "mn:battles")
     .row()
     .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
+  if (miniAppUrl) {
+    kb.row().webApp("\u26a1 Open FlowB App", miniAppUrl);
+  }
+  return kb;
 }
 
 /** Minimal back-to-menu row for appending to responses */
@@ -265,6 +269,7 @@ export function buildEventCardKeyboard(
   eventUrl?: string,
   activeCategory?: string,
   activeDateFilter?: string,
+  botUsername?: string,
 ): InlineKeyboard {
   const short = eventId.slice(0, 8);
   const kb = new InlineKeyboard();
@@ -292,11 +297,17 @@ export function buildEventCardKeyboard(
     kb.text("\u25b6\ufe0f", `ec:next`);
   }
 
-  // Row 3: Filters + back
+  // Row 4: Filters + back
   kb.row();
   kb.text("\ud83c\udfad Filter", `ec:fcat`);
   kb.text("\ud83d\udcc5 Date", `ec:fdate`);
   kb.text("\u25c0\ufe0f Menu", "mn:menu");
+
+  // Row 5: Mini app deep link
+  if (botUsername) {
+    kb.row();
+    kb.url("\u26a1 View in FlowB", `https://t.me/${botUsername}?startapp=event_${short}`);
+  }
 
   return kb;
 }
@@ -634,8 +645,8 @@ export function formatFlowMenuHtml(): string {
   ].join("\n");
 }
 
-export function buildFlowMenuKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
+export function buildFlowMenuKeyboard(botUsername?: string): InlineKeyboard {
+  const kb = new InlineKeyboard()
     .text("\ud83d\udd17 Share My Flow", "fl:share")
     .text("\ud83d\udc65 My Flow", "fl:list")
     .row()
@@ -645,6 +656,10 @@ export function buildFlowMenuKeyboard(): InlineKeyboard {
     .text("\ud83d\udc40 Who's Going", "fl:whos-going")
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
+  if (botUsername) {
+    kb.url("\u26a1 Open App", `https://t.me/${botUsername}?startapp=schedule`);
+  }
+  return kb;
 }
 
 export function formatFlowShareHtml(link: string): string {
@@ -694,22 +709,166 @@ export function formatCrewMenuHtml(): string {
   ].join("\n");
 }
 
-export function buildCrewMenuKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
+export function buildCrewMenuKeyboard(botUsername?: string): InlineKeyboard {
+  const kb = new InlineKeyboard()
     .text("\ud83d\ude80 Create Crew", "fl:crew-create")
     .text("\ud83d\udcdd My Crews", "fl:crew-list")
     .row()
+    .text("\ud83d\udd0d Browse Crews", "cr:browse")
+    .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
+  if (botUsername) {
+    kb.url("\u26a1 Open in App", `https://t.me/${botUsername}?startapp=crew`);
+  }
+  return kb;
 }
 
-export function buildCrewDetailKeyboard(groupId: string): InlineKeyboard {
+export function buildCrewDetailKeyboard(groupId: string, userRole?: string): InlineKeyboard {
   const short = groupId.slice(0, 8);
-  return new InlineKeyboard()
+  const kb = new InlineKeyboard()
     .text("\ud83d\udd17 Invite Link", `fl:crew-invite:${short}`)
-    .text("\ud83d\udc65 Members", `fl:crew-members:${short}`)
-    .row()
+    .text("\ud83d\udc65 Members", `fl:crew-members:${short}`);
+  // Show settings button for creator/admin
+  if (userRole === "creator" || userRole === "admin") {
+    kb.row()
+      .text("\u2699\ufe0f Settings", `cr:settings:${short}`);
+  }
+  kb.row()
     .text("\ud83d\udeaa Leave", `fl:crew-leave:${short}`)
     .text("\u25c0\ufe0f Back", "fl:crew-list");
+  return kb;
+}
+
+// ==========================================================================
+// Crew Settings
+// ==========================================================================
+
+export function formatCrewSettingsHtml(
+  name: string,
+  emoji: string,
+  memberCount: number,
+  isPublic: boolean,
+  joinMode: string,
+): string {
+  return [
+    `<b>${emoji} ${escapeHtml(name)}</b>  <i>Settings</i>`,
+    "",
+    `Members: <b>${memberCount}</b>`,
+    `Visibility: <b>${isPublic ? "Public" : "Private"}</b>`,
+    `Join mode: <b>${joinMode}</b>`,
+    "",
+    "Tap below to change:",
+  ].join("\n");
+}
+
+export function buildCrewSettingsKeyboard(
+  groupId: string,
+  isPublic: boolean,
+  joinMode: string,
+): InlineKeyboard {
+  const short = groupId.slice(0, 8);
+  const kb = new InlineKeyboard();
+
+  // Toggle public/private
+  if (isPublic) {
+    kb.text("\ud83d\udd12 Make Private", `cr:toggle-public:${short}`);
+  } else {
+    kb.text("\ud83c\udf10 Make Public", `cr:toggle-public:${short}`);
+  }
+  kb.row();
+
+  // Join mode buttons
+  const modes = [
+    { id: "open", label: "Open", emoji: "\ud83d\udfe2" },
+    { id: "approval", label: "Approval", emoji: "\ud83d\udfe1" },
+    { id: "closed", label: "Closed", emoji: "\ud83d\udd34" },
+  ];
+  for (const m of modes) {
+    const marker = m.id === joinMode ? "\u2713 " : "";
+    kb.text(`${marker}${m.emoji} ${m.label}`, `cr:join-mode:${short}:${m.id}`);
+  }
+
+  kb.row()
+    .text("\u25c0\ufe0f Back", `fl:crew-list`);
+
+  return kb;
+}
+
+// ==========================================================================
+// Crew Browse (Public Discovery)
+// ==========================================================================
+
+export function formatCrewBrowseHtml(
+  crews: { id: string; name: string; emoji: string; description: string | null; join_mode: string; member_count?: number }[],
+): string {
+  if (!crews.length) {
+    return [
+      "<b>Browse Crews</b>",
+      "",
+      "No public crews yet. Be the first to create one!",
+    ].join("\n");
+  }
+
+  const lines = [
+    `<b>Browse Crews</b>  (${crews.length} public)\n`,
+  ];
+
+  for (const c of crews) {
+    lines.push(`${c.emoji} <b>${escapeHtml(c.name)}</b>`);
+    if (c.description) {
+      const snippet = c.description.length > 60 ? c.description.slice(0, 57) + "..." : c.description;
+      lines.push(`  <i>${escapeHtml(snippet)}</i>`);
+    }
+    const modeLabel = c.join_mode === "open" ? "Open" : c.join_mode === "approval" ? "Apply" : "Closed";
+    const countText = c.member_count !== undefined ? ` \u00b7 ${c.member_count} members` : "";
+    lines.push(`  ${modeLabel}${countText}`);
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+export function buildCrewBrowseKeyboard(
+  crews: { id: string; join_mode: string; name: string }[],
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const c of crews.slice(0, 6)) {
+    const short = c.id.slice(0, 8);
+    const label = c.name.length > 20 ? c.name.slice(0, 18) + ".." : c.name;
+    if (c.join_mode === "open") {
+      kb.text(`\u2705 Join ${label}`, `cr:join-request:${short}`);
+    } else if (c.join_mode === "approval") {
+      kb.text(`\ud83d\udce9 Apply ${label}`, `cr:join-request:${short}`);
+    }
+    kb.row();
+  }
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+  return kb;
+}
+
+// ==========================================================================
+// Join Request Notification (Admin DM)
+// ==========================================================================
+
+export function formatJoinRequestHtml(
+  userName: string,
+  crewEmoji: string,
+  crewName: string,
+): string {
+  return [
+    `<b>New join request</b>`,
+    "",
+    `<b>${escapeHtml(userName)}</b> wants to join <b>${crewEmoji} ${escapeHtml(crewName)}</b>`,
+    "",
+    "Approve or deny below:",
+  ].join("\n");
+}
+
+export function buildJoinRequestKeyboard(requestId: string): InlineKeyboard {
+  const short = requestId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u2705 Approve", `cr:approve:${short}`)
+    .text("\u274c Deny", `cr:deny:${short}`);
 }
 
 export function buildGoingKeyboard(eventId: string): InlineKeyboard {

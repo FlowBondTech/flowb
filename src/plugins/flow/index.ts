@@ -48,7 +48,27 @@ export interface FlowGroup {
   join_mode: string;
   max_members: number;
   is_temporary: boolean;
+  is_public: boolean;
   expires_at: string | null;
+  created_at: string;
+}
+
+export interface JoinRequest {
+  id: string;
+  group_id: string;
+  user_id: string;
+  status: string;
+  requested_at: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+}
+
+export interface CrewInvite {
+  id: string;
+  group_id: string;
+  inviter_id: string;
+  invite_code: string;
+  uses: number;
   created_at: string;
 }
 
@@ -192,6 +212,14 @@ export class FlowPlugin implements FlowBPlugin {
     "crew-members":   { description: "See who's in a crew", requiresAuth: true },
     "crew-leave":     { description: "Leave a crew", requiresAuth: true },
     "crew-remove-member": { description: "Remove a member from your crew (admin)", requiresAuth: true },
+    "crew-settings":    { description: "Toggle crew visibility and join mode (creator/admin)", requiresAuth: true },
+    "crew-browse":      { description: "Browse public crews to discover and join", requiresAuth: true },
+    "crew-request-join": { description: "Request to join an approval-mode crew", requiresAuth: true },
+    "crew-approve":     { description: "Approve a pending join request (creator/admin)", requiresAuth: true },
+    "crew-deny":        { description: "Deny a pending join request (creator/admin)", requiresAuth: true },
+    "crew-promote":     { description: "Promote a member to admin (creator only)", requiresAuth: true },
+    "crew-demote":      { description: "Demote an admin to member (creator only)", requiresAuth: true },
+    "crew-personal-invite": { description: "Generate a tracked personal invite link", requiresAuth: true },
     // Event attendance
     "going":          { description: "RSVP to an event (going/maybe)", requiresAuth: true },
     "not-going":      { description: "Cancel your RSVP", requiresAuth: true },
@@ -231,6 +259,14 @@ export class FlowPlugin implements FlowBPlugin {
       case "crew-members":   return this.crewMembers(cfg, input.group_id);
       case "crew-leave":     return this.crewLeave(cfg, uid, input.group_id);
       case "crew-remove-member": return this.crewRemoveMember(cfg, uid, input.group_id, input.friend_id);
+      case "crew-settings":    return this.crewSettings(cfg, uid, input);
+      case "crew-browse":      return this.crewBrowse(cfg);
+      case "crew-request-join": return this.crewRequestJoin(cfg, uid, input.group_id);
+      case "crew-approve":     return this.crewApprove(cfg, uid, input);
+      case "crew-deny":        return this.crewDeny(cfg, uid, input);
+      case "crew-promote":     return this.crewPromote(cfg, uid, input.group_id, input.friend_id);
+      case "crew-demote":      return this.crewDemote(cfg, uid, input.group_id, input.friend_id);
+      case "crew-personal-invite": return this.crewPersonalInvite(cfg, uid, input.group_id);
       // Attendance
       case "going":          return this.rsvp(cfg, uid, input);
       case "not-going":      return this.cancelRsvp(cfg, uid, input);
@@ -396,7 +432,7 @@ export class FlowPlugin implements FlowBPlugin {
       lines.push(`**Crews** (${crews.length})`);
       for (const m of crews) {
         const g = m.flowb_groups;
-        const roleTag = m.role === "admin" ? " (admin)" : "";
+        const roleTag = m.role === "creator" ? " (creator)" : m.role === "admin" ? " (admin)" : "";
         lines.push(`  ${g.emoji} ${g.name}${roleTag}`);
       }
     } else {
@@ -485,11 +521,11 @@ export class FlowPlugin implements FlowBPlugin {
 
     if (!group) return "Failed to create crew. Try again.";
 
-    // Add creator as admin
+    // Add creator with creator role
     await sbInsert(cfg, "flowb_group_members", {
       group_id: group.id,
       user_id: uid,
-      role: "admin",
+      role: "creator",
     });
 
     const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
@@ -506,7 +542,8 @@ export class FlowPlugin implements FlowBPlugin {
   }
 
   /**
-   * Join a crew via join_code (from g_{code} deep link).
+   * Join a crew via join_code (from g_{code} deep link) or personal invite (gi_{code}).
+   * Respects join_mode: open = join directly, approval = create request, closed = reject.
    */
   async crewJoin(cfg: FlowPluginConfig, uid?: string, input?: ToolInput): Promise<string> {
     if (!uid) return "User ID required.";
@@ -514,15 +551,37 @@ export class FlowPlugin implements FlowBPlugin {
     const code = input?.referral_code;
     if (!code) return "Crew invite code required.";
 
-    // Look up group
-    const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
-      select: "*",
-      join_code: `eq.${code}`,
+    // Check if this is a personal invite code (gi_ prefix was stripped by bot)
+    let personalInvite: CrewInvite | null = null;
+    let group: FlowGroup | null = null;
+
+    // Try personal invite lookup first
+    const invites = await sbQuery<CrewInvite[]>(cfg, "flowb_crew_invites", {
+      select: "id,group_id,inviter_id,invite_code,uses",
+      invite_code: `eq.${code}`,
       limit: "1",
     });
 
-    if (!groups?.length) return "Invalid crew code. Ask the crew admin for a new link.";
-    const group = groups[0];
+    if (invites?.length) {
+      personalInvite = invites[0];
+      // Look up the group
+      const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+        select: "*",
+        id: `eq.${personalInvite.group_id}`,
+        limit: "1",
+      });
+      group = groups?.[0] || null;
+    } else {
+      // Try standard join_code
+      const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+        select: "*",
+        join_code: `eq.${code}`,
+        limit: "1",
+      });
+      group = groups?.[0] || null;
+    }
+
+    if (!group) return "Invalid crew code. Ask the crew admin for a new link.";
 
     // Check if expired
     if (group.is_temporary && group.expires_at) {
@@ -558,12 +617,29 @@ export class FlowPlugin implements FlowBPlugin {
       return `${group.emoji} ${group.name} is full (${group.max_members} members).`;
     }
 
-    // Join
+    // If approval mode and no personal invite override, create a join request
+    if (group.join_mode === "approval" && !personalInvite) {
+      return this.crewRequestJoin(cfg, uid, group.id);
+    }
+
+    // Join directly (open mode or personal invite bypasses approval)
     await sbInsert(cfg, "flowb_group_members", {
       group_id: group.id,
       user_id: uid,
       role: "member",
     });
+
+    // Track personal invite attribution
+    if (personalInvite) {
+      await sbPatch(cfg, "flowb_crew_invites", { id: `eq.${personalInvite.id}` }, {
+        uses: personalInvite.uses + 1,
+      });
+      // Store invite attribution for bot to award points
+      this._lastInviteAttribution = {
+        inviterId: personalInvite.inviter_id,
+        groupId: group.id,
+      };
+    }
 
     const memberCount = (members?.length || 0) + 1;
 
@@ -575,8 +651,12 @@ export class FlowPlugin implements FlowBPlugin {
     ].join("\n");
   }
 
+  /** Transient field for bot to read invite attribution after crewJoin */
+  _lastInviteAttribution: { inviterId: string; groupId: string } | null = null;
+
   /**
-   * Generate invite link for a crew (must be a member).
+   * Generate a personal tracked invite link for a crew (must be a member).
+   * Creates a unique invite code stored in flowb_crew_invites for referral attribution.
    */
   async crewInvite(cfg: FlowPluginConfig, uid?: string, groupId?: string): Promise<string> {
     if (!uid) return "User ID required.";
@@ -593,14 +673,42 @@ export class FlowPlugin implements FlowBPlugin {
     if (!membership?.length) return "You're not in this crew.";
 
     const group = membership[0].flowb_groups;
+    const role = membership[0].role;
+
+    // Check if user already has a personal invite for this crew
+    const existingInvites = await sbQuery<CrewInvite[]>(cfg, "flowb_crew_invites", {
+      select: "invite_code,uses",
+      group_id: `eq.${groupId}`,
+      inviter_id: `eq.${uid}`,
+      limit: "1",
+    });
+
+    let inviteCode: string;
+    if (existingInvites?.length) {
+      inviteCode = existingInvites[0].invite_code;
+    } else {
+      inviteCode = generateCode(8);
+      await sbInsert(cfg, "flowb_crew_invites", {
+        group_id: groupId,
+        inviter_id: uid,
+        invite_code: inviteCode,
+      });
+    }
+
     const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    const link = `https://t.me/${botUsername}?start=g_${group.join_code}`;
+    const link = `https://t.me/${botUsername}?start=gi_${inviteCode}`;
+
+    const uses = existingInvites?.[0]?.uses || 0;
+    const usesText = uses > 0 ? `\n${uses} people joined via your link.` : "";
 
     return [
       `**Join our Flow - ${group.emoji} ${group.name}**`,
       "",
-      "Share this link:",
+      "Your personal invite link:",
       link,
+      usesText,
+      "",
+      `You earn points for every person who joins!`,
     ].join("\n");
   }
 
@@ -624,7 +732,7 @@ export class FlowPlugin implements FlowBPlugin {
     const lines = ["**Your Crews**\n"];
     for (const m of crews) {
       const g = m.flowb_groups;
-      const roleTag = m.role === "admin" ? " (admin)" : "";
+      const roleTag = m.role === "creator" ? " (creator)" : m.role === "admin" ? " (admin)" : "";
       lines.push(`${g.emoji} **${g.name}**${roleTag}`);
       lines.push(`  ID: ${m.group_id.slice(0, 8)}`);
     }
@@ -657,10 +765,13 @@ export class FlowPlugin implements FlowBPlugin {
 
     if (!members?.length) return "No members found.";
 
+    const memberIds = members.map((m) => m.user_id);
+    const nameMap = await this.resolveNames(cfg, memberIds);
+
     const lines = [`**${group.emoji} ${group.name}** (${members.length} members)\n`];
     for (const m of members) {
-      const name = m.user_id.replace("telegram_", "@");
-      const roleTag = m.role === "admin" ? " (admin)" : "";
+      const name = this.displayName(nameMap, m.user_id);
+      const roleTag = m.role === "creator" ? " (creator)" : m.role === "admin" ? " (admin)" : "";
       lines.push(`  ${name}${roleTag}`);
     }
 
@@ -697,7 +808,7 @@ export class FlowPlugin implements FlowBPlugin {
       limit: "1",
     });
 
-    if (!callerMembership?.length || callerMembership[0].role !== "admin") {
+    if (!callerMembership?.length || !["creator", "admin"].includes(callerMembership[0].role)) {
       return "Only crew admins can remove members.";
     }
 
@@ -707,6 +818,398 @@ export class FlowPlugin implements FlowBPlugin {
     });
 
     return `Removed ${targetId.replace("telegram_", "@")} from the crew.`;
+  }
+
+  // ==========================================================================
+  // Crew Management (settings, browse, approve/deny, promote/demote)
+  // ==========================================================================
+
+  /**
+   * Update crew settings: is_public, join_mode. Creator/admin only.
+   */
+  async crewSettings(cfg: FlowPluginConfig, uid?: string, input?: ToolInput): Promise<string> {
+    if (!uid) return "User ID required.";
+    const groupId = input?.group_id;
+    if (!groupId) return "Crew ID required.";
+
+    if (!await this.hasCrewPermission(cfg, uid, groupId, "admin")) {
+      return "Only crew creators and admins can change settings.";
+    }
+
+    // Get current group state
+    const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+      select: "id,name,emoji,is_public,join_mode",
+      id: `eq.${groupId}`,
+      limit: "1",
+    });
+
+    if (!groups?.length) return "Crew not found.";
+    const group = groups[0];
+
+    // Check what to update
+    const updates: Record<string, any> = {};
+    if (input?.visibility === "public") updates.is_public = true;
+    else if (input?.visibility === "private") updates.is_public = false;
+    if (input?.query && ["open", "approval", "closed"].includes(input.query)) {
+      updates.join_mode = input.query;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      // Return current settings
+      return JSON.stringify({
+        id: group.id,
+        name: group.name,
+        emoji: group.emoji,
+        is_public: group.is_public,
+        join_mode: group.join_mode,
+      });
+    }
+
+    await sbPatch(cfg, "flowb_groups", { id: `eq.${groupId}` }, updates);
+
+    const newPublic = updates.is_public ?? group.is_public;
+    const newMode = updates.join_mode ?? group.join_mode;
+
+    return [
+      `**${group.emoji} ${group.name}** settings updated`,
+      "",
+      `Visibility: ${newPublic ? "Public" : "Private"}`,
+      `Join mode: ${newMode}`,
+    ].join("\n");
+  }
+
+  /**
+   * Browse public crews for discovery.
+   */
+  async crewBrowse(cfg: FlowPluginConfig): Promise<string> {
+    const crews = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+      select: "id,name,emoji,description,join_mode,created_at",
+      is_public: "eq.true",
+      order: "created_at.desc",
+      limit: "20",
+    });
+
+    if (!crews?.length) {
+      return "No public crews yet. Be the first to create one!";
+    }
+
+    return JSON.stringify(crews);
+  }
+
+  /**
+   * Request to join an approval-mode crew.
+   */
+  async crewRequestJoin(cfg: FlowPluginConfig, uid?: string, groupId?: string): Promise<string> {
+    if (!uid) return "User ID required.";
+    if (!groupId) return "Crew ID required.";
+
+    // Get group info
+    const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+      select: "id,name,emoji,join_mode",
+      id: `eq.${groupId}`,
+      limit: "1",
+    });
+
+    if (!groups?.length) return "Crew not found.";
+    const group = groups[0];
+
+    if (group.join_mode === "closed") {
+      return "This crew is closed to new members.";
+    }
+
+    if (group.join_mode === "open") {
+      // Open mode - join directly
+      await sbInsert(cfg, "flowb_group_members", {
+        group_id: group.id,
+        user_id: uid,
+        role: "member",
+      });
+      return `**Welcome to ${group.emoji} ${group.name}!**`;
+    }
+
+    // Check if already a member
+    const existing = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "user_id",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${uid}`,
+      limit: "1",
+    });
+
+    if (existing?.length) {
+      return `You're already in ${group.emoji} ${group.name}!`;
+    }
+
+    // Check for existing pending request
+    const existingRequest = await sbQuery<JoinRequest[]>(cfg, "flowb_crew_join_requests", {
+      select: "id,status",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${uid}`,
+      status: "eq.pending",
+      limit: "1",
+    });
+
+    if (existingRequest?.length) {
+      return `You already have a pending request for ${group.emoji} ${group.name}. Hang tight!`;
+    }
+
+    // Create join request
+    const request = await sbInsert<JoinRequest>(cfg, "flowb_crew_join_requests", {
+      group_id: groupId,
+      user_id: uid,
+      status: "pending",
+    });
+
+    if (!request) return "Failed to submit request. Try again.";
+
+    return JSON.stringify({
+      type: "join_request_created",
+      requestId: request.id,
+      groupId: group.id,
+      groupName: group.name,
+      groupEmoji: group.emoji,
+      userId: uid,
+    });
+  }
+
+  /**
+   * Approve a pending join request (creator/admin).
+   */
+  async crewApprove(cfg: FlowPluginConfig, uid?: string, input?: ToolInput): Promise<string> {
+    if (!uid) return "User ID required.";
+    const requestId = input?.referral_code; // reuse field for request ID
+    if (!requestId) return "Request ID required.";
+
+    // Get the request
+    const requests = await sbQuery<JoinRequest[]>(cfg, "flowb_crew_join_requests", {
+      select: "id,group_id,user_id,status",
+      id: `eq.${requestId}`,
+      limit: "1",
+    });
+
+    if (!requests?.length) return "Request not found.";
+    const request = requests[0];
+
+    if (request.status !== "pending") {
+      return `This request has already been ${request.status}.`;
+    }
+
+    // Check caller permission
+    if (!await this.hasCrewPermission(cfg, uid, request.group_id, "admin")) {
+      return "Only crew creators and admins can approve requests.";
+    }
+
+    // Approve: update request + add member
+    await sbPatch(cfg, "flowb_crew_join_requests", { id: `eq.${requestId}` }, {
+      status: "approved",
+      reviewed_by: uid,
+      reviewed_at: new Date().toISOString(),
+    });
+
+    await sbInsert(cfg, "flowb_group_members", {
+      group_id: request.group_id,
+      user_id: request.user_id,
+      role: "member",
+    });
+
+    // Get group info for response
+    const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+      select: "name,emoji",
+      id: `eq.${request.group_id}`,
+      limit: "1",
+    });
+
+    const groupName = groups?.[0] ? `${groups[0].emoji} ${groups[0].name}` : "the crew";
+
+    return JSON.stringify({
+      type: "join_request_approved",
+      requestId: request.id,
+      groupId: request.group_id,
+      userId: request.user_id,
+      groupName,
+    });
+  }
+
+  /**
+   * Deny a pending join request (creator/admin).
+   */
+  async crewDeny(cfg: FlowPluginConfig, uid?: string, input?: ToolInput): Promise<string> {
+    if (!uid) return "User ID required.";
+    const requestId = input?.referral_code;
+    if (!requestId) return "Request ID required.";
+
+    const requests = await sbQuery<JoinRequest[]>(cfg, "flowb_crew_join_requests", {
+      select: "id,group_id,user_id,status",
+      id: `eq.${requestId}`,
+      limit: "1",
+    });
+
+    if (!requests?.length) return "Request not found.";
+    const request = requests[0];
+
+    if (request.status !== "pending") {
+      return `This request has already been ${request.status}.`;
+    }
+
+    if (!await this.hasCrewPermission(cfg, uid, request.group_id, "admin")) {
+      return "Only crew creators and admins can deny requests.";
+    }
+
+    await sbPatch(cfg, "flowb_crew_join_requests", { id: `eq.${requestId}` }, {
+      status: "denied",
+      reviewed_by: uid,
+      reviewed_at: new Date().toISOString(),
+    });
+
+    const groups = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
+      select: "name,emoji",
+      id: `eq.${request.group_id}`,
+      limit: "1",
+    });
+
+    const groupName = groups?.[0] ? `${groups[0].emoji} ${groups[0].name}` : "the crew";
+
+    return JSON.stringify({
+      type: "join_request_denied",
+      requestId: request.id,
+      groupId: request.group_id,
+      userId: request.user_id,
+      groupName,
+    });
+  }
+
+  /**
+   * Promote a member to admin (creator only).
+   */
+  async crewPromote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
+    if (!uid) return "User ID required.";
+    if (!groupId || !targetId) return "Crew ID and member ID required.";
+
+    if (!await this.hasCrewPermission(cfg, uid, groupId, "creator")) {
+      return "Only the crew creator can promote members.";
+    }
+
+    // Check target is a member
+    const target = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "role",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${targetId}`,
+      limit: "1",
+    });
+
+    if (!target?.length) return "That person isn't in this crew.";
+    if (target[0].role === "creator") return "Can't change the creator's role.";
+    if (target[0].role === "admin") return "They're already an admin.";
+
+    await sbPatch(cfg, "flowb_group_members", {
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${targetId}`,
+    }, { role: "admin" });
+
+    return `Promoted ${targetId.replace("telegram_", "@")} to admin.`;
+  }
+
+  /**
+   * Demote an admin to member (creator only).
+   */
+  async crewDemote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
+    if (!uid) return "User ID required.";
+    if (!groupId || !targetId) return "Crew ID and member ID required.";
+
+    if (!await this.hasCrewPermission(cfg, uid, groupId, "creator")) {
+      return "Only the crew creator can demote admins.";
+    }
+
+    const target = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "role",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${targetId}`,
+      limit: "1",
+    });
+
+    if (!target?.length) return "That person isn't in this crew.";
+    if (target[0].role === "creator") return "Can't change the creator's role.";
+    if (target[0].role === "member") return "They're already a member.";
+
+    await sbPatch(cfg, "flowb_group_members", {
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${targetId}`,
+    }, { role: "member" });
+
+    return `Demoted ${targetId.replace("telegram_", "@")} to member.`;
+  }
+
+  /**
+   * Generate a personal tracked invite link (alias for crewInvite).
+   */
+  async crewPersonalInvite(cfg: FlowPluginConfig, uid?: string, groupId?: string): Promise<string> {
+    return this.crewInvite(cfg, uid, groupId);
+  }
+
+  // ==========================================================================
+  // Crew Permission Helpers
+  // ==========================================================================
+
+  /**
+   * Check if user has >= minRole in a crew.
+   * Role hierarchy: creator > admin > member
+   */
+  async hasCrewPermission(cfg: FlowPluginConfig, uid: string, groupId: string, minRole: "member" | "admin" | "creator"): Promise<boolean> {
+    const membership = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "role",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${uid}`,
+      limit: "1",
+    });
+
+    if (!membership?.length) return false;
+
+    const roleLevel: Record<string, number> = { member: 1, admin: 2, creator: 3 };
+    const userLevel = roleLevel[membership[0].role] || 0;
+    const requiredLevel = roleLevel[minRole] || 0;
+
+    return userLevel >= requiredLevel;
+  }
+
+  /**
+   * Get all creators + admins of a crew (for DM notifications).
+   */
+  async getCrewAdmins(cfg: FlowPluginConfig, groupId: string): Promise<string[]> {
+    const members = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "user_id,role",
+      group_id: `eq.${groupId}`,
+    });
+
+    return (members || [])
+      .filter((m: any) => m.role === "creator" || m.role === "admin")
+      .map((m: any) => m.user_id);
+  }
+
+  /**
+   * Get a user's role in a crew. Returns null if not a member.
+   */
+  async getCrewRole(cfg: FlowPluginConfig, uid: string, groupId: string): Promise<string | null> {
+    const membership = await sbQuery<any[]>(cfg, "flowb_group_members", {
+      select: "role",
+      group_id: `eq.${groupId}`,
+      user_id: `eq.${uid}`,
+      limit: "1",
+    });
+
+    return membership?.[0]?.role || null;
+  }
+
+  /**
+   * Get pending join requests for a crew.
+   */
+  async getPendingRequests(cfg: FlowPluginConfig, groupId: string): Promise<JoinRequest[]> {
+    const requests = await sbQuery<JoinRequest[]>(cfg, "flowb_crew_join_requests", {
+      select: "*",
+      group_id: `eq.${groupId}`,
+      status: "eq.pending",
+      order: "requested_at.asc",
+    });
+
+    return requests || [];
   }
 
   // ==========================================================================

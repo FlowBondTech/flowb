@@ -2,3 +2,11 @@ node_modules/
 dist/
 .env
 *.tsbuildinfo
+
+# Mini app build artifacts
+miniapp/farcaster/.next/
+miniapp/farcaster/out/
+miniapp/telegram/dist/
+
+# Supabase CLI temp
+supabase/.temp/
