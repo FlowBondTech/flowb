@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
 import { updatePreferences } from "../api/client";
+import { composeCast, shareToX, copyToClipboard } from "../lib/farcaster";
 
 const ARRIVAL_OPTIONS = [
   { value: "already-here", label: "I'm already here", emoji: "\uD83C\uDFD4\uFE0F" },
-  { value: "feb-23", label: "Feb 23 (Main event)", emoji: "\uD83D\uDCC5" },
-  { value: "feb-24", label: "Feb 24+", emoji: "\uD83D\uDE80" },
+  { value: "feb-17", label: "Feb 17 (Opening Day)", emoji: "\uD83C\uDF89" },
+  { value: "feb-18-20", label: "Feb 18-20 (Main Event)", emoji: "\uD83D\uDCC5" },
+  { value: "feb-21-plus", label: "Feb 21+ (Late arrival)", emoji: "\uD83D\uDE80" },
   { value: "remote", label: "Attending remotely", emoji: "\uD83C\uDF10" },
 ];
 
@@ -19,6 +21,8 @@ const INTEREST_CATEGORIES = [
   { id: "rwa", label: "Real World Assets", emoji: "\uD83C\uDFE0" },
   { id: "music", label: "Music & Culture", emoji: "\uD83C\uDFB5" },
   { id: "dev", label: "Dev Tooling", emoji: "\uD83D\uDD27" },
+  { id: "hackathon", label: "Hackathon/Building", emoji: "\uD83D\uDEE0\uFE0F" },
+  { id: "parties", label: "Parties & Networking", emoji: "\uD83C\uDF7E" },
 ];
 
 const CREW_OPTIONS = [
@@ -27,18 +31,21 @@ const CREW_OPTIONS = [
   { value: "skip", label: "Skip for now", emoji: "", sub: "You can join later" },
 ];
 
+const MINIAPP_URL = "https://flowb-farcaster.netlify.app";
+
 interface Props {
   onComplete: () => void;
   onNavigateCrew?: (action: "browse" | "create") => void;
 }
 
 export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
-  const [step, setStep] = useState(0); // 0=welcome, 1=when, 2=interests, 3=crew, 4=done
+  const [step, setStep] = useState(0); // 0=welcome, 1=when, 2=interests, 3=crew, 4=share, 5=done
   const [arrivalDate, setArrivalDate] = useState<string>("");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-  const totalSteps = 4;
+  const totalSteps = 5;
   const progressPercent = Math.min(((step) / totalSteps) * 100, 100);
 
   const toggleInterest = useCallback((id: string) => {
@@ -73,6 +80,28 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
     },
     [arrivalDate, selectedInterests, onComplete, onNavigateCrew],
   );
+
+  const handleShareFarcaster = () => {
+    composeCast(
+      "I'm using FlowB for EthDenver! Find events, build your crew, earn points.",
+      [MINIAPP_URL],
+    );
+  };
+
+  const handleShareX = () => {
+    shareToX(
+      "I'm using FlowB for EthDenver! Find events, build your crew, earn points.",
+      MINIAPP_URL,
+    );
+  };
+
+  const handleCopyLink = async () => {
+    const ok = await copyToClipboard(MINIAPP_URL);
+    if (ok) {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+    }
+  };
 
   // Welcome screen
   if (step === 0) {
@@ -257,8 +286,52 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
           </div>
         )}
 
-        {/* Step 4: Done */}
+        {/* Step 4: Share & Invite */}
         {step === 4 && (
+          <div className="onboarding-step">
+            <div className="onboarding-step-header">
+              <div className="onboarding-step-emoji">{"\uD83D\uDCE3"}</div>
+              <h2 className="onboarding-step-title">Tell your crew</h2>
+              <p className="onboarding-step-desc">
+                Let your friends know you're on FlowB for EthDenver
+              </p>
+            </div>
+
+            <div className="onboarding-options">
+              <button className="onboarding-option" onClick={handleShareFarcaster}>
+                <span className="onboarding-option-emoji">{"\uD83D\uDFEA"}</span>
+                <span className="onboarding-option-label">Share on Farcaster</span>
+                <span style={{ color: "var(--hint)", fontSize: 16 }}>{"\u203A"}</span>
+              </button>
+              <button className="onboarding-option" onClick={handleShareX}>
+                <span className="onboarding-option-emoji">{"\uD83D\uDC26"}</span>
+                <span className="onboarding-option-label">Share on X</span>
+                <span style={{ color: "var(--hint)", fontSize: 16 }}>{"\u203A"}</span>
+              </button>
+              <button className="onboarding-option" onClick={handleCopyLink}>
+                <span className="onboarding-option-emoji">{"\uD83D\uDD17"}</span>
+                <span className="onboarding-option-label">
+                  {linkCopied ? "Copied!" : "Copy Link"}
+                </span>
+                {linkCopied && (
+                  <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 600 }}>{"\u2713"}</span>
+                )}
+              </button>
+            </div>
+
+            <div className="onboarding-actions">
+              <button className="btn btn-secondary" onClick={() => setStep(3)}>
+                Back
+              </button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(5)}>
+                {linkCopied ? "Next" : "Skip"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 5: Done */}
+        {step === 5 && (
           <div className="onboarding-step" style={{ textAlign: "center" }}>
             <div className="onboarding-step-header">
               <div className="onboarding-done-emoji">{"\uD83C\uDF89"}</div>

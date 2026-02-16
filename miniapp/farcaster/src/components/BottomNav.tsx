@@ -1,6 +1,6 @@
 import React from "react";
 
-type Screen = "home" | "schedule" | "crew" | "points";
+type Screen = "home" | "chat" | "schedule" | "crew" | "points";
 
 interface Props {
   current: string;
@@ -11,6 +11,11 @@ const icons: Record<Screen, React.ReactNode> = {
   home: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+    </svg>
+  ),
+  chat: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   ),
   schedule: (
@@ -38,6 +43,7 @@ const icons: Record<Screen, React.ReactNode> = {
 
 const tabs: Array<{ name: Screen; label: string }> = [
   { name: "home", label: "Now" },
+  { name: "chat", label: "FlowB" },
   { name: "schedule", label: "Schedule" },
   { name: "crew", label: "Crew" },
   { name: "points", label: "Points" },

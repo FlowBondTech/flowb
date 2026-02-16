@@ -68,6 +68,32 @@ export class PrivyClient {
     }
   }
 
+  async lookupByFarcasterFid(fid: number): Promise<PrivyUser | null> {
+    try {
+      const res = await fetch(
+        `https://auth.privy.io/api/v2/users/farcaster:${fid}`,
+        {
+          headers: {
+            Authorization: this.authHeader,
+            "privy-app-id": this.appId,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        console.error(`[privy] Farcaster lookup failed: ${res.status}`);
+        return null;
+      }
+
+      return (await res.json()) as PrivyUser;
+    } catch (err) {
+      console.error("[privy] Farcaster FID lookup error:", err);
+      return null;
+    }
+  }
+
   async lookupByPrivyId(privyId: string): Promise<PrivyUser | null> {
     try {
       const res = await fetch(

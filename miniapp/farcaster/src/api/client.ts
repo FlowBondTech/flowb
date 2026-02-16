@@ -160,6 +160,33 @@ export async function claimPendingPoints(
   return post("/api/v1/auth/claim-points", { actions });
 }
 
+// ============================================================================
+// Chat (OpenClaw-FlowB on Fly)
+// ============================================================================
+
+const FLOWB_CHAT_URL = "https://flowb.fly.dev";
+
+export async function sendChat(
+  messages: Array<{ role: string; content: string }>,
+  userId?: string,
+): Promise<string> {
+  const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "flowb",
+      messages,
+      stream: false,
+      user: userId || "farcaster-anon",
+    }),
+  });
+
+  if (!res.ok) throw new Error(`FlowB chat returned ${res.status}`);
+
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
+}
+
 // Preferences
 export async function getPreferences(): Promise<PreferencesData> {
   const data = await get<{ preferences: PreferencesData }>("/api/v1/me/preferences");

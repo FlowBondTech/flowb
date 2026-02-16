@@ -180,11 +180,34 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             } catch {}
           }
 
+          // Check for existing Privy account linked to this FID
+          let privyUserId: string | undefined;
+          const privyAppId = process.env.PRIVY_APP_ID;
+          const privyAppSecret = process.env.PRIVY_APP_SECRET;
+          if (privyAppId && privyAppSecret) {
+            try {
+              const credentials = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+              const privyRes = await fetch(`https://auth.privy.io/api/v2/users/farcaster:${fid}`, {
+                headers: {
+                  Authorization: `Basic ${credentials}`,
+                  "privy-app-id": privyAppId,
+                  "Content-Type": "application/json",
+                },
+              });
+              if (privyRes.ok) {
+                const privyUser = await privyRes.json() as any;
+                privyUserId = privyUser?.id;
+                console.log(`[auth] Linked Farcaster FID ${fid} to Privy user ${privyUserId}`);
+              }
+            } catch {}
+          }
+
           const token = signJwt({
             sub: userId,
             platform: "farcaster",
             fid,
             username,
+            ...(privyUserId ? { privyUserId } : {}),
           });
 
           return {
@@ -196,6 +219,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               username,
               displayName,
               pfpUrl,
+              ...(privyUserId ? { privyUserId } : {}),
             },
           };
         } catch (err: any) {

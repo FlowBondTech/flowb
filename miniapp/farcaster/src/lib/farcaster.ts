@@ -9,13 +9,33 @@ let sdkReady = false;
 
 /**
  * Detect whether we're running inside a Farcaster/Base mini app context.
+ * Falls back to iframe/UA/URL detection if SDK check fails (Base app issue).
  */
 export async function isInMiniApp(): Promise<boolean> {
   try {
-    return await sdk.isInMiniApp();
-  } catch {
-    return false;
+    const sdkResult = await sdk.isInMiniApp();
+    if (sdkResult) return true;
+  } catch {}
+
+  // Fallback: iframe detection (mini apps run in iframes)
+  if (typeof window !== "undefined") {
+    try {
+      if (window.parent !== window || window.self !== window.top) return true;
+    } catch {
+      // Cross-origin iframe throws — that means we ARE in an iframe
+      return true;
+    }
+
+    // User agent detection for Base/Warpcast
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes("warpcast") || ua.includes("base")) return true;
+
+    // URL param override (for testing / deep links)
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("miniapp") || params.has("fc_frame")) return true;
   }
+
+  return false;
 }
 
 export async function initFarcaster(): Promise<{
@@ -26,11 +46,22 @@ export async function initFarcaster(): Promise<{
   if (sdkReady) return {};
 
   try {
-    const context = await sdk.context;
+    const context = await Promise.race([
+      sdk.context,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+
     sdkReady = true;
 
     // Tell the client we're ready (hides splash screen)
-    await sdk.actions.ready();
+    try {
+      await sdk.actions.ready();
+    } catch {}
+
+    if (!context) {
+      console.warn("[farcaster] SDK context timed out — proceeding without context");
+      return {};
+    }
 
     return {
       fid: context?.user?.fid,
@@ -39,6 +70,7 @@ export async function initFarcaster(): Promise<{
     };
   } catch (err) {
     console.error("[farcaster] SDK init failed:", err);
+    sdkReady = true; // Mark ready to prevent re-init loops
     return {};
   }
 }
@@ -97,4 +129,13 @@ export function openUrl(url: string): void {
   } catch {
     window.open(url, "_blank");
   }
+}
+
+export function shareToX(text: string, url?: string): void {
+  const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}${url ? `&url=${encodeURIComponent(url)}` : ""}`;
+  openUrl(tweetUrl);
+}
+
+export function copyToClipboard(text: string): Promise<boolean> {
+  return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
 }
