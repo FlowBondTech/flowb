@@ -4,12 +4,15 @@
  * A frosted-glass container. On iOS it wraps children in an expo-blur
  * BlurView for real backdrop blur; on Android it falls back to a
  * semi-transparent solid background. If `onPress` is supplied the whole
- * card becomes tappable with a subtle scale animation and haptic tap.
+ * card becomes tappable with a Reanimated spring scale + opacity
+ * animation and haptic tap.
+ *
+ * Supports Reanimated `entering` / `exiting` layout animations for
+ * staggered list appearances.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import {
-  Animated,
   Platform,
   Pressable,
   StyleProp,
@@ -18,6 +21,11 @@ import {
   ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { colors } from '../../theme/colors';
 import { glassStyle, GlassVariant } from '../../theme/glass';
@@ -32,6 +40,13 @@ const blurIntensity: Record<GlassVariant, number> = {
   glow: 40,
 };
 
+// Spring config for press feedback
+const PRESS_SPRING = {
+  damping: 20,
+  stiffness: 300,
+  mass: 0.6,
+};
+
 // ── Props ────────────────────────────────────────────────────────────
 
 export interface GlassCardProps {
@@ -39,6 +54,10 @@ export interface GlassCardProps {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  /** Reanimated entering animation — defaults to FadeInDown.duration(350) */
+  entering?: any;
+  /** Disable the default entering animation */
+  noAnimation?: boolean;
 }
 
 // ── Component ────────────────────────────────────────────────────────
@@ -48,31 +67,27 @@ export function GlassCard({
   children,
   style,
   onPress,
+  entering,
+  noAnimation,
 }: GlassCardProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(0.97, PRESS_SPRING);
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(1, PRESS_SPRING);
   }, [scale]);
 
   const handlePress = useCallback(() => {
     haptics.tap();
     onPress?.();
   }, [onPress]);
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   const variantStyle = glassStyle(variant);
 
@@ -95,7 +110,7 @@ export function GlassCard({
 
   if (onPress) {
     return (
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View style={pressStyle}>
         <Pressable
           onPress={handlePress}
           onPressIn={handlePressIn}

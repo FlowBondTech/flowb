@@ -18,6 +18,8 @@ import { UserManager } from "../screens/admin/UserManager";
 import { CastComposer } from "../screens/admin/CastComposer";
 import { NotificationCenter } from "../screens/admin/NotificationCenter";
 import { SettingsEditor } from "../screens/admin/SettingsEditor";
+import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
+import { FriendsScreen } from "../screens/profile/FriendsScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -64,39 +66,72 @@ export function AppNavigator() {
           headerShown: false,
           contentStyle: { backgroundColor: "#050510" },
           animation: "slide_from_right",
+          animationDuration: 250,
+          gestureEnabled: true,
+          gestureDirection: "horizontal",
         }}
       >
         {!token ? (
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+            <Stack.Screen
+              name="Login"
+              component={LoginScreen}
+              options={{ animation: "fade" }}
+            />
+            <Stack.Screen
+              name="Onboarding"
+              component={OnboardingScreen}
+              options={{ animation: "slide_from_bottom" }}
+            />
           </>
         ) : (
           <>
-            <Stack.Screen name="MainTabs" component={TabNavigator} />
+            <Stack.Screen
+              name="MainTabs"
+              component={TabNavigator}
+              options={{ animation: "fade" }}
+            />
+
+            {/* Push screens — slide from right */}
             <Stack.Screen name="EventDetail" component={EventDetailScreen} />
             <Stack.Screen name="CrewDetail" component={CrewDetailScreen} />
-            <Stack.Screen
-              name="CreateCrew"
-              component={CreateCrewScreen}
-              options={{ presentation: "modal" }}
-            />
-            <Stack.Screen
-              name="Checkin"
-              component={CheckinScreen}
-              options={{ presentation: "modal" }}
-            />
+            <Stack.Screen name="Preferences" component={PreferencesScreen} />
+            <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
             <Stack.Screen name="PluginManager" component={PluginManager} />
             <Stack.Screen name="EventCurator" component={EventCurator} />
             <Stack.Screen name="UserManager" component={UserManager} />
+            <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
+            <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
+
+            {/* Modal screens — slide up with scale-behind effect */}
+            <Stack.Screen
+              name="CreateCrew"
+              component={CreateCrewScreen}
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureDirection: "vertical",
+              }}
+            />
+            <Stack.Screen
+              name="Checkin"
+              component={CheckinScreen}
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureDirection: "vertical",
+              }}
+            />
             <Stack.Screen
               name="CastComposer"
               component={CastComposer}
-              options={{ presentation: "modal" }}
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureDirection: "vertical",
+              }}
             />
-            <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
-            <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
           </>
         )}
       </Stack.Navigator>

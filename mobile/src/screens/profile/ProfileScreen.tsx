@@ -1,29 +1,38 @@
 /**
  * ProfileScreen
  *
- * User profile with avatar, stats summary, settings links, optional
- * admin panel access, and sign-out. Follows the FlowB glassmorphism
- * dark-themed design system.
+ * User profile with animated avatar, stats summary, settings links,
+ * optional admin panel access, and sign-out. Features staggered
+ * entrance animations and animated collapsing header.
  */
 
-import React, { useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import {
   Alert,
-  Animated,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  FadeInDown,
+  FadeInUp,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
+import { AnimatedHeader } from '../../components/glass/AnimatedHeader';
 import { GlassCard } from '../../components/glass/GlassCard';
 import { GlassButton } from '../../components/glass/GlassButton';
 import { GlassPill } from '../../components/glass/GlassPill';
+import { SkeletonProfile, SkeletonStatRow } from '../../components/feedback/Skeleton';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -34,6 +43,7 @@ import { haptics } from '../../utils/haptics';
 import type { RootStackParamList } from '../../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
 // ── Settings row ──────────────────────────────────────────────────
 
@@ -45,35 +55,28 @@ interface SettingsRowProps {
 }
 
 function SettingsRow({ icon, label, disabled, onPress }: SettingsRowProps) {
-  return (
-    <View
-      style={[styles.settingsRow, disabled && styles.settingsRowDisabled]}
-    >
+  const content = (
+    <View style={[styles.settingsRow, disabled && styles.settingsRowDisabled]}>
       <Ionicons
         name={icon}
         size={20}
         color={disabled ? colors.text.tertiary : colors.text.secondary}
       />
-      <Text
-        style={[
-          styles.settingsLabel,
-          disabled && { color: colors.text.tertiary },
-        ]}
-      >
+      <Text style={[styles.settingsLabel, disabled && { color: colors.text.tertiary }]}>
         {label}
       </Text>
       <View style={styles.settingsRight}>
-        {disabled && (
-          <Text style={styles.comingSoon}>Coming soon</Text>
-        )}
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={colors.text.tertiary}
-        />
+        {disabled && <Text style={styles.comingSoon}>Coming soon</Text>}
+        <Ionicons name="chevron-forward" size={16} color={colors.text.tertiary} />
       </View>
     </View>
   );
+
+  if (onPress && !disabled) {
+    return <Pressable onPress={onPress}>{content}</Pressable>;
+  }
+
+  return content;
 }
 
 // ── Mini stat card ────────────────────────────────────────────────
@@ -82,38 +85,34 @@ interface MiniStatProps {
   label: string;
   value: string | number;
   color: string;
+  index: number;
 }
 
-function MiniStat({ label, value, color }: MiniStatProps) {
+function MiniStat({ label, value, color, index }: MiniStatProps) {
   return (
-    <GlassCard variant="subtle" style={styles.miniStat}>
-      <Text style={[styles.miniStatValue, { color }]}>{value}</Text>
-      <Text style={styles.miniStatLabel}>{label}</Text>
-    </GlassCard>
+    <Animated.View
+      entering={FadeInDown.delay(200 + index * 80).duration(400).springify()}
+      style={{ flex: 1 }}
+    >
+      <GlassCard variant="subtle" style={styles.miniStat}>
+        <Text style={[styles.miniStatValue, { color }]}>{value}</Text>
+        <Text style={styles.miniStatLabel}>{label}</Text>
+      </GlassCard>
+    </Animated.View>
   );
 }
 
-// ── Sign-out button (ghost with rose text) ────────────────────────
+// ── Sign-out button (animated) ────────────────────────────────────
 
 function SignOutButton({ onPress }: { onPress: () => void }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(0.97, { damping: 20, stiffness: 300, mass: 0.6 });
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(1, { damping: 20, stiffness: 300, mass: 0.6 });
   }, [scale]);
 
   const handlePress = useCallback(() => {
@@ -121,8 +120,12 @@ function SignOutButton({ onPress }: { onPress: () => void }) {
     onPress();
   }, [onPress]);
 
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
   return (
-    <Animated.View style={[styles.signOutButton, { transform: [{ scale }] }]}>
+    <Animated.View style={[styles.signOutButton, pressStyle]}>
       <Pressable
         onPress={handlePress}
         onPressIn={handlePressIn}
@@ -146,8 +149,16 @@ function SignOutButton({ onPress }: { onPress: () => void }) {
 
 export function ProfileScreen() {
   const navigation = useNavigation<Nav>();
+  const insets = useSafeAreaInsets();
   const { user, isAdmin, logout } = useAuthStore();
   const { points, fetchPoints } = usePointsStore();
+
+  const scrollOffset = useSharedValue(0);
+  const scrollHandler = useAnimatedScrollHandler({
+    onScroll: (event) => {
+      scrollOffset.value = event.contentOffset.y;
+    },
+  });
 
   useEffect(() => {
     fetchPoints();
@@ -157,6 +168,8 @@ export function ProfileScreen() {
   const userId = user?.id ?? '';
   const initial = username.charAt(0).toUpperCase();
   const isAdminUser = isAdmin();
+  const headerHeight = insets.top + 48 + 52;
+  const showSkeleton = !user;
 
   const handleSignOut = useCallback(() => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -172,89 +185,114 @@ export function ProfileScreen() {
     ]);
   }, [logout]);
 
-  const handleOpenAdmin = useCallback(() => {
-    navigation.navigate('AdminDashboard');
-  }, [navigation]);
-
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView
-        contentContainerStyle={styles.scroll}
+    <View style={styles.safe}>
+      <AnimatedHeader title="Profile" scrollOffset={scrollOffset} />
+
+      <AnimatedScrollView
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+        contentContainerStyle={[styles.scroll, { paddingTop: headerHeight }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Profile header ────────────────────────────────────── */}
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarLetter}>{initial}</Text>
-          </View>
-          <Text style={styles.username}>{username}</Text>
-          <Text style={styles.userId}>{userId}</Text>
+        {showSkeleton ? (
+          <>
+            <SkeletonProfile />
+            <SkeletonStatRow />
+          </>
+        ) : (
+          <>
+            {/* ── Profile header ────────────────────────────────────── */}
+            <Animated.View
+              entering={FadeInUp.duration(500).springify()}
+              style={styles.header}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarLetter}>{initial}</Text>
+              </View>
+              <Text style={styles.username}>{username}</Text>
+              <Text style={styles.userId}>{userId}</Text>
+              {isAdminUser && (
+                <GlassPill
+                  label="ADMIN"
+                  color={colors.accent.primary}
+                  active
+                  style={styles.rolePill}
+                />
+              )}
+            </Animated.View>
 
-          {isAdminUser && (
-            <GlassPill
-              label="ADMIN"
-              color={colors.accent.primary}
-              active
-              style={styles.rolePill}
-            />
-          )}
-        </View>
+            {/* ── Stats row ─────────────────────────────────────────── */}
+            <View style={styles.statsRow}>
+              <MiniStat label="Points" value={formatPoints(points?.points ?? 0)} color={colors.accent.primary} index={0} />
+              <MiniStat label="Streak" value={points?.streak ?? 0} color={colors.accent.amber} index={1} />
+              <MiniStat label="Level" value={points?.level ?? 0} color={colors.accent.cyan} index={2} />
+            </View>
 
-        {/* ── Stats row ─────────────────────────────────────────── */}
-        <View style={styles.statsRow}>
-          <MiniStat
-            label="Points"
-            value={formatPoints(points?.points ?? 0)}
-            color={colors.accent.primary}
-          />
-          <MiniStat
-            label="Streak"
-            value={points?.streak ?? 0}
-            color={colors.accent.amber}
-          />
-          <MiniStat
-            label="Level"
-            value={points?.level ?? 0}
-            color={colors.accent.cyan}
-          />
-        </View>
+            {/* ── Settings section ──────────────────────────────────── */}
+            <Animated.View entering={FadeInDown.delay(400).duration(400).springify()}>
+              <GlassCard variant="medium" style={styles.settingsCard}>
+                <SettingsRow
+                  icon="notifications-outline"
+                  label="Notifications"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('Preferences');
+                  }}
+                />
+                <View style={styles.divider} />
+                <SettingsRow
+                  icon="options-outline"
+                  label="Preferences"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('Preferences');
+                  }}
+                />
+                <View style={styles.divider} />
+                <SettingsRow
+                  icon="people-outline"
+                  label="Friends"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('Friends');
+                  }}
+                />
+                <View style={styles.divider} />
+                <SettingsRow icon="link-outline" label="Linked Accounts" disabled />
+              </GlassCard>
+            </Animated.View>
 
-        {/* ── Settings section ──────────────────────────────────── */}
-        <GlassCard variant="medium" style={styles.settingsCard}>
-          <SettingsRow icon="notifications-outline" label="Notifications" />
-          <View style={styles.divider} />
-          <SettingsRow icon="options-outline" label="Preferences" />
-          <View style={styles.divider} />
-          <SettingsRow
-            icon="link-outline"
-            label="Linked Accounts"
-            disabled
-          />
-        </GlassCard>
+            {/* ── Admin section ─────────────────────────────────────── */}
+            {isAdminUser && (
+              <Animated.View entering={FadeInDown.delay(500).duration(400).springify()}>
+                <GlassCard variant="medium" style={styles.adminCard}>
+                  <Text style={styles.adminTitle}>Admin Panel</Text>
+                  <Text style={styles.adminCaption}>
+                    Manage events, users, and system settings
+                  </Text>
+                  <GlassButton
+                    title="Open Admin Dashboard"
+                    onPress={() => navigation.navigate('AdminDashboard')}
+                    variant="secondary"
+                    size="sm"
+                    style={styles.adminButton}
+                  />
+                </GlassCard>
+              </Animated.View>
+            )}
 
-        {/* ── Admin section ─────────────────────────────────────── */}
-        {isAdminUser && (
-          <GlassCard variant="medium" style={styles.adminCard}>
-            <Text style={styles.adminTitle}>Admin Panel</Text>
-            <Text style={styles.adminCaption}>
-              Manage events, users, and system settings
-            </Text>
-            <GlassButton
-              title="Open Admin Dashboard"
-              onPress={handleOpenAdmin}
-              variant="secondary"
-              size="sm"
-              style={styles.adminButton}
-            />
-          </GlassCard>
+            {/* ── Danger zone ──────────────────────────────────────── */}
+            <Animated.View
+              entering={FadeInDown.delay(600).duration(400)}
+              style={styles.dangerZone}
+            >
+              <SignOutButton onPress={handleSignOut} />
+            </Animated.View>
+          </>
         )}
-
-        {/* ── Danger zone ──────────────────────────────────────── */}
-        <View style={styles.dangerZone}>
-          <SignOutButton onPress={handleSignOut} />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AnimatedScrollView>
+    </View>
   );
 }
 
@@ -269,7 +307,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: spacing.xxl + 80,
   },
 
   // Profile header
@@ -312,7 +350,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   miniStat: {
-    flex: 1,
     alignItems: 'center',
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,

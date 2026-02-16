@@ -9,6 +9,8 @@ export type RootStackParamList = {
   CrewDetail: { crewId: string; crewName: string; crewEmoji: string };
   CreateCrew: undefined;
   Checkin: { crewId: string; crewName: string };
+  Preferences: undefined;
+  Friends: undefined;
   AdminDashboard: undefined;
   PluginManager: undefined;
   EventCurator: undefined;

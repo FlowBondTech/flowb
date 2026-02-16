@@ -2,14 +2,13 @@
  * GlassButton
  *
  * Translucent button with three visual variants and optional loading /
- * icon states. Provides haptic feedback and a spring press animation
- * for a tactile feel that matches the glassmorphism aesthetic.
+ * icon states. Uses Reanimated spring press animation for smooth
+ * 60fps haptic feedback matching the glassmorphism aesthetic.
  */
 
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback } from 'react';
 import {
   ActivityIndicator,
-  Animated,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -18,11 +17,15 @@ import {
   ViewStyle,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
 import { colors } from '../../theme/colors';
 import { glassStyle } from '../../theme/glass';
 import { spacing } from '../../theme/spacing';
-import { typography } from '../../theme/typography';
 import { haptics } from '../../utils/haptics';
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -52,6 +55,12 @@ const sizePresets: Record<
   lg: { height: 56, paddingHorizontal: spacing.lg, fontSize: 17 },
 };
 
+const PRESS_SPRING = {
+  damping: 20,
+  stiffness: 300,
+  mass: 0.6,
+};
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function GlassButton({
@@ -64,25 +73,15 @@ export function GlassButton({
   size = 'md',
   style,
 }: GlassButtonProps) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const scale = useSharedValue(1);
   const preset = sizePresets[size];
 
   const handlePressIn = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(0.96, PRESS_SPRING);
   }, [scale]);
 
   const handlePressOut = useCallback(() => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 50,
-      bounciness: 4,
-    }).start();
+    scale.value = withSpring(1, PRESS_SPRING);
   }, [scale]);
 
   const handlePress = useCallback(() => {
@@ -90,6 +89,10 @@ export function GlassButton({
     haptics.tap();
     onPress();
   }, [disabled, loading, onPress]);
+
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   // ── Label & indicator color ───────────────────────────────────────
 
@@ -166,7 +169,7 @@ export function GlassButton({
   };
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, style]}>
+    <Animated.View style={[pressStyle, style]}>
       <Pressable
         onPress={handlePress}
         onPressIn={handlePressIn}

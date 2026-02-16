@@ -13,6 +13,8 @@ import type {
   PluginInfo,
   NotificationStats,
   CrewMission,
+  FeedCast,
+  GlobalCrewRanking,
 } from "./types";
 
 let authToken: string | null = null;
@@ -211,6 +213,17 @@ export async function getPoints(): Promise<PointsInfo> {
 
 export async function getGlobalLeaderboard() {
   return get<{ crews: any[] }>("/api/v1/flow/leaderboard");
+}
+
+// ── Feed ─────────────────────────────────────────────────────────
+export async function getFeed(
+  channel = "ethdenver",
+  limit = 20
+): Promise<FeedCast[]> {
+  const data = await get<{ casts: FeedCast[] }>(
+    `/api/v1/feed/${encodeURIComponent(channel)}?limit=${limit}`
+  );
+  return data.casts;
 }
 
 // ── Preferences ───────────────────────────────────────────────────────

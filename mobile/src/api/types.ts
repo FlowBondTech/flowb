@@ -127,3 +127,30 @@ export interface CrewMission {
   reward: number;
   completed: boolean;
 }
+
+export interface FeedCast {
+  hash: string;
+  author: {
+    fid: number;
+    username: string;
+    displayName: string;
+    pfpUrl?: string;
+  };
+  text: string;
+  timestamp: string;
+  reactions: {
+    likes: number;
+    recasts: number;
+  };
+  replies: { count: number };
+  embeds?: { url?: string }[];
+}
+
+export interface GlobalCrewRanking {
+  crew_id: string;
+  crew_name: string;
+  crew_emoji: string;
+  total_points: number;
+  member_count: number;
+  avg_points: number;
+}

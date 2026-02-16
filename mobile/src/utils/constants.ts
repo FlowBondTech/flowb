@@ -3,7 +3,7 @@ import Constants from "expo-constants";
 export const API_URL =
   Constants.expoConfig?.extra?.apiUrl ||
   process.env.EXPO_PUBLIC_API_URL ||
-  "https://flowb.me";
+  "https://flowb.fly.dev";
 
 export const DEEP_LINK_SCHEME = "flowb";
 
