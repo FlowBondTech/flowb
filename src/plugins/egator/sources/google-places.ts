@@ -55,6 +55,9 @@ export class GooglePlacesAdapter implements EventSourceAdapter {
           isVirtual: false,
           source: "google-places",
           url: `https://www.google.com/maps/place/?q=place_id:${place.place_id}`,
+          imageUrl: place.photos?.[0]?.photo_reference
+            ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${place.photos[0].photo_reference}&key=${this.apiKey}`
+            : undefined,
         }));
     } catch (err: any) {
       console.error("[egator:google-places] Fetch error:", err.message);

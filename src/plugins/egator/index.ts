@@ -154,6 +154,7 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
         danceStyles: e.vibe?.danceTags || [],
         source: e.source || "egator",
         url: e.url,
+        imageUrl: e.imageUrl || e.image_url || e.cover_url || undefined,
       }));
     } catch (err) {
       console.error("[egator] Legacy API fetch failed:", err);

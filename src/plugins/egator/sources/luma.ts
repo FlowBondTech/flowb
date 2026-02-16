@@ -49,6 +49,7 @@ export class LumaAdapter implements EventSourceAdapter {
           isVirtual: e.is_online || false,
           source: "luma",
           url: e.url || `https://lu.ma/${e.api_id || e.id}`,
+          imageUrl: e.cover_url || e.image_url || undefined,
         };
       });
     } catch (err: any) {

@@ -26,6 +26,14 @@ interface FeaturedEvent {
   badge: string;
   url: string;
   isFree: boolean;
+  imageUrl?: string;
+}
+
+/** Compress images via wsrv.nl proxy - same as main flowb.me site */
+function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | null {
+  if (!url) return null;
+  if (url.includes("evbuc.com")) return url;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&h=${h}&fit=cover&output=webp&q=75`;
 }
 
 function getFeaturedEvents(): FeaturedEvent[] {
@@ -337,7 +345,18 @@ export default function FarcasterApp() {
               }}
             >
               <div className="featured-card">
-                <div className="featured-img" />
+                {feat.imageUrl ? (
+                  <img
+                    className="featured-img"
+                    src={optimizeImageUrl(feat.imageUrl, 600, 200) || feat.imageUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  />
+                ) : (
+                  <div className="featured-img" />
+                )}
                 <div className="featured-body">
                   <span className="featured-badge">{feat.badge}</span>
                   <div className="featured-title">{feat.title}</div>
@@ -470,6 +489,16 @@ export default function FarcasterApp() {
           >
             Back
           </button>
+          {selectedEvent.imageUrl && (
+            <img
+              src={optimizeImageUrl(selectedEvent.imageUrl, 600, 300) || selectedEvent.imageUrl}
+              alt=""
+              style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 12, marginBottom: 12 }}
+              loading="lazy"
+              decoding="async"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            />
+          )}
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
             {selectedEvent.title}
           </h1>

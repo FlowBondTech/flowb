@@ -70,6 +70,7 @@ export class BraveSearchAdapter implements EventSourceAdapter {
           isVirtual: false,
           source: "brave",
           url: r.url,
+          imageUrl: r.thumbnail?.src || undefined,
         }));
     } catch (err: any) {
       console.error("[egator:brave] Fetch error:", err.message);

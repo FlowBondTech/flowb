@@ -129,6 +129,7 @@ export interface EventResult {
   skillLevel?: string;
   source: string;
   url?: string;
+  imageUrl?: string;
 }
 
 // ============================================================================

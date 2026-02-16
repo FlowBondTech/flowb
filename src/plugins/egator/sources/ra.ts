@@ -49,6 +49,7 @@ export class ResidentAdvisorAdapter implements EventSourceAdapter {
                   }
                   pick
                   isFree
+                  flyerFront
                 }
                 totalResults
               }
@@ -77,6 +78,7 @@ export class ResidentAdvisorAdapter implements EventSourceAdapter {
         isVirtual: false,
         source: "ra",
         url: e.contentUrl ? `https://ra.co${e.contentUrl}` : undefined,
+        imageUrl: e.flyerFront || undefined,
       }));
     } catch (err: any) {
       console.error("[egator:ra] Fetch error:", err.message);

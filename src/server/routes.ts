@@ -1362,7 +1362,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         .send(ics);
     },
   );
-}
 
   // ------------------------------------------------------------------
   // ADMIN: Middleware helper

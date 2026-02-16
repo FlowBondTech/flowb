@@ -50,6 +50,7 @@ export class EventbriteAdapter implements EventSourceAdapter {
         isVirtual: e.online_event || false,
         source: "eventbrite",
         url: e.url,
+        imageUrl: e.logo?.url || e.logo?.original?.url || undefined,
       }));
     } catch (err: any) {
       console.error("[egator:eventbrite] Fetch error:", err.message);
