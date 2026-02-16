@@ -1,3 +1,8 @@
+---
+title: Telegram Bot Commands
+description: Complete reference for all commands available in the FlowB Telegram bot.
+---
+
 # FlowB Telegram Bot Commands
 
 Complete reference for all commands available in the FlowB Telegram bot (@flow_b_bot).

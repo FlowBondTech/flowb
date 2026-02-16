@@ -1,0 +1,46 @@
+:root {
+  --vp-c-brand-1: #2563eb;
+  --vp-c-brand-2: #3b82f6;
+  --vp-c-brand-3: #60a5fa;
+  --vp-c-brand-soft: rgba(37, 99, 235, 0.14);
+}
+
+.dark {
+  --vp-c-bg: #0a0a0a;
+  --vp-c-bg-alt: #111111;
+  --vp-c-bg-elv: #1a1a1a;
+  --vp-c-bg-soft: #1a1a1a;
+
+  --vp-c-brand-1: #3b82f6;
+  --vp-c-brand-2: #60a5fa;
+  --vp-c-brand-3: #93bbfd;
+  --vp-c-brand-soft: rgba(59, 130, 246, 0.14);
+
+  --vp-sidebar-bg-color: #0a0a0a;
+  --vp-nav-bg-color: #0a0a0a;
+}
+
+.dark .VPNav {
+  border-bottom-color: #1a1a1a;
+}
+
+.dark .VPSidebar {
+  border-right-color: #1a1a1a;
+}
+
+/* Hero section styling */
+.dark .VPHero .name {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .VPFeature {
+  background-color: #1a1a1a;
+  border-color: #222222;
+}
+
+.dark .VPFeature:hover {
+  border-color: #3b82f6;
+}

@@ -1,3 +1,8 @@
+---
+title: Features
+description: Comprehensive feature reference for FlowB -- events, crews, friends, points, notifications, and platform support.
+---
+
 # FlowB Features
 
 FlowB is your EthDenver companion -- discover events, coordinate with your crew, and never miss a vibe.

@@ -1,3 +1,8 @@
+---
+title: Points System
+description: Everything about earning points, building streaks, and climbing the FlowB leaderboard at EthDenver.
+---
+
 # FlowB Points System
 
 Everything you need to know about earning points, building streaks, and climbing the leaderboard at EthDenver.

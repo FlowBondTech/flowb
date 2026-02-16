@@ -11,6 +11,7 @@ let allEvents = [];
 let categories = [];
 let activeCategory = 'all';
 let activeFilter = null;
+let activePlatform = 'all';
 let searchQuery = '';
 let displayCount = 12;
 let chatHistory = [];
@@ -304,23 +305,45 @@ function renderCategories() {
 }
 
 function renderEvents(events) {
-  const visible = events.slice(0, displayCount);
-  emptyState.classList.toggle('hidden', events.length > 0);
+  // Apply platform filter client-side
+  let filtered = events;
+  if (activePlatform !== 'all') {
+    filtered = events.filter(e => e.source === activePlatform);
+  }
 
-  if (events.length === 0) {
+  const visible = filtered.slice(0, displayCount);
+  emptyState.classList.toggle('hidden', filtered.length > 0);
+
+  if (filtered.length === 0) {
     grid.innerHTML = '';
     loadMoreWrap.style.display = 'none';
     return;
   }
 
   grid.innerHTML = visible.map(e => createEventCard(e)).join('');
-  loadMoreWrap.style.display = events.length > displayCount ? '' : 'none';
-  resultsMeta.textContent = `${events.length} events${searchQuery ? ` matching "${searchQuery}"` : ''}${activeCategory !== 'all' ? ` in ${getCatLabel(activeCategory)}` : ''}`;
+  loadMoreWrap.style.display = filtered.length > displayCount ? '' : 'none';
+  const platformSuffix = activePlatform !== 'all' ? ` from ${getSourceMeta(activePlatform).label}` : '';
+  resultsMeta.textContent = `${filtered.length} events${searchQuery ? ` matching "${searchQuery}"` : ''}${activeCategory !== 'all' ? ` in ${getCatLabel(activeCategory)}` : ''}${platformSuffix}`;
 }
 
 function getCatLabel(catId) {
   const cat = categories.find(c => c.id === catId);
   return cat ? cat.label : catId;
+}
+
+// Platform source colors and labels
+const SOURCE_META = {
+  luma: { color: '#FF5C00', label: 'Luma' },
+  eventbrite: { color: '#F05537', label: 'Eventbrite' },
+  ra: { color: '#D4FC79', label: 'RA' },
+  brave: { color: '#FB542B', label: 'Brave' },
+  'google-places': { color: '#4285F4', label: 'Google' },
+  tavily: { color: '#7C3AED', label: 'Tavily' },
+  egator: { color: '#3b82f6', label: 'eGator' },
+};
+
+function getSourceMeta(source) {
+  return SOURCE_META[source] || { color: '#888', label: source || 'Event' };
 }
 
 function createEventCard(e) {
@@ -345,21 +368,41 @@ function createEventCard(e) {
     ? `<span class="event-attendees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>${e.attendeeCount}</span>`
     : '';
 
-  const imgHtml = e.imageUrl
+  // Source badge
+  const src = getSourceMeta(e.source);
+  const sourceBadge = e.source
+    ? `<span class="event-card-source"><span class="source-dot" style="background:${src.color}"></span>${src.label}</span>`
+    : '';
+
+  const imgInner = e.imageUrl
     ? `<img class="event-card-img" src="${e.imageUrl}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'event-card-img placeholder\\'>${catEmoji}</div>'">`
     : `<div class="event-card-img placeholder">${catEmoji}</div>`;
 
   const safeUrl = e.url ? e.url.replace(/'/g, "\\'") : '#';
   const safeId = e.id ? e.id.replace(/'/g, "\\'") : '';
+  const safeTitle = escapeHtml(e.title).replace(/'/g, "\\'");
+  const safeImg = e.imageUrl ? e.imageUrl.replace(/'/g, "\\'") : '';
+  const safeSource = (e.source || '').replace(/'/g, "\\'");
 
-  // RSVP button (only shown when authenticated)
-  const rsvpBtnHtml = Auth.isAuthenticated && safeId
-    ? `<button class="event-rsvp-btn" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">RSVP</button>`
-    : '';
+  // Card action icons
+  const actionsHtml = `<div class="event-card-actions">
+    <button class="event-card-action" title="Open event" onclick="event.stopPropagation(); window.open('${safeUrl}', '_blank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </button>
+    <button class="event-card-action" title="Add to my events" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+    </button>
+    <button class="event-card-action" title="Share" onclick="event.stopPropagation(); openEventModal('${safeTitle}', '${safeUrl}', '${safeImg}', '${safeSource}', '${safeId}', '${dateStr} at ${timeStr}', true)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    </button>
+  </div>`;
 
   return `
-    <article class="event-card" onclick="onEventClick('${safeUrl}')">
-      ${imgHtml}
+    <article class="event-card" onclick="openEventModal('${safeTitle}', '${safeUrl}', '${safeImg}', '${safeSource}', '${safeId}', '${dateStr} at ${timeStr}')">
+      <div class="event-card-img-wrap">
+        ${imgInner}
+        ${sourceBadge}
+      </div>
       <div class="event-card-body">
         <div class="event-card-cat">${catEmoji} ${catLabel}</div>
         <h3 class="event-card-title">${escapeHtml(e.title)}</h3>
@@ -380,18 +423,122 @@ function createEventCard(e) {
         <div class="event-card-footer">
           ${priceHtml}
           ${attendeesHtml}
-          ${rsvpBtnHtml}
+          ${actionsHtml}
         </div>
       </div>
     </article>
   `;
 }
 
-function onEventClick(url) {
+// ===== Event Action Modal =====
+
+let currentModalEvent = {};
+
+function openEventModal(title, url, img, source, id, meta, shareOnly) {
+  currentModalEvent = { title, url, img, source, id, meta };
+
+  const modal = document.getElementById('eventModal');
+  const backdrop = document.getElementById('eventModalBackdrop');
+  const titleEl = document.getElementById('eventModalTitle');
+  const metaEl = document.getElementById('eventModalMeta');
+  const imgEl = document.getElementById('eventModalImg');
+  const openLabel = document.getElementById('eventModalOpenLabel');
+  const sharePanel = document.getElementById('eventSharePanel');
+
+  titleEl.textContent = title;
+  metaEl.textContent = meta;
+  imgEl.src = img || '';
+  imgEl.style.display = img ? '' : 'none';
+
+  const src = getSourceMeta(source);
+  openLabel.textContent = source ? `Open on ${src.label}` : 'Open Event';
+
+  // Reset share panel
+  sharePanel.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+  backdrop.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
   awardPoints(2, 'Event viewed');
   awardFirstAction('first_event_click', 5, 'First event click!');
-  if (url && url !== '#') window.open(url, '_blank');
+
+  // If opened from share icon, go straight to share panel
+  if (shareOnly) {
+    sharePanel.classList.remove('hidden');
+  }
 }
+
+function closeEventModal() {
+  document.getElementById('eventModal').classList.add('hidden');
+  document.getElementById('eventModalBackdrop').classList.add('hidden');
+  document.getElementById('eventSharePanel').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+window.openEventModal = openEventModal;
+
+// Modal event listeners
+document.getElementById('eventModalBackdrop').addEventListener('click', closeEventModal);
+document.getElementById('eventModalClose').addEventListener('click', closeEventModal);
+
+document.getElementById('eventModalOpen').addEventListener('click', () => {
+  if (currentModalEvent.url && currentModalEvent.url !== '#') {
+    window.open(currentModalEvent.url, '_blank');
+  }
+  closeEventModal();
+});
+
+document.getElementById('eventModalRsvp').addEventListener('click', () => {
+  if (currentModalEvent.id && Auth.isAuthenticated) {
+    // Find the card's RSVP button or just call the handler
+    handleRsvp(currentModalEvent.id, document.getElementById('eventModalRsvp'));
+  }
+  closeEventModal();
+});
+
+document.getElementById('eventModalShare').addEventListener('click', () => {
+  document.getElementById('eventSharePanel').classList.toggle('hidden');
+});
+
+document.getElementById('shareToFlow').addEventListener('click', () => {
+  // Open chat with pre-filled share message
+  closeEventModal();
+  openChat();
+  const msg = `Check out: ${currentModalEvent.title} ${currentModalEvent.url || ''}`;
+  chatInput.value = msg;
+  chatInput.focus();
+  awardPoints(3, 'Shared to Flow');
+});
+
+document.getElementById('shareToSocial').addEventListener('click', () => {
+  const text = encodeURIComponent(`${currentModalEvent.title} - found on FlowB`);
+  const url = encodeURIComponent(currentModalEvent.url || window.location.href);
+  window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
+  awardPoints(3, 'Shared to social');
+  closeEventModal();
+});
+
+document.getElementById('shareCopyLink').addEventListener('click', () => {
+  const url = currentModalEvent.url || window.location.href;
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('shareCopyLink');
+    btn.classList.add('copied');
+    const orig = btn.innerHTML;
+    btn.innerHTML = btn.innerHTML.replace('Copy Link', 'Copied!');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = orig;
+    }, 1500);
+  });
+  awardPoints(1, 'Link copied');
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('eventModal').classList.contains('hidden')) {
+    closeEventModal();
+  }
+});
 
 // ===== RSVP Handler =====
 
@@ -536,8 +683,44 @@ searchClear.addEventListener('click', () => {
 });
 
 // ===== Filter pills =====
-document.querySelectorAll('.filter-pill').forEach(btn => {
+document.querySelectorAll('.filter-pill:not(.platform-trigger)').forEach(btn => {
   btn.addEventListener('click', () => applyFilter(btn.dataset.filter));
+});
+
+// ===== Platform Dropdown =====
+const platformDropdown = document.getElementById('platformDropdown');
+const platformTrigger = document.getElementById('platformTrigger');
+const platformLabel = document.getElementById('platformLabel');
+
+platformTrigger.addEventListener('click', (e) => {
+  e.stopPropagation();
+  platformDropdown.classList.toggle('open');
+});
+
+document.addEventListener('click', () => {
+  platformDropdown.classList.remove('open');
+});
+
+document.querySelectorAll('.platform-option').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const platform = btn.dataset.platform;
+    activePlatform = platform;
+    displayCount = 12;
+
+    document.querySelectorAll('.platform-option').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    platformLabel.textContent = btn.textContent.trim();
+    platformDropdown.classList.remove('open');
+
+    if (platform !== 'all') {
+      platformTrigger.classList.add('active');
+    } else {
+      platformTrigger.classList.remove('active');
+    }
+
+    renderEvents(allEvents);
+  });
 });
 
 // ===== "All" category =====

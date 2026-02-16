@@ -7,7 +7,9 @@
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
-    "test": "tsx test.ts"
+    "test": "tsx test.ts",
+    "docs:dev": "cd docs && npx vitepress dev",
+    "docs:build": "cd docs && npx vitepress build"
   },
   "dependencies": {
     "@farcaster/miniapp-node": "^0.1.13",

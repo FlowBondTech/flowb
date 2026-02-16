@@ -1,5 +1,5 @@
 [build]
-  command = "npm install && npm run build"
+  command = "npm install && npm run build && cd ../docs && npm install && npx vitepress build && cp -r .vitepress/dist ../web/dist/docs"
   publish = "dist"
 
 [[headers]]
