@@ -7,6 +7,17 @@ import { sdk } from "@farcaster/miniapp-sdk";
 
 let sdkReady = false;
 
+/**
+ * Detect whether we're running inside a Farcaster/Base mini app context.
+ */
+export async function isInMiniApp(): Promise<boolean> {
+  try {
+    return await sdk.isInMiniApp();
+  } catch {
+    return false;
+  }
+}
+
 export async function initFarcaster(): Promise<{
   fid?: number;
   username?: string;

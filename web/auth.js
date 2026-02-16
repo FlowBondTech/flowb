@@ -37,11 +37,12 @@ function initAuth() {
     }
   });
 
-  // Wire up buttons
+  // Wire up buttons - Privy may not be loaded yet (lazy), so check first
   document.getElementById('authBtn')?.addEventListener('click', () => {
     if (window.flowbPrivy) {
       window.flowbPrivy.login();
     }
+    // If Privy isn't loaded yet, the lazy loader in index.html handles it
   });
 
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {

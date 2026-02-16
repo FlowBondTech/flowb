@@ -102,13 +102,51 @@ export function Home({ onNavigate }: Props) {
   return (
     <div className="screen">
       <div style={{ marginBottom: 16 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>FlowB</h1>
-        <div style={{ fontSize: 13, color: "var(--hint)" }}>{today} - Denver</div>
+        <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
+        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>{today} - Denver</div>
       </div>
+
+      {/* Featured Event */}
+      <a
+        href="https://lu.ma/qe7f65ue"
+        target="_blank"
+        rel="noopener noreferrer"
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
+        <div className="featured-card">
+          <div className="featured-img" />
+          <div className="featured-body">
+            <span className="featured-badge">Featured</span>
+            <div className="featured-title">Purple Party</div>
+            <div className="featured-meta">
+              <div className="featured-meta-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                Tue, Feb 18 &middot; 6:00 - 10:00 PM MT
+              </div>
+              <div className="featured-meta-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                </svg>
+                Kismet Casa, Denver
+              </div>
+            </div>
+            <div className="featured-footer">
+              <span className="badge badge-green">Free</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Farcaster Founders Spotlight</span>
+            </div>
+          </div>
+        </div>
+      </a>
 
       {/* Search bar */}
       <div className="search-wrapper">
-        <span className="search-icon">{"\uD83D\uDD0D"}</span>
+        <span className="search-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+        </span>
         <input
           className="search-bar"
           type="text"

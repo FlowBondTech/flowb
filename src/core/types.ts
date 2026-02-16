@@ -144,7 +144,7 @@ export interface FlowBContext {
 export interface ToolInput {
   action: string;
   user_id?: string;
-  platform?: "telegram" | "discord" | "farcaster" | "openclaw";
+  platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app";
   platform_username?: string;
   danz_username?: string;
   city?: string;

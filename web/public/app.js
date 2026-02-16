@@ -72,7 +72,7 @@ async function fetchEvents(params = {}) {
     const res = await fetch(`${API}/api/v1/discover`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: 200, ...params }),
+      body: JSON.stringify({ limit: 50, ...params }),
     });
     const data = await res.json();
     return data.events || [];
@@ -331,6 +331,16 @@ function getCatLabel(catId) {
   return cat ? cat.label : catId;
 }
 
+// Optimize image URLs - resize oversized images via proxy/params
+function optimizeImageUrl(url) {
+  if (!url) return url;
+  // Eventbrite already resizes via their CDN params - leave as-is
+  if (url.includes('evbuc.com')) return url;
+  // Luma images: use wsrv.nl image proxy to resize and convert to webp
+  // This turns 4 MB PNGs into ~30-80 KB webp thumbnails
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=450&h=250&fit=cover&output=webp&q=75`;
+}
+
 // Platform source colors and labels
 const SOURCE_META = {
   luma: { color: '#FF5C00', label: 'Luma' },
@@ -374,8 +384,9 @@ function createEventCard(e) {
     ? `<span class="event-card-source"><span class="source-dot" style="background:${src.color}"></span>${src.label}</span>`
     : '';
 
-  const imgInner = e.imageUrl
-    ? `<img class="event-card-img" src="${e.imageUrl}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'event-card-img placeholder\\'>${catEmoji}</div>'">`
+  const thumbUrl = optimizeImageUrl(e.imageUrl);
+  const imgInner = thumbUrl
+    ? `<img class="event-card-img" src="${thumbUrl}" alt="" loading="lazy" decoding="async" onerror="this.outerHTML='<div class=\\'event-card-img placeholder\\'>${catEmoji}</div>'">`
     : `<div class="event-card-img placeholder">${catEmoji}</div>`;
 
   const safeUrl = e.url ? e.url.replace(/'/g, "\\'") : '#';

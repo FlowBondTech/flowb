@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { initFarcaster, quickAuth, composeCast, promptAddMiniApp } from "../lib/farcaster";
+import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp } from "../lib/farcaster";
 import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
 import type { EventResult, ScheduleEntry } from "../api/types";
@@ -10,6 +10,7 @@ import { BottomNav } from "../components/BottomNav";
 import { CrewScreen } from "../components/CrewScreen";
 import { PointsScreen } from "../components/PointsScreen";
 import { OnboardingScreen } from "../components/OnboardingScreen";
+import { WebLanding } from "../components/WebLanding";
 
 type Screen = "home" | "event" | "schedule" | "crew" | "points";
 
@@ -19,6 +20,7 @@ export default function FarcasterApp() {
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string>("");
+  const [inMiniApp, setInMiniApp] = useState<boolean | null>(null);
 
   // Onboarding
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -31,9 +33,19 @@ export default function FarcasterApp() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [appAdded, setAppAdded] = useState(false);
 
-  // Init
+  // Init — detect context first, then run appropriate flow
   useEffect(() => {
     (async () => {
+      const miniApp = await isInMiniApp();
+      setInMiniApp(miniApp);
+
+      if (!miniApp) {
+        // Outside Farcaster/Base — show web landing
+        setLoading(false);
+        return;
+      }
+
+      // Inside mini app — normal init flow
       const ctx = await initFarcaster();
       if (ctx.username) setUsername(ctx.username);
       if (ctx.added) setAppAdded(true);
@@ -45,7 +57,6 @@ export default function FarcasterApp() {
           setAuthed(true);
           if (result.user.username) setUsername(result.user.username);
 
-          // Claim any points earned before auth completed
           const pending = getPendingActions();
           if (pending.length > 0) {
             claimPendingPoints(pending)
@@ -65,7 +76,6 @@ export default function FarcasterApp() {
         if (addResult.added) setAppAdded(true);
       }
 
-      // Check onboarding status
       try {
         const onboarded = localStorage.getItem("flowb_onboarded");
         if (!onboarded) {
@@ -152,6 +162,11 @@ export default function FarcasterApp() {
     return <div className="loading"><div className="spinner" /></div>;
   }
 
+  // Outside Farcaster — show simple landing with deep links
+  if (inMiniApp === false) {
+    return <WebLanding />;
+  }
+
   // Show onboarding if not yet completed
   if (showOnboarding) {
     return (
@@ -179,8 +194,8 @@ export default function FarcasterApp() {
       {screen === "home" && (
         <div className="screen">
           <div style={{ marginBottom: 16 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700 }}>FlowB</h1>
-            <div style={{ fontSize: 13, color: "var(--hint)" }}>
+            <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
+            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
               EthDenver - Denver{username ? ` | @${username}` : ""}
             </div>
           </div>
@@ -197,6 +212,40 @@ export default function FarcasterApp() {
               Add FlowB + Enable Notifications
             </button>
           )}
+
+          {/* Featured Event */}
+          <a
+            href="https://lu.ma/qe7f65ue"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
+            <div className="featured-card">
+              <div className="featured-img" />
+              <div className="featured-body">
+                <span className="featured-badge">Featured</span>
+                <div className="featured-title">Purple Party</div>
+                <div className="featured-meta">
+                  <div className="featured-meta-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                    </svg>
+                    Tue, Feb 18 &middot; 6:00 - 10:00 PM MT
+                  </div>
+                  <div className="featured-meta-row">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                    </svg>
+                    Kismet Casa, Denver
+                  </div>
+                </div>
+                <div className="featured-footer">
+                  <span className="badge badge-green">Free</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Farcaster Founders Spotlight</span>
+                </div>
+              </div>
+            </div>
+          </a>
 
           {eventsLoading ? (
             <>
@@ -260,7 +309,7 @@ export default function FarcasterApp() {
           <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
             {selectedEvent.title}
           </h1>
-          <div style={{ fontSize: 14, color: "var(--hint)", marginBottom: 4 }}>
+          <div style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 4 }}>
             {new Date(selectedEvent.startTime).toLocaleDateString("en-US", {
               weekday: "long",
               month: "long",
@@ -293,7 +342,7 @@ export default function FarcasterApp() {
 
           {selectedEvent.description && (
             <div className="card" style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--hint)" }}>
+              <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--text-muted)" }}>
                 {selectedEvent.description.slice(0, 400)}
                 {selectedEvent.description.length > 400 ? "..." : ""}
               </div>
@@ -321,7 +370,7 @@ export default function FarcasterApp() {
       {/* Schedule Screen */}
       {screen === "schedule" && (
         <div className="screen">
-          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Schedule</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, letterSpacing: "-0.01em" }}>My Schedule</h1>
 
           {scheduleLoading ? (
             <>
@@ -359,7 +408,7 @@ export default function FarcasterApp() {
                     })}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--hint)", marginTop: 4 }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>
                   {new Date(s.starts_at).toLocaleDateString("en-US", {
                     weekday: "short",
                     month: "short",

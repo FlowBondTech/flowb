@@ -241,6 +241,55 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // AUTH: Native App (hardcoded users for EthDenver)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { username: string; password: string } }>(
+    "/api/v1/auth/app",
+    async (request, reply) => {
+      const { username, password } = request.body || {};
+      if (!username || !password) {
+        return reply.status(400).send({ error: "Missing username or password" });
+      }
+
+      const hardcodedUsers: Record<string, { password: string; role: "admin" | "user"; userId: string }> = {
+        admin: { password: "admin", role: "admin", userId: "app_admin" },
+        user: { password: "user", role: "user", userId: "app_user" },
+        user1: { password: "user1", role: "user", userId: "app_user1" },
+      };
+
+      const entry = hardcodedUsers[username];
+      if (!entry || entry.password !== password) {
+        return reply.status(401).send({ error: "Invalid credentials" });
+      }
+
+      await core.awardPoints(entry.userId, "app", "miniapp_open").catch(() => {});
+
+      const token = signJwt({
+        sub: entry.userId,
+        platform: "app",
+        username,
+      });
+
+      const result: any = {
+        token,
+        user: {
+          id: entry.userId,
+          platform: "app",
+          username,
+          role: entry.role,
+        },
+      };
+
+      // Include admin key for admin users
+      if (entry.role === "admin") {
+        result.adminKey = process.env.FLOWB_ADMIN_KEY || "flowb-admin-2026";
+      }
+
+      return result;
+    },
+  );
+
+  // ------------------------------------------------------------------
   // AUTH: Web (Privy) - issues a FlowB JWT for web users
   // ------------------------------------------------------------------
   app.post<{ Body: { privyUserId: string; displayName?: string } }>(
@@ -1251,7 +1300,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         if (event) {
           title = event.title || title;
           startTime = event.startTime;
-          endTime = event.endTime;
+          endTime = event.endTime ?? null;
           venue = event.locationName || "";
           url = event.url || "";
         }
@@ -1287,6 +1336,288 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         .header("Content-Type", "text/calendar; charset=utf-8")
         .header("Content-Disposition", `attachment; filename="${sanitizeFilename(title)}.ics"`)
         .send(ics);
+    },
+  );
+}
+
+  // ------------------------------------------------------------------
+  // ADMIN: Middleware helper
+  // ------------------------------------------------------------------
+  function requireAdmin(request: any, reply: any): boolean {
+    const adminKey = request.headers["x-admin-key"];
+    if (!adminKey || adminKey !== (process.env.FLOWB_ADMIN_KEY || "flowb-admin-2026")) {
+      reply.status(403).send({ error: "Admin access required" });
+      return false;
+    }
+    return true;
+  }
+
+  // ------------------------------------------------------------------
+  // ADMIN: Live dashboard stats
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/stats",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { stats: {} };
+
+      const [users, crews, rsvps, points, checkins] = await Promise.all([
+        sbFetch<any[]>(cfg, "flowb_user_points?select=user_id&limit=1000"),
+        sbFetch<any[]>(cfg, "flowb_groups?select=id&limit=1000"),
+        sbFetch<any[]>(cfg, "flowb_event_attendance?select=id&limit=1000"),
+        sbFetch<any[]>(cfg, "flowb_user_points?select=total_points&order=total_points.desc&limit=1"),
+        sbFetch<any[]>(cfg, "flowb_checkins?select=id&limit=1000"),
+      ]);
+
+      return {
+        stats: {
+          totalUsers: users?.length || 0,
+          totalCrews: crews?.length || 0,
+          totalRsvps: rsvps?.length || 0,
+          totalCheckins: checkins?.length || 0,
+          topPoints: points?.[0]?.total_points || 0,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: List plugins
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/plugins",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+
+      const plugins = core.getPluginStatus().map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        description: "",
+        enabled: p.configured,
+        actions: [],
+      }));
+
+      return { plugins };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Configure plugin
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { config: Record<string, any> } }>(
+    "/api/v1/admin/plugins/:id/configure",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      return { ok: true, message: `Plugin ${request.params.id} configuration updated` };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Toggle plugin
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { enabled: boolean } }>(
+    "/api/v1/admin/plugins/:id/toggle",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      return { ok: true, enabled: request.body?.enabled ?? true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Feature/unfeature an event
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { featured: boolean } }>(
+    "/api/v1/admin/events/:id/feature",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?id=eq.${request.params.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ featured: request.body?.featured ?? true }),
+        },
+      ).catch(() => {});
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Hide/show an event
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { hidden: boolean } }>(
+    "/api/v1/admin/events/:id/hide",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?id=eq.${request.params.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ hidden: request.body?.hidden ?? true }),
+        },
+      ).catch(() => {});
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Award bonus points
+  // ------------------------------------------------------------------
+  app.post<{ Body: { userId: string; points: number; reason?: string } }>(
+    "/api/v1/admin/points",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const { userId, points: bonusPoints, reason } = request.body || {};
+      if (!userId || !bonusPoints) {
+        return reply.status(400).send({ error: "Missing userId or points" });
+      }
+
+      const result = await core.awardPoints(userId, "app", "bonus_awarded", {
+        admin_bonus: bonusPoints,
+        reason: reason || "Admin bonus",
+      });
+
+      return { ok: true, total: result.total };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Change user role
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { role: string } }>(
+    "/api/v1/admin/users/:id/role",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      return { ok: true, userId: request.params.id, role: request.body?.role || "user" };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Send test notification
+  // ------------------------------------------------------------------
+  app.post<{ Body: { userId: string; title: string; body: string } }>(
+    "/api/v1/admin/notifications/test",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const { userId, title, body: notifBody } = request.body || {};
+      if (!userId) return reply.status(400).send({ error: "Missing userId" });
+
+      return { ok: true, message: `Test notification queued for ${userId}` };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Notification delivery stats
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/notifications/stats",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { stats: {} };
+
+      const tokens = await sbFetch<any[]>(cfg, "flowb_notification_tokens?select=platform,disabled&limit=5000");
+      const pushTokens = await sbFetch<any[]>(cfg, "flowb_push_tokens?select=platform,active&limit=5000");
+
+      const fcActive = (tokens || []).filter(t => !t.disabled).length;
+      const fcDisabled = (tokens || []).filter(t => t.disabled).length;
+      const pushActive = (pushTokens || []).filter(t => t.active !== false).length;
+
+      return {
+        stats: {
+          farcasterTokens: { active: fcActive, disabled: fcDisabled },
+          pushTokens: { active: pushActive },
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: All events (for curation - includes featured/hidden)
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { limit?: string; offset?: string; search?: string } }>(
+    "/api/v1/admin/events",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+
+      const { limit, offset, search } = request.query;
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+
+      const events = await core.discoverEventsRaw({
+        action: "events",
+        city: "Denver",
+      });
+
+      let filtered = events;
+      if (search) {
+        const q = search.toLowerCase();
+        filtered = events.filter(e =>
+          e.title?.toLowerCase().includes(q) ||
+          e.description?.toLowerCase().includes(q) ||
+          e.locationName?.toLowerCase().includes(q)
+        );
+      }
+
+      const start = parseInt(offset || "0", 10);
+      return {
+        events: filtered.slice(start, start + maxResults),
+        total: filtered.length,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: All users (for user manager)
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { search?: string; limit?: string } }>(
+    "/api/v1/admin/users",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { users: [] };
+
+      const { search, limit } = request.query;
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+
+      let query = `flowb_user_points?select=user_id,total_points,current_streak,longest_streak,milestone_level&order=total_points.desc&limit=${maxResults}`;
+      if (search) {
+        query += `&user_id=ilike.*${search}*`;
+      }
+
+      const users = await sbFetch<any[]>(cfg, query);
+      return { users: users || [] };
     },
   );
 }

@@ -19,7 +19,7 @@ export interface JWTPayload {
   /** User identifier: "telegram_<id>" or "farcaster_<fid>" */
   sub: string;
   /** Platform origin */
-  platform: "telegram" | "farcaster";
+  platform: "telegram" | "farcaster" | "app";
   /** Telegram user ID (if telegram) */
   tg_id?: number;
   /** Farcaster FID (if farcaster) */

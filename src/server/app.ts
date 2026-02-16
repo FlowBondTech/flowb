@@ -125,75 +125,9 @@ export function buildApp(core: FlowBCore) {
   }
 
   // ==========================================================================
-  // Public API: Global leaderboard + live stats (no auth required)
+  // Public API: Live stats (no auth required)
+  // NOTE: Leaderboard route moved to routes.ts (uses core.getGlobalCrewRanking)
   // ==========================================================================
-
-  app.get(
-    "/api/v1/flow/leaderboard",
-    async () => {
-      if (!supabaseUrl || !supabaseKey) {
-        return { crews: [], totalPoints: 0, totalCheckins: 0 };
-      }
-
-      try {
-        // Get public crews
-        const crewsRes = await fetch(
-          `${supabaseUrl}/rest/v1/flowb_groups?select=id,name,emoji&limit=20`,
-          {
-            headers: {
-              apikey: supabaseKey,
-              Authorization: `Bearer ${supabaseKey}`,
-            },
-          },
-        );
-        const crews = crewsRes.ok ? await crewsRes.json() : [];
-
-        const ranked: { name: string; emoji: string; totalPoints: number; memberCount: number }[] = [];
-
-        for (const crew of (crews || []).slice(0, 15)) {
-          const membersRes = await fetch(
-            `${supabaseUrl}/rest/v1/flowb_group_members?group_id=eq.${crew.id}&select=user_id`,
-            {
-              headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-              },
-            },
-          );
-          if (!membersRes.ok) continue;
-          const members = await membersRes.json();
-          if (!members?.length) continue;
-
-          const userIds = members.map((m: any) => m.user_id);
-          const pointsRes = await fetch(
-            `${supabaseUrl}/rest/v1/flowb_user_points?user_id=in.(${userIds.join(",")})&select=total_points`,
-            {
-              headers: {
-                apikey: supabaseKey,
-                Authorization: `Bearer ${supabaseKey}`,
-              },
-            },
-          );
-          if (!pointsRes.ok) continue;
-          const points = await pointsRes.json();
-          const total = (points || []).reduce((sum: number, p: any) => sum + (p.total_points || 0), 0);
-          ranked.push({
-            name: crew.name,
-            emoji: crew.emoji,
-            totalPoints: total,
-            memberCount: members.length,
-          });
-        }
-
-        ranked.sort((a, b) => b.totalPoints - a.totalPoints);
-
-        return { crews: ranked.slice(0, 10) };
-      } catch (err) {
-        console.error("[leaderboard] Error:", err);
-        return { crews: [] };
-      }
-    },
-  );
 
   app.get(
     "/api/v1/stats",

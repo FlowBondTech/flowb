@@ -44,14 +44,20 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="card-title">{event.title}</div>
           {event.locationName && (
-            <div className="card-subtitle">{event.locationName}</div>
+            <div className="card-subtitle" style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, flexShrink: 0 }}>
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              {event.locationName}
+            </div>
           )}
         </div>
         <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
           <span className={`time-tag ${live ? "time-tag-live" : ""}`}>
             {live ? "LIVE" : formatTime(event.startTime)}
           </span>
-          <div style={{ fontSize: 11, color: "var(--hint)" }}>
+          <div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 1 }}>
             {formatDate(event.startTime)}
           </div>
         </div>
@@ -67,8 +73,8 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 8,
-          marginTop: 8,
+          gap: 6,
+          marginTop: 10,
           flexWrap: "wrap",
         }}
       >
@@ -82,16 +88,17 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
 
       {flowGoing !== undefined && flowGoing > 0 && (
         <div className="social-proof">
-          <span>
-            {flowGoing} from your crew going
-          </span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+          <span>{flowGoing} from your crew going</span>
         </div>
       )}
     </div>
   );
 }
 
-/** Skeleton loader matching EventCard dimensions */
 export function EventCardSkeleton() {
   return (
     <div className="skeleton">
