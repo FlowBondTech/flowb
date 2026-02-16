@@ -15,7 +15,6 @@ import {
   View,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 
 import { GlassButton } from '../../components/glass/GlassButton';
 import { GlassHeader } from '../../components/glass/GlassHeader';
@@ -69,11 +68,7 @@ export function CreateCrewScreen() {
     <View style={styles.root}>
       <GlassHeader
         title="Create Crew"
-        rightAction={
-          <Pressable onPress={handleClose} hitSlop={12}>
-            <Ionicons name="close" size={24} color={colors.text.primary} />
-          </Pressable>
-        }
+        onBack={handleClose}
       />
 
       <View style={styles.content}>

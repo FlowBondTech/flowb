@@ -11,7 +11,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -87,11 +86,7 @@ export function CastComposer() {
     <View style={styles.root}>
       <GlassHeader
         title="Compose Cast"
-        rightAction={
-          <Pressable onPress={handleClose} hitSlop={12}>
-            <Ionicons name="close" size={24} color={colors.text.primary} />
-          </Pressable>
-        }
+        onBack={handleClose}
       />
 
       <KeyboardAvoidingView

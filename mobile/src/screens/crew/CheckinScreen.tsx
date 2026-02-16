@@ -8,7 +8,6 @@
 
 import React, { useCallback, useState } from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
@@ -92,11 +91,7 @@ export function CheckinScreen() {
     <View style={styles.root}>
       <GlassHeader
         title="Check In"
-        rightAction={
-          <Pressable onPress={handleClose} hitSlop={12}>
-            <Ionicons name="close" size={24} color={colors.text.primary} />
-          </Pressable>
-        }
+        onBack={handleClose}
       />
 
       <View style={styles.content}>

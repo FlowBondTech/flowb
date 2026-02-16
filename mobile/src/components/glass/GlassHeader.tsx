@@ -17,6 +17,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '../../theme/colors';
@@ -40,11 +41,11 @@ export interface GlassHeaderProps {
 
 const HEADER_HEIGHT = 56;
 
-// ── Back chevron (inline SVG-free, plain text) ──────────────────────
+// ── Back chevron ─────────────────────────────────────────────────────
 
 function BackChevron() {
   return (
-    <Text style={styles.chevron}>{'\u2039'}</Text>
+    <Ionicons name="chevron-back" size={24} color={colors.text.primary} />
   );
 }
 
@@ -147,11 +148,5 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: spacing.xs,
-  },
-  chevron: {
-    fontSize: 28,
-    fontWeight: '300',
-    color: colors.text.primary,
-    lineHeight: 32,
   },
 });
