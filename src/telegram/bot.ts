@@ -93,6 +93,20 @@ interface TgSession {
 
 const sessions = new Map<number, TgSession>();
 
+// ============================================================================
+// Onboarding State (in-memory, per-user multi-step flow)
+// ============================================================================
+
+interface OnboardingState {
+  step: number;  // 1=when, 2=interests, 3=crew, 4=done
+  data: {
+    arrival_date?: string;
+    interest_categories: string[];
+  };
+}
+
+const onboardingStates = new Map<number, OnboardingState>();
+
 // Supabase client for persistent session storage (survives restarts)
 const supabase: SupabaseClient | null =
   process.env.DANZ_SUPABASE_URL && process.env.DANZ_SUPABASE_KEY
@@ -164,6 +178,40 @@ function savePersistent(tgId: number, session: TgSession): void {
     });
 }
 
+/** Save onboarding preferences to Supabase */
+function saveOnboardingPrefs(tgId: number, data: OnboardingState["data"]): void {
+  if (!supabase || !sessionTableReady) return;
+  const updates: Record<string, any> = {
+    updated_at: new Date().toISOString(),
+    onboarding_complete: true,
+  };
+  if (data.arrival_date) updates.arrival_date = data.arrival_date;
+  if (data.interest_categories?.length) updates.interest_categories = data.interest_categories;
+
+  supabase
+    .from("flowb_sessions")
+    .update(updates)
+    .eq("user_id", `telegram_${tgId}`)
+    .then(({ error }: { error: any }) => {
+      if (error) console.error("[flowb-telegram] Onboarding save error:", error.message);
+    });
+}
+
+/** Check if user has completed onboarding */
+async function hasCompletedOnboarding(tgId: number): Promise<boolean> {
+  if (!supabase || !sessionTableReady) return false;
+  try {
+    const { data } = await supabase
+      .from("flowb_sessions")
+      .select("onboarding_complete")
+      .eq("user_id", `telegram_${tgId}`)
+      .single();
+    return data?.onboarding_complete === true;
+  } catch {
+    return false;
+  }
+}
+
 function getSession(userId: number): TgSession | undefined {
   const s = sessions.get(userId);
   if (s && Date.now() - s.lastActive > SESSION_TTL_MS) {
@@ -209,6 +257,150 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
 
 function userId(tgId: number): string {
   return `telegram_${tgId}`;
+}
+
+// ============================================================================
+// Onboarding Helpers
+// ============================================================================
+
+function buildOnboardingWhenKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Already here!", "onb:when:already_here")
+    .text("Feb 23-Mar 2", "onb:when:full_week")
+    .row()
+    .text("Just a few days", "onb:when:few_days")
+    .text("Virtually", "onb:when:virtual");
+}
+
+function buildOnboardingInterestsKeyboard(selected: string[]): InlineKeyboard {
+  const categories = ["DeFi", "AI", "Infra", "Build", "Social", "Wellness"];
+  const kb = new InlineKeyboard();
+
+  // Two categories per row
+  for (let i = 0; i < categories.length; i += 2) {
+    const cat1 = categories[i];
+    const cat2 = categories[i + 1];
+    const label1 = selected.includes(cat1.toLowerCase()) ? `[${cat1}]` : cat1;
+    if (cat2) {
+      const label2 = selected.includes(cat2.toLowerCase()) ? `[${cat2}]` : cat2;
+      kb.text(label1, `onb:cat:${cat1.toLowerCase()}`).text(label2, `onb:cat:${cat2.toLowerCase()}`).row();
+    } else {
+      kb.text(label1, `onb:cat:${cat1.toLowerCase()}`).row();
+    }
+  }
+
+  if (selected.length > 0) {
+    kb.text("Done ->", "onb:cat:done");
+  }
+  return kb;
+}
+
+function buildOnboardingCrewKeyboard(botUsername: string): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Browse crews", "onb:crew:browse")
+    .text("Create a crew", "onb:crew:create")
+    .row()
+    .text("I have an invite", "onb:crew:invite")
+    .text("Skip ->", "onb:crew:skip");
+}
+
+function formatOnboardingDoneHtml(name: string): string {
+  return [
+    `<b>You're in the flow, ${name}!</b>`,
+    "",
+    "Here's what you can do:",
+    "",
+    "  Events - discover what's happening",
+    "  My Flow - connect with friends & crews",
+    "  Points - earn by showing up",
+    "  Check In - prove you were there",
+    "",
+    "Tap a button below to get started.",
+  ].join("\n");
+}
+
+/** Start onboarding for a new user */
+async function startOnboarding(ctx: any, tgId: number): Promise<void> {
+  onboardingStates.set(tgId, {
+    step: 1,
+    data: { interest_categories: [] },
+  });
+
+  await ctx.reply(
+    [
+      "<b>Welcome to FlowB!</b> Let's get you set up for EthDenver.",
+      "",
+      "When will you be at EthDenver?",
+    ].join("\n"),
+    {
+      parse_mode: "HTML",
+      reply_markup: buildOnboardingWhenKeyboard(),
+    },
+  );
+}
+
+/** Advance onboarding to interests step */
+async function sendOnboardingInterests(ctx: any, tgId: number): Promise<void> {
+  const state = onboardingStates.get(tgId);
+  if (!state) return;
+
+  state.step = 2;
+
+  await ctx.reply(
+    "What kind of events are you into? (tap to select, then Done)",
+    {
+      parse_mode: "HTML",
+      reply_markup: buildOnboardingInterestsKeyboard(state.data.interest_categories),
+    },
+  );
+}
+
+/** Advance onboarding to crew step */
+async function sendOnboardingCrew(ctx: any, tgId: number, botUsername: string): Promise<void> {
+  const state = onboardingStates.get(tgId);
+  if (!state) return;
+
+  state.step = 3;
+
+  await ctx.reply(
+    "Do you want to find or start a crew?",
+    {
+      reply_markup: buildOnboardingCrewKeyboard(botUsername),
+    },
+  );
+}
+
+/** Complete onboarding: save prefs, award points, show menu */
+async function completeOnboarding(
+  ctx: any,
+  tgId: number,
+  core: FlowBCore,
+  miniAppUrl: string,
+): Promise<void> {
+  const state = onboardingStates.get(tgId);
+  if (!state) return;
+
+  state.step = 4;
+
+  // Persist preferences to Supabase
+  saveOnboardingPrefs(tgId, state.data);
+
+  // Award onboarding_complete points (10 pts)
+  await core.awardPoints(userId(tgId), "telegram", "daily_login").catch(() => {});
+
+  // Clean up onboarding state
+  onboardingStates.delete(tgId);
+
+  const session = getSession(tgId);
+  const name = session?.danzUsername || ctx.from?.first_name || "friend";
+
+  await ctx.reply(
+    formatOnboardingDoneHtml(name),
+    {
+      parse_mode: "HTML",
+      reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
+    },
+  );
 }
 
 export function startTelegramBot(
@@ -403,6 +595,13 @@ export function startTelegramBot(
     const streakResult = await core.updateStreak(userId(tgId), "telegram");
 
     if (session.verified && session.danzUsername) {
+      // Check if user has completed onboarding - if not, start it
+      const onboarded = await hasCompletedOnboarding(tgId);
+      if (!onboarded && !onboardingStates.has(tgId)) {
+        await startOnboarding(ctx, tgId);
+        return;
+      }
+
       // Fetch current points for greeting
       const pointsResult = await core.execute("my-points", {
         action: "my-points",
@@ -419,6 +618,13 @@ export function startTelegramBot(
         { parse_mode: "HTML", reply_markup: buildMenuKeyboard(miniAppUrl || undefined) },
       );
     } else {
+      // Not verified yet - start onboarding for preferences collection
+      const onboarded = await hasCompletedOnboarding(tgId);
+      if (!onboarded && !onboardingStates.has(tgId)) {
+        await startOnboarding(ctx, tgId);
+        return;
+      }
+
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
         reply_markup: buildConnectKeyboard(danzConnectUrl),
@@ -883,6 +1089,118 @@ export function startTelegramBot(
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     const tgId = ctx.from.id;
+
+    // ---- Onboarding callbacks: onb:* ----
+    if (data.startsWith("onb:")) {
+      const parts = data.split(":");
+      const category = parts[1]; // "when", "cat", "crew"
+      const value = parts[2];
+      const state = onboardingStates.get(tgId);
+
+      if (!state) {
+        await ctx.answerCallbackQuery({ text: "Onboarding expired. Tap /start again." });
+        return;
+      }
+
+      // --- Step 1: When ---
+      if (category === "when") {
+        state.data.arrival_date = value;
+        await ctx.answerCallbackQuery({ text: "Got it!" });
+        await sendOnboardingInterests(ctx, tgId);
+        return;
+      }
+
+      // --- Step 2: Interests (multi-select) ---
+      if (category === "cat") {
+        if (value === "done") {
+          // Move to crew step
+          await ctx.answerCallbackQuery();
+          await sendOnboardingCrew(ctx, tgId, botUsername);
+          return;
+        }
+
+        // Toggle category selection
+        const cats = state.data.interest_categories;
+        const idx = cats.indexOf(value);
+        if (idx >= 0) {
+          cats.splice(idx, 1);
+        } else {
+          cats.push(value);
+        }
+
+        // Update the keyboard to show selected state
+        try {
+          await ctx.editMessageReplyMarkup({
+            reply_markup: buildOnboardingInterestsKeyboard(cats),
+          });
+        } catch {
+          // Message may not be editable, send new one
+        }
+        await ctx.answerCallbackQuery({ text: cats.length ? `Selected: ${cats.join(", ")}` : "Tap categories you like" });
+        return;
+      }
+
+      // --- Step 3: Crew ---
+      if (category === "crew") {
+        await ctx.answerCallbackQuery();
+
+        if (value === "browse") {
+          // Complete onboarding first, then show crew browse
+          await completeOnboarding(ctx, tgId, core, miniAppUrl);
+          // Trigger crew browse
+          const flowPlugin = core.getFlowPlugin();
+          const flowCfg = core.getFlowConfig();
+          if (flowPlugin && flowCfg) {
+            try {
+              const browseResult = await flowPlugin.crewBrowse(flowCfg);
+              const crews = JSON.parse(browseResult);
+              if (Array.isArray(crews) && crews.length > 0) {
+                await ctx.reply(
+                  formatCrewBrowseHtml(crews),
+                  { parse_mode: "HTML", reply_markup: buildCrewBrowseKeyboard(crews) },
+                );
+              } else {
+                await ctx.reply("No public crews yet. Be the first to create one with /crew create!");
+              }
+            } catch {
+              await ctx.reply("No public crews found. Try /crew create to start one!");
+            }
+          }
+          return;
+        }
+
+        if (value === "create") {
+          await completeOnboarding(ctx, tgId, core, miniAppUrl);
+          await ctx.reply(
+            [
+              "<b>Create a Crew</b>",
+              "",
+              "Send the command with your crew name:",
+              "",
+              "<code>/crew create Salsa Wolves</code>",
+            ].join("\n"),
+            { parse_mode: "HTML" },
+          );
+          return;
+        }
+
+        if (value === "invite") {
+          await completeOnboarding(ctx, tgId, core, miniAppUrl);
+          await ctx.reply(
+            "Paste your crew invite link or use /start with the link your friend shared.",
+          );
+          return;
+        }
+
+        if (value === "skip") {
+          await completeOnboarding(ctx, tgId, core, miniAppUrl);
+          return;
+        }
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
 
     // Menu navigation
     if (data.startsWith("mn:")) {
@@ -2077,6 +2395,13 @@ export function startTelegramBot(
     const now = Date.now();
     for (const [id, s] of sessions) {
       if (now - s.lastActive > SESSION_TTL_MS) sessions.delete(id);
+    }
+    // Also clean up stale onboarding states (older than 30 min)
+    for (const [id] of onboardingStates) {
+      const session = sessions.get(id);
+      if (!session || now - session.lastActive > SESSION_TTL_MS) {
+        onboardingStates.delete(id);
+      }
     }
   }, 5 * 60 * 1000);
 

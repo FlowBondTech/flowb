@@ -6,7 +6,11 @@ import sdk from "@farcaster/frame-sdk";
 
 let sdkReady = false;
 
-export async function initFarcaster(): Promise<{ fid?: number; username?: string }> {
+export async function initFarcaster(): Promise<{
+  fid?: number;
+  username?: string;
+  added?: boolean;
+}> {
   if (sdkReady) return {};
 
   try {
@@ -20,10 +24,42 @@ export async function initFarcaster(): Promise<{ fid?: number; username?: string
     return {
       fid: context?.user?.fid,
       username: context?.user?.username,
+      // Check if user has already added the mini app
+      added: !!(context as any)?.client?.added,
     };
   } catch (err) {
     console.error("[farcaster] SDK init failed:", err);
     return {};
+  }
+}
+
+/**
+ * Prompt user to add the mini app to their favorites and enable notifications.
+ * Returns true if the user added it (with or without notifications).
+ * Only works on the production domain matching the manifest.
+ *
+ * Uses sdk.actions.addFrame (SDK 0.x) — maps to addMiniApp in the client.
+ */
+export async function promptAddMiniApp(): Promise<{
+  added: boolean;
+  notificationsEnabled: boolean;
+}> {
+  try {
+    const result = await sdk.actions.addFrame();
+
+    if (result && "added" in result) {
+      // User accepted — notificationDetails present if they enabled notifs
+      return {
+        added: true,
+        notificationsEnabled: !!(result as any).notificationDetails,
+      };
+    }
+
+    // result has "reason" if rejected
+    return { added: false, notificationsEnabled: false };
+  } catch (err) {
+    console.error("[farcaster] addMiniApp failed:", err);
+    return { added: false, notificationsEnabled: false };
   }
 }
 

@@ -8,6 +8,21 @@ interface Props {
   onNavigate: (s: Screen) => void;
 }
 
+function EventDetailSkeleton() {
+  return (
+    <div className="screen">
+      <div className="skeleton-line" style={{ width: "75%", height: 20, marginBottom: 12 }} />
+      <div className="skeleton-line" style={{ width: "55%", height: 14, marginBottom: 8 }} />
+      <div className="skeleton-line" style={{ width: "40%", height: 14, marginBottom: 20 }} />
+      <div className="skeleton" style={{ height: 80, marginBottom: 16 }} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <div className="skeleton-line" style={{ flex: 1, height: 40, borderRadius: 10 }} />
+        <div className="skeleton-line" style={{ width: 80, height: 40, borderRadius: 10 }} />
+      </div>
+    </div>
+  );
+}
+
 export function EventDetail({ eventId }: Props) {
   const [event, setEvent] = useState<EventResult | null>(null);
   const [social, setSocial] = useState<EventSocial | null>(null);
@@ -48,7 +63,7 @@ export function EventDetail({ eventId }: Props) {
   };
 
   if (loading || !event) {
-    return <div className="loading"><div className="spinner" /></div>;
+    return <EventDetailSkeleton />;
   }
 
   const startDate = new Date(event.startTime);
@@ -62,7 +77,7 @@ export function EventDetail({ eventId }: Props) {
     minute: "2-digit",
   });
 
-  const totalGoing = (social?.goingCount || 0);
+  const totalGoing = social?.goingCount || 0;
 
   return (
     <div className="screen">
@@ -80,19 +95,25 @@ export function EventDetail({ eventId }: Props) {
         )}
       </div>
 
-      {event.isFree !== undefined && (
-        <div style={{ marginBottom: 12 }}>
+      {/* Badges */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+        {event.isFree !== undefined && (
           <span className={`badge ${event.isFree ? "badge-green" : "badge-yellow"}`}>
             {event.isFree ? "Free" : event.price ? `$${event.price}` : "Paid"}
           </span>
-        </div>
-      )}
+        )}
+        {event.source && (
+          <span className="category-badge" style={{ textTransform: "capitalize" }}>
+            {event.source}
+          </span>
+        )}
+      </div>
 
       {event.description && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 14, lineHeight: 1.5, color: "var(--hint)" }}>
-            {event.description.slice(0, 300)}
-            {event.description.length > 300 ? "..." : ""}
+            {event.description.slice(0, 400)}
+            {event.description.length > 400 ? "..." : ""}
           </div>
         </div>
       )}
@@ -103,7 +124,7 @@ export function EventDetail({ eventId }: Props) {
           <div className="section-title" style={{ margin: "0 0 8px" }}>Who's Going</div>
           {flowGoing.length > 0 && (
             <div className="social-proof" style={{ marginBottom: 4 }}>
-              {flowGoing.length} from your flow
+              {flowGoing.length} from your crew
             </div>
           )}
           {totalGoing > 0 && (

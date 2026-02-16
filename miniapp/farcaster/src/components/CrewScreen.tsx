@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import type { Screen } from "../App";
-import type { CrewInfo, CrewMember, CrewCheckin, LeaderboardEntry } from "../api/types";
+import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry } from "../api/types";
 import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard } from "../api/client";
 
 interface Props {
-  crewId?: string;
-  onNavigate: (s: Screen) => void;
+  authed: boolean;
 }
 
+/** Crew missions with progress tracking */
 interface Mission {
   id: string;
   title: string;
@@ -93,11 +92,11 @@ function SkeletonMembers() {
   );
 }
 
-export function Crew({ crewId }: Props) {
+export function CrewScreen({ authed }: Props) {
   const [crews, setCrews] = useState<CrewInfo[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<CrewInfo | null>(null);
   const [members, setMembers] = useState<CrewMember[]>([]);
-  const [checkins, setCheckins] = useState<CrewCheckin[]>([]);
+  const [checkins, setCheckins] = useState<CrewCheckinType[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [membersLoading, setMembersLoading] = useState(false);
@@ -110,21 +109,19 @@ export function Crew({ crewId }: Props) {
 
   // Load crews
   useEffect(() => {
+    if (!authed) {
+      setLoading(false);
+      return;
+    }
     getCrews()
       .then((c) => {
         setCrews(c);
-        if (crewId) {
-          const match = c.find((cr) => cr.id === crewId || cr.join_code === crewId);
-          if (match) setSelectedCrew(match);
-        } else if (c.length === 1) {
-          setSelectedCrew(c[0]);
-        } else if (c.length > 1) {
-          setSelectedCrew(c[0]);
-        }
+        if (c.length === 1) setSelectedCrew(c[0]);
+        else if (c.length > 1) setSelectedCrew(c[0]);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [crewId]);
+  }, [authed]);
 
   // Load members + leaderboard when crew selected
   useEffect(() => {
@@ -150,8 +147,6 @@ export function Crew({ crewId }: Props) {
       const c = await getCrews();
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
-      const tg = (window as any).Telegram?.WebApp;
-      tg?.HapticFeedback?.notificationOccurred("success");
     } catch (err) {
       console.error(err);
     }
@@ -166,8 +161,6 @@ export function Crew({ crewId }: Props) {
       const c = await getCrews();
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
-      const tg = (window as any).Telegram?.WebApp;
-      tg?.HapticFeedback?.notificationOccurred("success");
     } catch (err) {
       console.error(err);
     }
@@ -181,23 +174,9 @@ export function Crew({ crewId }: Props) {
       setCheckinVenue("");
       const { checkins: c } = await getCrewMembers(selectedCrew.id);
       setCheckins(c);
-      const tg = (window as any).Telegram?.WebApp;
-      tg?.HapticFeedback?.notificationOccurred("success");
     } catch (err) {
       console.error(err);
     }
-  };
-
-  const shareCrewLink = () => {
-    if (!selectedCrew) return;
-    const tg = (window as any).Telegram?.WebApp;
-    const botUsername = "Flow_B_bot";
-    const link = `https://t.me/${botUsername}?startapp=crew_${selectedCrew.join_code}`;
-    tg?.openTelegramLink?.(
-      `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(
-        `Join my crew ${selectedCrew.emoji} ${selectedCrew.name} on FlowB!`,
-      )}`,
-    );
   };
 
   if (loading) {
@@ -209,8 +188,24 @@ export function Crew({ crewId }: Props) {
     );
   }
 
-  // No crews yet
-  if (crews.length === 0 && !crewId) {
+  if (!authed) {
+    return (
+      <div className="screen">
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-emoji">{"\uD83D\uDD12"}</div>
+            <div className="empty-state-title">Sign in required</div>
+            <div className="empty-state-text">
+              Sign in to create or join a crew.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // No crews state
+  if (crews.length === 0) {
     return (
       <div className="screen">
         <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
@@ -231,7 +226,6 @@ export function Crew({ crewId }: Props) {
             </div>
           </div>
         </div>
-
         {renderCreateModal()}
         {renderJoinModal()}
       </div>
@@ -240,10 +234,9 @@ export function Crew({ crewId }: Props) {
 
   const missions = getMissions(members.length, checkins.length);
 
-  // Crew detail view
   return (
     <div className="screen">
-      {/* Crew selector if multiple */}
+      {/* Crew selector */}
       {crews.length > 1 && (
         <div style={{ display: "flex", gap: 8, overflowX: "auto", marginBottom: 16, paddingBottom: 4 }}>
           {crews.map((c) => (
@@ -270,9 +263,11 @@ export function Crew({ crewId }: Props) {
                 {members.length} members
               </div>
             </div>
-            <button className="btn btn-sm btn-secondary" onClick={shareCrewLink}>
-              Share
-            </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className="btn btn-sm btn-secondary" onClick={() => setShowJoin(true)}>
+                Join
+              </button>
+            </div>
           </div>
 
           {/* Active checkins */}
@@ -307,7 +302,7 @@ export function Crew({ crewId }: Props) {
             </>
           )}
 
-          {/* Crew Missions */}
+          {/* Missions */}
           <div className="section-title">Crew Missions</div>
           {missions.map((m) => (
             <MissionCard key={m.id} mission={m} />
@@ -323,11 +318,15 @@ export function Crew({ crewId }: Props) {
                 const checkin = checkins.find((c) => c.user_id === m.user_id);
                 return (
                   <div key={m.user_id} className="member-row">
-                    <div className="avatar">{m.user_id.charAt(m.user_id.length - 1).toUpperCase()}</div>
+                    <div className="avatar">
+                      {m.user_id.charAt(m.user_id.length - 1).toUpperCase()}
+                    </div>
                     <div style={{ flex: 1 }}>
                       <div className="member-name">
                         {m.user_id.replace(/^(telegram_|farcaster_)/, "@")}
-                        {m.role === "admin" && <span style={{ color: "var(--accent)", fontSize: 11 }}> admin</span>}
+                        {m.role === "admin" && (
+                          <span style={{ color: "var(--accent)", fontSize: 11, marginLeft: 4 }}>admin</span>
+                        )}
                       </div>
                       {checkin && (
                         <div className="member-status">
@@ -365,10 +364,7 @@ export function Crew({ crewId }: Props) {
                 </div>
               </div>
             ) : (
-              <button
-                className="btn btn-primary btn-block"
-                onClick={() => setShowCheckin(true)}
-              >
+              <button className="btn btn-primary btn-block" onClick={() => setShowCheckin(true)}>
                 Check In Here
               </button>
             )}

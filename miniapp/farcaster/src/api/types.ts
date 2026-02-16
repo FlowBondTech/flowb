@@ -95,3 +95,11 @@ export interface EventSocial {
   flowGoing?: number;
   flowMaybe?: number;
 }
+
+export interface PreferencesData {
+  arrival_date?: string;
+  interest_categories?: string[];
+  quiet_hours_enabled?: boolean;
+  timezone?: string;
+  onboarding_complete?: boolean;
+}

@@ -42,7 +42,6 @@ export async function notifyCrewCheckin(
   venueName: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
-  if (isQuietHours()) return 0;
 
   // Get crew members (excluding the person who checked in)
   const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
@@ -54,12 +53,13 @@ export async function notifyCrewCheckin(
   if (!members?.length) return 0;
 
   const username = userId.replace(/^(telegram_|farcaster_)/, "@");
-  const message = `${crewEmoji} ${username} checked in at ${venueName}`;
+  const message = `${crewEmoji} ${username} checked in at ${venueName} (+5 pts)`;
 
   let sent = 0;
   for (const member of members) {
     if (member.user_id === userId) continue;
     if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
 
     // Check dedup
     const alreadySent = await isAlreadyNotified(
@@ -95,7 +95,6 @@ export async function notifyFriendRsvp(
   eventName: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
-  if (isQuietHours()) return 0;
 
   // Get active friends
   const friends = await sbQuery<any[]>(ctx.supabase, "flowb_connections", {
@@ -112,6 +111,7 @@ export async function notifyFriendRsvp(
   let sent = 0;
   for (const friend of friends) {
     if (await hasReachedDailyLimit(ctx.supabase, friend.friend_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, friend.friend_id)) continue;
 
     const alreadySent = await isAlreadyNotified(
       ctx.supabase,
@@ -186,6 +186,128 @@ export async function sendEventReminders(
 }
 
 // ============================================================================
+// Crew Join Notification
+// ============================================================================
+
+/**
+ * Notify crew members when someone joins their crew.
+ * Sends via Telegram bot DM (primary) or Farcaster notification (fallback).
+ */
+export async function notifyCrewJoin(
+  ctx: NotifyContext,
+  userId: string,
+  crewId: string,
+  crewName: string,
+  crewEmoji: string,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  if (await isUserQuietHours(ctx.supabase, userId)) return 0;
+
+  // Get crew members (excluding the person who joined)
+  const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
+    select: "user_id",
+    group_id: `eq.${crewId}`,
+    muted: "eq.false",
+  });
+
+  if (!members?.length) return 0;
+
+  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
+  const message = `${crewEmoji} ${username} just joined ${crewName}! (+10 pts)`;
+
+  let sent = 0;
+  for (const member of members) {
+    if (member.user_id === userId) continue;
+    if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
+
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      member.user_id,
+      "crew_join",
+      `${crewId}:${userId}`,
+      userId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, member.user_id, "crew_join", `${crewId}:${userId}`, userId);
+      sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
+// Crew Member RSVP Notification
+// ============================================================================
+
+/**
+ * Notify crew members when someone RSVPs to an event.
+ * Queries the user's crews, then notifies other members in each crew.
+ */
+export async function notifyCrewMemberRsvp(
+  ctx: NotifyContext,
+  userId: string,
+  eventId: string,
+  eventName: string,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  // Get crews this user is in
+  const memberships = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
+    select: "group_id,flowb_groups(name,emoji)",
+    user_id: `eq.${userId}`,
+    muted: "eq.false",
+  });
+
+  if (!memberships?.length) return 0;
+
+  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
+  const notifiedSet = new Set<string>();
+  let sent = 0;
+
+  for (const m of memberships) {
+    if (!m.flowb_groups) continue;
+    const crewEmoji = m.flowb_groups.emoji || "";
+    const message = `${crewEmoji} ${username} is going to ${eventName}! (+5 pts)`;
+
+    // Get other members of this crew
+    const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
+      select: "user_id",
+      group_id: `eq.${m.group_id}`,
+      muted: "eq.false",
+    });
+
+    for (const member of members || []) {
+      if (member.user_id === userId) continue;
+      if (notifiedSet.has(member.user_id)) continue; // dedup across crews
+      if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
+      if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
+
+      const alreadySent = await isAlreadyNotified(
+        ctx.supabase,
+        member.user_id,
+        "crew_rsvp",
+        eventId,
+        userId,
+      );
+      if (alreadySent) continue;
+
+      const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage);
+      if (didSend) {
+        await logNotification(ctx.supabase, member.user_id, "crew_rsvp", eventId, userId);
+        notifiedSet.add(member.user_id);
+        sent++;
+      }
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -213,7 +335,7 @@ async function sendToUser(
   if (userId.startsWith("farcaster_")) {
     const fid = parseInt(userId.replace("farcaster_", ""), 10);
     if (!isNaN(fid)) {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-fc.netlify.app";
+      const appUrl = process.env.FLOWB_FC_APP_URL || "https://flowb-farcaster.netlify.app";
       return sendFarcasterNotification(ctx.supabase, fid, "FlowB", message, appUrl);
     }
   }
@@ -277,12 +399,32 @@ async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<bool
   return (rows?.length || 0) >= 10;
 }
 
-/** Check if it's quiet hours (10pm-8am MST / UTC-7) */
-function isQuietHours(): boolean {
-  const now = new Date();
-  // Convert to MST (UTC-7)
-  const mstHour = (now.getUTCHours() - 7 + 24) % 24;
-  return mstHour >= 22 || mstHour < 8;
+/**
+ * Check if it's quiet hours for a specific user (opt-in).
+ * Users must enable quiet hours via preferences. Default: OFF.
+ * When enabled, uses their timezone (default: America/Denver / MST).
+ */
+async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean> {
+  const prefs = await sbQuery<any[]>(cfg, "flowb_sessions", {
+    select: "quiet_hours_enabled,timezone",
+    user_id: `eq.${userId}`,
+    limit: "1",
+  });
+
+  const pref = prefs?.[0];
+  if (!pref?.quiet_hours_enabled) return false; // opt-in only
+
+  const tz = pref.timezone || "America/Denver";
+  try {
+    const nowInTz = new Date().toLocaleString("en-US", { timeZone: tz, hour12: false });
+    const hour = parseInt(nowInTz.split(",")[1]?.trim().split(":")[0] || "0", 10);
+    return hour >= 22 || hour < 8;
+  } catch {
+    // Fallback to MST if timezone is invalid
+    const now = new Date();
+    const mstHour = (now.getUTCHours() - 7 + 24) % 24;
+    return mstHour >= 22 || mstHour < 8;
+  }
 }
 
 /** Supabase query helper */

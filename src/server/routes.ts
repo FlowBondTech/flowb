@@ -20,6 +20,15 @@ import {
   upsertNotificationToken,
   disableNotificationToken,
 } from "../services/farcaster-notify.js";
+import {
+  notifyFriendRsvp,
+  notifyCrewMemberRsvp,
+  notifyCrewJoin,
+} from "../services/notifications.js";
+import {
+  parseWebhookEvent,
+  verifyAppKeyWithNeynar,
+} from "@farcaster/miniapp-node";
 
 // ============================================================================
 // Supabase helper (reused from flow plugin pattern)
@@ -170,19 +179,39 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
   // ------------------------------------------------------------------
   // EVENTS: Discovery (enhanced for mini app)
+  // Accepts: ?city=Denver&category=social&categories=defi,ai&limit=20
+  // The `categories` param filters by multiple interest categories (comma-separated)
   // ------------------------------------------------------------------
-  app.get<{ Querystring: { city?: string; category?: string; limit?: string } }>(
+  app.get<{ Querystring: { city?: string; category?: string; categories?: string; limit?: string } }>(
     "/api/v1/events",
     async (request) => {
-      const { city, category, limit } = request.query;
+      const { city, category, categories, limit } = request.query;
       const events = await core.discoverEventsRaw({
         action: "events",
         city: city || "Denver",
         category,
       });
 
+      let filtered = events;
+
+      // Filter by multiple categories if provided (e.g. ?categories=defi,ai,social)
+      if (categories) {
+        const catList = categories.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+        if (catList.length > 0) {
+          filtered = events.filter((e) => {
+            // Match against event title, description, and dance styles
+            const searchText = [
+              e.title,
+              e.description || "",
+              ...(e.danceStyles || []),
+            ].join(" ").toLowerCase();
+            return catList.some((cat) => searchText.includes(cat));
+          });
+        }
+      }
+
       const maxResults = Math.min(parseInt(limit || "20", 10), 50);
-      return { events: events.slice(0, maxResults) };
+      return { events: filtered.slice(0, maxResults) };
     },
   );
 
@@ -271,6 +300,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Award points
       await core.awardPoints(jwt.sub, jwt.platform, "event_rsvp").catch(() => {});
+
+      // Fire notifications in background
+      const notifyCtx = getNotifyContext();
+      if (notifyCtx && event) {
+        notifyFriendRsvp(notifyCtx, jwt.sub, id, event.title).catch(() => {});
+        notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, event.title).catch(() => {});
+      }
 
       return { ok: true, status, attendance };
     },
@@ -440,6 +476,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
 
       await core.awardPoints(jwt.sub, jwt.platform, "crew_joined").catch(() => {});
+
+      // Notify crew members about the new join (background)
+      const joinNotifyCtx = getNotifyContext();
+      if (joinNotifyCtx) {
+        // Try to extract crew info from the result message
+        const crewMatch = result.match(/Welcome to (.+?) (.+?)!/);
+        const emoji = crewMatch?.[1] || "";
+        const name = crewMatch?.[2] || "crew";
+        notifyCrewJoin(joinNotifyCtx, jwt.sub, request.params.id, name, emoji).catch(() => {});
+      }
 
       return { ok: true, message: result };
     },
@@ -662,50 +708,195 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // FARCASTER: Notification webhook
+  // POINTS: Global crew leaderboard (no auth required)
   // ------------------------------------------------------------------
-  app.post<{
-    Body: {
-      header: string;
-      payload: string;
-    };
-  }>(
-    "/api/v1/notifications/farcaster/webhook",
+  app.get(
+    "/api/v1/flow/leaderboard",
+    async () => {
+      const crews = await core.getGlobalCrewRanking();
+      return { crews };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // POINTS: Crew missions (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/missions",
+    { preHandler: authMiddleware },
     async (request) => {
+      const { id } = request.params;
+      const missions = await core.getCrewMissions(id);
+      return { missions };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FARCASTER: Notification webhook (verified via @farcaster/miniapp-node)
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/notifications/farcaster/webhook",
+    async (request, reply) => {
       const cfg = getSupabaseConfig();
-      if (!cfg) return { ok: false };
+      if (!cfg) return reply.status(500).send({ ok: false });
 
-      // Farcaster sends events as { header, payload } with signed JWS
-      // For MVP, parse the payload directly (add JWS verification later)
       try {
-        const payloadStr = request.body?.payload;
-        if (!payloadStr) return { ok: false, error: "Missing payload" };
-
-        // Payload is base64url encoded JSON
-        const decoded = JSON.parse(
-          Buffer.from(payloadStr.split(".")[1] || payloadStr, "base64url").toString(),
+        // Verify the webhook signature using Neynar
+        const data = await parseWebhookEvent(
+          request.body as any,
+          verifyAppKeyWithNeynar,
         );
 
-        const event = decoded.event || decoded;
+        const { fid, event } = data;
 
-        if (event.type === "frame_added" || event.type === "notifications_enabled") {
-          // User enabled notifications - store their token
-          const notif = event.notificationDetails || event;
-          if (notif.token && notif.url) {
-            await upsertNotificationToken(cfg, event.fid, notif.token, notif.url);
-            console.log(`[fc-webhook] Stored notification token for fid=${event.fid}`);
+        if (event.event === "miniapp_added" || event.event === "notifications_enabled") {
+          // User added the mini app or re-enabled notifications — store token
+          const notif = event.notificationDetails;
+          if (notif?.token && notif?.url) {
+            await upsertNotificationToken(cfg, fid, notif.token, notif.url);
+            console.log(`[fc-webhook] Stored notification token for fid=${fid}`);
           }
-        } else if (event.type === "frame_removed" || event.type === "notifications_disabled") {
-          // User disabled notifications
-          await disableNotificationToken(cfg, event.fid);
-          console.log(`[fc-webhook] Disabled notifications for fid=${event.fid}`);
+        } else if (event.event === "miniapp_removed" || event.event === "notifications_disabled") {
+          // User removed the app or disabled notifications — invalidate tokens
+          await disableNotificationToken(cfg, fid);
+          console.log(`[fc-webhook] Disabled notifications for fid=${fid}`);
         }
 
         return { ok: true };
       } catch (err) {
-        console.error("[fc-webhook] Error processing:", err);
-        return { ok: false };
+        console.error("[fc-webhook] Verification/processing error:", err);
+        return reply.status(400).send({ ok: false, error: "Invalid webhook" });
       }
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // NEYNAR: Mention webhook (@flowb mentions on Farcaster)
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/webhooks/neynar",
+    async (request, reply) => {
+      // Verify HMAC-SHA512 signature
+      const secret = process.env.NEYNAR_WEBHOOK_SECRET;
+      if (!secret) return reply.status(500).send({ ok: false, error: "Webhook secret not configured" });
+
+      const signature = request.headers["x-neynar-signature"] as string;
+      if (!signature) return reply.status(401).send({ ok: false, error: "Missing signature" });
+
+      const { createHmac } = await import("node:crypto");
+      const body = JSON.stringify(request.body);
+      const expectedSig = createHmac("sha512", secret).update(body).digest("hex");
+
+      if (signature !== expectedSig) {
+        return reply.status(401).send({ ok: false, error: "Invalid signature" });
+      }
+
+      const payload = request.body as any;
+
+      // Handle cast.created events mentioning @flowb
+      if (payload?.type === "cast.created") {
+        const cast = payload.data;
+        if (!cast) return { ok: true };
+
+        const cfg = getSupabaseConfig();
+        if (!cfg) return { ok: true };
+
+        const { handleMention } = await import("../services/farcaster-responder.js");
+
+        handleMention({
+          authorFid: cast.author?.fid,
+          authorUsername: cast.author?.username || "",
+          text: cast.text || "",
+          castHash: cast.hash || "",
+        }, { supabaseUrl: cfg.supabaseUrl, supabaseKey: cfg.supabaseKey }).catch((err: any) => {
+          console.error("[neynar-webhook] handleMention error:", err);
+        });
+      }
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // USER PREFERENCES (requires auth)
+  // Handles: arrival_date, interest_categories, quiet_hours_enabled,
+  //          timezone, onboarding_complete
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/preferences",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { preferences: {} };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete&limit=1`,
+      );
+
+      const pref = rows?.[0] || {};
+      return {
+        preferences: {
+          quiet_hours_enabled: pref.quiet_hours_enabled || false,
+          timezone: pref.timezone || "America/Denver",
+          arrival_date: pref.arrival_date || null,
+          interest_categories: pref.interest_categories || [],
+          onboarding_complete: pref.onboarding_complete || false,
+        },
+      };
+    },
+  );
+
+  app.patch<{
+    Body: {
+      quiet_hours_enabled?: boolean;
+      timezone?: string;
+      arrival_date?: string;
+      interest_categories?: string[];
+      onboarding_complete?: boolean;
+    };
+  }>(
+    "/api/v1/me/preferences",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      const body = request.body || {};
+
+      if (body.quiet_hours_enabled !== undefined) updates.quiet_hours_enabled = body.quiet_hours_enabled;
+      if (body.timezone) updates.timezone = body.timezone;
+      if (body.arrival_date) updates.arrival_date = body.arrival_date;
+      if (body.interest_categories) updates.interest_categories = body.interest_categories;
+      if (body.onboarding_complete !== undefined) updates.onboarding_complete = body.onboarding_complete;
+
+      // Upsert: create session row if it doesn't exist yet
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_sessions`,
+        {
+          method: "POST",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal,resolution=merge-duplicates",
+          },
+          body: JSON.stringify({
+            user_id: jwt.sub,
+            ...updates,
+          }),
+        },
+      ).catch(() => {});
+
+      // Award onboarding_complete points (10 pts via daily_login action)
+      if (body.onboarding_complete) {
+        await core.awardPoints(jwt.sub, jwt.platform, "daily_login").catch(() => {});
+      }
+
+      return { ok: true };
     },
   );
 
@@ -750,6 +941,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 // ============================================================================
 // Helpers
 // ============================================================================
+
+function getNotifyContext(): { supabase: SbConfig } | null {
+  const cfg = getSupabaseConfig();
+  if (!cfg) return null;
+  return { supabase: cfg };
+}
 
 function getSupabaseConfig(): SbConfig | null {
   const url = process.env.DANZ_SUPABASE_URL;

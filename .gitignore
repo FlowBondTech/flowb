@@ -10,3 +10,6 @@ miniapp/telegram/dist/
 
 # Supabase CLI temp
 supabase/.temp/
+
+# Local Netlify folder
+.netlify

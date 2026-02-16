@@ -22,6 +22,25 @@ function groupByDate(entries: ScheduleEntry[]): Map<string, ScheduleEntry[]> {
   return groups;
 }
 
+function ScheduleSkeleton() {
+  return (
+    <>
+      {[1, 2].map((i) => (
+        <div key={i} className="skeleton">
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <div style={{ flex: 1 }}>
+              <div className="skeleton-line skeleton-line-title" />
+              <div className="skeleton-line skeleton-line-sub" />
+            </div>
+            <div className="skeleton-line" style={{ width: 50, marginLeft: 12 }} />
+          </div>
+          <div className="skeleton-line skeleton-line-short" style={{ marginTop: 10 }} />
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function Schedule({ onNavigate }: Props) {
   const [entries, setEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +66,12 @@ export function Schedule({ onNavigate }: Props) {
   };
 
   if (loading) {
-    return <div className="loading"><div className="spinner" /></div>;
+    return (
+      <div className="screen">
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Schedule</h1>
+        <ScheduleSkeleton />
+      </div>
+    );
   }
 
   const grouped = groupByDate(entries);
@@ -57,17 +81,20 @@ export function Schedule({ onNavigate }: Props) {
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Schedule</h1>
 
       {entries.length === 0 ? (
-        <div className="card" style={{ textAlign: "center", padding: 32 }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>{"\\uD83D\\uDCC5"}</div>
-          <div style={{ color: "var(--hint)", marginBottom: 12 }}>
-            No events on your schedule yet.
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-emoji">{"\uD83D\uDCC5"}</div>
+            <div className="empty-state-title">No events scheduled</div>
+            <div className="empty-state-text">
+              Browse and RSVP to events to build your schedule!
+            </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => onNavigate({ name: "home" })}
+            >
+              Browse Events
+            </button>
           </div>
-          <button
-            className="btn btn-primary"
-            onClick={() => onNavigate({ name: "home" })}
-          >
-            Browse Events
-          </button>
         </div>
       ) : (
         Array.from(grouped.entries()).map(([date, dayEntries]) => (

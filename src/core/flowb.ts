@@ -13,6 +13,7 @@ import { DANZPlugin } from "../plugins/danz/index.js";
 import { EGatorPlugin, formatEventList } from "../plugins/egator/index.js";
 import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
+import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
@@ -270,6 +271,36 @@ export class FlowBCore {
       return { streak: 0, bonus: 0 };
     }
     return points.updateStreak(this.config.plugins.points, userId, platform);
+  }
+
+  /** Get global crew ranking by total member points (delegates to PointsPlugin) */
+  async getGlobalCrewRanking(): Promise<CrewRanking[]> {
+    const points = this.plugins.get("points") as PointsPlugin | undefined;
+    if (!points?.isConfigured() || !this.config.plugins?.points) {
+      return [];
+    }
+    return points.getGlobalCrewRanking(this.config.plugins.points);
+  }
+
+  /** Get active crew missions (delegates to PointsPlugin) */
+  async getCrewMissions(crewId: string): Promise<CrewMission[]> {
+    const points = this.plugins.get("points") as PointsPlugin | undefined;
+    if (!points?.isConfigured() || !this.config.plugins?.points) {
+      return [];
+    }
+    return points.getCrewMissions(this.config.plugins.points, crewId);
+  }
+
+  /** Update mission progress for a crew (delegates to PointsPlugin) */
+  async updateMissionProgress(
+    crewId: string,
+    missionType: string,
+  ): Promise<{ updated: boolean; completed: boolean; bonusAwarded: number }> {
+    const points = this.plugins.get("points") as PointsPlugin | undefined;
+    if (!points?.isConfigured() || !this.config.plugins?.points) {
+      return { updated: false, completed: false, bonusAwarded: 0 };
+    }
+    return points.updateMissionProgress(this.config.plugins.points, crewId, missionType);
   }
 
   /** Get the Flow plugin for direct access from the bot. */

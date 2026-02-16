@@ -12,6 +12,7 @@ import type {
   PointsInfo,
   LeaderboardEntry,
   EventSocial,
+  PreferencesData,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -40,6 +41,16 @@ async function post<T>(path: string, body?: any): Promise<T> {
   return res.json();
 }
 
+async function patch<T>(path: string, body?: any): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
 async function del<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, { method: "DELETE", headers: headers() });
   if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
@@ -55,8 +66,12 @@ export async function authFarcaster(message: string, signature: string): Promise
   return data;
 }
 
-export async function getEvents(city = "Denver", limit = 20): Promise<EventResult[]> {
-  const data = await get<{ events: EventResult[] }>(`/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`);
+export async function getEvents(city = "Denver", limit = 20, categories?: string[]): Promise<EventResult[]> {
+  let url = `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`;
+  if (categories && categories.length > 0) {
+    url += `&categories=${encodeURIComponent(categories.join(","))}`;
+  }
+  const data = await get<{ events: EventResult[] }>(url);
   return data.events;
 }
 
@@ -127,4 +142,14 @@ export async function getInviteLink(): Promise<string> {
 
 export async function getPoints(): Promise<PointsInfo> {
   return get("/api/v1/me/points");
+}
+
+// Preferences
+export async function getPreferences(): Promise<PreferencesData> {
+  const data = await get<{ preferences: PreferencesData }>("/api/v1/me/preferences");
+  return data.preferences;
+}
+
+export async function updatePreferences(data: PreferencesData): Promise<any> {
+  return patch("/api/v1/me/preferences", data);
 }

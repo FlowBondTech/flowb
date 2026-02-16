@@ -5,9 +5,11 @@
  * Event attendance sharing so friends + crews see each other's schedules.
  * Notification dedup to avoid spamming the same info twice.
  *
- * Deep links:
- *   t.me/Flow_B_bot?start=f_{code}   → personal flow invite
- *   t.me/Flow_B_bot?start=g_{code}   → group flow join
+ * Short links (via FLOWB_DOMAIN, defaults to flowb.me):
+ *   flowb.me/f/{code}    → personal flow invite
+ *   flowb.me/g/{code}    → crew join
+ *   flowb.me/gi/{code}   → personal tracked crew invite
+ *   flowb.me/ref/{code}  → referral
  */
 
 import type {
@@ -188,6 +190,16 @@ function generateCode(length = 8): string {
   return code;
 }
 
+/** Build a short shareable link via FLOWB_DOMAIN, e.g. https://flowb.me/f/abc123 */
+function flowbLink(prefix: string, code: string): string {
+  const domain = process.env.FLOWB_DOMAIN;
+  if (domain) {
+    return `https://${domain}/${prefix}/${code}`;
+  }
+  const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+  return `https://t.me/${botUsername}?start=${prefix}_${code}`;
+}
+
 // ============================================================================
 // Flow Plugin
 // ============================================================================
@@ -311,8 +323,7 @@ export class FlowPlugin implements FlowBPlugin {
       }, "user_id,platform");
     }
 
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    return `https://t.me/${botUsername}?start=f_${code}`;
+    return flowbLink("f", code);
   }
 
   async flowInvite(cfg: FlowPluginConfig, uid?: string): Promise<string> {
@@ -528,8 +539,7 @@ export class FlowPlugin implements FlowBPlugin {
       role: "creator",
     });
 
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    const link = `https://t.me/${botUsername}?start=g_${joinCode}`;
+    const link = flowbLink("g", joinCode);
 
     return [
       `**${emoji} ${cleanName}** created!`,
@@ -695,8 +705,7 @@ export class FlowPlugin implements FlowBPlugin {
       });
     }
 
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    const link = `https://t.me/${botUsername}?start=gi_${inviteCode}`;
+    const link = flowbLink("gi", inviteCode);
 
     const uses = existingInvites?.[0]?.uses || 0;
     const usesText = uses > 0 ? `\n${uses} people joined via your link.` : "";

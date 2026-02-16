@@ -58,6 +58,10 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   group_message:         { points: 1,   dailyCap: 30 },
   group_reply:           { points: 2,   dailyCap: 20 },
   channel_reaction:      { points: 1,   dailyCap: 20 },
+  // EthDenver mini app & event actions
+  event_checkin:         { points: 5,   dailyCap: 25 },
+  onboarding_complete:   { points: 10,  dailyCap: 10, once: true },
+  miniapp_open:          { points: 2,   dailyCap: 10 },
 };
 
 const MILESTONES = [
@@ -68,6 +72,32 @@ const MILESTONES = [
   { level: 5, threshold: 1000, title: "Star" },
   { level: 6, threshold: 2500, title: "Legend" },
 ];
+
+// ============================================================================
+// Exported Types (Phase 4)
+// ============================================================================
+
+export interface CrewRanking {
+  id: string;
+  name: string;
+  emoji: string;
+  totalPoints: number;
+  memberCount: number;
+}
+
+export interface CrewMission {
+  id: string;
+  crew_id: string;
+  mission_type: string;
+  title: string;
+  description: string;
+  target: number;
+  progress: number;
+  bonus_points: number;
+  is_active: boolean;
+  completed_at: string | null;
+  progressPercentage: number;
+}
 
 // ============================================================================
 // Supabase Helpers (reused pattern from DANZ plugin)
@@ -352,6 +382,180 @@ export class PointsPlugin implements FlowBPlugin {
   }
 
   // ==========================================================================
+  // Crew Leaderboard & Missions (Phase 4)
+  // ==========================================================================
+
+  /**
+   * Rank all public crews by total member points.
+   * Returns top 10 crews with name, emoji, total points, and member count.
+   */
+  async getGlobalCrewRanking(cfg: PointsPluginConfig): Promise<CrewRanking[]> {
+    const crews = await sbQuery<any[]>(cfg, "flowb_groups", {
+      select: "id,name,emoji",
+      is_public: "eq.true",
+    });
+
+    if (!crews?.length) return [];
+
+    const rankings: CrewRanking[] = [];
+
+    for (const crew of crews) {
+      const members = await sbQuery<any[]>(cfg, "flowb_group_members", {
+        select: "user_id",
+        group_id: `eq.${crew.id}`,
+      });
+
+      if (!members?.length) {
+        rankings.push({
+          id: crew.id,
+          name: crew.name,
+          emoji: crew.emoji || "",
+          totalPoints: 0,
+          memberCount: 0,
+        });
+        continue;
+      }
+
+      const userIds = members.map((m: any) => m.user_id);
+      const points = await sbQuery<any[]>(cfg, "flowb_user_points", {
+        select: "total_points",
+        user_id: `in.(${userIds.join(",")})`,
+      });
+
+      const totalPoints = (points || []).reduce(
+        (sum: number, p: any) => sum + (p.total_points || 0),
+        0,
+      );
+
+      rankings.push({
+        id: crew.id,
+        name: crew.name,
+        emoji: crew.emoji || "",
+        totalPoints,
+        memberCount: members.length,
+      });
+    }
+
+    rankings.sort((a, b) => b.totalPoints - a.totalPoints);
+    return rankings.slice(0, 10);
+  }
+
+  /**
+   * Get active crew missions for a given crew.
+   * Returns missions with progress percentage.
+   */
+  async getCrewMissions(cfg: PointsPluginConfig, crewId: string): Promise<CrewMission[]> {
+    const missions = await sbQuery<any[]>(cfg, "flowb_crew_missions", {
+      select: "id,crew_id,mission_type,title,description,target,progress,bonus_points,is_active,completed_at",
+      crew_id: `eq.${crewId}`,
+      is_active: "eq.true",
+    });
+
+    if (!missions?.length) return [];
+
+    return missions.map((m: any) => ({
+      id: m.id,
+      crew_id: m.crew_id,
+      mission_type: m.mission_type,
+      title: m.title,
+      description: m.description || "",
+      target: m.target || 0,
+      progress: m.progress || 0,
+      bonus_points: m.bonus_points || 0,
+      is_active: m.is_active,
+      completed_at: m.completed_at,
+      progressPercentage: m.target > 0
+        ? Math.min(100, Math.round(((m.progress || 0) / m.target) * 100))
+        : 0,
+    }));
+  }
+
+  /**
+   * Increment a mission counter for a crew.
+   * If the target is reached, mark completed and award bonus points to all members.
+   *
+   * Supported mission types: 'checkin_count', 'group_rsvp', 'invite_count'
+   */
+  async updateMissionProgress(
+    cfg: PointsPluginConfig,
+    crewId: string,
+    missionType: string,
+  ): Promise<{ updated: boolean; completed: boolean; bonusAwarded: number }> {
+    const missions = await sbQuery<any[]>(cfg, "flowb_crew_missions", {
+      select: "id,target,progress,bonus_points",
+      crew_id: `eq.${crewId}`,
+      mission_type: `eq.${missionType}`,
+      is_active: "eq.true",
+      limit: "1",
+    });
+
+    if (!missions?.length) {
+      return { updated: false, completed: false, bonusAwarded: 0 };
+    }
+
+    const mission = missions[0];
+    const newProgress = (mission.progress || 0) + 1;
+    const targetReached = newProgress >= (mission.target || 0);
+
+    const updateData: Record<string, any> = {
+      progress: newProgress,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (targetReached) {
+      updateData.is_active = false;
+      updateData.completed_at = new Date().toISOString();
+    }
+
+    await sbPatch(cfg, "flowb_crew_missions", {
+      id: `eq.${mission.id}`,
+    }, updateData);
+
+    let bonusAwarded = 0;
+    if (targetReached && mission.bonus_points > 0) {
+      const members = await sbQuery<any[]>(cfg, "flowb_group_members", {
+        select: "user_id",
+        group_id: `eq.${crewId}`,
+      });
+
+      if (members?.length) {
+        for (const member of members) {
+          const userId = member.user_id;
+          const platform = userId.startsWith("farcaster_") ? "farcaster" : "telegram";
+
+          await sbInsert(cfg, "flowb_points_ledger", {
+            user_id: userId,
+            platform,
+            action: "crew_mission_bonus",
+            points: mission.bonus_points,
+            metadata: { crew_id: crewId, mission_type: missionType, mission_id: mission.id },
+          });
+
+          const userRows = await sbQuery<any[]>(cfg, "flowb_user_points", {
+            select: "total_points",
+            user_id: `eq.${userId}`,
+            limit: "1",
+          });
+
+          if (userRows?.length) {
+            const newTotal = (userRows[0].total_points || 0) + mission.bonus_points;
+            await sbPatch(cfg, "flowb_user_points", {
+              user_id: `eq.${userId}`,
+            }, {
+              total_points: newTotal,
+              updated_at: new Date().toISOString(),
+            });
+          }
+
+          bonusAwarded += mission.bonus_points;
+        }
+      }
+    }
+
+    return { updated: true, completed: targetReached, bonusAwarded };
+  }
+
+  // ==========================================================================
   // Formatted responses
   // ==========================================================================
 
@@ -391,8 +595,11 @@ export class PointsPlugin implements FlowBPlugin {
     if (!userId) return "User ID required.";
 
     const code = await this.getReferralCode(cfg, userId, platform || "api");
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
-    return `**Your Referral Link**\n\nShare this with friends:\nhttps://t.me/${botUsername}?start=ref_${code}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
+    const domain = process.env.FLOWB_DOMAIN;
+    const link = domain
+      ? `https://${domain}/ref/${code}`
+      : `https://t.me/${process.env.FLOWB_BOT_USERNAME || "flow_b_bot"}?start=ref_${code}`;
+    return `**Your Referral Link**\n\nShare this with friends:\n${link}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
   }
 
   private async getHistoryFormatted(cfg: PointsPluginConfig, userId?: string, platform?: string): Promise<string> {

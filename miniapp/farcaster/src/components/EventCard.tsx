@@ -7,8 +7,10 @@ interface Props {
 }
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function formatDate(iso: string): string {
@@ -19,7 +21,11 @@ function formatDate(iso: string): string {
 
   if (d.toDateString() === now.toDateString()) return "Today";
   if (d.toDateString() === tomorrow.toDateString()) return "Tomorrow";
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 function isHappeningNow(start: string, end?: string): boolean {
@@ -45,18 +51,27 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
           <span className={`time-tag ${live ? "time-tag-live" : ""}`}>
             {live ? "LIVE" : formatTime(event.startTime)}
           </span>
-          <div style={{ fontSize: 11, color: "var(--hint)" }}>{formatDate(event.startTime)}</div>
+          <div style={{ fontSize: 11, color: "var(--hint)" }}>
+            {formatDate(event.startTime)}
+          </div>
         </div>
       </div>
 
-      {/* Description preview */}
       {event.description && (
         <div className="card-description">
           {event.description}
         </div>
       )}
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginTop: 8,
+          flexWrap: "wrap",
+        }}
+      >
         {event.isFree && <span className="badge badge-green">Free</span>}
         {event.source && (
           <span className="category-badge" style={{ textTransform: "capitalize" }}>
@@ -65,12 +80,36 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
         )}
       </div>
 
-      {/* Social proof */}
       {flowGoing !== undefined && flowGoing > 0 && (
         <div className="social-proof">
-          <span>{flowGoing} from your crew going</span>
+          <span>
+            {flowGoing} from your crew going
+          </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Skeleton loader matching EventCard dimensions */
+export function EventCardSkeleton() {
+  return (
+    <div className="skeleton">
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ flex: 1 }}>
+          <div className="skeleton-line skeleton-line-title" />
+          <div className="skeleton-line skeleton-line-sub" />
+        </div>
+        <div className="skeleton-line" style={{ width: 50, marginLeft: 12 }} />
+      </div>
+      <div
+        className="skeleton-line"
+        style={{ width: "85%", marginTop: 10, height: 12 }}
+      />
+      <div
+        className="skeleton-line skeleton-line-short"
+        style={{ marginTop: 10 }}
+      />
     </div>
   );
 }

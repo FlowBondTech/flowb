@@ -1,16 +1,21 @@
 {
   "accountAssociation": {
-    "header": "",
-    "payload": "",
-    "signature": ""
+    "header": "eyJmaWQiOjI3NzkzODQsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg3YzdhQUIwRWVDZmRjODBDOWY4NDk1Q0Q1NTRlNDkyMUJEQTkxNjFDIn0",
+    "payload": "eyJkb21haW4iOiJmbG93Yi1mYXJjYXN0ZXIubmV0bGlmeS5hcHAifQ",
+    "signature": "fPqo3zMgYQxd7kFjoT4vL36MXhkoQXRUepD7wu45jd4LlBMcBTshjK9lr3LUpsPhQOh+UxSPbmAORqTJzNwwdRw="
   },
-  "frame": {
+  "miniapp": {
     "version": "1",
     "name": "FlowB",
-    "iconUrl": "https://flowb-fc.netlify.app/icon.png",
-    "homeUrl": "https://flowb-fc.netlify.app",
-    "splashImageUrl": "https://flowb-fc.netlify.app/splash.png",
+    "subtitle": "Join the Flow at EthDenver",
+    "description": "Coordinate your crew, discover events, check in live, and earn points at EthDenver 2026.",
+    "homeUrl": "https://flowb-farcaster.netlify.app",
+    "iconUrl": "https://flowb-farcaster.netlify.app/icon.png",
+    "splashImageUrl": "https://flowb-farcaster.netlify.app/splash.png",
     "splashBackgroundColor": "#0a0a0a",
-    "webhookUrl": "https://your-flowb-backend.fly.dev/api/v1/notifications/farcaster/webhook"
+    "webhookUrl": "https://flowb.fly.dev/api/v1/notifications/farcaster/webhook",
+    "primaryCategory": "social",
+    "tags": ["ethdenver", "events", "crews", "checkin", "web3"],
+    "requiredChains": ["eip155:8453"]
   }
 }

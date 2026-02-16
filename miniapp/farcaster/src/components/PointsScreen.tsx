@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import type { Screen } from "../App";
 import type { PointsInfo, LeaderboardEntry, CrewInfo } from "../api/types";
 import { getPoints, getCrews, getCrewLeaderboard } from "../api/client";
 
 interface Props {
-  onNavigate: (s: Screen) => void;
+  authed: boolean;
 }
 
 function getLevelName(level: number): string {
@@ -17,6 +16,7 @@ function getLevelThreshold(level: number): number {
   return thresholds[Math.min(level + 1, thresholds.length - 1)];
 }
 
+/** Milestones the user can aim for */
 interface Milestone {
   icon: string;
   title: string;
@@ -70,7 +70,7 @@ function PointsSkeleton() {
   );
 }
 
-export function Points({ onNavigate }: Props) {
+export function PointsScreen({ authed }: Props) {
   const [points, setPoints] = useState<PointsInfo | null>(null);
   const [crews, setCrews] = useState<CrewInfo[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -78,27 +78,46 @@ export function Points({ onNavigate }: Props) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authed) {
+      setLoading(false);
+      return;
+    }
     Promise.all([
       getPoints().then(setPoints),
       getCrews().then(setCrews),
     ])
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [authed]);
 
-  // Load leaderboard when crew selected
+  // Auto-select first crew
   useEffect(() => {
     if (!selectedCrewId && crews.length > 0) {
       setSelectedCrewId(crews[0].id);
     }
   }, [crews, selectedCrewId]);
 
+  // Load leaderboard
   useEffect(() => {
     if (!selectedCrewId) return;
     getCrewLeaderboard(selectedCrewId)
       .then(setLeaderboard)
       .catch(console.error);
   }, [selectedCrewId]);
+
+  if (!authed) {
+    return (
+      <div className="screen">
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-emoji">{"\uD83D\uDD12"}</div>
+            <div className="empty-state-title">Sign in required</div>
+            <div className="empty-state-text">Sign in to view your points and leaderboard.</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <PointsSkeleton />;
@@ -112,9 +131,6 @@ export function Points({ onNavigate }: Props) {
             <div className="empty-state-emoji">{"\u2B50"}</div>
             <div className="empty-state-title">No points yet</div>
             <div className="empty-state-text">Start attending events and engaging to earn points!</div>
-            <button className="btn btn-primary" onClick={() => onNavigate({ name: "home" })}>
-              Browse Events
-            </button>
           </div>
         </div>
       </div>
@@ -130,13 +146,12 @@ export function Points({ onNavigate }: Props) {
 
   return (
     <div className="screen">
-      {/* Points hero */}
+      {/* Points Hero */}
       <div className="points-hero">
         <div className="points-value">{points.points}</div>
         <div className="points-label">
           Level {points.level} - {getLevelName(points.level)}
         </div>
-
         {/* Level progress bar */}
         <div style={{ maxWidth: 200, margin: "10px auto 0" }}>
           <div className="progress-bar" style={{ height: 4 }}>
@@ -150,20 +165,14 @@ export function Points({ onNavigate }: Props) {
           </div>
         </div>
 
-        {/* Streak display */}
         {points.streak > 0 && (
           <div className="streak-badge">
             {"\uD83D\uDD25"} {points.streak} day streak
           </div>
         )}
-        {points.longestStreak > points.streak && (
-          <div style={{ fontSize: 12, color: "var(--hint)", marginTop: 4 }}>
-            Best: {points.longestStreak} days
-          </div>
-        )}
       </div>
 
-      {/* Milestone progress */}
+      {/* Milestones */}
       <div className="section-title">Milestones</div>
       <div className="card">
         {milestones.map((m) => {
@@ -194,7 +203,7 @@ export function Points({ onNavigate }: Props) {
         })}
       </div>
 
-      {/* Crew ranking */}
+      {/* Global Crew Ranking */}
       {crews.length > 0 && (
         <>
           <div className="section-title">Crew Ranking</div>

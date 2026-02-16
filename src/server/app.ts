@@ -7,6 +7,8 @@ import {
   parseTelegramAuthParams,
 } from "../services/telegram-auth.js";
 import { registerMiniAppRoutes } from "./routes.js";
+import { processEventQueue, postDailyDigest, postEveningHighlight } from "../services/farcaster-poster.js";
+import { scanForNewEvents } from "../services/event-scanner.js";
 
 export function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
@@ -15,6 +17,321 @@ export function buildApp(core: FlowBCore) {
 
   // Register mini app API routes (auth, events, flow, notifications)
   registerMiniAppRoutes(app, core);
+
+  // ==========================================================================
+  // Scheduled Tasks: Farcaster Poster + Event Scanner
+  // ==========================================================================
+
+  const supabaseUrl = process.env.DANZ_SUPABASE_URL;
+  const supabaseKey = process.env.DANZ_SUPABASE_KEY;
+
+  if (supabaseUrl && supabaseKey) {
+    // Event queue processor: every 15 minutes
+    setInterval(() => {
+      processEventQueue(supabaseUrl, supabaseKey).catch((err) =>
+        console.error("[scheduler] Event queue error:", err),
+      );
+    }, 15 * 60 * 1000);
+
+    // Event scanner: every 4 hours
+    setInterval(() => {
+      scanForNewEvents(
+        { supabaseUrl, supabaseKey },
+        (opts) => core.discoverEventsRaw(opts),
+      ).catch((err) => console.error("[scheduler] Event scanner error:", err));
+    }, 4 * 60 * 60 * 1000);
+
+    // Run initial scan after 30s startup delay
+    setTimeout(() => {
+      scanForNewEvents(
+        { supabaseUrl, supabaseKey },
+        (opts) => core.discoverEventsRaw(opts),
+      ).catch((err) => console.error("[scheduler] Initial scan error:", err));
+    }, 30_000);
+
+    // Time-based casts: check every minute for 9am and 5pm MST
+    const firedToday = { morning: "", evening: "" };
+
+    setInterval(async () => {
+      try {
+        const now = new Date();
+        const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
+        const parts = mstStr.split(",")[1]?.trim().split(":");
+        if (!parts) return;
+
+        const hour = parseInt(parts[0], 10);
+        const minute = parseInt(parts[1], 10);
+        const dateKey = now.toISOString().slice(0, 10);
+
+        // Morning digest at 9:00 AM MST
+        if (hour === 9 && minute < 2 && firedToday.morning !== dateKey) {
+          firedToday.morning = dateKey;
+          console.log("[scheduler] Firing morning digest");
+
+          const events = await core.discoverEventsRaw({ action: "events", city: "Denver" });
+          // Filter to today's events
+          const todayStart = new Date(now);
+          todayStart.setHours(0, 0, 0, 0);
+          const todayEnd = new Date(todayStart);
+          todayEnd.setDate(todayEnd.getDate() + 1);
+
+          const todayEvents = events.filter((e) => {
+            const t = new Date(e.startTime).getTime();
+            return t >= todayStart.getTime() && t < todayEnd.getTime();
+          });
+
+          if (todayEvents.length > 0) {
+            const topEvents = todayEvents.slice(0, 5).map((e) => ({
+              title: e.title,
+              time: new Date(e.startTime).toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                timeZone: "America/Denver",
+              }),
+            }));
+            await postDailyDigest(todayEvents.length, topEvents);
+          }
+        }
+
+        // Evening highlight at 5:00 PM MST
+        if (hour === 17 && minute < 2 && firedToday.evening !== dateKey) {
+          firedToday.evening = dateKey;
+          console.log("[scheduler] Firing evening highlight");
+
+          const events = await core.discoverEventsRaw({ action: "events", city: "Denver" });
+          // Filter to events starting in the next 6 hours (5pm - 11pm)
+          const sixHoursFromNow = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+          const eveningEvents = events.filter((e) => {
+            const t = new Date(e.startTime).getTime();
+            return t >= now.getTime() && t <= sixHoursFromNow.getTime();
+          });
+
+          if (eveningEvents.length > 0) {
+            const picks = eveningEvents.slice(0, 3).map((e) => ({
+              title: e.title,
+              venue: e.locationName,
+            }));
+            await postEveningHighlight(picks);
+          }
+        }
+      } catch (err) {
+        console.error("[scheduler] Time-based cast error:", err);
+      }
+    }, 60 * 1000);
+
+    console.log("[scheduler] Farcaster poster + event scanner scheduled");
+  } else {
+    console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
+  }
+
+  // ==========================================================================
+  // Public API: Global leaderboard + live stats (no auth required)
+  // ==========================================================================
+
+  app.get(
+    "/api/v1/flow/leaderboard",
+    async () => {
+      if (!supabaseUrl || !supabaseKey) {
+        return { crews: [], totalPoints: 0, totalCheckins: 0 };
+      }
+
+      try {
+        // Get public crews
+        const crewsRes = await fetch(
+          `${supabaseUrl}/rest/v1/flowb_groups?select=id,name,emoji&limit=20`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          },
+        );
+        const crews = crewsRes.ok ? await crewsRes.json() : [];
+
+        const ranked: { name: string; emoji: string; totalPoints: number; memberCount: number }[] = [];
+
+        for (const crew of (crews || []).slice(0, 15)) {
+          const membersRes = await fetch(
+            `${supabaseUrl}/rest/v1/flowb_group_members?group_id=eq.${crew.id}&select=user_id`,
+            {
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+            },
+          );
+          if (!membersRes.ok) continue;
+          const members = await membersRes.json();
+          if (!members?.length) continue;
+
+          const userIds = members.map((m: any) => m.user_id);
+          const pointsRes = await fetch(
+            `${supabaseUrl}/rest/v1/flowb_user_points?user_id=in.(${userIds.join(",")})&select=total_points`,
+            {
+              headers: {
+                apikey: supabaseKey,
+                Authorization: `Bearer ${supabaseKey}`,
+              },
+            },
+          );
+          if (!pointsRes.ok) continue;
+          const points = await pointsRes.json();
+          const total = (points || []).reduce((sum: number, p: any) => sum + (p.total_points || 0), 0);
+          ranked.push({
+            name: crew.name,
+            emoji: crew.emoji,
+            totalPoints: total,
+            memberCount: members.length,
+          });
+        }
+
+        ranked.sort((a, b) => b.totalPoints - a.totalPoints);
+
+        return { crews: ranked.slice(0, 10) };
+      } catch (err) {
+        console.error("[leaderboard] Error:", err);
+        return { crews: [] };
+      }
+    },
+  );
+
+  app.get(
+    "/api/v1/stats",
+    async () => {
+      if (!supabaseUrl || !supabaseKey) {
+        return { crewsActive: 0, totalPoints: 0, checkinsToday: 0 };
+      }
+
+      try {
+        // Count active crews
+        const crewsRes = await fetch(
+          `${supabaseUrl}/rest/v1/flowb_groups?select=id&limit=1000`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+              Prefer: "count=exact",
+            },
+          },
+        );
+        const crewCount = parseInt(crewsRes.headers.get("content-range")?.split("/")[1] || "0", 10);
+
+        // Sum total points
+        const pointsRes = await fetch(
+          `${supabaseUrl}/rest/v1/flowb_user_points?select=total_points`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          },
+        );
+        const pointsRows = pointsRes.ok ? await pointsRes.json() : [];
+        const totalPoints = (pointsRows || []).reduce(
+          (sum: number, r: any) => sum + (r.total_points || 0),
+          0,
+        );
+
+        // Count checkins today
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const checkinsRes = await fetch(
+          `${supabaseUrl}/rest/v1/flowb_checkins?created_at=gte.${todayStart.toISOString()}&select=id&limit=1000`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+              Prefer: "count=exact",
+            },
+          },
+        );
+        const checkinCount = parseInt(
+          checkinsRes.headers.get("content-range")?.split("/")[1] || "0",
+          10,
+        );
+
+        return {
+          crewsActive: crewCount || 0,
+          totalPoints: totalPoints || 0,
+          checkinsToday: checkinCount || 0,
+        };
+      } catch (err) {
+        console.error("[stats] Error:", err);
+        return { crewsActive: 0, totalPoints: 0, checkinsToday: 0 };
+      }
+    },
+  );
+
+  // ==========================================================================
+  // Admin Endpoints
+  // ==========================================================================
+
+  app.post<{ Body: { text: string; embeds?: { url: string }[] } }>(
+    "/api/v1/admin/cast",
+    async (request, reply) => {
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      if (!adminKey || request.headers["x-admin-key"] !== adminKey) {
+        return reply.status(403).send({ error: "Unauthorized" });
+      }
+
+      const { text, embeds } = request.body || {};
+      if (!text) {
+        return reply.status(400).send({ error: "Missing text" });
+      }
+
+      const signerUuid = process.env.NEYNAR_AGENT_TOKEN;
+      const apiKey = process.env.NEYNAR_API_KEY;
+      if (!signerUuid || !apiKey) {
+        return reply.status(500).send({ error: "NEYNAR_AGENT_TOKEN or NEYNAR_API_KEY not set" });
+      }
+
+      try {
+        const res = await fetch("https://api.neynar.com/v2/farcaster/cast", {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            signer_uuid: signerUuid,
+            text,
+            embeds: embeds || [],
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          return reply.status(res.status).send({ error: `Neynar error: ${errText}` });
+        }
+
+        const result = await res.json();
+        return { ok: true, cast: result };
+      } catch (err: any) {
+        return reply.status(500).send({ error: err.message });
+      }
+    },
+  );
+
+  app.post(
+    "/api/v1/admin/scan-events",
+    async (request, reply) => {
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      if (!adminKey || request.headers["x-admin-key"] !== adminKey) {
+        return reply.status(403).send({ error: "Unauthorized" });
+      }
+
+      if (!supabaseUrl || !supabaseKey) {
+        return reply.status(500).send({ error: "Supabase not configured" });
+      }
+
+      const result = await scanForNewEvents(
+        { supabaseUrl, supabaseKey },
+        (opts) => core.discoverEventsRaw(opts),
+      );
+
+      return { ok: true, ...result };
+    },
+  );
 
   // Health check + plugin status
   app.get("/health", async () => {
@@ -103,6 +420,70 @@ export function buildApp(core: FlowBCore) {
     const callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
     return reply.type("text/html").send(connectPage(botUsername, callbackUrl));
   });
+
+  // ==========================================================================
+  // Smart Event Short Links (flowb.me/e/{id})
+  //
+  // UA-based platform detection:
+  //   - Telegram in-app browser -> redirect to tg:// mini app deep link
+  //   - Farcaster/Warpcast      -> redirect to Farcaster mini app URL
+  //   - Otherwise               -> redirect to flowb.me web with event context
+  // ==========================================================================
+
+  app.get<{ Params: { id: string } }>(
+    "/e/:id",
+    async (request, reply) => {
+      const { id } = request.params;
+      const ua = (request.headers["user-agent"] || "").toLowerCase();
+
+      const botUser = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+      const webUrl = process.env.FLOWB_WEB_URL || "https://flowb.me";
+      const fcMiniAppUrl = process.env.FLOWB_FC_MINIAPP_URL || "https://flowb-fc.netlify.app";
+
+      // Telegram in-app browser detection
+      // Telegram WebView includes "Telegram" or "TelegramBot" in the UA
+      if (ua.includes("telegram") || ua.includes("tgweb")) {
+        const tgUrl = `https://t.me/${botUser}/flowb?startapp=event_${id}`;
+        return reply.redirect(tgUrl);
+      }
+
+      // Farcaster / Warpcast detection
+      if (ua.includes("warpcast") || ua.includes("farcaster")) {
+        const fcUrl = `${fcMiniAppUrl}?event=${encodeURIComponent(id)}`;
+        return reply.redirect(fcUrl);
+      }
+
+      // Default: redirect to web app with event context
+      const eventWebUrl = `${webUrl}?event=${encodeURIComponent(id)}`;
+      return reply.redirect(eventWebUrl);
+    },
+  );
+
+  // ==========================================================================
+  // Short link redirects (flowb.me/f/{code} -> t.me deep link)
+  //
+  // These let us share clean URLs like flowb.me/f/abc123 or flowb.me/ref/xyz
+  // that redirect to the Telegram bot deep link.
+  // ==========================================================================
+
+  const deepLinkPrefixes: Record<string, string> = {
+    f: "f",      // personal flow invite
+    g: "g",      // crew join code
+    gi: "gi",    // personal tracked crew invite
+    ref: "ref",  // referral
+  };
+
+  for (const [path, prefix] of Object.entries(deepLinkPrefixes)) {
+    app.get<{ Params: { code: string } }>(
+      `/${path}/:code`,
+      async (request, reply) => {
+        const botUser = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+        const code = request.params.code;
+        const telegramUrl = `https://t.me/${botUser}?start=${prefix}_${code}`;
+        return reply.redirect(telegramUrl);
+      },
+    );
+  }
 
   return app;
 }

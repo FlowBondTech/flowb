@@ -1,4 +1,5 @@
 const API = 'https://egator-api.fly.dev';
+const FLOWB_API = 'https://egator-api.fly.dev';
 
 // OpenClaw Gateway config (set via Netlify env or override here)
 const OPENCLAW_GATEWAY = window.FLOWB_GATEWAY_URL || 'https://gateway.openclaw.ai';
@@ -39,6 +40,19 @@ const chatSendBtn = document.getElementById('flowbSendBtn');
 const chatStatus = document.getElementById('flowbStatus');
 const chatStatusText = document.getElementById('flowbStatusText');
 
+// DOM - My Flow
+const myFlowSection = document.getElementById('myFlowSection');
+const myFlowSchedule = document.getElementById('myFlowSchedule');
+const myFlowCrews = document.getElementById('myFlowCrews');
+const myFlowLeaderboard = document.getElementById('myFlowLeaderboard');
+
+// DOM - Hero Stats & Crews
+const statCrews = document.getElementById('statCrews');
+const statPoints = document.getElementById('statPoints');
+const statCheckins = document.getElementById('statCheckins');
+const heroCrews = document.getElementById('heroCrews');
+const heroCrewsList = document.getElementById('heroCrewsList');
+
 // ===== API =====
 
 async function fetchCategories() {
@@ -72,6 +86,205 @@ async function fetchTonight() {
   const data = await res.json();
   return data.events || [];
 }
+
+// ===== Public API: Stats & Leaderboard =====
+
+async function fetchLiveStats() {
+  try {
+    const res = await fetch(`${FLOWB_API}/api/v1/stats`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+async function fetchGlobalLeaderboard() {
+  try {
+    const res = await fetch(`${FLOWB_API}/api/v1/flow/leaderboard`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ===== Authenticated API helpers =====
+
+function getAuthToken() {
+  // Privy token stored by the auth system
+  if (window.flowbPrivy && window.flowbPrivy.getAccessToken) {
+    return window.flowbPrivy.getAccessToken();
+  }
+  // Fallback: check localStorage for any stored JWT
+  const stored = localStorage.getItem('flowb-jwt');
+  return stored || null;
+}
+
+async function fetchAuthed(path, opts = {}) {
+  const token = await getAuthToken();
+  if (!token) return null;
+
+  try {
+    const res = await fetch(`${FLOWB_API}${path}`, {
+      ...opts,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        ...(opts.headers || {}),
+      },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// ===== Render: Hero Stats =====
+
+async function loadHeroStats() {
+  const stats = await fetchLiveStats();
+  if (stats) {
+    if (statCrews) statCrews.textContent = stats.crewsActive || 0;
+    if (statPoints) statPoints.textContent = formatNumber(stats.totalPoints || 0);
+    if (statCheckins) statCheckins.textContent = stats.checkinsToday || 0;
+  }
+}
+
+function formatNumber(n) {
+  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+// ===== Render: Hero Top Crews =====
+
+async function loadHeroCrews() {
+  const data = await fetchGlobalLeaderboard();
+  if (!data || !data.crews || !data.crews.length) return;
+
+  const top3 = data.crews.slice(0, 3);
+  if (!heroCrewsList || !heroCrews) return;
+
+  heroCrewsList.innerHTML = top3.map((crew, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze';
+    return `
+      <div class="hero-crew-item">
+        <span class="hero-crew-rank ${rankClass}">${i + 1}</span>
+        <span class="hero-crew-emoji">${crew.emoji || ''}</span>
+        <span class="hero-crew-name">${escapeHtml(crew.name)}</span>
+        <span class="hero-crew-pts">${crew.totalPoints} pts</span>
+        ${crew.memberCount ? `<span class="hero-crew-members">${crew.memberCount} members</span>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  heroCrews.classList.remove('hidden');
+}
+
+// ===== Render: My Flow Section =====
+
+async function loadMyFlow() {
+  if (!Auth.isAuthenticated) {
+    if (myFlowSection) myFlowSection.classList.add('hidden');
+    return;
+  }
+
+  if (myFlowSection) myFlowSection.classList.remove('hidden');
+
+  // Load all three cards in parallel
+  loadMyFlowSchedule();
+  loadMyFlowCrews();
+  loadMyFlowLeaderboard();
+}
+
+async function loadMyFlowSchedule() {
+  if (!myFlowSchedule) return;
+
+  const data = await fetchAuthed('/api/v1/me/schedule');
+  if (!data || !data.schedule || !data.schedule.length) {
+    myFlowSchedule.innerHTML = '<div class="myflow-empty">No upcoming RSVPs yet. Browse events and hit RSVP!</div>';
+    return;
+  }
+
+  myFlowSchedule.innerHTML = data.schedule.slice(0, 5).map(item => {
+    const date = new Date(item.starts_at);
+    const dayStr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+    const dayNum = date.getDate();
+    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const venue = item.venue_name || '';
+
+    return `
+      <div class="myflow-schedule-item">
+        <div class="myflow-schedule-date">
+          <span>${dayStr}</span>
+          <span class="day">${dayNum}</span>
+        </div>
+        <div class="myflow-schedule-info">
+          <div class="myflow-schedule-title">${escapeHtml(item.event_title)}</div>
+          <div class="myflow-schedule-meta">${timeStr}${venue ? ' &middot; ' + escapeHtml(venue) : ''}</div>
+        </div>
+        <span class="myflow-rsvp-badge">${item.rsvp_status === 'maybe' ? 'Maybe' : 'Going'}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadMyFlowCrews() {
+  if (!myFlowCrews) return;
+
+  const data = await fetchAuthed('/api/v1/flow/crews');
+  if (!data || !data.crews || !data.crews.length) {
+    myFlowCrews.innerHTML = '<div class="myflow-empty">Not in any crews yet. Join or create one!</div>';
+    return;
+  }
+
+  myFlowCrews.innerHTML = data.crews.slice(0, 5).map(crew => `
+    <div class="myflow-crew-item">
+      <span class="myflow-crew-emoji">${crew.emoji || ''}</span>
+      <div class="myflow-crew-info">
+        <div class="myflow-crew-name">${escapeHtml(crew.name)}</div>
+        <div class="myflow-crew-role">${crew.role || 'member'}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function loadMyFlowLeaderboard() {
+  if (!myFlowLeaderboard) return;
+
+  const data = await fetchGlobalLeaderboard();
+  if (!data || !data.crews || !data.crews.length) {
+    myFlowLeaderboard.innerHTML = '<div class="myflow-empty">Leaderboard data coming soon!</div>';
+    return;
+  }
+
+  myFlowLeaderboard.innerHTML = data.crews.slice(0, 10).map((crew, i) => {
+    const rankClass = i < 3 ? `rank-${i + 1}` : '';
+    return `
+      <div class="myflow-lb-item">
+        <span class="myflow-lb-rank ${rankClass}">${i + 1}</span>
+        <span class="myflow-lb-emoji">${crew.emoji || ''}</span>
+        <span class="myflow-lb-name">${escapeHtml(crew.name)}</span>
+        <span class="myflow-lb-pts">${crew.totalPoints} pts</span>
+        ${crew.memberCount ? `<span class="myflow-lb-members">${crew.memberCount} mbrs</span>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== Auth State Change Handler =====
+
+function onAuthStateChange() {
+  loadMyFlow();
+}
+
+// Listen for privy auth changes to update My Flow
+window.addEventListener('privy-auth-change', () => {
+  // Small delay to let Auth object update first
+  setTimeout(onAuthStateChange, 100);
+});
 
 // ===== Render =====
 
@@ -137,6 +350,12 @@ function createEventCard(e) {
     : `<div class="event-card-img placeholder">${catEmoji}</div>`;
 
   const safeUrl = e.url ? e.url.replace(/'/g, "\\'") : '#';
+  const safeId = e.id ? e.id.replace(/'/g, "\\'") : '';
+
+  // RSVP button (only shown when authenticated)
+  const rsvpBtnHtml = Auth.isAuthenticated && safeId
+    ? `<button class="event-rsvp-btn" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">RSVP</button>`
+    : '';
 
   return `
     <article class="event-card" onclick="onEventClick('${safeUrl}')">
@@ -161,6 +380,7 @@ function createEventCard(e) {
         <div class="event-card-footer">
           ${priceHtml}
           ${attendeesHtml}
+          ${rsvpBtnHtml}
         </div>
       </div>
     </article>
@@ -172,6 +392,39 @@ function onEventClick(url) {
   awardFirstAction('first_event_click', 5, 'First event click!');
   if (url && url !== '#') window.open(url, '_blank');
 }
+
+// ===== RSVP Handler =====
+
+async function handleRsvp(eventId, btnEl) {
+  if (!Auth.isAuthenticated) return;
+
+  // Optimistic UI
+  btnEl.classList.add('rsvpd');
+  btnEl.textContent = 'Going!';
+  btnEl.disabled = true;
+
+  const result = await fetchAuthed(`/api/v1/events/${encodeURIComponent(eventId)}/rsvp`, {
+    method: 'POST',
+    body: JSON.stringify({ status: 'going' }),
+  });
+
+  if (result && result.ok) {
+    awardPoints(3, 'RSVP bonus');
+    awardFirstAction('first_rsvp', 5, 'First RSVP!');
+    // Refresh schedule if My Flow is visible
+    if (myFlowSection && !myFlowSection.classList.contains('hidden')) {
+      loadMyFlowSchedule();
+    }
+  } else {
+    // Revert on failure
+    btnEl.classList.remove('rsvpd');
+    btnEl.textContent = 'RSVP';
+    btnEl.disabled = false;
+  }
+}
+
+// Make handleRsvp available globally for onclick
+window.handleRsvp = handleRsvp;
 
 function escapeHtml(s) {
   if (!s) return '';
@@ -337,9 +590,14 @@ chatInput.addEventListener('keydown', (e) => {
   }
 });
 
-// Quick actions
-document.querySelectorAll('.flowb-quick-chip').forEach(btn => {
+// Quick actions - regular chat chips (data-msg)
+document.querySelectorAll('.flowb-quick-chip[data-msg]').forEach(btn => {
   btn.addEventListener('click', () => sendChatMessage(btn.dataset.msg));
+});
+
+// Flow-aware quick action chips (data-action)
+document.querySelectorAll('.flowb-quick-chip[data-action]').forEach(btn => {
+  btn.addEventListener('click', () => handleFlowAction(btn.dataset.action));
 });
 
 // Suggestion buttons
@@ -355,6 +613,165 @@ chatForm.addEventListener('submit', (e) => {
   chatInput.style.height = 'auto';
   sendChatMessage(msg);
 });
+
+// ===== Flow-Aware Chat Chip Handlers (Task 6C) =====
+
+async function handleFlowAction(action) {
+  if (isStreaming) return;
+
+  switch (action) {
+    case 'my-crew':
+      await handleMyCrewAction();
+      break;
+    case 'my-schedule':
+      await handleMyScheduleAction();
+      break;
+    case 'whos-going':
+      await handleWhosGoingAction();
+      break;
+    case 'leaderboard':
+      await handleLeaderboardAction();
+      break;
+    default:
+      sendChatMessage(action);
+  }
+}
+
+async function handleMyCrewAction() {
+  isStreaming = true;
+  chatSendBtn.disabled = true;
+  addChatMessage('My Crew', 'user');
+  addTypingIndicator();
+
+  if (!Auth.isAuthenticated) {
+    removeTypingIndicator();
+    addChatMessage('Sign in to see your crew info! Click the "Sign In" button at the top.', 'bot');
+    isStreaming = false;
+    chatSendBtn.disabled = false;
+    return;
+  }
+
+  const data = await fetchAuthed('/api/v1/flow/crews');
+  removeTypingIndicator();
+
+  if (!data || !data.crews || !data.crews.length) {
+    addChatMessage('You haven\'t joined any crews yet. Open FlowB on Telegram or Farcaster to create or join a crew!', 'bot');
+  } else {
+    let text = `**Your Crews** (${data.crews.length})\n\n`;
+    for (const crew of data.crews) {
+      text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
+    }
+    text += '\nManage your crews in the Telegram or Farcaster mini app!';
+    addChatMessage(text, 'bot');
+  }
+
+  isStreaming = false;
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
+
+async function handleMyScheduleAction() {
+  isStreaming = true;
+  chatSendBtn.disabled = true;
+  addChatMessage('My Schedule', 'user');
+  addTypingIndicator();
+
+  if (!Auth.isAuthenticated) {
+    removeTypingIndicator();
+    addChatMessage('Sign in to see your schedule! Click the "Sign In" button at the top.', 'bot');
+    isStreaming = false;
+    chatSendBtn.disabled = false;
+    return;
+  }
+
+  const data = await fetchAuthed('/api/v1/me/schedule');
+  removeTypingIndicator();
+
+  if (!data || !data.schedule || !data.schedule.length) {
+    addChatMessage('No upcoming events on your schedule. Browse events and RSVP to build your schedule!', 'bot');
+  } else {
+    let text = `**Your Upcoming Events** (${data.schedule.length})\n\n`;
+    for (const item of data.schedule.slice(0, 8)) {
+      const date = new Date(item.starts_at);
+      const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const venue = item.venue_name ? ` at ${item.venue_name}` : '';
+      const status = item.rsvp_status === 'maybe' ? ' (maybe)' : '';
+      text += `- **${item.event_title}**\n  ${dateStr} ${timeStr}${venue}${status}\n\n`;
+    }
+    addChatMessage(text, 'bot');
+  }
+
+  isStreaming = false;
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
+
+async function handleWhosGoingAction() {
+  isStreaming = true;
+  chatSendBtn.disabled = true;
+  addChatMessage("Who's going tonight?", 'user');
+  addTypingIndicator();
+
+  // Try to get tonight's events first
+  try {
+    const res = await fetch(`${API}/api/v1/discover/tonight`);
+    const data = await res.json();
+    const events = data.events || [];
+
+    removeTypingIndicator();
+
+    if (!events.length) {
+      addChatMessage("I don't see any events listed for tonight. Check back later or try \"this week\"!", 'bot');
+    } else {
+      let text = `**Tonight's Events** (${events.length})\n\n`;
+      for (const e of events.slice(0, 6)) {
+        const time = new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const venue = e.venue?.name ? ` at ${e.venue.name}` : '';
+        const price = e.isFree ? ' [Free]' : '';
+        text += `${e.mainCategoryEmoji || ''} **${e.title}**\n${time}${venue}${price}\n\n`;
+      }
+      text += 'RSVP to events and check who from your crew is going!';
+      addChatMessage(text, 'bot');
+    }
+  } catch {
+    removeTypingIndicator();
+    addChatMessage("Couldn't load tonight's events right now. Try again in a moment!", 'bot');
+  }
+
+  isStreaming = false;
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
+
+async function handleLeaderboardAction() {
+  isStreaming = true;
+  chatSendBtn.disabled = true;
+  addChatMessage('Leaderboard', 'user');
+  addTypingIndicator();
+
+  const data = await fetchGlobalLeaderboard();
+  removeTypingIndicator();
+
+  if (!data || !data.crews || !data.crews.length) {
+    addChatMessage('Crew leaderboard is loading up! Join a crew on FlowB to start earning points.', 'bot');
+  } else {
+    let text = '**Crew Leaderboard**\n\n';
+    for (let i = 0; i < Math.min(data.crews.length, 10); i++) {
+      const crew = data.crews[i];
+      const medal = i === 0 ? '' : i === 1 ? '' : i === 2 ? '' : `${i + 1}.`;
+      text += `${medal} ${crew.emoji || ''} **${crew.name}** - ${crew.totalPoints} pts`;
+      if (crew.memberCount) text += ` (${crew.memberCount} members)`;
+      text += '\n';
+    }
+    text += '\nJoin a crew to climb the leaderboard!';
+    addChatMessage(text, 'bot');
+  }
+
+  isStreaming = false;
+  chatSendBtn.disabled = false;
+  chatInput.focus();
+}
 
 // ===== Chat Message Rendering =====
 
@@ -705,10 +1122,38 @@ async function sendChatMessage(msg) {
   chatInput.focus();
 }
 
+// ===== URL Parameter Handling (Smart Short Links) =====
+
+function handleEventUrlParam() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const eventParam = urlParams.get('event');
+
+  if (eventParam) {
+    // Event linked from smart short link (/e/:id)
+    // Open chat with context about this event
+    setTimeout(() => {
+      openChat();
+      sendChatMessage(`Tell me about event ${eventParam}`);
+    }, 1500);
+
+    // Clean the URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('event');
+    window.history.replaceState({}, '', url.toString());
+  }
+}
+
 // ===== Init =====
 (async () => {
   awardPoints(1, 'Daily visit', 'info');
   awardFirstAction('first_visit', 5, 'Welcome to FlowB!');
+
+  // Load hero stats and top crews (non-blocking)
+  loadHeroStats();
+  loadHeroCrews();
+
+  // Handle event URL parameter from smart short links
+  handleEventUrlParam();
 
   // Read URL params (from FlowB web links)
   const urlParams = new URLSearchParams(window.location.search);
@@ -772,6 +1217,9 @@ async function sendChatMessage(msg) {
   }
 
   renderEvents(allEvents);
+
+  // Load My Flow if authenticated
+  loadMyFlow();
 
   // Check OpenClaw gateway availability
   try {

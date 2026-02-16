@@ -2,7 +2,8 @@
  * Neynar Plugin for FlowB
  *
  * Farcaster social integration via Neynar REST API.
- * Enables social challenge verification, profile lookup, and content discovery.
+ * Enables social challenge verification, profile lookup, content discovery,
+ * and autonomous posting (event cards, digests, announcements).
  */
 
 import type {
@@ -17,6 +18,7 @@ import type {
 
 interface NeynarPluginConfig {
   apiKey: string;
+  agentToken?: string;
 }
 
 interface FarcasterUser {
@@ -41,6 +43,11 @@ interface Cast {
   reactions: { likes_count: number; recasts_count: number };
   replies: { count: number };
   channel?: { id: string; name: string };
+}
+
+interface PublishCastResponse {
+  success: boolean;
+  cast?: { hash: string; author: { fid: number } };
 }
 
 // ============================================================================
@@ -69,6 +76,9 @@ export class NeynarPlugin implements FlowBPlugin {
     "farcaster-feed": {
       description: "Get trending or channel-specific Farcaster casts",
     },
+    "farcaster-post": {
+      description: "Publish a cast to Farcaster (requires NEYNAR_AGENT_TOKEN)",
+    },
   };
 
   private config?: NeynarPluginConfig;
@@ -79,6 +89,16 @@ export class NeynarPlugin implements FlowBPlugin {
 
   isConfigured(): boolean {
     return !!this.config?.apiKey;
+  }
+
+  /** Get the API key for external services that need direct Neynar access */
+  getApiKey(): string | undefined {
+    return this.config?.apiKey;
+  }
+
+  /** Get plugin config for external inspection */
+  getConfig(): NeynarPluginConfig | undefined {
+    return this.config;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
@@ -93,13 +113,15 @@ export class NeynarPlugin implements FlowBPlugin {
         return this.verifyCast(input, context);
       case "farcaster-feed":
         return this.getFeed(input);
+      case "farcaster-post":
+        return this.handlePost(input);
       default:
         return `Unknown Farcaster action: ${action}`;
     }
   }
 
   // ==========================================================================
-  // API Helper
+  // API Helpers
   // ==========================================================================
 
   private async neynarFetch<T>(path: string): Promise<T | null> {
@@ -122,9 +144,95 @@ export class NeynarPlugin implements FlowBPlugin {
     }
   }
 
+  private async neynarPost<T>(path: string, body: any): Promise<T | null> {
+    const url = `${NEYNAR_API}${path}`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "x-api-key": this.config!.apiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        console.error(`[neynar] POST ${res.status} ${path}: ${await res.text()}`);
+        return null;
+      }
+      return await res.json() as T;
+    } catch (err) {
+      console.error(`[neynar] POST error:`, err);
+      return null;
+    }
+  }
+
+  // ==========================================================================
+  // Public: Publish Cast
+  // ==========================================================================
+
+  /**
+   * Publish a cast to Farcaster via Neynar.
+   * Requires NEYNAR_AGENT_TOKEN (signer_uuid) to be configured.
+   */
+  async publishCast(
+    text: string,
+    embeds?: { url: string }[],
+    channelId?: string,
+    parentHash?: string,
+  ): Promise<PublishCastResponse> {
+    const signerUuid = this.config?.agentToken || process.env.NEYNAR_AGENT_TOKEN;
+    if (!signerUuid) {
+      console.error("[neynar] Cannot publish cast: NEYNAR_AGENT_TOKEN not set");
+      return { success: false };
+    }
+
+    const payload: Record<string, any> = {
+      signer_uuid: signerUuid,
+      text,
+    };
+
+    if (embeds?.length) {
+      payload.embeds = embeds;
+    }
+    if (channelId) {
+      payload.channel_id = channelId;
+    }
+    if (parentHash) {
+      payload.parent = parentHash;
+    }
+
+    const result = await this.neynarPost<{ success: boolean; cast?: { hash: string; author: { fid: number } } }>(
+      "/cast",
+      payload,
+    );
+
+    if (!result) {
+      return { success: false };
+    }
+
+    return {
+      success: result.success ?? true,
+      cast: result.cast,
+    };
+  }
+
   // ==========================================================================
   // Actions
   // ==========================================================================
+
+  private async handlePost(input: ToolInput): Promise<string> {
+    const text = input.query;
+    if (!text) {
+      return "Provide text to cast via the query field.";
+    }
+
+    const result = await this.publishCast(text);
+    if (!result.success) {
+      return "Failed to publish cast. Check NEYNAR_AGENT_TOKEN configuration.";
+    }
+
+    return `Cast published! Hash: ${result.cast?.hash || "unknown"}`;
+  }
 
   private async lookupProfile(input: ToolInput): Promise<string> {
     const wallet = input.wallet_address;

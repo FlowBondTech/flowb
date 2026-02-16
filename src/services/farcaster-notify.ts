@@ -61,11 +61,11 @@ export async function sendFarcasterNotification(
     const result = await res.json() as any;
 
     // Check for individual token failures in response
-    if (result?.result?.rateLimitedTokens?.includes(token.token)) {
+    if (result?.rateLimitedTokens?.includes(token.token)) {
       console.warn(`[fc-notify] Rate limited for fid=${fid}`);
       return false;
     }
-    if (result?.result?.invalidTokens?.includes(token.token)) {
+    if (result?.invalidTokens?.includes(token.token)) {
       console.warn(`[fc-notify] Invalid token for fid=${fid}, disabling`);
       await disableToken(cfg, fid);
       return false;
