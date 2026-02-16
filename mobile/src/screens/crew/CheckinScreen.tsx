@@ -8,6 +8,7 @@
 
 import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   StyleSheet,
   Text,
   View,
@@ -81,7 +82,9 @@ export function CheckinScreen() {
       haptics.success();
       navigation.goBack();
     } catch {
+      haptics.error();
       setIsSubmitting(false);
+      Alert.alert('Check-in Failed', 'Something went wrong. Please try again.');
     }
   }, [checkin, crewId, isSubmitting, message, navigation, status, venue]);
 

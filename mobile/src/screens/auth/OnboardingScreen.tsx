@@ -122,6 +122,13 @@ export function OnboardingScreen() {
     }
   }, [step, attendance, selectedCircles, inviteCode, token, navigation]);
 
+  const handleBack = useCallback(() => {
+    if (step > 0) {
+      haptics.tap();
+      setStep((s) => s - 1);
+    }
+  }, [step]);
+
   const handleSkip = useCallback(() => {
     haptics.tap();
     if (step === TOTAL_STEPS - 1) {
@@ -240,7 +247,7 @@ export function OnboardingScreen() {
             ) : null}
           </ScrollView>
 
-          {/* ── Bottom bar: dots + button ────────────────────── */}
+          {/* ── Bottom bar: back + dots + button ─────────────── */}
           <View style={styles.bottomBar}>
             {/* Step indicator dots */}
             <View style={styles.dots}>
@@ -255,15 +262,26 @@ export function OnboardingScreen() {
               ))}
             </View>
 
-            <GlassButton
-              title={step === TOTAL_STEPS - 1 ? 'Get Started' : 'Next'}
-              onPress={handleNext}
-              variant="primary"
-              size="lg"
-              disabled={!canAdvance}
-              loading={isSubmitting}
-              style={styles.nextButton}
-            />
+            <View style={styles.buttonRow}>
+              {step > 0 ? (
+                <GlassButton
+                  title="Back"
+                  onPress={handleBack}
+                  variant="ghost"
+                  size="lg"
+                  style={styles.backButton}
+                />
+              ) : null}
+              <GlassButton
+                title={step === TOTAL_STEPS - 1 ? 'Get Started' : 'Next'}
+                onPress={handleNext}
+                variant="primary"
+                size="lg"
+                disabled={!canAdvance}
+                loading={isSubmitting}
+                style={styles.nextButton}
+              />
+            </View>
           </View>
         </Pressable>
       </KeyboardAvoidingView>
@@ -379,7 +397,15 @@ const styles = StyleSheet.create({
   dotInactive: {
     backgroundColor: colors.border.default,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  backButton: {
+    flex: 0,
+    paddingHorizontal: spacing.md,
+  },
   nextButton: {
-    width: '100%',
+    flex: 1,
   },
 });

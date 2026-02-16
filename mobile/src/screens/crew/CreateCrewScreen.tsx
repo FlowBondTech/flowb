@@ -8,6 +8,7 @@
 
 import React, { useCallback, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -58,7 +59,9 @@ export function CreateCrewScreen() {
       haptics.success();
       navigation.goBack();
     } catch {
+      haptics.error();
       setIsSubmitting(false);
+      Alert.alert('Creation Failed', 'Could not create crew. Please try again.');
     }
   }, [createCrew, isSubmitting, name, navigation, selectedEmoji]);
 
