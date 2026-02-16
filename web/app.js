@@ -963,9 +963,21 @@ async function handleRsvp(eventId, btnEl) {
   btnEl.disabled = true;
   btnEl.title = 'Added to My Flow!';
 
+  // Find event details from loaded events to send with RSVP
+  const eventData = allEvents.find(e => e.id === eventId);
+  const rsvpBody = { status: 'going' };
+  if (eventData) {
+    rsvpBody.eventTitle = eventData.title;
+    rsvpBody.eventSource = eventData.source;
+    rsvpBody.eventUrl = eventData.url;
+    rsvpBody.venueName = eventData.venue?.name || null;
+    rsvpBody.startTime = eventData.startTime;
+    rsvpBody.endTime = eventData.endTime;
+  }
+
   const result = await fetchAuthed(`/api/v1/events/${encodeURIComponent(eventId)}/rsvp`, {
     method: 'POST',
-    body: JSON.stringify({ status: 'going' }),
+    body: JSON.stringify(rsvpBody),
   });
 
   if (result) {

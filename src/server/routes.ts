@@ -554,46 +554,72 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   // EVENTS: RSVP (requires auth)
   // ------------------------------------------------------------------
-  app.post<{ Params: { id: string }; Body: { status?: "going" | "maybe" } }>(
+  app.post<{
+    Params: { id: string };
+    Body: {
+      status?: "going" | "maybe";
+      // Client can send event details so we don't need to discover them
+      eventTitle?: string;
+      eventSource?: string;
+      eventUrl?: string;
+      venueName?: string;
+      startTime?: string;
+      endTime?: string;
+    };
+  }>(
     "/api/v1/events/:id/rsvp",
     { preHandler: authMiddleware },
     async (request) => {
       const jwt = request.jwtPayload!;
       const { id } = request.params;
-      const status = request.body?.status || "going";
+      const body = request.body || {};
+      const status = body.status || "going";
 
       if (!flowPlugin || !flowCfg) {
         return { ok: false, error: "Flow plugin not configured" };
       }
 
-      // Get event details for the attendance record
-      const allEvents = await core.discoverEventsRaw({ action: "events", city: "Denver" });
-      const event = allEvents.find((e) => e.id === id);
+      // Try to get event details from discovery, fall back to client-provided data
+      let event: any = null;
+      try {
+        const allEvents = await core.discoverEventsRaw({ action: "events", city: "Denver" });
+        event = allEvents.find((e) => e.id === id);
+      } catch {
+        // Discovery may not be available on this server
+      }
+
+      // Build event details from discovery or client-provided fallback
+      const eventTitle = event?.title || body.eventTitle || id;
+      const eventSource = event?.source || body.eventSource || "web";
+      const eventUrl = event?.url || body.eventUrl || null;
+      const venueName = event?.locationName || body.venueName || null;
+      const startTime = event?.startTime || body.startTime || null;
+      const endTime = event?.endTime || body.endTime || null;
 
       const attendance = await flowPlugin.rsvpWithDetails(
         flowCfg,
         jwt.sub,
         id,
-        event?.title || id,
-        event?.startTime || null,
-        event?.locationName || null,
+        eventTitle,
+        startTime,
+        venueName,
         status,
       );
 
-      // Also add to the rich schedules table
-      if (event) {
+      // Always write to the rich schedules table (using discovered or client data)
+      if (eventTitle && eventTitle !== id) {
         const cfg = getSupabaseConfig();
         if (cfg) {
           await sbPost(cfg, "flowb_schedules?on_conflict=user_id,platform,event_source,event_source_id", {
             user_id: jwt.sub,
             platform: jwt.platform,
-            event_title: event.title,
-            event_source: event.source,
-            event_source_id: event.id,
-            event_url: event.url,
-            venue_name: event.locationName,
-            starts_at: event.startTime,
-            ends_at: event.endTime,
+            event_title: eventTitle,
+            event_source: eventSource,
+            event_source_id: id,
+            event_url: eventUrl,
+            venue_name: venueName,
+            starts_at: startTime,
+            ends_at: endTime,
             rsvp_status: status,
           }, "return=minimal,resolution=merge-duplicates");
 
@@ -606,7 +632,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           for (const mins of defaults) {
             await sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
               user_id: jwt.sub,
-              event_source_id: event.id,
+              event_source_id: id,
               remind_minutes_before: mins,
             }, "return=minimal,resolution=merge-duplicates").catch(() => {});
           }
@@ -618,9 +644,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Fire notifications in background
       const notifyCtx = getNotifyContext();
-      if (notifyCtx && event) {
-        notifyFriendRsvp(notifyCtx, jwt.sub, id, event.title).catch(() => {});
-        notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, event.title).catch(() => {});
+      if (notifyCtx && eventTitle !== id) {
+        notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle).catch(() => {});
+        notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle).catch(() => {});
       }
 
       return { ok: true, status, attendance };
