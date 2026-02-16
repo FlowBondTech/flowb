@@ -390,6 +390,95 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // FEED: EthDenver Farcaster Feed (aggregates posts with keywords)
+  // Searches multiple queries and deduplicates by cast hash.
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { cursor?: string } }>(
+    "/api/v1/feed/ethdenver",
+    async (request) => {
+      const neynarKey = process.env.NEYNAR_API_KEY;
+      if (!neynarKey) {
+        return { casts: [], nextCursor: undefined };
+      }
+
+      const queries = ["ethdenver", "eth denver", "#ethdenver", "buidlathon"];
+      const { cursor } = request.query;
+
+      // Fetch from Neynar cast search API for each keyword in parallel
+      const NEYNAR_API = "https://api.neynar.com/v2/farcaster";
+      const limit = 25;
+
+      const results = await Promise.allSettled(
+        queries.map(async (q) => {
+          let url = `${NEYNAR_API}/cast/search?q=${encodeURIComponent(q)}&limit=${limit}`;
+          if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+          try {
+            const res = await fetch(url, {
+              headers: { "x-api-key": neynarKey, "Content-Type": "application/json" },
+            });
+            if (!res.ok) return { casts: [], next: undefined };
+            const data = await res.json() as any;
+            return {
+              casts: data?.result?.casts || [],
+              next: data?.result?.next?.cursor,
+            };
+          } catch {
+            return { casts: [], next: undefined };
+          }
+        }),
+      );
+
+      // Merge, deduplicate by hash, filter from Feb 12
+      const seen = new Set<string>();
+      const allCasts: any[] = [];
+      let lastCursor: string | undefined;
+
+      const cutoffDate = new Date("2026-02-12T00:00:00Z").getTime();
+
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        const { casts, next } = r.value;
+        if (next && !lastCursor) lastCursor = next;
+        for (const cast of casts) {
+          if (!cast.hash || seen.has(cast.hash)) continue;
+          // Filter: only posts from Feb 12 onwards
+          const ts = new Date(cast.timestamp).getTime();
+          if (ts < cutoffDate) continue;
+          seen.add(cast.hash);
+          allCasts.push({
+            hash: cast.hash,
+            text: cast.text || "",
+            timestamp: cast.timestamp,
+            author: {
+              fid: cast.author?.fid,
+              username: cast.author?.username || "",
+              display_name: cast.author?.display_name || cast.author?.username || "",
+              pfp_url: cast.author?.pfp_url,
+            },
+            reactions: {
+              likes_count: cast.reactions?.likes_count || 0,
+              recasts_count: cast.reactions?.recasts_count || 0,
+            },
+            replies: {
+              count: cast.replies?.count || 0,
+            },
+            embeds: cast.embeds || [],
+            channel: cast.channel ? { id: cast.channel.id, name: cast.channel.name } : undefined,
+          });
+        }
+      }
+
+      // Sort by timestamp descending (newest first)
+      allCasts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return {
+        casts: allCasts.slice(0, 50),
+        nextCursor: lastCursor,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // EVENTS: Discovery (enhanced for mini app)
   // Accepts: ?city=Denver&category=social&categories=defi,ai&limit=20
   // The `categories` param filters by multiple interest categories (comma-separated)

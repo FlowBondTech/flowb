@@ -406,6 +406,74 @@ export function filterEventsByCategory(events: EventResult[], category: string):
 }
 
 // ==========================================================================
+// Event Link Card (pasted URL → rich card)
+// ==========================================================================
+
+export function formatEventLinkCardHtml(event: EventResult): string {
+  const lines: string[] = [];
+
+  lines.push(`<b>${escapeHtml(event.title)}</b>`);
+  lines.push("");
+
+  const date = new Date(event.startTime);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  lines.push(`\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`);
+
+  if (event.isVirtual) {
+    lines.push(`\ud83c\udf10  Online`);
+  } else if (event.locationName) {
+    const loc = event.locationCity
+      ? `${escapeHtml(event.locationName)}, ${escapeHtml(event.locationCity)}`
+      : escapeHtml(event.locationName);
+    lines.push(`\ud83d\udccd  ${loc}`);
+  }
+
+  if (event.isFree) {
+    lines.push(`\ud83c\udfab  Free`);
+  } else if (event.price) {
+    lines.push(`\ud83c\udfab  $${event.price}`);
+  }
+
+  if (event.description) {
+    const snippet = event.description.length > 150
+      ? event.description.slice(0, 147) + "..."
+      : event.description;
+    lines.push("");
+    lines.push(`<i>${escapeHtml(snippet)}</i>`);
+  }
+
+  if (event.source && event.source !== "tavily") {
+    lines.push("");
+    lines.push(`<i>via ${event.source}</i>`);
+  }
+
+  return lines.join("\n");
+}
+
+export function buildEventLinkKeyboard(eventId: string, eventUrl?: string): InlineKeyboard {
+  const id8 = eventId.slice(0, 8);
+  const kb = new InlineKeyboard();
+
+  kb.text("\ud83d\udce4 Share with Flow", `el:share:${id8}`);
+  kb.text("\u2705 Going", `el:going:${id8}`);
+  kb.row();
+  kb.text("\u2b50 Save", `el:save:${id8}`);
+  if (eventUrl) {
+    kb.url("\ud83d\udd17 Open", eventUrl);
+  }
+
+  return kb;
+}
+
+// ==========================================================================
 // Check-in & Dance Moves
 // ==========================================================================
 

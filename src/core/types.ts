@@ -167,4 +167,5 @@ export interface ToolInput {
   friend_id?: string;
   event_status?: "going" | "maybe";
   visibility?: "friends" | "groups" | "public" | "private";
+  url?: string;
 }

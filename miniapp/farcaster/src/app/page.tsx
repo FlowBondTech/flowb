@@ -12,8 +12,9 @@ import { PointsScreen } from "../components/PointsScreen";
 import { OnboardingScreen } from "../components/OnboardingScreen";
 import { WebLanding } from "../components/WebLanding";
 import { FlowBChat } from "../components/FlowBChat";
+import { EthDenverFeed } from "../components/EthDenverFeed";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed";
 
 // ============================================================================
 // Featured Events - Date-aware picks for EthDenver Feb 15-27
@@ -89,6 +90,19 @@ function getDefaultFeatured(): FeaturedEvent[] {
 }
 
 // ============================================================================
+// Date Filter - EthDenver Feb 15-27
+// ============================================================================
+const ETHDENVER_DATES = (() => {
+  const dates: { id: string; label: string; date: Date }[] = [];
+  for (let d = 15; d <= 27; d++) {
+    const dt = new Date(2026, 1, d); // Feb = month 1
+    const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
+    dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
+  }
+  return dates;
+})();
+
+// ============================================================================
 // Category Filter Options
 // ============================================================================
 const FILTER_CATEGORIES = [
@@ -121,8 +135,9 @@ export default function FarcasterApp() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [appAdded, setAppAdded] = useState(false);
 
-  // Category filter
+  // Filters
   const [activeFilter, setActiveFilter] = useState("all");
+  const [activeDate, setActiveDate] = useState<string>("any");
 
   // Share feedback
   const [linkCopied, setLinkCopied] = useState(false);
@@ -177,9 +192,40 @@ export default function FarcasterApp() {
         }
       } catch {}
 
+      // Deep link: read ?screen= or ?event= from URL
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const deepScreen = params.get("screen");
+        const deepEvent = params.get("event");
+        if (deepEvent) {
+          setEventId(deepEvent);
+          setScreen("event");
+        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat"].includes(deepScreen)) {
+          setScreen(deepScreen as Screen);
+        }
+      } catch {}
+
       setLoading(false);
     })();
   }, []);
+
+  // Sync screen to URL for shareability (no page reload)
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (screen === "event" && eventId) {
+        url.searchParams.set("event", eventId);
+        url.searchParams.delete("screen");
+      } else if (screen !== "home") {
+        url.searchParams.set("screen", screen);
+        url.searchParams.delete("event");
+      } else {
+        url.searchParams.delete("screen");
+        url.searchParams.delete("event");
+      }
+      window.history.replaceState({}, "", url.toString());
+    } catch {}
+  }, [screen, eventId]);
 
   // Load events on home — with category filter support
   useEffect(() => {
@@ -257,7 +303,7 @@ export default function FarcasterApp() {
     }
   };
 
-  const navigateTab = useCallback((tab: "home" | "schedule" | "crew" | "points" | "chat") => {
+  const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat") => {
     setScreen(tab);
   }, []);
 
@@ -290,12 +336,27 @@ export default function FarcasterApp() {
   }
 
   const now = Date.now();
-  const happeningNow = events.filter((e) => {
+
+  // Apply date filter
+  const dateFiltered = activeDate === "any"
+    ? events
+    : events.filter((e) => {
+        const entry = ETHDENVER_DATES.find((d) => d.id === activeDate);
+        if (!entry) return true;
+        const evStart = new Date(e.startTime);
+        return (
+          evStart.getFullYear() === entry.date.getFullYear() &&
+          evStart.getMonth() === entry.date.getMonth() &&
+          evStart.getDate() === entry.date.getDate()
+        );
+      });
+
+  const happeningNow = dateFiltered.filter((e) => {
     const start = new Date(e.startTime).getTime();
     const end = e.endTime ? new Date(e.endTime).getTime() : start + 3600000;
     return now >= start && now <= end;
   });
-  const upcoming = events.filter((e) => new Date(e.startTime).getTime() > now);
+  const upcoming = dateFiltered.filter((e) => new Date(e.startTime).getTime() > now);
   const twoHoursFromNow = now + 2 * 3600000;
   const nextUp = upcoming.filter((e) => new Date(e.startTime).getTime() <= twoHoursFromNow);
   const later = upcoming.filter((e) => new Date(e.startTime).getTime() > twoHoursFromNow);
@@ -385,6 +446,25 @@ export default function FarcasterApp() {
             </a>
           ))}
 
+          {/* Date Filter Chips */}
+          <div className="filter-chips" style={{ marginBottom: 6 }}>
+            <button
+              className={`filter-chip ${activeDate === "any" ? "active" : ""}`}
+              onClick={() => setActiveDate("any")}
+            >
+              All Days
+            </button>
+            {ETHDENVER_DATES.map((d) => (
+              <button
+                key={d.id}
+                className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
+                onClick={() => setActiveDate(d.id)}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+
           {/* Category Filter Chips */}
           <div className="filter-chips">
             {FILTER_CATEGORIES.map((cat) => (
@@ -404,19 +484,21 @@ export default function FarcasterApp() {
               <EventCardSkeleton />
               <EventCardSkeleton />
             </>
-          ) : events.length === 0 ? (
+          ) : dateFiltered.length === 0 ? (
             <div className="card">
               <div className="empty-state">
                 <div className="empty-state-emoji">{"\uD83D\uDD0D"}</div>
                 <div className="empty-state-title">No events found</div>
                 <div className="empty-state-text">
-                  {activeFilter !== "all"
+                  {activeDate !== "any"
+                    ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
+                    : activeFilter !== "all"
                     ? `No ${activeFilter} events right now. Try a different filter!`
                     : "No events in Denver right now. Check back soon!"}
                 </div>
-                {activeFilter !== "all" && (
-                  <button className="btn btn-secondary" onClick={() => setActiveFilter("all")}>
-                    Show All Events
+                {(activeFilter !== "all" || activeDate !== "any") && (
+                  <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
+                    Clear Filters
                   </button>
                 )}
               </div>
@@ -655,6 +737,9 @@ export default function FarcasterApp() {
         </div>
       )}
 
+      {/* Feed Screen */}
+      {screen === "feed" && <EthDenverFeed authed={authed} />}
+
       {/* Crew Screen */}
       {screen === "crew" && <CrewScreen authed={authed} />}
 
@@ -665,7 +750,7 @@ export default function FarcasterApp() {
       {screen === "chat" && <FlowBChat authed={authed} username={username} />}
 
       {/* Bottom Navigation */}
-      <BottomNav current={screen === "event" ? "home" : (screen as any)} onNavigate={navigateTab} />
+      <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />
     </div>
   );
 }

@@ -104,3 +104,24 @@ export interface PreferencesData {
   timezone?: string;
   onboarding_complete?: boolean;
 }
+
+export interface FeedCast {
+  hash: string;
+  text: string;
+  timestamp: string;
+  author: {
+    fid: number;
+    username: string;
+    display_name: string;
+    pfp_url?: string;
+  };
+  reactions: {
+    likes_count: number;
+    recasts_count: number;
+  };
+  replies: {
+    count: number;
+  };
+  embeds?: Array<{ url?: string }>;
+  channel?: { id: string; name: string };
+}

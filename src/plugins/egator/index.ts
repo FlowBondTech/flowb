@@ -20,7 +20,7 @@ import type {
 import { LumaAdapter } from "./sources/luma.js";
 import { EventbriteAdapter } from "./sources/eventbrite.js";
 import { BraveSearchAdapter } from "./sources/brave.js";
-import { TavilyAdapter } from "./sources/tavily.js";
+import { TavilyAdapter, extractEventFromUrl } from "./sources/tavily.js";
 import { ResidentAdvisorAdapter } from "./sources/ra.js";
 import { GooglePlacesAdapter } from "./sources/google-places.js";
 
@@ -32,6 +32,7 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   actions = {
     search: { description: "Search events across all sources" },
+    "event-link": { description: "Extract event details from a URL" },
   };
 
   private config: EGatorPluginConfig | null = null;
@@ -66,6 +67,8 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     switch (action) {
       case "search":
         return this.searchEvents(input);
+      case "event-link":
+        return this.extractEventLink(input);
       default:
         return `Unknown eGator action: ${action}`;
     }
@@ -165,6 +168,18 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   // ========================================================================
   // Actions
   // ========================================================================
+
+  private async extractEventLink(input: ToolInput): Promise<string> {
+    if (!input.url) return JSON.stringify({ error: "No URL provided" });
+
+    const tavilyKey = this.config?.sources?.tavily?.apiKey;
+    if (!tavilyKey) return JSON.stringify({ error: "Tavily not configured" });
+
+    const event = await extractEventFromUrl(tavilyKey, input.url, input.city);
+    if (!event) return JSON.stringify({ error: "Could not extract event details from this URL" });
+
+    return JSON.stringify(event);
+  }
 
   private async searchEvents(input: ToolInput): Promise<string> {
     const events = await this.getEvents({

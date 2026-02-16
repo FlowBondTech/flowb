@@ -13,6 +13,7 @@ import type {
   LeaderboardEntry,
   EventSocial,
   PreferencesData,
+  FeedCast,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -185,6 +186,13 @@ export async function sendChat(
 
   const data = await res.json();
   return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
+}
+
+// EthDenver Feed
+export async function getEthDenverFeed(cursor?: string): Promise<{ casts: FeedCast[]; nextCursor?: string }> {
+  let url = "/api/v1/feed/ethdenver";
+  if (cursor) url += `?cursor=${encodeURIComponent(cursor)}`;
+  return get(url);
 }
 
 // Preferences

@@ -164,7 +164,7 @@ export class TavilyAdapter implements EventSourceAdapter {
 // URL filtering - identify individual event pages vs listing pages
 // ============================================================================
 
-function isEventPage(url: string): boolean {
+export function isEventPage(url: string): boolean {
   const u = url.toLowerCase();
 
   // lu.ma: Filter event pages from calendars/profiles
@@ -212,7 +212,7 @@ function isEventPage(url: string): boolean {
 // Content parsing - extract event fields from page text
 // ============================================================================
 
-function parseEventContent(
+export function parseEventContent(
   content: string | null,
   url: string,
   params: EventQuery,
@@ -424,7 +424,7 @@ function extractDescription(content: string): string | undefined {
   return desc || undefined;
 }
 
-function extractSource(url: string): string {
+export function extractSource(url: string): string {
   if (url.includes("lu.ma")) return "luma";
   if (url.includes("eventbrite.com")) return "eventbrite";
   if (url.includes("ra.co")) return "ra";
@@ -434,10 +434,49 @@ function extractSource(url: string): string {
   return "tavily";
 }
 
-function hashString(str: string): string {
+export function hashString(str: string): string {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
   }
   return Math.abs(hash).toString(36);
+}
+
+// ============================================================================
+// Single-URL extraction (used by event-link action)
+// ============================================================================
+
+export async function extractEventFromUrl(
+  apiKey: string,
+  url: string,
+  city?: string,
+): Promise<EventResult | null> {
+  try {
+    const res = await fetch(TAVILY_EXTRACT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        urls: [url],
+        extract_depth: "basic",
+        format: "text",
+        chunks_per_source: 3,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error(`[egator:tavily] Extract single ${res.status}: ${await res.text()}`);
+      return null;
+    }
+
+    const data = await res.json();
+    const results = data.results || [];
+    if (!results.length) return null;
+
+    const result = results[0];
+    return parseEventContent(result.raw_content, result.url || url, { city });
+  } catch (err: any) {
+    console.error("[egator:tavily] extractEventFromUrl error:", err.message);
+    return null;
+  }
 }

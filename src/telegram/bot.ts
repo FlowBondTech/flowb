@@ -11,6 +11,7 @@ import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
 import { PrivyClient } from "../services/privy.js";
 import {
+  escapeHtml,
   formatEventCardsHtml,
   buildEventKeyboard,
   formatMenuHtml,
@@ -63,6 +64,9 @@ import {
   // Farcaster
   formatFarcasterMenuHtml,
   buildFarcasterMenuKeyboard,
+  // Event link (pasted URL)
+  formatEventLinkCardHtml,
+  buildEventLinkKeyboard,
 } from "./cards.js";
 
 const PAGE_SIZE = 3;
@@ -1420,6 +1424,87 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Event Link callbacks: el:share:ID, el:going:ID, el:save:ID ----
+    if (data.startsWith("el:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+      const eventIdShort = parts[2];
+
+      const session = getSession(tgId);
+      const event = session?.filteredEvents?.find((e) => e.id.startsWith(eventIdShort || ""));
+
+      if (!event) {
+        await ctx.answerCallbackQuery({ text: "Event not found. Try pasting the link again." });
+        return;
+      }
+
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+
+      if (action === "share") {
+        // RSVP as going + share with flow + award points
+        if (flowPlugin && flowCfg) {
+          await flowPlugin.rsvpWithDetails(
+            flowCfg, userId(tgId), event.id, event.title,
+            event.startTime, event.locationName || null, "going",
+          );
+        }
+        core.awardPoints(userId(tgId), "telegram", "event_link_shared").catch(() => {});
+        core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+
+        // Notify flow in background
+        notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+
+        await ctx.answerCallbackQuery({ text: "Shared with your flow!" });
+        await ctx.reply(
+          `<b>\ud83d\udce4 Shared!</b> ${escapeHtml(event.title)}\n\nSent to your friends &amp; crews.`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      if (action === "going") {
+        // RSVP only
+        if (flowPlugin && flowCfg) {
+          await flowPlugin.rsvpWithDetails(
+            flowCfg, userId(tgId), event.id, event.title,
+            event.startTime, event.locationName || null, "going",
+          );
+        }
+        core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+
+        // Notify flow in background
+        notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+
+        await ctx.answerCallbackQuery({ text: `\u2705 ${event.title}` });
+        await ctx.reply(
+          `<b>\u2705 You're going!</b> ${escapeHtml(event.title)}`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      if (action === "save") {
+        try {
+          await core.execute("save-event", {
+            action: "save-event",
+            user_id: userId(tgId),
+            platform: "telegram",
+            query: event.title,
+          });
+          const pts = await core.awardPoints(userId(tgId), "telegram", "event_saved");
+          const ptsText = pts.awarded ? ` (+${pts.points} pts)` : "";
+          await ctx.answerCallbackQuery({ text: `\u2b50 Saved: ${event.title}${ptsText}`, show_alert: false });
+        } catch {
+          await ctx.answerCallbackQuery({ text: `\u2b50 Saved: ${event.title}`, show_alert: false });
+        }
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     // Pagination: ev:p:N or sr:p:N
     const pageMatch = data.match(/^(ev|sr):p:(\d+)$/);
     if (pageMatch) {
@@ -2228,6 +2313,45 @@ export function startTelegramBot(
     const text = ctx.message.text.trim();
     const lower = text.toLowerCase();
 
+    // ---- Event URL detection (lu.ma, eventbrite, etc.) ----
+    const EVENT_URL_REGEX = /https?:\/\/(?:lu\.ma|eventbrite\.com|partiful\.com|meetup\.com|dice\.fm|ra\.co|shotgun\.live|events\.xyz)\/[^\s]+/gi;
+    const eventUrlMatch = text.match(EVENT_URL_REGEX);
+    if (eventUrlMatch && !isGroup) {
+      const url = eventUrlMatch[0];
+      try {
+        await ctx.replyWithChatAction("typing");
+        const result = await core.execute("event-link", {
+          action: "event-link",
+          url,
+          user_id: userId(tgId),
+          platform: "telegram",
+        });
+
+        const parsed = JSON.parse(result);
+        if (!parsed.error) {
+          const event = parsed as EventResult;
+          // Store in session for callback handlers
+          const session = getSession(tgId) || setSession(tgId, {});
+          if (!session.filteredEvents) session.filteredEvents = [];
+          // Add to front of list (dedup by id)
+          if (!session.filteredEvents.some((e) => e.id === event.id)) {
+            session.filteredEvents.unshift(event);
+          }
+
+          await ctx.reply(formatEventLinkCardHtml(event), {
+            parse_mode: "HTML",
+            reply_markup: buildEventLinkKeyboard(event.id, event.url),
+          });
+
+          // Event discovered (no-op for now)
+          return;
+        }
+        // If extraction failed, fall through to normal text handling
+      } catch {
+        // Fall through to normal text handling
+      }
+    }
+
     // Direct menu/help triggers
     if (lower === "menu" || lower === "/menu" || lower === "help" || lower === "hi" || lower === "hello") {
       await ctx.reply(formatMenuHtml(), {
@@ -2637,6 +2761,66 @@ async function sbQueryBot(
   });
   if (!res.ok) return null;
   return res.json();
+}
+
+/**
+ * Fire-and-forget upsert of a linked event into flowb_discovered_events.
+ * Uses the same slug dedup pattern as event-scanner.ts.
+ */
+async function saveEventToDiscovered(event: EventResult): Promise<void> {
+  const sbUrl = process.env.DANZ_SUPABASE_URL;
+  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  if (!sbUrl || !sbKey) return;
+
+  const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
+  if (!titleSlug) return;
+
+  const source = event.source || "tavily";
+  const headers = {
+    apikey: sbKey,
+    Authorization: `Bearer ${sbKey}`,
+    "Content-Type": "application/json",
+  };
+
+  // Check if already exists
+  const checkRes = await fetch(
+    `${sbUrl}/rest/v1/flowb_discovered_events?source=eq.${encodeURIComponent(source)}&title_slug=eq.${encodeURIComponent(titleSlug)}&select=id&limit=1`,
+    { headers },
+  );
+
+  const existing = checkRes.ok ? await checkRes.json() : [];
+
+  if (existing?.length) {
+    // Update last_seen
+    await fetch(
+      `${sbUrl}/rest/v1/flowb_discovered_events?id=eq.${existing[0].id}`,
+      {
+        method: "PATCH",
+        headers: { ...headers, Prefer: "return=minimal" },
+        body: JSON.stringify({ last_seen: new Date().toISOString() }),
+      },
+    );
+  } else {
+    // Insert new
+    await fetch(
+      `${sbUrl}/rest/v1/flowb_discovered_events`,
+      {
+        method: "POST",
+        headers: { ...headers, Prefer: "return=minimal" },
+        body: JSON.stringify({
+          source,
+          source_event_id: event.id,
+          title: event.title,
+          title_slug: titleSlug,
+          starts_at: event.startTime || null,
+          venue_name: event.locationName || null,
+          city: event.locationCity || "Denver",
+          is_free: event.isFree ?? null,
+          url: event.url || null,
+        }),
+      },
+    );
+  }
 }
 
 async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<void> {
