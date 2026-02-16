@@ -221,15 +221,11 @@ export function ProfileScreen() {
 
         {/* ── Settings section ──────────────────────────────────── */}
         <GlassCard variant="medium" style={styles.settingsCard}>
-          <SettingsRow icon="notifications-outline" label="Notifications" />
+          <SettingsRow icon="notifications-outline" label="Notifications" disabled />
           <View style={styles.divider} />
-          <SettingsRow icon="options-outline" label="Preferences" />
+          <SettingsRow icon="options-outline" label="Preferences" disabled />
           <View style={styles.divider} />
-          <SettingsRow
-            icon="link-outline"
-            label="Linked Accounts"
-            disabled
-          />
+          <SettingsRow icon="link-outline" label="Linked Accounts" disabled />
         </GlassCard>
 
         {/* ── Admin section ─────────────────────────────────────── */}

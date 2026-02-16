@@ -144,7 +144,7 @@ export function CrewListScreen() {
         <Text style={styles.hero}>Crews</Text>
         <Pressable
           onPress={handleCreate}
-          hitSlop={12}
+          hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
           style={styles.addButton}
         >
           <Ionicons

@@ -8,6 +8,7 @@
 
 import React, { useCallback, useEffect } from 'react';
 import {
+  Alert,
   FlatList,
   RefreshControl,
   SafeAreaView,
@@ -43,8 +44,13 @@ export function ScheduleScreen() {
   const handleCheckin = useCallback(
     async (entryId: string) => {
       haptics.tap();
-      await checkin(entryId);
-      haptics.success();
+      try {
+        await checkin(entryId);
+        haptics.success();
+      } catch {
+        haptics.error();
+        Alert.alert('Check-in Failed', 'Something went wrong. Please try again.');
+      }
     },
     [checkin],
   );

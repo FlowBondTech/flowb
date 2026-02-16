@@ -8,7 +8,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  FlatList,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -59,11 +59,13 @@ export function CrewDetailScreen() {
   const [checkins, setCheckins] = useState<CrewCheckin[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   // ── Data loading ────────────────────────────────────────────────────
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(false);
     try {
       const [memberData, lb] = await Promise.all([
         getMembers(crewId),
@@ -73,7 +75,7 @@ export function CrewDetailScreen() {
       setCheckins(memberData.checkins);
       setLeaderboard(lb);
     } catch {
-      // Silently handle -- could add error state in a future iteration
+      setError(true);
     } finally {
       setLoading(false);
     }
@@ -95,6 +97,35 @@ export function CrewDetailScreen() {
   }, [navigation]);
 
   // ── Render ──────────────────────────────────────────────────────────
+
+  if (loading && members.length === 0) {
+    return (
+      <View style={styles.root}>
+        <GlassHeader title={`${crewEmoji} ${crewName}`} onBack={handleBack} />
+        <View style={styles.centerState}>
+          <ActivityIndicator size="large" color={colors.accent.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  if (error && members.length === 0) {
+    return (
+      <View style={styles.root}>
+        <GlassHeader title={`${crewEmoji} ${crewName}`} onBack={handleBack} />
+        <View style={styles.centerState}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.text.tertiary} />
+          <Text style={styles.errorTitle}>Couldn't load crew data</Text>
+          <GlassButton
+            title="Try Again"
+            onPress={loadData}
+            variant="secondary"
+            size="sm"
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -254,6 +285,16 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background.base,
+  },
+  centerState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  errorTitle: {
+    ...typography.headline,
+    color: colors.text.secondary,
   },
   scroll: {
     flex: 1,

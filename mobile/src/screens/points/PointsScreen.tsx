@@ -93,6 +93,16 @@ export function PointsScreen() {
           <Text style={styles.heroLabel}>points</Text>
         </View>
 
+        {/* ── Getting started hint ─────────────────────────────── */}
+        {total === 0 && !isLoading && (
+          <GlassCard variant="subtle" style={styles.hintCard}>
+            <Ionicons name="sparkles-outline" size={22} color={colors.accent.primary} />
+            <Text style={styles.hintText}>
+              RSVP to events and check in with your crew to start earning points!
+            </Text>
+          </GlassCard>
+        )}
+
         {/* ── Quick stats row ───────────────────────────────────── */}
         <View style={styles.statRow}>
           <StatTile
@@ -174,6 +184,20 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.secondary,
     marginTop: spacing.xs,
+  },
+
+  // Getting started hint
+  hintCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  hintText: {
+    ...typography.body,
+    color: colors.text.secondary,
+    flex: 1,
   },
 
   // Quick stat row

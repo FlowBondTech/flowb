@@ -47,39 +47,31 @@ export function EventDetailScreen({ route, navigation }: Props) {
   const [social, setSocial] = useState<EventSocial | null>(null);
   const [myRsvp, setMyRsvp] = useState<RsvpStatus>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [rsvpLoading, setRsvpLoading] = useState(false);
 
   // ── Fetch event and social data ───────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const [eventData, socialData] = await Promise.all([
-          api.getEvent(eventId),
-          api.getEventSocial(eventId),
-        ]);
-        if (!cancelled) {
-          setEvent(eventData.event);
-          setSocial(socialData);
-          // If the flow object has our info we could detect RSVP status,
-          // but the API does not expose per-user status on this endpoint.
-          // For now we leave myRsvp null until the user acts.
-        }
-      } catch {
-        // Silently handle — the user sees the loading state clear
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const loadEvent = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    try {
+      const [eventData, socialData] = await Promise.all([
+        api.getEvent(eventId),
+        api.getEventSocial(eventId),
+      ]);
+      setEvent(eventData.event);
+      setSocial(socialData);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
     }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, [eventId]);
+
+  useEffect(() => {
+    loadEvent();
+  }, [loadEvent]);
 
   // ── RSVP handlers ─────────────────────────────────────────────────
 
@@ -137,12 +129,32 @@ export function EventDetailScreen({ route, navigation }: Props) {
 
   // ── Loading state ─────────────────────────────────────────────────
 
-  if (loading || !event) {
+  if (loading) {
     return (
       <View style={styles.loadingRoot}>
         <GlassHeader title="Event" onBack={() => navigation.goBack()} />
         <View style={styles.loadingCenter}>
           <ActivityIndicator size="large" color={colors.accent.primary} />
+        </View>
+      </View>
+    );
+  }
+
+  // ── Error state ──────────────────────────────────────────────────
+
+  if (error || !event) {
+    return (
+      <View style={styles.loadingRoot}>
+        <GlassHeader title="Event" onBack={() => navigation.goBack()} />
+        <View style={styles.loadingCenter}>
+          <Ionicons name="cloud-offline-outline" size={48} color={colors.text.tertiary} />
+          <Text style={styles.errorTitle}>Couldn't load event</Text>
+          <GlassButton
+            title="Try Again"
+            onPress={loadEvent}
+            variant="secondary"
+            size="sm"
+          />
         </View>
       </View>
     );
@@ -321,6 +333,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  errorTitle: {
+    ...typography.headline,
+    color: colors.text.secondary,
   },
   scroll: {
     flex: 1,
