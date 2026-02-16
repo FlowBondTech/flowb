@@ -58,6 +58,11 @@ export async function notifyCrewCheckin(
   let sent = 0;
   for (const member of members) {
     if (member.user_id === userId) continue;
+
+    // Check per-type toggle
+    const prefs = await getUserNotifyPrefs(ctx.supabase, member.user_id);
+    if (!prefs.notify_crew_checkins) continue;
+
     if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
     if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
 
@@ -110,6 +115,10 @@ export async function notifyFriendRsvp(
 
   let sent = 0;
   for (const friend of friends) {
+    // Check per-type toggle
+    const prefs = await getUserNotifyPrefs(ctx.supabase, friend.friend_id);
+    if (!prefs.notify_friend_rsvps) continue;
+
     if (await hasReachedDailyLimit(ctx.supabase, friend.friend_id)) continue;
     if (await isUserQuietHours(ctx.supabase, friend.friend_id)) continue;
 
@@ -137,7 +146,9 @@ export async function notifyFriendRsvp(
 // ============================================================================
 
 /**
- * Send reminders for events starting in ~30 minutes.
+ * Send reminders based on flowb_event_reminders table entries.
+ * Queries unsent reminders, checks if the event's start time minus
+ * remind_minutes_before falls within a 10-minute processing window from now.
  * Run this on a cron/interval.
  */
 export async function sendEventReminders(
@@ -145,44 +156,121 @@ export async function sendEventReminders(
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
   const now = new Date();
-  const thirtyMinFromNow = new Date(now.getTime() + 30 * 60 * 1000);
-  const fortyMinFromNow = new Date(now.getTime() + 40 * 60 * 1000);
 
-  // Find schedules starting in 30-40 min window (allows for 10 min processing window)
-  const entries = await sbQuery<any[]>(ctx.supabase, "flowb_schedules", {
-    select: "user_id,event_title,venue_name,starts_at",
-    rsvp_status: "eq.going",
-    and: `(starts_at.gte.${thirtyMinFromNow.toISOString()},starts_at.lt.${fortyMinFromNow.toISOString()})`,
-    limit: "100",
+  // Get all unsent reminders with their event details via a join-like approach:
+  // First get pending reminders, then look up schedule details
+  const reminders = await sbQuery<any[]>(ctx.supabase, "flowb_event_reminders", {
+    select: "id,user_id,event_source_id,remind_minutes_before",
+    sent: "eq.false",
+    limit: "200",
   });
 
-  if (!entries?.length) return 0;
+  if (!reminders?.length) return 0;
 
   let sent = 0;
-  for (const entry of entries) {
-    const alreadySent = await isAlreadyNotified(
-      ctx.supabase,
-      entry.user_id,
-      "event_reminder",
-      entry.event_title,
-      "system",
-    );
-    if (alreadySent) continue;
+  for (const reminder of reminders) {
+    // Look up the event schedule for this reminder
+    const schedules = await sbQuery<any[]>(ctx.supabase, "flowb_schedules", {
+      select: "event_title,venue_name,starts_at",
+      event_source_id: `eq.${reminder.event_source_id}`,
+      user_id: `eq.${reminder.user_id}`,
+      rsvp_status: "in.(going,maybe)",
+      limit: "1",
+    });
 
-    const time = new Date(entry.starts_at).toLocaleTimeString("en-US", {
+    const schedule = schedules?.[0];
+    if (!schedule?.starts_at) continue;
+
+    // Check if reminder is due: starts_at - remind_minutes_before should be within [now, now+10min]
+    const eventStart = new Date(schedule.starts_at).getTime();
+    const reminderDue = eventStart - reminder.remind_minutes_before * 60 * 1000;
+    const windowEnd = now.getTime() + 10 * 60 * 1000;
+
+    if (reminderDue > windowEnd || reminderDue < now.getTime() - 10 * 60 * 1000) continue;
+
+    // Check user's notify_event_reminders preference
+    const userPrefs = await getUserNotifyPrefs(ctx.supabase, reminder.user_id);
+    if (!userPrefs.notify_event_reminders) {
+      // Mark as sent so we don't re-check
+      await markReminderSent(ctx.supabase, reminder.id);
+      continue;
+    }
+
+    if (await hasReachedDailyLimit(ctx.supabase, reminder.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, reminder.user_id)) continue;
+
+    // Format the time label
+    const minsLabel = formatReminderLabel(reminder.remind_minutes_before);
+    const time = new Date(schedule.starts_at).toLocaleTimeString("en-US", {
       hour: "numeric",
       minute: "2-digit",
     });
-    const message = `${entry.event_title} starts at ${time}${entry.venue_name ? ` at ${entry.venue_name}` : ""}`;
+    const message = `${schedule.event_title} starts ${minsLabel} (${time})${schedule.venue_name ? ` at ${schedule.venue_name}` : ""}`;
 
-    const didSend = await sendToUser(ctx, entry.user_id, message, sendTelegramMessage);
+    const didSend = await sendToUser(ctx, reminder.user_id, message, sendTelegramMessage);
     if (didSend) {
-      await logNotification(ctx.supabase, entry.user_id, "event_reminder", entry.event_title, "system");
+      await logNotification(ctx.supabase, reminder.user_id, "event_reminder", `${reminder.event_source_id}:${reminder.remind_minutes_before}`, "system");
       sent++;
     }
+
+    // Always mark as sent to avoid re-sending
+    await markReminderSent(ctx.supabase, reminder.id);
   }
 
   return sent;
+}
+
+/** Format minutes into a human-readable reminder label */
+function formatReminderLabel(minutes: number): string {
+  if (minutes < 60) return `in ${minutes} min`;
+  if (minutes < 1440) return `in ${Math.round(minutes / 60)} hour${minutes >= 120 ? "s" : ""}`;
+  return `in ${Math.round(minutes / 1440)} day${minutes >= 2880 ? "s" : ""}`;
+}
+
+/** Mark a reminder as sent */
+async function markReminderSent(cfg: SbConfig, reminderId: string): Promise<void> {
+  await fetch(
+    `${cfg.supabaseUrl}/rest/v1/flowb_event_reminders?id=eq.${reminderId}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: cfg.supabaseKey,
+        Authorization: `Bearer ${cfg.supabaseKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({ sent: true }),
+    },
+  ).catch(() => {});
+}
+
+/** Get user notification preferences (cached-friendly shape) */
+async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
+  notify_crew_checkins: boolean;
+  notify_friend_rsvps: boolean;
+  notify_crew_rsvps: boolean;
+  notify_event_reminders: boolean;
+  notify_daily_digest: boolean;
+  daily_notification_limit: number;
+  quiet_hours_start: number;
+  quiet_hours_end: number;
+}> {
+  const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
+    select: "notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end",
+    user_id: `eq.${userId}`,
+    limit: "1",
+  });
+  const p = rows?.[0];
+  return {
+    notify_crew_checkins: p?.notify_crew_checkins ?? true,
+    notify_friend_rsvps: p?.notify_friend_rsvps ?? true,
+    notify_crew_rsvps: p?.notify_crew_rsvps ?? true,
+    notify_event_reminders: p?.notify_event_reminders ?? true,
+    notify_daily_digest: p?.notify_daily_digest ?? true,
+    daily_notification_limit: p?.daily_notification_limit ?? 10,
+    quiet_hours_start: p?.quiet_hours_start ?? 22,
+    quiet_hours_end: p?.quiet_hours_end ?? 8,
+  };
 }
 
 // ============================================================================
@@ -283,6 +371,11 @@ export async function notifyCrewMemberRsvp(
     for (const member of members || []) {
       if (member.user_id === userId) continue;
       if (notifiedSet.has(member.user_id)) continue; // dedup across crews
+
+      // Check per-type toggle
+      const memberPrefs = await getUserNotifyPrefs(ctx.supabase, member.user_id);
+      if (!memberPrefs.notify_crew_rsvps) continue;
+
       if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
       if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
 
@@ -385,10 +478,13 @@ async function logNotification(
   ).catch(() => {});
 }
 
-/** Check if user has received too many notifications today (max 10) */
+/** Check if user has received too many notifications today (configurable limit) */
 async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<boolean> {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
+
+  const prefs = await getUserNotifyPrefs(cfg, userId);
+  const limit = prefs.daily_notification_limit;
 
   const rows = await sbQuery<any[]>(cfg, "flowb_notification_log", {
     select: "id",
@@ -396,17 +492,17 @@ async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<bool
     sent_at: `gte.${todayStart.toISOString()}`,
   });
 
-  return (rows?.length || 0) >= 10;
+  return (rows?.length || 0) >= limit;
 }
 
 /**
  * Check if it's quiet hours for a specific user (opt-in).
  * Users must enable quiet hours via preferences. Default: OFF.
- * When enabled, uses their timezone (default: America/Denver / MST).
+ * When enabled, uses their timezone and configurable start/end hours.
  */
 async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean> {
   const prefs = await sbQuery<any[]>(cfg, "flowb_sessions", {
-    select: "quiet_hours_enabled,timezone",
+    select: "quiet_hours_enabled,timezone,quiet_hours_start,quiet_hours_end",
     user_id: `eq.${userId}`,
     limit: "1",
   });
@@ -415,15 +511,26 @@ async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean>
   if (!pref?.quiet_hours_enabled) return false; // opt-in only
 
   const tz = pref.timezone || "America/Denver";
+  const qhStart = pref.quiet_hours_start ?? 22;
+  const qhEnd = pref.quiet_hours_end ?? 8;
+
   try {
     const nowInTz = new Date().toLocaleString("en-US", { timeZone: tz, hour12: false });
     const hour = parseInt(nowInTz.split(",")[1]?.trim().split(":")[0] || "0", 10);
-    return hour >= 22 || hour < 8;
+
+    // Handle wrap-around (e.g., 22:00 to 08:00)
+    if (qhStart > qhEnd) {
+      return hour >= qhStart || hour < qhEnd;
+    }
+    return hour >= qhStart && hour < qhEnd;
   } catch {
     // Fallback to MST if timezone is invalid
     const now = new Date();
     const mstHour = (now.getUTCHours() - 7 + 24) % 24;
-    return mstHour >= 22 || mstHour < 8;
+    if (qhStart > qhEnd) {
+      return mstHour >= qhStart || mstHour < qhEnd;
+    }
+    return mstHour >= qhStart && mstHour < qhEnd;
   }
 }
 

@@ -1,8 +1,9 @@
 /**
  * Farcaster Mini App SDK helpers
+ * Uses @farcaster/miniapp-sdk (replaces old @farcaster/frame-sdk)
  */
 
-import sdk from "@farcaster/frame-sdk";
+import { sdk } from "@farcaster/miniapp-sdk";
 
 let sdkReady = false;
 
@@ -14,17 +15,15 @@ export async function initFarcaster(): Promise<{
   if (sdkReady) return {};
 
   try {
-    // Get context from the Farcaster client
     const context = await sdk.context;
     sdkReady = true;
 
     // Tell the client we're ready (hides splash screen)
-    sdk.actions.ready();
+    await sdk.actions.ready();
 
     return {
       fid: context?.user?.fid,
       username: context?.user?.username,
-      // Check if user has already added the mini app
       added: !!(context as any)?.client?.added,
     };
   } catch (err) {
@@ -35,10 +34,6 @@ export async function initFarcaster(): Promise<{
 
 /**
  * Prompt user to add the mini app to their favorites and enable notifications.
- * Returns true if the user added it (with or without notifications).
- * Only works on the production domain matching the manifest.
- *
- * Uses sdk.actions.addFrame (SDK 0.x) — maps to addMiniApp in the client.
  */
 export async function promptAddMiniApp(): Promise<{
   added: boolean;
@@ -48,14 +43,12 @@ export async function promptAddMiniApp(): Promise<{
     const result = await sdk.actions.addFrame();
 
     if (result && "added" in result) {
-      // User accepted — notificationDetails present if they enabled notifs
       return {
         added: true,
         notificationsEnabled: !!(result as any).notificationDetails,
       };
     }
 
-    // result has "reason" if rejected
     return { added: false, notificationsEnabled: false };
   } catch (err) {
     console.error("[farcaster] addMiniApp failed:", err);
@@ -63,20 +56,16 @@ export async function promptAddMiniApp(): Promise<{
   }
 }
 
-export async function signIn(): Promise<{ message: string; signature: string } | null> {
+/**
+ * Authenticate via Quick Auth — returns a JWT token that can be verified
+ * server-side with @farcaster/quick-auth without calling any external APIs.
+ */
+export async function quickAuth(): Promise<string | null> {
   try {
-    const nonce = crypto.randomUUID();
-    const result = await sdk.actions.signIn({ nonce });
-
-    if (result?.message && result?.signature) {
-      return {
-        message: result.message,
-        signature: result.signature,
-      };
-    }
-    return null;
+    const { token } = await sdk.quickAuth.getToken();
+    return token;
   } catch (err) {
-    console.error("[farcaster] signIn failed:", err);
+    console.error("[farcaster] quickAuth failed:", err);
     return null;
   }
 }

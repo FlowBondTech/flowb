@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { authTelegram, getToken } from "../api/client";
+import { authTelegram, getToken, claimPendingPoints } from "../api/client";
+import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
 import type { UserProfile } from "../api/types";
 
 interface AuthState {
@@ -26,6 +27,17 @@ export function useAuth() {
 
       const result = await authTelegram(tg.initData);
       setState({ user: result.user, loading: false, error: null });
+
+      // Claim any points earned before auth completed
+      const pending = getPendingActions();
+      if (pending.length > 0) {
+        claimPendingPoints(pending)
+          .then(({ claimed }) => {
+            if (claimed > 0) console.log(`[auth] Claimed ${claimed} pending points`);
+            clearPendingActions();
+          })
+          .catch(() => {});
+      }
 
       // Tell Telegram the app is ready
       tg.ready();

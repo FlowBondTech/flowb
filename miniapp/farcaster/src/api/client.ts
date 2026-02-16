@@ -66,6 +66,12 @@ export async function authFarcaster(message: string, signature: string): Promise
   return data;
 }
 
+export async function authFarcasterQuick(quickAuthToken: string): Promise<AuthResponse> {
+  const data = await post<AuthResponse>("/api/v1/auth/farcaster", { quickAuthToken });
+  authToken = data.token;
+  return data;
+}
+
 export async function getEvents(city = "Denver", limit = 20, categories?: string[]): Promise<EventResult[]> {
   let url = `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`;
   if (categories && categories.length > 0) {
@@ -142,6 +148,16 @@ export async function getInviteLink(): Promise<string> {
 
 export async function getPoints(): Promise<PointsInfo> {
   return get("/api/v1/me/points");
+}
+
+// ============================================================================
+// Claim Pending Points (pre-auth actions)
+// ============================================================================
+
+export async function claimPendingPoints(
+  actions: Array<{ action: string; ts: number }>,
+): Promise<{ claimed: number; total: number }> {
+  return post("/api/v1/auth/claim-points", { actions });
 }
 
 // Preferences

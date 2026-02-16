@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@farcaster/miniapp-node": "^0.1.13",
+    "@farcaster/quick-auth": "^0.0.8",
     "@fastify/cors": "^11.0.0",
     "@grammyjs/storage-supabase": "^2.5.0",
     "@supabase/supabase-js": "^2.95.3",

@@ -452,6 +452,8 @@ function openEventModal(title, url, img, source, id, meta, shareOnly) {
 
   const src = getSourceMeta(source);
   openLabel.textContent = source ? `Open on ${src.label}` : 'Open Event';
+  const openLink = document.getElementById('eventModalOpen');
+  openLink.href = url || '#';
 
   // Reset share panel
   sharePanel.classList.add('hidden');
@@ -473,6 +475,7 @@ function closeEventModal() {
   document.getElementById('eventModal').classList.add('hidden');
   document.getElementById('eventModalBackdrop').classList.add('hidden');
   document.getElementById('eventSharePanel').classList.add('hidden');
+  document.getElementById('eventReminderPanel').classList.add('hidden');
   document.body.style.overflow = '';
 }
 
@@ -483,22 +486,33 @@ document.getElementById('eventModalBackdrop').addEventListener('click', closeEve
 document.getElementById('eventModalClose').addEventListener('click', closeEventModal);
 
 document.getElementById('eventModalOpen').addEventListener('click', () => {
-  if (currentModalEvent.url && currentModalEvent.url !== '#') {
-    window.open(currentModalEvent.url, '_blank');
-  }
   closeEventModal();
 });
 
 document.getElementById('eventModalRsvp').addEventListener('click', () => {
   if (currentModalEvent.id && Auth.isAuthenticated) {
-    // Find the card's RSVP button or just call the handler
     handleRsvp(currentModalEvent.id, document.getElementById('eventModalRsvp'));
   }
-  closeEventModal();
+});
+
+document.getElementById('eventModalCalendar').addEventListener('click', () => {
+  if (currentModalEvent.id) {
+    handleAddToCalendar(currentModalEvent.id);
+  }
+});
+
+document.getElementById('eventModalReminder').addEventListener('click', () => {
+  const panel = document.getElementById('eventReminderPanel');
+  panel.classList.toggle('hidden');
+  document.getElementById('eventSharePanel').classList.add('hidden');
+  if (!panel.classList.contains('hidden') && currentModalEvent.id && Auth.isAuthenticated) {
+    loadEventReminders(currentModalEvent.id);
+  }
 });
 
 document.getElementById('eventModalShare').addEventListener('click', () => {
   document.getElementById('eventSharePanel').classList.toggle('hidden');
+  document.getElementById('eventReminderPanel').classList.add('hidden');
 });
 
 document.getElementById('shareToFlow').addEventListener('click', () => {
@@ -537,6 +551,212 @@ document.getElementById('shareCopyLink').addEventListener('click', () => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && !document.getElementById('eventModal').classList.contains('hidden')) {
     closeEventModal();
+  }
+});
+
+// ===== Calendar Download =====
+
+async function handleAddToCalendar(eventId) {
+  const url = `${FLOWB_API}/api/v1/events/${encodeURIComponent(eventId)}/calendar`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch calendar');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'event.ics';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(a.href);
+    awardPoints(2, 'Added to calendar');
+  } catch (err) {
+    console.error('Calendar download failed:', err);
+  }
+}
+
+// ===== Reminder Panel Logic =====
+
+// Toggle reminder chips (multi-select)
+document.getElementById('reminderChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.reminder-chip');
+  if (chip) chip.classList.toggle('active');
+});
+
+// Add custom reminder
+document.getElementById('reminderCustomAdd').addEventListener('click', () => {
+  const val = parseInt(document.getElementById('reminderCustomVal').value, 10);
+  const unit = parseInt(document.getElementById('reminderCustomUnit').value, 10);
+  if (!val || val < 1) return;
+
+  const mins = val * unit;
+  const chips = document.getElementById('reminderChips');
+
+  // Check if this value already exists
+  const existing = chips.querySelector(`[data-mins="${mins}"]`);
+  if (existing) {
+    existing.classList.add('active');
+    return;
+  }
+
+  // Create custom chip
+  const label = unit === 60 ? `${val}h` : `${mins}m`;
+  const chip = document.createElement('button');
+  chip.className = 'reminder-chip active';
+  chip.dataset.mins = mins;
+  chip.textContent = label;
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+  chips.appendChild(chip);
+
+  document.getElementById('reminderCustomVal').value = '';
+});
+
+// Save reminders for current event
+document.getElementById('reminderSaveBtn').addEventListener('click', async () => {
+  if (!Auth.isAuthenticated || !currentModalEvent.id) return;
+
+  const chips = document.querySelectorAll('#reminderChips .reminder-chip.active');
+  const minutesBefore = Array.from(chips).map(c => parseInt(c.dataset.mins, 10)).filter(Boolean);
+
+  const result = await fetchAuthed(`/api/v1/events/${encodeURIComponent(currentModalEvent.id)}/reminders`, {
+    method: 'POST',
+    body: JSON.stringify({ minutes_before: minutesBefore }),
+  });
+
+  const btn = document.getElementById('reminderSaveBtn');
+  if (result && result.ok) {
+    btn.textContent = 'Saved!';
+    btn.style.background = 'var(--green)';
+    setTimeout(() => {
+      btn.textContent = 'Save Reminders';
+      btn.style.background = '';
+    }, 1500);
+    awardPoints(2, 'Reminder set');
+  }
+});
+
+// Load existing reminders for an event
+async function loadEventReminders(eventId) {
+  const data = await fetchAuthed(`/api/v1/events/${encodeURIComponent(eventId)}/reminders`);
+  const activeMinutes = (data && data.reminders) ? data.reminders.map(r => r.remind_minutes_before) : [30];
+
+  // Reset all chips to inactive then activate matching ones
+  document.querySelectorAll('#reminderChips .reminder-chip').forEach(chip => {
+    chip.classList.toggle('active', activeMinutes.includes(parseInt(chip.dataset.mins, 10)));
+  });
+}
+
+// ===== Notification Settings Modal =====
+
+function openNotifSettings() {
+  document.getElementById('notifSettingsModal').classList.remove('hidden');
+  document.getElementById('notifSettingsBackdrop').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  loadNotificationSettings();
+}
+
+function closeNotifSettings() {
+  document.getElementById('notifSettingsModal').classList.add('hidden');
+  document.getElementById('notifSettingsBackdrop').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+// Populate hour selects
+(function initHourSelects() {
+  const startSel = document.getElementById('quietHoursStart');
+  const endSel = document.getElementById('quietHoursEnd');
+  if (!startSel || !endSel) return;
+  for (let h = 0; h < 24; h++) {
+    const label = `${h.toString().padStart(2, '0')}:00`;
+    startSel.add(new Option(label, h));
+    endSel.add(new Option(label, h));
+  }
+  startSel.value = 22;
+  endSel.value = 8;
+})();
+
+// Default reminder chips (settings modal)
+document.getElementById('defaultReminderChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.reminder-chip');
+  if (chip) chip.classList.toggle('active');
+});
+
+// Wire up open/close
+document.getElementById('notifSettingsBtn')?.addEventListener('click', openNotifSettings);
+document.getElementById('notifSettingsClose').addEventListener('click', closeNotifSettings);
+document.getElementById('notifSettingsBackdrop').addEventListener('click', closeNotifSettings);
+
+async function loadNotificationSettings() {
+  const data = await fetchAuthed('/api/v1/me/preferences');
+  if (!data || !data.preferences) return;
+  const p = data.preferences;
+
+  // Default reminders
+  const defaults = p.reminder_defaults || [30];
+  document.querySelectorAll('#defaultReminderChips .reminder-chip').forEach(chip => {
+    chip.classList.toggle('active', defaults.includes(parseInt(chip.dataset.mins, 10)));
+  });
+
+  // Toggles
+  document.getElementById('notifCrewCheckins').checked = p.notify_crew_checkins ?? true;
+  document.getElementById('notifFriendRsvps').checked = p.notify_friend_rsvps ?? true;
+  document.getElementById('notifCrewRsvps').checked = p.notify_crew_rsvps ?? true;
+  document.getElementById('notifEventReminders').checked = p.notify_event_reminders ?? true;
+  document.getElementById('notifDailyDigest').checked = p.notify_daily_digest ?? true;
+
+  // Quiet hours
+  document.getElementById('notifQuietHours').checked = p.quiet_hours_enabled || false;
+  document.getElementById('quietHoursStart').value = p.quiet_hours_start ?? 22;
+  document.getElementById('quietHoursEnd').value = p.quiet_hours_end ?? 8;
+
+  // Daily limit
+  document.getElementById('notifDailyLimit').value = p.daily_notification_limit ?? 10;
+
+  // Timezone
+  document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+}
+
+document.getElementById('notifSaveBtn').addEventListener('click', async () => {
+  if (!Auth.isAuthenticated) return;
+
+  // Collect default reminders
+  const chips = document.querySelectorAll('#defaultReminderChips .reminder-chip.active');
+  const reminder_defaults = Array.from(chips).map(c => parseInt(c.dataset.mins, 10)).filter(Boolean);
+
+  const body = {
+    reminder_defaults: reminder_defaults.length ? reminder_defaults : [30],
+    notify_crew_checkins: document.getElementById('notifCrewCheckins').checked,
+    notify_friend_rsvps: document.getElementById('notifFriendRsvps').checked,
+    notify_crew_rsvps: document.getElementById('notifCrewRsvps').checked,
+    notify_event_reminders: document.getElementById('notifEventReminders').checked,
+    notify_daily_digest: document.getElementById('notifDailyDigest').checked,
+    quiet_hours_enabled: document.getElementById('notifQuietHours').checked,
+    quiet_hours_start: parseInt(document.getElementById('quietHoursStart').value, 10),
+    quiet_hours_end: parseInt(document.getElementById('quietHoursEnd').value, 10),
+    daily_notification_limit: parseInt(document.getElementById('notifDailyLimit').value, 10) || 10,
+    timezone: document.getElementById('notifTimezone').value,
+  };
+
+  const result = await fetchAuthed('/api/v1/me/preferences', {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  });
+
+  const btn = document.getElementById('notifSaveBtn');
+  if (result && result.ok) {
+    btn.textContent = 'Saved!';
+    btn.classList.add('saved');
+    setTimeout(() => {
+      btn.textContent = 'Save Settings';
+      btn.classList.remove('saved');
+    }, 1500);
+  }
+});
+
+// Close notif settings on Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('notifSettingsModal').classList.contains('hidden')) {
+    closeNotifSettings();
   }
 });
 
@@ -1414,5 +1634,27 @@ function handleEventUrlParam() {
     }
   } catch {
     setStatus('ok', 'local mode');
+  }
+
+  // FlowB nudge popup - dismiss + auto-hide
+  const nudge = document.getElementById('flowbNudge');
+  const nudgeClose = document.getElementById('flowbNudgeClose');
+  const nudgeDismissed = localStorage.getItem('flowb_nudge_dismissed');
+
+  if (nudgeDismissed) {
+    nudge.style.display = 'none';
+  } else {
+    nudgeClose.addEventListener('click', () => {
+      nudge.classList.add('dismissed');
+      setTimeout(() => { nudge.style.display = 'none'; }, 300);
+      localStorage.setItem('flowb_nudge_dismissed', '1');
+    });
+    // Auto-dismiss after 15 seconds
+    setTimeout(() => {
+      if (!nudge.classList.contains('dismissed')) {
+        nudge.classList.add('dismissed');
+        setTimeout(() => { nudge.style.display = 'none'; }, 300);
+      }
+    }, 18000);
   }
 })();

@@ -75,7 +75,7 @@ function initAuth() {
 
 // ===== Privy Login Handler =====
 
-function handlePrivyLogin(user) {
+async function handlePrivyLogin(user) {
   Auth.user = {
     id: user.id,
     username: user.displayName,
@@ -91,13 +91,49 @@ function handlePrivyLogin(user) {
     awardFirstAction('first_login', 10, 'First login bonus!');
   }
 
-  // Transfer anon points to user account
-  const anonId = localStorage.getItem('flowb-anon-id');
-  if (anonId && typeof Points !== 'undefined' && Points.total > 0) {
-    console.log(`[auth] Linked ${Points.total} anon points to ${user.displayName}`);
-  }
+  // Claim pending anonymous points to backend account
+  claimPendingPointsToBackend(user);
 
   renderAuthState();
+}
+
+async function claimPendingPointsToBackend(user) {
+  const API_BASE = window.FLOWB_API_URL || '';
+  const pending = typeof getPendingActions === 'function' ? getPendingActions() : [];
+  if (!pending.length) return;
+
+  try {
+    // Get a FlowB JWT for this web user
+    const authRes = await fetch(`${API_BASE}/api/v1/auth/web`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ privyUserId: user.id, displayName: user.displayName }),
+    });
+    if (!authRes.ok) return;
+    const { token } = await authRes.json();
+
+    // Claim pending actions
+    const claimRes = await fetch(`${API_BASE}/api/v1/auth/claim-points`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ actions: pending }),
+    });
+    if (!claimRes.ok) return;
+    const { claimed, total } = await claimRes.json();
+
+    // Clear the ledger
+    if (typeof clearPendingActions === 'function') clearPendingActions();
+
+    if (claimed > 0 && typeof showPointsToast === 'function') {
+      showPointsToast(claimed, 'Points synced to your account!', 'bonus');
+    }
+    console.log(`[auth] Claimed ${claimed} pending points for ${user.displayName} (total: ${total})`);
+  } catch (err) {
+    console.warn('[auth] Failed to claim pending points:', err);
+  }
 }
 
 // ===== Logout =====

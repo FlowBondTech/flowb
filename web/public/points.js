@@ -9,6 +9,7 @@ const STREAK_KEY = 'flowb-streak';
 const LAST_ACTIVE_KEY = 'flowb-last-active';
 const REF_CODE_KEY = 'flowb-ref-code';
 const FIRST_ACTIONS_KEY = 'flowb-first-actions';
+const PENDING_LEDGER_KEY = 'flowb-pending-actions';
 
 const MILESTONES = [
   { points: 25,  level: 1, title: 'Explorer',    message: "You're getting the hang of this!" },
@@ -69,6 +70,24 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+// ===== Pending Action Ledger (for backend claim on sign-in) =====
+
+function logPendingAction(action, points) {
+  const ledger = getPendingActions();
+  ledger.push({ action, points, ts: Date.now() });
+  localStorage.setItem(PENDING_LEDGER_KEY, JSON.stringify(ledger));
+}
+
+function getPendingActions() {
+  try {
+    return JSON.parse(localStorage.getItem(PENDING_LEDGER_KEY) || '[]');
+  } catch { return []; }
+}
+
+function clearPendingActions() {
+  localStorage.removeItem(PENDING_LEDGER_KEY);
+}
+
 // ===== Init =====
 
 function initPoints() {
@@ -115,9 +134,14 @@ function initPoints() {
 
 // ===== Award Points =====
 
-function awardPoints(amount, label, variant = 'default') {
+function awardPoints(amount, label, variant = 'default', action = null) {
   Points.total += amount;
   localStorage.setItem(STORAGE_KEY, String(Points.total));
+
+  // Track action in pending ledger for backend sync on sign-in
+  if (action) {
+    logPendingAction(action, amount);
+  }
 
   // Check milestone
   const newMilestone = getMilestoneForPoints(Points.total);
@@ -136,7 +160,7 @@ function awardFirstAction(actionKey, amount, label) {
   if (Points.firstActions.has(actionKey)) return;
   Points.firstActions.add(actionKey);
   localStorage.setItem(FIRST_ACTIONS_KEY, JSON.stringify([...Points.firstActions]));
-  awardPoints(amount, label, 'bonus');
+  awardPoints(amount, label, 'bonus', actionKey);
 }
 
 // ===== Render Badge =====

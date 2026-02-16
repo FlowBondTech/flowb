@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { initFarcaster, signIn, composeCast, promptAddMiniApp } from "../lib/farcaster";
-import { authFarcaster, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry } from "../api/client";
+import { initFarcaster, quickAuth, composeCast, promptAddMiniApp } from "../lib/farcaster";
+import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints } from "../api/client";
+import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
 import type { EventResult, ScheduleEntry } from "../api/types";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { BottomNav } from "../components/BottomNav";
@@ -37,12 +38,23 @@ export default function FarcasterApp() {
       if (ctx.username) setUsername(ctx.username);
       if (ctx.added) setAppAdded(true);
 
-      const creds = await signIn();
-      if (creds) {
+      const token = await quickAuth();
+      if (token) {
         try {
-          const result = await authFarcaster(creds.message, creds.signature);
+          const result = await authFarcasterQuick(token);
           setAuthed(true);
           if (result.user.username) setUsername(result.user.username);
+
+          // Claim any points earned before auth completed
+          const pending = getPendingActions();
+          if (pending.length > 0) {
+            claimPendingPoints(pending)
+              .then(({ claimed }) => {
+                if (claimed > 0) console.log(`[auth] Claimed ${claimed} pending points`);
+                clearPendingActions();
+              })
+              .catch(() => {});
+          }
         } catch (err) {
           console.error("Auth failed:", err);
         }

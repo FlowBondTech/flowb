@@ -18,7 +18,7 @@
   <header class="header">
     <div class="container header-inner">
       <a href="/" class="logo">
-        <span class="logo-icon">F</span>
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
       <div class="header-meta">
@@ -53,6 +53,7 @@
           <div class="user-avatar" id="userAvatar">?</div>
           <div class="user-dropdown hidden" id="userDropdown">
             <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" id="notifSettingsBtn">Notification Settings</button>
             <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
           </div>
         </div>
@@ -83,42 +84,6 @@
       <h1>Discover ETHDenver<br><span class="gradient-text">Side Events</span></h1>
       <p class="hero-sub">100+ hackathons, parties, meetups, and summits -- all in one place.</p>
 
-      <!-- Get FlowB CTA -->
-      <div class="hero-cta-row">
-        <a href="https://t.me/FlowBBot" target="_blank" class="hero-cta-btn hero-cta-telegram">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-          Get on Telegram
-        </a>
-        <a href="https://warpcast.com/flowb" target="_blank" class="hero-cta-btn hero-cta-farcaster">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
-          Get on Farcaster
-        </a>
-      </div>
-
-      <!-- Live Stats -->
-      <div class="hero-stats" id="heroStats">
-        <div class="hero-stat">
-          <span class="hero-stat-val" id="statCrews">--</span>
-          <span class="hero-stat-label">crews active</span>
-        </div>
-        <div class="hero-stat-sep"></div>
-        <div class="hero-stat">
-          <span class="hero-stat-val" id="statPoints">--</span>
-          <span class="hero-stat-label">points earned</span>
-        </div>
-        <div class="hero-stat-sep"></div>
-        <div class="hero-stat">
-          <span class="hero-stat-val" id="statCheckins">--</span>
-          <span class="hero-stat-label">checkins today</span>
-        </div>
-      </div>
-
-      <!-- Top Crews Preview -->
-      <div class="hero-crews hidden" id="heroCrews">
-        <h3 class="hero-crews-title">Top Crews</h3>
-        <div class="hero-crews-list" id="heroCrewsList"></div>
-      </div>
-
       <!-- Search -->
       <div class="search-bar">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -129,6 +94,14 @@
       </div>
     </div>
   </section>
+
+  <!-- Hidden stat containers (preserved for JS references) -->
+  <div style="display:none">
+    <span id="statCrews"></span>
+    <span id="statPoints"></span>
+    <span id="statCheckins"></span>
+    <div id="heroCrews"><div id="heroCrewsList"></div></div>
+  </div>
 
   <!-- My Flow Section (Authenticated) -->
   <section class="myflow-section hidden" id="myFlowSection">
@@ -231,18 +204,48 @@
       </div>
     </div>
     <div class="event-modal-actions">
-      <button class="event-modal-btn primary" id="eventModalOpen">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        <span id="eventModalOpenLabel">Open Event</span>
+      <button class="event-modal-btn primary" id="eventModalRsvp">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+        Add to My Flow
       </button>
-      <button class="event-modal-btn" id="eventModalRsvp">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-        Add to My Events
-      </button>
-      <button class="event-modal-btn" id="eventModalShare">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-        Share
-      </button>
+      <div class="event-modal-row">
+        <button class="event-modal-chip" id="eventModalCalendar">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Calendar
+        </button>
+        <button class="event-modal-chip" id="eventModalReminder">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          Remind
+        </button>
+        <button class="event-modal-chip" id="eventModalShare">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+      </div>
+      <a class="event-modal-external" id="eventModalOpen" href="#" target="_blank" rel="noopener">
+        <span id="eventModalOpenLabel">Open on Luma</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </a>
+    </div>
+    <!-- Reminder Sub-panel -->
+    <div class="event-modal-reminder-panel hidden" id="eventReminderPanel">
+      <p class="reminder-panel-label">Remind me before this event:</p>
+      <div class="reminder-chips" id="reminderChips">
+        <button class="reminder-chip" data-mins="15">15m</button>
+        <button class="reminder-chip active" data-mins="30">30m</button>
+        <button class="reminder-chip" data-mins="60">1h</button>
+        <button class="reminder-chip" data-mins="120">2h</button>
+        <button class="reminder-chip" data-mins="1440">Day before</button>
+      </div>
+      <div class="reminder-custom-row">
+        <input type="number" id="reminderCustomVal" min="1" max="10080" placeholder="Custom" class="reminder-custom-input">
+        <select id="reminderCustomUnit" class="reminder-custom-select">
+          <option value="1">min</option>
+          <option value="60">hr</option>
+        </select>
+        <button class="reminder-custom-add" id="reminderCustomAdd">+</button>
+      </div>
+      <button class="reminder-save-btn" id="reminderSaveBtn">Save Reminders</button>
     </div>
     <!-- Share Sub-panel -->
     <div class="event-modal-share-panel hidden" id="eventSharePanel">
@@ -282,11 +285,77 @@
     </div>
   </main>
 
+  <!-- Notification Settings Modal -->
+  <div class="notif-settings-backdrop hidden" id="notifSettingsBackdrop"></div>
+  <div class="notif-settings-modal hidden" id="notifSettingsModal">
+    <button class="event-modal-close" id="notifSettingsClose">&times;</button>
+    <h3 class="notif-settings-title">Notification Settings</h3>
+
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Default Reminders</h4>
+      <p class="notif-settings-hint">Applied to new RSVPs automatically</p>
+      <div class="reminder-chips" id="defaultReminderChips">
+        <button class="reminder-chip" data-mins="15">15m</button>
+        <button class="reminder-chip active" data-mins="30">30m</button>
+        <button class="reminder-chip" data-mins="60">1h</button>
+        <button class="reminder-chip" data-mins="120">2h</button>
+        <button class="reminder-chip" data-mins="1440">Day before</button>
+      </div>
+    </div>
+
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Notification Types</h4>
+      <label class="notif-toggle"><input type="checkbox" id="notifCrewCheckins" checked><span>Crew checkins</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifFriendRsvps" checked><span>Friend RSVPs</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifCrewRsvps" checked><span>Crew member RSVPs</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifEventReminders" checked><span>Event reminders</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifDailyDigest" checked><span>Daily digest</span></label>
+    </div>
+
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Quiet Hours</h4>
+      <label class="notif-toggle"><input type="checkbox" id="notifQuietHours"><span>Enable quiet hours</span></label>
+      <div class="notif-quiet-hours-row" id="quietHoursRow">
+        <label class="notif-field-label">From
+          <select id="quietHoursStart" class="notif-select"></select>
+        </label>
+        <label class="notif-field-label">To
+          <select id="quietHoursEnd" class="notif-select"></select>
+        </label>
+      </div>
+    </div>
+
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Daily Limit</h4>
+      <div class="notif-limit-row">
+        <input type="number" id="notifDailyLimit" min="1" max="50" value="10" class="notif-limit-input">
+        <span class="notif-limit-label">notifications per day</span>
+      </div>
+    </div>
+
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Timezone</h4>
+      <select id="notifTimezone" class="notif-select notif-tz-select">
+        <option value="America/Denver">America/Denver (MST)</option>
+        <option value="America/New_York">America/New_York (EST)</option>
+        <option value="America/Chicago">America/Chicago (CST)</option>
+        <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+        <option value="UTC">UTC</option>
+        <option value="Europe/London">Europe/London</option>
+        <option value="Europe/Berlin">Europe/Berlin</option>
+        <option value="Asia/Tokyo">Asia/Tokyo</option>
+        <option value="Asia/Singapore">Asia/Singapore</option>
+      </select>
+    </div>
+
+    <button class="notif-save-btn" id="notifSaveBtn">Save Settings</button>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <div class="container footer-inner">
       <div class="footer-left">
-        <span class="logo-icon small">F</span>
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
         <span class="footer-muted">Powered by eGator</span>
@@ -302,14 +371,29 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Chat With FlowB Button -->
-  <button class="chat-with-flowb" id="chatWithFlowB">
-    <span class="chat-with-flowb-icon">
-      <span class="logo-icon small">F</span>
-    </span>
-    <span class="chat-with-flowb-label">Chat With FlowB</span>
-    <span class="chat-with-flowb-dot"></span>
-  </button>
+  <!-- FlowB Chat FAB -->
+  <div class="flowb-fab-wrap" id="flowbFabWrap">
+    <!-- Nudge notification bubble -->
+    <div class="flowb-nudge" id="flowbNudge">
+      <button class="flowb-nudge-close" id="flowbNudgeClose">&times;</button>
+      <p class="flowb-nudge-msg">Get event alerts & RSVP with your crew on <strong>Telegram</strong> or <strong>Farcaster</strong></p>
+      <div class="flowb-nudge-links">
+        <a href="https://t.me/FlowBBot" target="_blank" class="flowb-nudge-link tg">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+          Telegram
+        </a>
+        <a href="https://warpcast.com/flowb" target="_blank" class="flowb-nudge-link fc">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
+          Farcaster
+        </a>
+      </div>
+    </div>
+    <!-- FAB button -->
+    <button class="chat-with-flowb" id="chatWithFlowB">
+      <img class="flowb-fab-avatar" src="flowb.png" alt="FlowB">
+      <span class="chat-with-flowb-dot"></span>
+    </button>
+  </div>
 
   <!-- FlowB Full Chat Modal -->
   <div class="flowb-chat-modal hidden" id="flowbChatModal">
@@ -318,7 +402,7 @@
       <!-- Chat Header -->
       <div class="flowb-chat-header">
         <div class="flowb-chat-header-left">
-          <span class="logo-icon">F</span>
+          <img class="logo-icon" src="flowb.png" alt="FlowB">
           <div class="flowb-chat-header-info">
             <span class="flowb-chat-header-title">FlowB</span>
             <span class="flowb-chat-header-sub">ETHDenver 2026 AI Guide</span>
@@ -342,7 +426,7 @@
         <!-- Welcome State -->
         <div class="flowb-welcome" id="flowbWelcome">
           <div class="flowb-welcome-logo">
-            <span class="logo-icon" style="width:56px;height:56px;font-size:1.5rem;border-radius:14px">F</span>
+            <img class="logo-icon" src="flowb.png" alt="FlowB" style="width:56px;height:56px;border-radius:14px">
           </div>
           <h2 class="flowb-welcome-title">Hey, I'm FlowB</h2>
           <p class="flowb-welcome-sub">Your AI guide to ETHDenver 2026. Ask me about events, parties, hackathons, or anything happening in Denver this week.</p>

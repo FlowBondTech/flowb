@@ -133,16 +133,80 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // AUTH: Farcaster Mini App (SIWF)
+  // AUTH: Farcaster Mini App (Quick Auth + legacy SIWF fallback)
   // ------------------------------------------------------------------
-  app.post<{ Body: { message: string; signature: string } }>(
+  app.post<{ Body: { quickAuthToken?: string; message?: string; signature?: string } }>(
     "/api/v1/auth/farcaster",
     async (request, reply) => {
-      const neynarKey = process.env.NEYNAR_API_KEY;
-      const { message, signature } = request.body || {};
+      const { quickAuthToken, message, signature } = request.body || {};
 
+      // --- Quick Auth path (recommended) ---
+      if (quickAuthToken) {
+        try {
+          const { createClient } = await import("@farcaster/quick-auth");
+          const qaClient = createClient();
+          const payload = await qaClient.verifyJwt({
+            token: quickAuthToken,
+            domain: new URL(process.env.FARCASTER_APP_URL || "https://flowb-farcaster.netlify.app").hostname,
+          });
+
+          const fid = typeof payload.sub === "string" ? parseInt(payload.sub, 10) : payload.sub;
+          if (!fid || isNaN(fid)) {
+            return reply.status(401).send({ error: "Invalid Quick Auth token: no FID" });
+          }
+
+          const userId = `farcaster_${fid}`;
+          await core.awardPoints(userId, "farcaster", "miniapp_open").catch(() => {});
+
+          // Look up username from Neynar if available
+          let username: string | undefined;
+          let displayName: string | undefined;
+          let pfpUrl: string | undefined;
+          const neynarKey = process.env.NEYNAR_API_KEY;
+          if (neynarKey) {
+            try {
+              const res = await fetch(`https://api.neynar.com/v2/farcaster/user/bulk?fids=${fid}`, {
+                headers: { "x-api-key": neynarKey },
+              });
+              if (res.ok) {
+                const data = await res.json() as any;
+                const u = data?.users?.[0];
+                if (u) {
+                  username = u.username;
+                  displayName = u.display_name;
+                  pfpUrl = u.pfp_url;
+                }
+              }
+            } catch {}
+          }
+
+          const token = signJwt({
+            sub: userId,
+            platform: "farcaster",
+            fid,
+            username,
+          });
+
+          return {
+            token,
+            user: {
+              id: userId,
+              platform: "farcaster",
+              fid,
+              username,
+              displayName,
+              pfpUrl,
+            },
+          };
+        } catch (err: any) {
+          return reply.status(401).send({ error: `Quick Auth failed: ${err.message}` });
+        }
+      }
+
+      // --- Legacy SIWF path (fallback) ---
+      const neynarKey = process.env.NEYNAR_API_KEY;
       if (!message || !signature) {
-        return reply.status(400).send({ error: "Missing message or signature" });
+        return reply.status(400).send({ error: "Missing quickAuthToken or message/signature" });
       }
 
       const result = await validateFarcasterSignIn(message, signature, neynarKey);
@@ -153,7 +217,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const { user } = result;
       const userId = `farcaster_${user.fid}`;
 
-      // Ensure user exists in points table
       await core.awardPoints(userId, "farcaster", "miniapp_open").catch(() => {});
 
       const token = signJwt({
@@ -174,6 +237,82 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           pfpUrl: user.pfpUrl,
         },
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: Web (Privy) - issues a FlowB JWT for web users
+  // ------------------------------------------------------------------
+  app.post<{ Body: { privyUserId: string; displayName?: string } }>(
+    "/api/v1/auth/web",
+    async (request, reply) => {
+      const { privyUserId, displayName } = request.body || {};
+      if (!privyUserId) {
+        return reply.status(400).send({ error: "Missing privyUserId" });
+      }
+
+      const userId = `web_${privyUserId}`;
+
+      // Ensure user exists in points table
+      await core.awardPoints(userId, "web", "miniapp_open").catch(() => {});
+
+      const token = signJwt({
+        sub: userId,
+        platform: "web" as any,
+        username: displayName || "User",
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "web",
+          username: displayName,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: Claim pending points (pre-auth actions → backend account)
+  // Accepts actions logged in localStorage before the user signed in.
+  // Each action is validated: must be a known action, within 24h.
+  // Daily caps and one-time checks still enforced by awardPoints.
+  // ------------------------------------------------------------------
+  app.post<{ Body: { actions: Array<{ action: string; ts: number }> } }>(
+    "/api/v1/auth/claim-points",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { actions } = request.body || {};
+
+      if (!actions?.length) {
+        return { claimed: 0, total: 0 };
+      }
+
+      const now = Date.now();
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      let claimed = 0;
+      let lastTotal = 0;
+
+      for (const entry of actions.slice(0, 100)) {
+        if (!entry.action || !entry.ts) continue;
+        if (now - entry.ts > maxAge) continue;
+
+        const result = await core.awardPoints(
+          jwt.sub,
+          jwt.platform,
+          entry.action,
+          { source: "pending_claim", claimed_at: now },
+        );
+
+        if (result.awarded) {
+          claimed += result.points;
+        }
+        lastTotal = result.total;
+      }
+
+      return { claimed, total: lastTotal };
     },
   );
 
@@ -295,6 +434,20 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             ends_at: event.endTime,
             rsvp_status: status,
           }, "return=minimal,resolution=merge-duplicates");
+
+          // Auto-create default reminders for this event
+          const prefs = await sbFetch<any[]>(
+            cfg,
+            `flowb_sessions?user_id=eq.${jwt.sub}&select=reminder_defaults&limit=1`,
+          );
+          const defaults: number[] = prefs?.[0]?.reminder_defaults || [30];
+          for (const mins of defaults) {
+            await sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
+              user_id: jwt.sub,
+              event_source_id: event.id,
+              remind_minutes_before: mins,
+            }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+          }
         }
       }
 
@@ -832,7 +985,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -843,6 +996,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           arrival_date: pref.arrival_date || null,
           interest_categories: pref.interest_categories || [],
           onboarding_complete: pref.onboarding_complete || false,
+          reminder_defaults: pref.reminder_defaults || [30],
+          notify_crew_checkins: pref.notify_crew_checkins ?? true,
+          notify_friend_rsvps: pref.notify_friend_rsvps ?? true,
+          notify_crew_rsvps: pref.notify_crew_rsvps ?? true,
+          notify_event_reminders: pref.notify_event_reminders ?? true,
+          notify_daily_digest: pref.notify_daily_digest ?? true,
+          daily_notification_limit: pref.daily_notification_limit ?? 10,
+          quiet_hours_start: pref.quiet_hours_start ?? 22,
+          quiet_hours_end: pref.quiet_hours_end ?? 8,
         },
       };
     },
@@ -855,6 +1017,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       arrival_date?: string;
       interest_categories?: string[];
       onboarding_complete?: boolean;
+      reminder_defaults?: number[];
+      notify_crew_checkins?: boolean;
+      notify_friend_rsvps?: boolean;
+      notify_crew_rsvps?: boolean;
+      notify_event_reminders?: boolean;
+      notify_daily_digest?: boolean;
+      daily_notification_limit?: number;
+      quiet_hours_start?: number;
+      quiet_hours_end?: number;
     };
   }>(
     "/api/v1/me/preferences",
@@ -872,6 +1043,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.arrival_date) updates.arrival_date = body.arrival_date;
       if (body.interest_categories) updates.interest_categories = body.interest_categories;
       if (body.onboarding_complete !== undefined) updates.onboarding_complete = body.onboarding_complete;
+      if (body.reminder_defaults) updates.reminder_defaults = body.reminder_defaults;
+      if (body.notify_crew_checkins !== undefined) updates.notify_crew_checkins = body.notify_crew_checkins;
+      if (body.notify_friend_rsvps !== undefined) updates.notify_friend_rsvps = body.notify_friend_rsvps;
+      if (body.notify_crew_rsvps !== undefined) updates.notify_crew_rsvps = body.notify_crew_rsvps;
+      if (body.notify_event_reminders !== undefined) updates.notify_event_reminders = body.notify_event_reminders;
+      if (body.notify_daily_digest !== undefined) updates.notify_daily_digest = body.notify_daily_digest;
+      if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
+      if (body.quiet_hours_start !== undefined) updates.quiet_hours_start = Math.max(0, Math.min(23, body.quiet_hours_start));
+      if (body.quiet_hours_end !== undefined) updates.quiet_hours_end = Math.max(0, Math.min(23, body.quiet_hours_end));
 
       // Upsert: create session row if it doesn't exist yet
       await fetch(
@@ -936,11 +1116,199 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return result;
     },
   );
+
+  // ------------------------------------------------------------------
+  // REMINDERS: Set reminders for a specific event (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { minutes_before: number[] } }>(
+    "/api/v1/events/:id/reminders",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const { minutes_before } = request.body || {};
+      const cfg = getSupabaseConfig();
+
+      if (!cfg || !Array.isArray(minutes_before)) {
+        return reply.status(400).send({ error: "Missing minutes_before array" });
+      }
+
+      // Validate values
+      const valid = minutes_before.filter((m) => Number.isInteger(m) && m > 0 && m <= 10080);
+      if (!valid.length) {
+        return reply.status(400).send({ error: "No valid reminder times" });
+      }
+
+      // Delete existing reminders for this event not in the new list
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_event_reminders?user_id=eq.${jwt.sub}&event_source_id=eq.${id}&remind_minutes_before=not.in.(${valid.join(",")})`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+          },
+        },
+      ).catch(() => {});
+
+      // Upsert each reminder
+      for (const mins of valid) {
+        await sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
+          user_id: jwt.sub,
+          event_source_id: id,
+          remind_minutes_before: mins,
+          sent: false,
+        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+      }
+
+      return { ok: true, reminders: valid };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // REMINDERS: Get reminders for a specific event (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/events/:id/reminders",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { reminders: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_reminders?user_id=eq.${jwt.sub}&event_source_id=eq.${id}&select=remind_minutes_before,sent&order=remind_minutes_before.asc`,
+      );
+
+      return { reminders: rows || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // REMINDERS: Delete all reminders for an event (requires auth)
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/events/:id/reminders",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_event_reminders?user_id=eq.${jwt.sub}&event_source_id=eq.${id}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+          },
+        },
+      ).catch(() => {});
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CALENDAR: Generate .ics file for an event (no auth, shareable)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/events/:id/calendar",
+    async (request, reply) => {
+      const { id } = request.params;
+
+      // Look up event from schedules first, then fall back to discovery
+      const cfg = getSupabaseConfig();
+      let title = "Event";
+      let startTime: string | null = null;
+      let endTime: string | null = null;
+      let venue = "";
+      let url = "";
+
+      if (cfg) {
+        const rows = await sbFetch<any[]>(
+          cfg,
+          `flowb_schedules?event_source_id=eq.${id}&select=event_title,starts_at,ends_at,venue_name,event_url&limit=1`,
+        );
+        if (rows?.length) {
+          const row = rows[0];
+          title = row.event_title || title;
+          startTime = row.starts_at;
+          endTime = row.ends_at;
+          venue = row.venue_name || "";
+          url = row.event_url || "";
+        }
+      }
+
+      // Fallback: try event discovery
+      if (!startTime) {
+        const allEvents = await core.discoverEventsRaw({ action: "events", city: "Denver" });
+        const event = allEvents.find((e) => e.id === id);
+        if (event) {
+          title = event.title || title;
+          startTime = event.startTime;
+          endTime = event.endTime;
+          venue = event.locationName || "";
+          url = event.url || "";
+        }
+      }
+
+      if (!startTime) {
+        return reply.status(404).send({ error: "Event not found" });
+      }
+
+      const dtStart = toIcsDate(startTime);
+      const dtEnd = endTime ? toIcsDate(endTime) : toIcsDate(new Date(new Date(startTime).getTime() + 2 * 3600000).toISOString());
+      const now = toIcsDate(new Date().toISOString());
+
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//FlowB//ETHDenver 2026//EN",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+        "BEGIN:VEVENT",
+        `DTSTART:${dtStart}`,
+        `DTEND:${dtEnd}`,
+        `DTSTAMP:${now}`,
+        `UID:${id}@flowb.me`,
+        `SUMMARY:${escapeIcsText(title)}`,
+        venue ? `LOCATION:${escapeIcsText(venue)}` : "",
+        url ? `URL:${url}` : "",
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ].filter(Boolean).join("\r\n");
+
+      return reply
+        .header("Content-Type", "text/calendar; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${sanitizeFilename(title)}.ics"`)
+        .send(ics);
+    },
+  );
 }
 
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/** Convert ISO date to ICS format (YYYYMMDDTHHmmssZ) */
+function toIcsDate(iso: string): string {
+  return new Date(iso).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+}
+
+/** Escape text for ICS fields */
+function escapeIcsText(text: string): string {
+  return text.replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
+}
+
+/** Sanitize filename for Content-Disposition */
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9 _-]/g, "").trim().substring(0, 60) || "event";
+}
 
 function getNotifyContext(): { supabase: SbConfig } | null {
   const cfg = getSupabaseConfig();

@@ -179,3 +179,13 @@ export async function getInviteLink(): Promise<string> {
 export async function getPoints(): Promise<PointsInfo> {
   return get("/api/v1/me/points");
 }
+
+// ============================================================================
+// Claim Pending Points (pre-auth actions)
+// ============================================================================
+
+export async function claimPendingPoints(
+  actions: Array<{ action: string; ts: number }>,
+): Promise<{ claimed: number; total: number }> {
+  return post("/api/v1/auth/claim-points", { actions });
+}
