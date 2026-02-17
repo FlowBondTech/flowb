@@ -123,7 +123,7 @@ export async function processEventQueue(supabaseUrl: string, supabaseKey: string
   try {
     // Find next unposted event
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/flowb_discovered_events?posted_to_farcaster=eq.false&order=first_seen.asc&limit=1`,
+      `${supabaseUrl}/rest/v1/flowb_events?posted_to_farcaster=eq.false&order=first_seen.asc&limit=1`,
       {
         headers: {
           apikey: supabaseKey,
@@ -151,7 +151,7 @@ export async function processEventQueue(supabaseUrl: string, supabaseKey: string
     if (posted) {
       // Mark as posted
       await fetch(
-        `${supabaseUrl}/rest/v1/flowb_discovered_events?id=eq.${event.id}`,
+        `${supabaseUrl}/rest/v1/flowb_events?id=eq.${event.id}`,
         {
           method: "PATCH",
           headers: {

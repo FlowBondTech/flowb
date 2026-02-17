@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Flow -- FlowB</title>
+  <meta name="description" content="Your personal ETHDenver 2026 dashboard. Track your schedule, crews, points, and connections.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leaderboard.html" class="header-nav-link">Leaderboard</a>
+        <a href="/flow.html" class="header-nav-link active">My Flow</a>
+      </nav>
+      <div class="header-meta">
+        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-dates">Feb 13 -- 20</span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" id="notifSettingsBtn">Notification Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Flow Page Content -->
+  <main class="page-content">
+    <div class="container">
+
+      <!-- Sign-in Gate (shown when not authenticated) -->
+      <div class="flow-signin-gate" id="flowSigninGate">
+        <div class="flow-signin-card">
+          <div class="flow-signin-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <h2 class="flow-signin-title">Sign in to see My Flow</h2>
+          <p class="flow-signin-msg">Track your schedule, manage crews, earn points, and connect with friends at ETHDenver 2026.</p>
+          <button class="flow-signin-btn" id="flowSigninBtn">Sign In</button>
+          <div class="flow-signin-links">
+            <span>Or use FlowB on</span>
+            <a href="https://t.me/Flow_b_bot" target="_blank">Telegram</a>
+            <span>/</span>
+            <a href="https://warpcast.com/flowb" target="_blank">Farcaster</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Authenticated Content -->
+      <div class="flow-authed hidden" id="flowAuthed">
+        <div class="page-header">
+          <div class="page-header-text">
+            <h1 class="page-title">My Flow</h1>
+            <p class="page-subtitle" id="flowGreeting">Your ETHDenver 2026 dashboard</p>
+          </div>
+          <div class="page-header-actions">
+            <button class="page-action-btn" id="flowSettingsBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              Settings
+            </button>
+            <a href="https://t.me/Flow_b_bot" target="_blank" class="page-action-btn secondary">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+              Telegram
+            </a>
+            <a href="https://warpcast.com/flowb" target="_blank" class="page-action-btn secondary">
+              <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
+              Farcaster
+            </a>
+          </div>
+        </div>
+
+        <!-- Profile Card -->
+        <div id="flowProfile"></div>
+
+        <!-- Content Grid -->
+        <div class="flow-grid">
+          <!-- My Schedule -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>My Schedule</span>
+              <span class="flow-card-badge" id="flowScheduleCount"></span>
+            </div>
+            <div class="flow-card-body" id="flowSchedule">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+
+          <!-- My Crews -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+              <span>My Crews</span>
+            </div>
+            <div class="flow-card-body" id="flowCrews">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+
+          <!-- Points & Milestones -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>Points & Milestones</span>
+            </div>
+            <div class="flow-card-body" id="flowPoints">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+
+          <!-- Connections -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+              <span>Connections</span>
+            </div>
+            <div class="flow-card-body" id="flowFriends">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Settings Modal -->
+  <div class="notif-settings-backdrop hidden" id="notifSettingsBackdrop"></div>
+  <div class="notif-settings-modal hidden" id="notifSettingsModal">
+    <button class="event-modal-close" id="notifSettingsClose">&times;</button>
+    <h3 class="notif-settings-title">Notification Settings</h3>
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Default Reminders</h4>
+      <p class="notif-settings-hint">Applied to new RSVPs automatically</p>
+      <div class="reminder-chips" id="defaultReminderChips">
+        <button class="reminder-chip" data-mins="15">15m</button>
+        <button class="reminder-chip active" data-mins="30">30m</button>
+        <button class="reminder-chip" data-mins="60">1h</button>
+        <button class="reminder-chip" data-mins="120">2h</button>
+        <button class="reminder-chip" data-mins="1440">Day before</button>
+      </div>
+    </div>
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Notification Types</h4>
+      <label class="notif-toggle"><input type="checkbox" id="notifCrewCheckins" checked><span>Crew checkins</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifFriendRsvps" checked><span>Friend RSVPs</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifCrewRsvps" checked><span>Crew member RSVPs</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifEventReminders" checked><span>Event reminders</span></label>
+      <label class="notif-toggle"><input type="checkbox" id="notifDailyDigest" checked><span>Daily digest</span></label>
+    </div>
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Quiet Hours</h4>
+      <label class="notif-toggle"><input type="checkbox" id="notifQuietHours"><span>Enable quiet hours</span></label>
+      <div class="notif-quiet-hours-row" id="quietHoursRow">
+        <label class="notif-field-label">From <select id="quietHoursStart" class="notif-select"></select></label>
+        <label class="notif-field-label">To <select id="quietHoursEnd" class="notif-select"></select></label>
+      </div>
+    </div>
+    <div class="notif-settings-section">
+      <h4 class="notif-settings-section-title">Timezone</h4>
+      <select id="notifTimezone" class="notif-select notif-tz-select">
+        <option value="America/Denver">America/Denver (MST)</option>
+        <option value="America/New_York">America/New_York (EST)</option>
+        <option value="America/Chicago">America/Chicago (CST)</option>
+        <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+        <option value="UTC">UTC</option>
+      </select>
+    </div>
+    <button class="notif-save-btn" id="notifSaveBtn">Save Settings</button>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by eGator</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://warpcast.com/flowb" target="_blank" class="footer-link">Farcaster</a>
+        <a href="https://egator-api.fly.dev/api" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const FLOWB_API = 'https://flowb.fly.dev';
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAuthToken() {
+      return Auth.jwt || localStorage.getItem('flowb-jwt') || null;
+    }
+
+    async function fetchAuthed(path, opts = {}) {
+      const token = getAuthToken();
+      if (!token) return null;
+      try {
+        const res = await fetch(`${FLOWB_API}${path}`, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(opts.headers || {}),
+          },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch { return null; }
+    }
+
+    // ===== Auth State =====
+
+    function updateFlowPage() {
+      const gate = document.getElementById('flowSigninGate');
+      const authed = document.getElementById('flowAuthed');
+
+      if (Auth.isAuthenticated && Auth.jwt) {
+        gate.classList.add('hidden');
+        authed.classList.remove('hidden');
+        loadFlowData();
+      } else {
+        gate.classList.remove('hidden');
+        authed.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('flowb-auth-ready', () => setTimeout(updateFlowPage, 200));
+    window.addEventListener('privy-auth-change', () => setTimeout(updateFlowPage, 500));
+
+    // Sign-in button
+    document.getElementById('flowSigninBtn')?.addEventListener('click', () => {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn')?.click();
+      }
+    });
+
+    // ===== Load Flow Data =====
+
+    async function loadFlowData() {
+      loadProfile();
+      loadSchedule();
+      loadCrews();
+      loadPoints();
+      loadFriends();
+    }
+
+    async function loadProfile() {
+      const el = document.getElementById('flowProfile');
+      if (!el || !Auth.user) return;
+
+      const displayName = Auth.user.username || Auth.user.email || 'User';
+      const initial = displayName[0].toUpperCase();
+      const pointsData = await fetchAuthed('/api/v1/me/points');
+      const totalPts = pointsData?.total_points ?? Points.total;
+      const streak = pointsData?.current_streak ?? Points.streak;
+      const milestone = getMilestoneForPoints(totalPts);
+
+      // Update greeting
+      document.getElementById('flowGreeting').textContent = `Welcome back, ${displayName}`;
+
+      el.innerHTML = `
+        <div class="dash-profile-card">
+          <div class="dash-avatar">${initial}</div>
+          <div class="dash-profile-info">
+            <h3 class="dash-username">${escapeHtml(displayName)}</h3>
+            <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'Connected via Privy'}</p>
+          </div>
+          <div class="dash-stats-row">
+            <div class="dash-stat">
+              <span class="dash-stat-val">${totalPts}</span>
+              <span class="dash-stat-label">Points</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-stat-val">${streak}${streak > 2 ? ' \uD83D\uDD25' : ''}</span>
+              <span class="dash-stat-label">Day Streak</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-stat-val">${milestone ? milestone.title : 'Newcomer'}</span>
+              <span class="dash-stat-label">Rank</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    async function loadSchedule() {
+      const el = document.getElementById('flowSchedule');
+      if (!el) return;
+
+      const data = await fetchAuthed('/api/v1/me/schedule');
+      if (!data || !data.schedule || !data.schedule.length) {
+        el.innerHTML = `
+          <div class="dash-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <p>No upcoming events yet</p>
+            <span>Browse <a href="/">events</a> and hit "Add to My Flow"</span>
+          </div>`;
+        return;
+      }
+
+      const countEl = document.getElementById('flowScheduleCount');
+      if (countEl) countEl.textContent = data.schedule.length;
+
+      el.innerHTML = data.schedule.map(item => {
+        const date = new Date(item.starts_at);
+        const dayStr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
+        const dayNum = date.getDate();
+        const monStr = date.toLocaleDateString('en-US', { month: 'short' });
+        const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+        const venue = item.venue_name || '';
+        const statusClass = item.rsvp_status === 'going' ? 'going' : 'maybe';
+
+        return `
+          <div class="dash-event-item">
+            <div class="dash-event-date">
+              <span class="dash-event-day">${dayStr}</span>
+              <span class="dash-event-num">${dayNum}</span>
+              <span class="dash-event-mon">${monStr}</span>
+            </div>
+            <div class="dash-event-info">
+              <div class="dash-event-title">${escapeHtml(item.event_title)}</div>
+              <div class="dash-event-meta">${timeStr}${venue ? ' &middot; ' + escapeHtml(venue) : ''}</div>
+            </div>
+            <span class="dash-event-status ${statusClass}">${item.rsvp_status === 'going' ? 'Going' : 'Maybe'}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadCrews() {
+      const el = document.getElementById('flowCrews');
+      if (!el) return;
+
+      const data = await fetchAuthed('/api/v1/flow/crews');
+      if (!data || !data.crews || !data.crews.length) {
+        el.innerHTML = `
+          <div class="dash-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <p>No crews yet</p>
+            <span>Join or create a crew on <a href="https://t.me/Flow_b_bot" target="_blank">Telegram</a> or <a href="https://warpcast.com/flowb" target="_blank">Farcaster</a></span>
+          </div>`;
+        return;
+      }
+
+      el.innerHTML = data.crews.map(crew => `
+        <div class="dash-crew-item">
+          <span class="dash-crew-emoji">${crew.emoji || ''}</span>
+          <div class="dash-crew-info">
+            <div class="dash-crew-name">${escapeHtml(crew.name)}</div>
+            <div class="dash-crew-role">${crew.role || 'member'}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    async function loadPoints() {
+      const el = document.getElementById('flowPoints');
+      if (!el) return;
+
+      const pointsData = await fetchAuthed('/api/v1/me/points');
+      const totalPts = pointsData?.total_points ?? Points.total;
+      const next = getNextMilestone(totalPts);
+      const progress = getMilestoneProgress(totalPts);
+
+      let html = '';
+      if (next) {
+        html += `
+          <div class="dash-milestone-progress">
+            <div class="dash-milestone-header">
+              <span>Progress to <strong>${next.title}</strong></span>
+              <span>${totalPts} / ${next.points}</span>
+            </div>
+            <div class="dash-progress-bar">
+              <div class="dash-progress-fill" style="width:${progress * 100}%"></div>
+            </div>
+            <p class="dash-milestone-hint">${next.points - totalPts} points to go</p>
+          </div>
+        `;
+      } else {
+        html += '<div class="dash-milestone-progress"><p class="dash-milestone-maxed">You\'ve reached the highest rank!</p></div>';
+      }
+
+      const achieved = MILESTONES.filter(m => totalPts >= m.points);
+      if (achieved.length) {
+        html += '<div class="dash-achieved">';
+        for (const m of achieved) {
+          html += `<span class="dash-achieved-badge">Lv${m.level} ${m.title}</span>`;
+        }
+        html += '</div>';
+      }
+
+      el.innerHTML = html;
+    }
+
+    async function loadFriends() {
+      const el = document.getElementById('flowFriends');
+      if (!el) return;
+
+      const data = await fetchAuthed('/api/v1/flow/friends');
+      if (!data || !data.friends || !data.friends.length) {
+        el.innerHTML = `
+          <div class="dash-empty dash-empty-sm">
+            <p>No connections yet</p>
+            <span>Share your invite link to connect with friends</span>
+          </div>`;
+        return;
+      }
+
+      el.innerHTML = data.friends.slice(0, 12).map(f => `
+        <div class="dash-friend-item">
+          <div class="dash-friend-avatar">${(f.username || '?')[0].toUpperCase()}</div>
+          <span class="dash-friend-name">${escapeHtml(f.username || 'User')}</span>
+        </div>
+      `).join('');
+    }
+
+    // ===== Notification Settings =====
+
+    function openNotifSettings() {
+      document.getElementById('notifSettingsModal').classList.remove('hidden');
+      document.getElementById('notifSettingsBackdrop').classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      loadNotifSettings();
+    }
+
+    function closeNotifSettings() {
+      document.getElementById('notifSettingsModal').classList.add('hidden');
+      document.getElementById('notifSettingsBackdrop').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    (function initHourSelects() {
+      const startSel = document.getElementById('quietHoursStart');
+      const endSel = document.getElementById('quietHoursEnd');
+      if (!startSel || !endSel) return;
+      for (let h = 0; h < 24; h++) {
+        const label = h.toString().padStart(2, '0') + ':00';
+        startSel.add(new Option(label, h));
+        endSel.add(new Option(label, h));
+      }
+      startSel.value = 22;
+      endSel.value = 8;
+    })();
+
+    document.getElementById('defaultReminderChips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.reminder-chip');
+      if (chip) chip.classList.toggle('active');
+    });
+
+    document.getElementById('flowSettingsBtn')?.addEventListener('click', openNotifSettings);
+    document.getElementById('notifSettingsBtn')?.addEventListener('click', openNotifSettings);
+    document.getElementById('notifSettingsClose')?.addEventListener('click', closeNotifSettings);
+    document.getElementById('notifSettingsBackdrop')?.addEventListener('click', closeNotifSettings);
+
+    async function loadNotifSettings() {
+      const data = await fetchAuthed('/api/v1/me/preferences');
+      if (!data || !data.preferences) return;
+      const p = data.preferences;
+      const defaults = p.reminder_defaults || [30];
+      document.querySelectorAll('#defaultReminderChips .reminder-chip').forEach(chip => {
+        chip.classList.toggle('active', defaults.includes(parseInt(chip.dataset.mins, 10)));
+      });
+      document.getElementById('notifCrewCheckins').checked = p.notify_crew_checkins ?? true;
+      document.getElementById('notifFriendRsvps').checked = p.notify_friend_rsvps ?? true;
+      document.getElementById('notifCrewRsvps').checked = p.notify_crew_rsvps ?? true;
+      document.getElementById('notifEventReminders').checked = p.notify_event_reminders ?? true;
+      document.getElementById('notifDailyDigest').checked = p.notify_daily_digest ?? true;
+      document.getElementById('notifQuietHours').checked = p.quiet_hours_enabled || false;
+      document.getElementById('quietHoursStart').value = p.quiet_hours_start ?? 22;
+      document.getElementById('quietHoursEnd').value = p.quiet_hours_end ?? 8;
+      document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+    }
+
+    document.getElementById('notifSaveBtn')?.addEventListener('click', async () => {
+      if (!Auth.isAuthenticated) return;
+      const chips = document.querySelectorAll('#defaultReminderChips .reminder-chip.active');
+      const reminder_defaults = Array.from(chips).map(c => parseInt(c.dataset.mins, 10)).filter(Boolean);
+      const body = {
+        reminder_defaults: reminder_defaults.length ? reminder_defaults : [30],
+        notify_crew_checkins: document.getElementById('notifCrewCheckins').checked,
+        notify_friend_rsvps: document.getElementById('notifFriendRsvps').checked,
+        notify_crew_rsvps: document.getElementById('notifCrewRsvps').checked,
+        notify_event_reminders: document.getElementById('notifEventReminders').checked,
+        notify_daily_digest: document.getElementById('notifDailyDigest').checked,
+        quiet_hours_enabled: document.getElementById('notifQuietHours').checked,
+        quiet_hours_start: parseInt(document.getElementById('quietHoursStart').value, 10),
+        quiet_hours_end: parseInt(document.getElementById('quietHoursEnd').value, 10),
+        timezone: document.getElementById('notifTimezone').value,
+      };
+      const result = await fetchAuthed('/api/v1/me/preferences', { method: 'PATCH', body: JSON.stringify(body) });
+      const btn = document.getElementById('notifSaveBtn');
+      if (result && result.ok) {
+        btn.textContent = 'Saved!';
+        btn.classList.add('saved');
+        setTimeout(() => { btn.textContent = 'Save Settings'; btn.classList.remove('saved'); }, 1500);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !document.getElementById('notifSettingsModal').classList.contains('hidden')) {
+        closeNotifSettings();
+      }
+    });
+
+    // Init
+    updateFlowPage();
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>

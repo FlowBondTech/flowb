@@ -11,6 +11,7 @@ import { Chat } from "./screens/Chat";
 
 export type Screen =
   | { name: "home" }
+  | { name: "feed" }
   | { name: "event"; id: string }
   | { name: "schedule" }
   | { name: "chat" }
@@ -63,7 +64,7 @@ export default function App() {
     const tg = (window as any).Telegram?.WebApp;
     if (!tg?.BackButton) return;
 
-    if (screen.name === "home") {
+    if (screen.name === "home" || screen.name === "feed") {
       tg.BackButton.hide();
     } else {
       tg.BackButton.show();
@@ -115,14 +116,14 @@ export default function App() {
 
   return (
     <div className="app">
-      {screen.name === "home" && <Home onNavigate={navigate} />}
+      {(screen.name === "home" || screen.name === "feed") && <Home onNavigate={navigate} initialTab={screen.name === "feed" ? "feed" : "discover"} />}
       {screen.name === "event" && <EventDetail eventId={screen.id} onNavigate={navigate} />}
       {screen.name === "schedule" && <Schedule onNavigate={navigate} />}
       {screen.name === "chat" && <Chat onNavigate={navigate} />}
       {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
 
-      <BottomNav current={screen.name} onNavigate={navigate} />
+      <BottomNav current={screen.name === "feed" ? "feed" : screen.name} onNavigate={navigate} />
     </div>
   );
 }

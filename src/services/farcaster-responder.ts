@@ -71,7 +71,7 @@ async function getTonightEvents(cfg: SbConfig): Promise<{title: string; venue?: 
 
   try {
     const res = await fetch(
-      `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?starts_at=gte.${todayStart.toISOString()}&starts_at=lte.${todayEnd.toISOString()}&order=starts_at.asc&limit=5&select=title,venue_name,starts_at`,
+      `${cfg.supabaseUrl}/rest/v1/flowb_events?starts_at=gte.${todayStart.toISOString()}&starts_at=lte.${todayEnd.toISOString()}&order=starts_at.asc&limit=5&select=title,venue_name,starts_at`,
       {
         headers: {
           apikey: cfg.supabaseKey,
@@ -168,7 +168,7 @@ export async function handleMention(event: MentionEvent, cfg: SbConfig): Promise
       // Query free events
       try {
         const res = await fetch(
-          `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?is_free=eq.true&order=starts_at.asc&limit=5&select=title,venue_name,starts_at`,
+          `${cfg.supabaseUrl}/rest/v1/flowb_events?is_free=eq.true&order=starts_at.asc&limit=5&select=title,venue_name,starts_at`,
           {
             headers: { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}` },
           },

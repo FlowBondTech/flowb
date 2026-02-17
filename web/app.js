@@ -39,18 +39,6 @@ const chatSendBtn = document.getElementById('flowbSendBtn');
 const chatStatus = document.getElementById('flowbStatus');
 const chatStatusText = document.getElementById('flowbStatusText');
 
-// DOM - My Flow
-const myFlowSection = document.getElementById('myFlowSection');
-const myFlowSchedule = document.getElementById('myFlowSchedule');
-const myFlowCrews = document.getElementById('myFlowCrews');
-const myFlowLeaderboard = document.getElementById('myFlowLeaderboard');
-
-// DOM - Hero Stats & Crews
-const statCrews = document.getElementById('statCrews');
-const statPoints = document.getElementById('statPoints');
-const statCheckins = document.getElementById('statCheckins');
-const heroCrews = document.getElementById('heroCrews');
-const heroCrewsList = document.getElementById('heroCrewsList');
 
 // ===== API =====
 
@@ -86,17 +74,7 @@ async function fetchTonight() {
   return data.events || [];
 }
 
-// ===== Public API: Stats & Leaderboard =====
-
-async function fetchLiveStats() {
-  try {
-    const res = await fetch(`${FLOWB_API}/api/v1/stats`);
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
-    return null;
-  }
-}
+// ===== Public API: Leaderboard =====
 
 async function fetchGlobalLeaderboard() {
   try {
@@ -131,348 +109,6 @@ async function fetchAuthed(path, opts = {}) {
   }
 }
 
-// ===== Render: Hero Stats =====
-
-async function loadHeroStats() {
-  const stats = await fetchLiveStats();
-  if (stats) {
-    if (statCrews) statCrews.textContent = stats.crewsActive || 0;
-    if (statPoints) statPoints.textContent = formatNumber(stats.totalPoints || 0);
-    if (statCheckins) statCheckins.textContent = stats.checkinsToday || 0;
-  }
-}
-
-function formatNumber(n) {
-  if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
-  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
-  return String(n);
-}
-
-// ===== Render: Hero Top Crews =====
-
-async function loadHeroCrews() {
-  const data = await fetchGlobalLeaderboard();
-  if (!data || !data.crews || !data.crews.length) return;
-
-  const top3 = data.crews.slice(0, 3);
-  if (!heroCrewsList || !heroCrews) return;
-
-  heroCrewsList.innerHTML = top3.map((crew, i) => {
-    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : 'bronze';
-    return `
-      <div class="hero-crew-item">
-        <span class="hero-crew-rank ${rankClass}">${i + 1}</span>
-        <span class="hero-crew-emoji">${crew.emoji || ''}</span>
-        <span class="hero-crew-name">${escapeHtml(crew.name)}</span>
-        <span class="hero-crew-pts">${crew.totalPoints} pts</span>
-        ${crew.memberCount ? `<span class="hero-crew-members">${crew.memberCount} members</span>` : ''}
-      </div>
-    `;
-  }).join('');
-
-  heroCrews.classList.remove('hidden');
-}
-
-// ===== Render: My Flow Section =====
-
-async function loadMyFlow() {
-  if (!Auth.isAuthenticated) {
-    if (myFlowSection) myFlowSection.classList.add('hidden');
-    return;
-  }
-
-  if (myFlowSection) myFlowSection.classList.remove('hidden');
-
-  // Load all three cards in parallel
-  loadMyFlowSchedule();
-  loadMyFlowCrews();
-  loadMyFlowLeaderboard();
-}
-
-async function loadMyFlowSchedule() {
-  if (!myFlowSchedule) return;
-
-  const data = await fetchAuthed('/api/v1/me/schedule');
-  if (!data || !data.schedule || !data.schedule.length) {
-    myFlowSchedule.innerHTML = '<div class="myflow-empty">No upcoming RSVPs yet. Browse events and hit RSVP!</div>';
-    return;
-  }
-
-  myFlowSchedule.innerHTML = data.schedule.slice(0, 5).map(item => {
-    const date = new Date(item.starts_at);
-    const dayStr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    const dayNum = date.getDate();
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const venue = item.venue_name || '';
-
-    return `
-      <div class="myflow-schedule-item">
-        <div class="myflow-schedule-date">
-          <span>${dayStr}</span>
-          <span class="day">${dayNum}</span>
-        </div>
-        <div class="myflow-schedule-info">
-          <div class="myflow-schedule-title">${escapeHtml(item.event_title)}</div>
-          <div class="myflow-schedule-meta">${timeStr}${venue ? ' &middot; ' + escapeHtml(venue) : ''}</div>
-        </div>
-        <span class="myflow-rsvp-badge">${item.rsvp_status === 'maybe' ? 'Maybe' : 'Going'}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-async function loadMyFlowCrews() {
-  if (!myFlowCrews) return;
-
-  const data = await fetchAuthed('/api/v1/flow/crews');
-  if (!data || !data.crews || !data.crews.length) {
-    myFlowCrews.innerHTML = '<div class="myflow-empty">Not in any crews yet. Join or create one!</div>';
-    return;
-  }
-
-  myFlowCrews.innerHTML = data.crews.slice(0, 5).map(crew => `
-    <div class="myflow-crew-item">
-      <span class="myflow-crew-emoji">${crew.emoji || ''}</span>
-      <div class="myflow-crew-info">
-        <div class="myflow-crew-name">${escapeHtml(crew.name)}</div>
-        <div class="myflow-crew-role">${crew.role || 'member'}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadMyFlowLeaderboard() {
-  if (!myFlowLeaderboard) return;
-
-  const data = await fetchGlobalLeaderboard();
-  if (!data || !data.crews || !data.crews.length) {
-    myFlowLeaderboard.innerHTML = '<div class="myflow-empty">Leaderboard data coming soon!</div>';
-    return;
-  }
-
-  myFlowLeaderboard.innerHTML = data.crews.slice(0, 10).map((crew, i) => {
-    const rankClass = i < 3 ? `rank-${i + 1}` : '';
-    return `
-      <div class="myflow-lb-item">
-        <span class="myflow-lb-rank ${rankClass}">${i + 1}</span>
-        <span class="myflow-lb-emoji">${crew.emoji || ''}</span>
-        <span class="myflow-lb-name">${escapeHtml(crew.name)}</span>
-        <span class="myflow-lb-pts">${crew.totalPoints} pts</span>
-        ${crew.memberCount ? `<span class="myflow-lb-members">${crew.memberCount} mbrs</span>` : ''}
-      </div>
-    `;
-  }).join('');
-}
-
-// ===== Auth State Change Handler =====
-
-function onAuthStateChange() {
-  loadMyFlow();
-  loadDashboard();
-}
-
-// Listen for auth ready events (fires after JWT is obtained)
-window.addEventListener('flowb-auth-ready', () => {
-  setTimeout(onAuthStateChange, 200);
-});
-
-// ===== User Dashboard =====
-
-async function loadDashboard() {
-  const dashSection = document.getElementById('dashboardSection');
-  const heroDashBtn = document.getElementById('heroDashBtn');
-  if (!dashSection) return;
-
-  if (!Auth.isAuthenticated || !Auth.jwt) {
-    dashSection.classList.add('hidden');
-    if (heroDashBtn) heroDashBtn.classList.add('hidden');
-    return;
-  }
-
-  // Show CTA button in hero instead of auto-showing dashboard
-  if (heroDashBtn) {
-    heroDashBtn.classList.remove('hidden');
-    heroDashBtn.addEventListener('click', function(e) {
-      e.preventDefault();
-      dashSection.classList.remove('hidden');
-      dashSection.scrollIntoView({ behavior: 'smooth' });
-    }, { once: true });
-  }
-
-  // Pre-load dashboard data so it's ready when user clicks
-  Promise.all([
-    loadDashProfile(),
-    loadDashSchedule(),
-    loadDashCrews(),
-    loadDashPoints(),
-    loadDashFriends(),
-  ]);
-}
-
-async function loadDashProfile() {
-  const el = document.getElementById('dashProfile');
-  if (!el || !Auth.user) return;
-
-  const displayName = Auth.user.username || Auth.user.email || 'User';
-  const initial = displayName[0].toUpperCase();
-  const pointsData = await fetchAuthed('/api/v1/me/points');
-  const totalPts = pointsData?.total_points ?? Points.total;
-  const streak = pointsData?.current_streak ?? Points.streak;
-  const milestone = getMilestoneForPoints(totalPts);
-
-  el.innerHTML = `
-    <div class="dash-profile-card">
-      <div class="dash-avatar">${initial}</div>
-      <div class="dash-profile-info">
-        <h3 class="dash-username">${escapeHtml(displayName)}</h3>
-        <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'Connected via Privy'}</p>
-      </div>
-      <div class="dash-stats-row">
-        <div class="dash-stat">
-          <span class="dash-stat-val">${totalPts}</span>
-          <span class="dash-stat-label">Points</span>
-        </div>
-        <div class="dash-stat">
-          <span class="dash-stat-val">${streak}${streak > 2 ? ' \uD83D\uDD25' : ''}</span>
-          <span class="dash-stat-label">Day Streak</span>
-        </div>
-        <div class="dash-stat">
-          <span class="dash-stat-val">${milestone ? milestone.title : 'Newcomer'}</span>
-          <span class="dash-stat-label">Rank</span>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-async function loadDashSchedule() {
-  const el = document.getElementById('dashSchedule');
-  if (!el) return;
-
-  const data = await fetchAuthed('/api/v1/me/schedule');
-  if (!data || !data.schedule || !data.schedule.length) {
-    el.innerHTML = `
-      <div class="dash-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        <p>No upcoming events yet</p>
-        <span>Browse events below and hit "Add to My Flow"</span>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = data.schedule.map(item => {
-    const date = new Date(item.starts_at);
-    const dayStr = date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-    const dayNum = date.getDate();
-    const monStr = date.toLocaleDateString('en-US', { month: 'short' });
-    const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    const venue = item.venue_name || '';
-    const statusClass = item.rsvp_status === 'going' ? 'going' : 'maybe';
-
-    return `
-      <div class="dash-event-item">
-        <div class="dash-event-date">
-          <span class="dash-event-day">${dayStr}</span>
-          <span class="dash-event-num">${dayNum}</span>
-          <span class="dash-event-mon">${monStr}</span>
-        </div>
-        <div class="dash-event-info">
-          <div class="dash-event-title">${escapeHtml(item.event_title)}</div>
-          <div class="dash-event-meta">${timeStr}${venue ? ' &middot; ' + escapeHtml(venue) : ''}</div>
-        </div>
-        <span class="dash-event-status ${statusClass}">${item.rsvp_status === 'going' ? 'Going' : 'Maybe'}</span>
-      </div>
-    `;
-  }).join('');
-}
-
-async function loadDashCrews() {
-  const el = document.getElementById('dashCrews');
-  if (!el) return;
-
-  const data = await fetchAuthed('/api/v1/flow/crews');
-  if (!data || !data.crews || !data.crews.length) {
-    el.innerHTML = `
-      <div class="dash-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-        <p>No crews yet</p>
-        <span>Join or create a crew on Telegram or Farcaster</span>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = data.crews.map(crew => `
-    <div class="dash-crew-item">
-      <span class="dash-crew-emoji">${crew.emoji || ''}</span>
-      <div class="dash-crew-info">
-        <div class="dash-crew-name">${escapeHtml(crew.name)}</div>
-        <div class="dash-crew-role">${crew.role || 'member'}</div>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function loadDashPoints() {
-  const el = document.getElementById('dashPointsHistory');
-  if (!el) return;
-
-  const pointsData = await fetchAuthed('/api/v1/me/points');
-  const totalPts = pointsData?.total_points ?? Points.total;
-  const next = getNextMilestone(totalPts);
-  const progress = getMilestoneProgress(totalPts);
-
-  let html = '';
-  if (next) {
-    html += `
-      <div class="dash-milestone-progress">
-        <div class="dash-milestone-header">
-          <span>Progress to <strong>${next.title}</strong></span>
-          <span>${totalPts} / ${next.points}</span>
-        </div>
-        <div class="dash-progress-bar">
-          <div class="dash-progress-fill" style="width:${progress * 100}%"></div>
-        </div>
-        <p class="dash-milestone-hint">${next.points - totalPts} points to go</p>
-      </div>
-    `;
-  } else {
-    html += `<div class="dash-milestone-progress"><p class="dash-milestone-maxed">You've reached the highest rank!</p></div>`;
-  }
-
-  // Show milestones achieved
-  const achieved = MILESTONES.filter(m => totalPts >= m.points);
-  if (achieved.length) {
-    html += '<div class="dash-achieved">';
-    for (const m of achieved) {
-      html += `<span class="dash-achieved-badge">Lv${m.level} ${m.title}</span>`;
-    }
-    html += '</div>';
-  }
-
-  el.innerHTML = html;
-}
-
-async function loadDashFriends() {
-  const el = document.getElementById('dashFriends');
-  if (!el) return;
-
-  const data = await fetchAuthed('/api/v1/flow/friends');
-  if (!data || !data.friends || !data.friends.length) {
-    el.innerHTML = `
-      <div class="dash-empty dash-empty-sm">
-        <p>No connections yet</p>
-        <span>Share your invite link to connect with friends</span>
-      </div>`;
-    return;
-  }
-
-  el.innerHTML = data.friends.slice(0, 8).map(f => `
-    <div class="dash-friend-item">
-      <div class="dash-friend-avatar">${(f.username || '?')[0].toUpperCase()}</div>
-      <span class="dash-friend-name">${escapeHtml(f.username || 'User')}</span>
-    </div>
-  `).join('');
-}
 
 // ===== Render =====
 
@@ -881,7 +517,6 @@ document.getElementById('defaultReminderChips').addEventListener('click', (e) =>
 
 // Wire up open/close
 document.getElementById('notifSettingsBtn')?.addEventListener('click', openNotifSettings);
-document.getElementById('dashSettingsBtn')?.addEventListener('click', openNotifSettings);
 document.getElementById('notifSettingsClose').addEventListener('click', closeNotifSettings);
 document.getElementById('notifSettingsBackdrop').addEventListener('click', closeNotifSettings);
 
@@ -991,11 +626,6 @@ async function handleRsvp(eventId, btnEl) {
   if (result) {
     awardPoints(3, 'RSVP bonus');
     awardFirstAction('first_rsvp', 5, 'First RSVP!');
-    // Refresh schedule if My Flow / Dashboard is visible
-    if (myFlowSection && !myFlowSection.classList.contains('hidden')) {
-      loadMyFlowSchedule();
-    }
-    loadDashboard();
   } else {
     // Revert on failure
     btnEl.classList.remove('rsvpd');
@@ -1735,10 +1365,6 @@ function handleEventUrlParam() {
   awardPoints(1, 'Daily visit', 'info');
   awardFirstAction('first_visit', 5, 'Welcome to FlowB!');
 
-  // Load hero stats and top crews (non-blocking)
-  loadHeroStats();
-  loadHeroCrews();
-
   // Handle event URL parameter from smart short links
   handleEventUrlParam();
 
@@ -1804,10 +1430,6 @@ function handleEventUrlParam() {
   }
 
   renderEvents(allEvents);
-
-  // Load My Flow and Dashboard if authenticated
-  loadMyFlow();
-  loadDashboard();
 
   // Check FlowB chat backend availability
   try {

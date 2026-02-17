@@ -122,16 +122,118 @@ export interface EventResult {
   description?: string;
   startTime: string;
   endTime?: string;
+  allDay?: boolean;
   locationName?: string;
   locationCity?: string;
+  venueId?: string;
+  latitude?: number;
+  longitude?: number;
   price?: number;
   isFree?: boolean;
   isVirtual?: boolean;
+  virtualUrl?: string;
+  ticketUrl?: string;
   danceStyles?: string[];
   skillLevel?: string;
   source: string;
+  sourceEventId?: string;
   url?: string;
   imageUrl?: string;
+  coverUrl?: string;
+  organizerName?: string;
+  organizerUrl?: string;
+  eventType?: string;
+  categories?: string[];
+  tags?: string[];
+  zoneSlug?: string;
+  zoneName?: string;
+  rsvpCount?: number;
+  featured?: boolean;
+  qualityScore?: number;
+}
+
+// ============================================================================
+// Zone, Venue, Category, Booth, Identity
+// ============================================================================
+
+export interface Zone {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  zoneType: 'theme' | 'activation' | 'general';
+  floor?: string;
+  sortOrder: number;
+}
+
+export interface Venue {
+  id: string;
+  slug: string;
+  name: string;
+  shortName?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  latitude?: number;
+  longitude?: number;
+  venueType: string;
+  capacity?: number;
+  websiteUrl?: string;
+  imageUrl?: string;
+  zoneId?: string;
+  isMainVenue: boolean;
+}
+
+export interface EventCategory {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  parentId?: string;
+  sortOrder: number;
+}
+
+export interface Booth {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  boothNumber?: string;
+  zoneId?: string;
+  zoneName?: string;
+  venueId?: string;
+  sponsorTier: 'diamond' | 'gold' | 'silver' | 'bronze' | 'community';
+  companyUrl?: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  twitterUrl?: string;
+  farcasterUrl?: string;
+  discordUrl?: string;
+  telegramUrl?: string;
+  floor?: string;
+  latitude?: number;
+  longitude?: number;
+  hasSwag: boolean;
+  hasDemo: boolean;
+  hasHiring: boolean;
+  tags: string[];
+  featured: boolean;
+}
+
+export interface UserIdentity {
+  id: string;
+  canonicalId: string;
+  platform: 'telegram' | 'farcaster' | 'web';
+  platformUserId: string;
+  privyId?: string;
+  displayName?: string;
+  avatarUrl?: string;
+  linkedAt: string;
 }
 
 // ============================================================================

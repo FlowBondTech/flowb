@@ -3047,7 +3047,7 @@ async function sbQueryBot(
 }
 
 /**
- * Fire-and-forget upsert of a linked event into flowb_discovered_events.
+ * Fire-and-forget upsert of a linked event into flowb_events.
  * Uses the same slug dedup pattern as event-scanner.ts.
  */
 async function saveEventToDiscovered(event: EventResult): Promise<void> {
@@ -3067,26 +3067,31 @@ async function saveEventToDiscovered(event: EventResult): Promise<void> {
 
   // Check if already exists
   const checkRes = await fetch(
-    `${sbUrl}/rest/v1/flowb_discovered_events?source=eq.${encodeURIComponent(source)}&title_slug=eq.${encodeURIComponent(titleSlug)}&select=id&limit=1`,
+    `${sbUrl}/rest/v1/flowb_events?source=eq.${encodeURIComponent(source)}&title_slug=eq.${encodeURIComponent(titleSlug)}&select=id&limit=1`,
     { headers },
   );
 
   const existing = checkRes.ok ? await checkRes.json() : [];
 
   if (existing?.length) {
-    // Update last_seen
+    // Update last_seen + additional data
     await fetch(
-      `${sbUrl}/rest/v1/flowb_discovered_events?id=eq.${existing[0].id}`,
+      `${sbUrl}/rest/v1/flowb_events?id=eq.${existing[0].id}`,
       {
         method: "PATCH",
         headers: { ...headers, Prefer: "return=minimal" },
-        body: JSON.stringify({ last_seen: new Date().toISOString() }),
+        body: JSON.stringify({
+          last_seen: new Date().toISOString(),
+          description: event.description || null,
+          image_url: event.imageUrl || null,
+          stale: false,
+        }),
       },
     );
   } else {
-    // Insert new
+    // Insert new with full available data
     await fetch(
-      `${sbUrl}/rest/v1/flowb_discovered_events`,
+      `${sbUrl}/rest/v1/flowb_events`,
       {
         method: "POST",
         headers: { ...headers, Prefer: "return=minimal" },
@@ -3095,10 +3100,14 @@ async function saveEventToDiscovered(event: EventResult): Promise<void> {
           source_event_id: event.id,
           title: event.title,
           title_slug: titleSlug,
+          description: event.description || null,
           starts_at: event.startTime || null,
+          ends_at: event.endTime || null,
           venue_name: event.locationName || null,
           city: event.locationCity || "Denver",
           is_free: event.isFree ?? null,
+          is_virtual: event.isVirtual || false,
+          image_url: event.imageUrl || null,
           url: event.url || null,
         }),
       },

@@ -8,6 +8,12 @@ interface Props {
   onNavigate: (s: Screen) => void;
 }
 
+function optimizeImageUrl(url: string | undefined, w = 600, h = 300): string | null {
+  if (!url) return null;
+  if (url.includes("evbuc.com")) return url;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&h=${h}&fit=cover&output=webp&q=75`;
+}
+
 function EventDetailSkeleton() {
   return (
     <div className="screen">
@@ -29,6 +35,7 @@ export function EventDetail({ eventId }: Props) {
   const [flowGoing, setFlowGoing] = useState<string[]>([]);
   const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -62,6 +69,41 @@ export function EventDetail({ eventId }: Props) {
     }
   };
 
+  const handleShareTelegram = (ev: EventResult) => {
+    const tg = (window as any).Telegram?.WebApp;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
+    const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`;
+    if (tg?.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleShareX = (ev: EventResult) => {
+    const tg = (window as any).Telegram?.WebApp;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
+    const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`;
+    if (tg?.openLink) {
+      tg.openLink(url);
+    } else {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleCopyLink = async (ev: EventResult) => {
+    const url = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 1500);
+      const tg = (window as any).Telegram?.WebApp;
+      tg?.HapticFeedback?.notificationOccurred("success");
+    } catch {}
+  };
+
   if (loading || !event) {
     return <EventDetailSkeleton />;
   }
@@ -78,9 +120,21 @@ export function EventDetail({ eventId }: Props) {
   });
 
   const totalGoing = social?.goingCount || 0;
+  const imgUrl = optimizeImageUrl(event.imageUrl);
 
   return (
     <div className="screen">
+      {imgUrl && (
+        <img
+          src={imgUrl}
+          alt=""
+          style={{ width: "100%", height: 180, objectFit: "cover", borderRadius: 12, marginBottom: 12 }}
+          loading="lazy"
+          decoding="async"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
+      )}
+
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{event.title}</h1>
 
       <div style={{ marginBottom: 16 }}>
@@ -137,7 +191,7 @@ export function EventDetail({ eventId }: Props) {
       )}
 
       {/* RSVP buttons */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {rsvpStatus === "going" ? (
           <>
             <button className="btn btn-primary btn-block" disabled style={{ opacity: 0.6 }}>
@@ -166,6 +220,28 @@ export function EventDetail({ eventId }: Props) {
             </button>
           </>
         )}
+      </div>
+
+      {/* Share Row: Telegram | X | Copy Link */}
+      <div className="share-row">
+        <button className="btn btn-secondary share-btn" onClick={() => handleShareTelegram(event)}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style={{ width: 16, height: 16 }}>
+            <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+          </svg>
+          Telegram
+        </button>
+        <button className="btn btn-secondary share-btn" onClick={() => handleShareX(event)}>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style={{ width: 16, height: 16 }}>
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+          X
+        </button>
+        <button className="btn btn-secondary share-btn" onClick={() => handleCopyLink(event)}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ width: 16, height: 16 }}>
+            <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+          </svg>
+          {linkCopied ? "Copied!" : "Copy"}
+        </button>
       </div>
 
       {/* External link */}

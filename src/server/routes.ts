@@ -31,6 +31,7 @@ import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
+import { resolveCanonicalId } from "../services/identity.js";
 
 // ============================================================================
 // Supabase helper (reused from flow plugin pattern)
@@ -491,62 +492,100 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // EVENTS: Discovery (enhanced for mini app)
-  // Accepts: ?city=Denver&category=social&categories=defi,ai&limit=20
-  // The `categories` param filters by multiple interest categories (comma-separated)
+  // EVENTS: DB-first discovery
+  // Accepts: ?city=&categories=&zone=&type=&date=&from=&to=&featured=&q=&limit=&offset=
   // ------------------------------------------------------------------
-  app.get<{ Querystring: { city?: string; category?: string; categories?: string; limit?: string } }>(
+  app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; q?: string; limit?: string; offset?: string } }>(
     "/api/v1/events",
     async (request) => {
-      const { city, category, categories, limit } = request.query;
-      const events = await core.discoverEventsRaw({
-        action: "events",
-        city: city || "Denver",
-        category,
-      });
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { events: [], total: 0 };
 
-      let filtered = events;
+      const { city, categories, zone, type, date, from, to, featured, q, limit, offset } = request.query;
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+      const skip = parseInt(offset || "0", 10);
 
-      // Filter by multiple categories if provided (e.g. ?categories=defi,ai,social)
+      // Build PostgREST query
+      let query = `flowb_events?hidden=eq.false&order=starts_at.asc&limit=${maxResults}&offset=${skip}`;
+
+      if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
+      if (zone) query += `&zone_id=eq.${encodeURIComponent(zone)}`;
+      if (type) query += `&event_type=eq.${encodeURIComponent(type)}`;
+      if (featured === "true") query += `&featured=eq.true`;
+      if (date) {
+        const dayStart = `${date}T00:00:00`;
+        const dayEnd = `${date}T23:59:59`;
+        query += `&starts_at=gte.${dayStart}&starts_at=lte.${dayEnd}`;
+      }
+      if (from) query += `&starts_at=gte.${encodeURIComponent(from)}`;
+      if (to) query += `&starts_at=lte.${encodeURIComponent(to)}`;
+
+      // Full-text search
+      if (q) {
+        query += `&or=(title.ilike.*${encodeURIComponent(q)}*,description.ilike.*${encodeURIComponent(q)}*,organizer_name.ilike.*${encodeURIComponent(q)}*)`;
+      }
+
+      const rows = await sbFetch<any[]>(cfg, query);
+      let events = (rows || []).map(dbEventToResult);
+
+      // Category filter (post-query via category map join)
       if (categories) {
-        const catList = categories.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
-        if (catList.length > 0) {
-          filtered = events.filter((e) => {
-            // Match against event title, description, and dance styles
-            const searchText = [
-              e.title,
-              e.description || "",
-              ...(e.danceStyles || []),
-            ].join(" ").toLowerCase();
-            return catList.some((cat) => searchText.includes(cat));
-          });
+        const catSlugs = categories.split(",").map(c => c.trim().toLowerCase()).filter(Boolean);
+        if (catSlugs.length > 0) {
+          const catRows = await sbFetch<any[]>(
+            cfg,
+            `flowb_event_categories?slug=in.(${catSlugs.join(",")})&select=id`,
+          );
+          if (catRows?.length) {
+            const catIds = catRows.map(c => c.id);
+            const mappings = await sbFetch<any[]>(
+              cfg,
+              `flowb_event_category_map?category_id=in.(${catIds.join(",")})&select=event_id`,
+            );
+            if (mappings?.length) {
+              const eventIds = new Set(mappings.map(m => m.event_id));
+              events = events.filter(e => eventIds.has(e.id));
+            } else {
+              events = [];
+            }
+          }
         }
       }
 
-      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
-      return { events: filtered.slice(0, maxResults) };
+      return { events, total: events.length };
     },
   );
 
   // ------------------------------------------------------------------
-  // EVENTS: Single event detail
+  // EVENTS: Single event detail (DB-first)
   // ------------------------------------------------------------------
   app.get<{ Params: { id: string } }>(
     "/api/v1/events/:id",
     async (request, reply) => {
-      // Event ID might be from any source - search through cached results
-      // For now, search eGator/providers with a broad query and find by ID
       const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      // Try to find in recent event results
-      const allEvents = await core.discoverEventsRaw({
-        action: "events",
-        city: "Denver",
-      });
-
-      const event = allEvents.find((e) => e.id === id);
-      if (!event) {
+      // Try by UUID first, then by source_event_id
+      let rows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${encodeURIComponent(id)}&limit=1`);
+      if (!rows?.length) {
+        rows = await sbFetch<any[]>(cfg, `flowb_events?source_event_id=eq.${encodeURIComponent(id)}&limit=1`);
+      }
+      if (!rows?.length) {
         return reply.status(404).send({ error: "Event not found" });
+      }
+
+      const event = dbEventToResult(rows[0]);
+
+      // Fetch categories for this event
+      const catMap = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_category_map?event_id=eq.${rows[0].id}&select=flowb_event_categories(slug,name)`,
+      );
+      if (catMap?.length) {
+        event.categories = catMap
+          .filter(m => m.flowb_event_categories)
+          .map(m => m.flowb_event_categories.slug);
       }
 
       // If authed, include flow social proof
@@ -591,22 +630,55 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         return { ok: false, error: "Flow plugin not configured" };
       }
 
-      // Try to get event details from discovery, fall back to client-provided data
-      let event: any = null;
-      try {
-        const allEvents = await core.discoverEventsRaw({ action: "events", city: "Denver" });
-        event = allEvents.find((e) => e.id === id);
-      } catch {
-        // Discovery may not be available on this server
+      // Look up event from DB, fall back to client-provided data
+      const sbCfg = getSupabaseConfig();
+      let dbEvent: any = null;
+      if (sbCfg) {
+        let eRows = await sbFetch<any[]>(sbCfg, `flowb_events?id=eq.${encodeURIComponent(id)}&limit=1`);
+        if (!eRows?.length) {
+          eRows = await sbFetch<any[]>(sbCfg, `flowb_events?source_event_id=eq.${encodeURIComponent(id)}&limit=1`);
+        }
+        dbEvent = eRows?.[0] || null;
       }
 
-      // Build event details from discovery or client-provided fallback
-      const eventTitle = event?.title || body.eventTitle || id;
-      const eventSource = event?.source || body.eventSource || "web";
-      const eventUrl = event?.url || body.eventUrl || null;
-      const venueName = event?.locationName || body.venueName || null;
-      const startTime = event?.startTime || body.startTime || null;
-      const endTime = event?.endTime || body.endTime || null;
+      // Build event details from DB or client-provided fallback
+      const eventTitle = dbEvent?.title || body.eventTitle || id;
+      const eventSource = dbEvent?.source || body.eventSource || "web";
+      const eventUrl = dbEvent?.url || body.eventUrl || null;
+      const venueName = dbEvent?.venue_name || body.venueName || null;
+      const startTime = dbEvent?.starts_at || body.startTime || null;
+      const endTime = dbEvent?.ends_at || body.endTime || null;
+
+      // Increment rsvp_count on the event
+      if (dbEvent && sbCfg) {
+        await fetch(
+          `${sbCfg.supabaseUrl}/rest/v1/rpc/flowb_increment_rsvp`,
+          {
+            method: "POST",
+            headers: {
+              apikey: sbCfg.supabaseKey,
+              Authorization: `Bearer ${sbCfg.supabaseKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ event_row_id: dbEvent.id }),
+          },
+        ).catch(() => {
+          // Fallback: direct patch if RPC not available
+          fetch(
+            `${sbCfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${dbEvent.id}`,
+            {
+              method: "PATCH",
+              headers: {
+                apikey: sbCfg.supabaseKey,
+                Authorization: `Bearer ${sbCfg.supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({ rsvp_count: (dbEvent.rsvp_count || 0) + 1 }),
+            },
+          ).catch(() => {});
+        });
+      }
 
       const attendance = await flowPlugin.rsvpWithDetails(
         flowCfg,
@@ -1098,10 +1170,28 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       );
       const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
 
-      const leaderboard = (points || []).map((p) => ({
-        ...p,
-        display_name: nameMap.get(p.user_id) || undefined,
-      }));
+      // Fetch verified sponsorship totals per member for sponsor boost
+      const sponsorships = await sbFetch<any[]>(
+        cfg,
+        `flowb_sponsorships?sponsor_user_id=in.(${userIds.join(",")})&status=eq.verified&select=sponsor_user_id,amount_usdc`,
+      );
+      const sponsorMap = new Map<string, number>();
+      for (const s of sponsorships || []) {
+        const cur = sponsorMap.get(s.sponsor_user_id) || 0;
+        sponsorMap.set(s.sponsor_user_id, cur + (Number(s.amount_usdc) || 0));
+      }
+
+      const leaderboard = (points || []).map((p) => {
+        const totalSponsored = sponsorMap.get(p.user_id) || 0;
+        const sponsorBoost = Math.floor(totalSponsored * 10);
+        return {
+          ...p,
+          display_name: nameMap.get(p.user_id) || undefined,
+          sponsor_boost: sponsorBoost > 0 ? sponsorBoost : undefined,
+          effective_points: (p.total_points || 0) + sponsorBoost,
+        };
+      });
+      leaderboard.sort((a, b) => b.effective_points - a.effective_points);
 
       return { leaderboard };
     },
@@ -1916,7 +2006,7 @@ RULES:
   );
 
   // ------------------------------------------------------------------
-  // WHO'S GOING: Social proof for an event (optionally authed)
+  // WHO'S GOING: Social proof for an event (optionally authed, cross-platform)
   // ------------------------------------------------------------------
   app.get<{ Params: { id: string } }>(
     "/api/v1/events/:id/social",
@@ -1940,12 +2030,24 @@ RULES:
         maybeCount: maybe?.length || 0,
       };
 
-      // If authed, show which friends are going
+      // If authed, show which friends are going (cross-platform via identity resolution)
       const jwt = extractJwt(request);
       if (jwt && flowPlugin && flowCfg) {
-        const flowAttendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, jwt.sub, id);
-        result.flowGoing = flowAttendance.going.length;
-        result.flowMaybe = flowAttendance.maybe.length;
+        // Resolve canonical ID for cross-platform matching
+        const { resolveCanonicalId, getLinkedIds } = await import("../services/identity.js");
+        const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+        const allIds = await getLinkedIds(cfg, canonicalId);
+
+        // Query attendance across all linked IDs
+        let totalFlowGoing = 0;
+        let totalFlowMaybe = 0;
+        for (const uid of allIds) {
+          const att = await flowPlugin.getFlowAttendanceForEvent(flowCfg, uid, id);
+          totalFlowGoing += att.going.length;
+          totalFlowMaybe += att.maybe.length;
+        }
+        result.flowGoing = totalFlowGoing;
+        result.flowMaybe = totalFlowMaybe;
       }
 
       return result;
@@ -2079,16 +2181,19 @@ RULES:
         }
       }
 
-      // Fallback: try event discovery
-      if (!startTime) {
-        const allEvents = await core.discoverEventsRaw({ action: "events", city: "Denver" });
-        const event = allEvents.find((e) => e.id === id);
-        if (event) {
-          title = event.title || title;
-          startTime = event.startTime;
-          endTime = event.endTime ?? null;
-          venue = event.locationName || "";
-          url = event.url || "";
+      // Fallback: try flowb_events DB
+      if (!startTime && cfg) {
+        let eRows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${encodeURIComponent(id)}&limit=1`);
+        if (!eRows?.length) {
+          eRows = await sbFetch<any[]>(cfg, `flowb_events?source_event_id=eq.${encodeURIComponent(id)}&limit=1`);
+        }
+        if (eRows?.length) {
+          const ev = eRows[0];
+          title = ev.title || title;
+          startTime = ev.starts_at;
+          endTime = ev.ends_at ?? null;
+          venue = ev.venue_name || "";
+          url = ev.url || "";
         }
       }
 
@@ -2225,7 +2330,7 @@ RULES:
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
       await fetch(
-        `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?id=eq.${request.params.id}`,
+        `${cfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${request.params.id}`,
         {
           method: "PATCH",
           headers: {
@@ -2254,7 +2359,7 @@ RULES:
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
       await fetch(
-        `${cfg.supabaseUrl}/rest/v1/flowb_discovered_events?id=eq.${request.params.id}`,
+        `${cfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${request.params.id}`,
         {
           method: "PATCH",
           headers: {
@@ -2355,30 +2460,287 @@ RULES:
     { preHandler: authMiddleware },
     async (request, reply) => {
       if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { events: [], total: 0 };
 
       const { limit, offset, search } = request.query;
       const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+      const skip = parseInt(offset || "0", 10);
 
-      const events = await core.discoverEventsRaw({
-        action: "events",
-        city: "Denver",
-      });
-
-      let filtered = events;
+      let query = `flowb_events?order=starts_at.desc&limit=${maxResults}&offset=${skip}`;
       if (search) {
-        const q = search.toLowerCase();
-        filtered = events.filter(e =>
-          e.title?.toLowerCase().includes(q) ||
-          e.description?.toLowerCase().includes(q) ||
-          e.locationName?.toLowerCase().includes(q)
-        );
+        query += `&or=(title.ilike.*${encodeURIComponent(search)}*,description.ilike.*${encodeURIComponent(search)}*,venue_name.ilike.*${encodeURIComponent(search)}*)`;
       }
 
-      const start = parseInt(offset || "0", 10);
+      const rows = await sbFetch<any[]>(cfg, query);
       return {
-        events: filtered.slice(start, start + maxResults),
-        total: filtered.length,
+        events: (rows || []).map(dbEventToResult),
+        total: (rows || []).length,
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ZONES: List all active zones
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/zones",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { zones: [] };
+      const rows = await sbFetch<any[]>(cfg, "flowb_zones?active=eq.true&order=sort_order.asc");
+      return {
+        zones: (rows || []).map((z: any) => ({
+          id: z.id,
+          slug: z.slug,
+          name: z.name,
+          description: z.description,
+          color: z.color,
+          icon: z.icon,
+          zoneType: z.zone_type,
+          floor: z.floor,
+          sortOrder: z.sort_order,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ZONES: Single zone detail + counts
+  // ------------------------------------------------------------------
+  app.get<{ Params: { slug: string } }>(
+    "/api/v1/zones/:slug",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbFetch<any[]>(cfg, `flowb_zones?slug=eq.${encodeURIComponent(request.params.slug)}&limit=1`);
+      if (!rows?.length) return reply.status(404).send({ error: "Zone not found" });
+      const zone = rows[0];
+
+      const [eventRows, boothRows] = await Promise.all([
+        sbFetch<any[]>(cfg, `flowb_events?zone_id=eq.${zone.id}&hidden=eq.false&select=id&limit=1000`),
+        sbFetch<any[]>(cfg, `flowb_booths?zone_id=eq.${zone.id}&active=eq.true&select=id&limit=1000`),
+      ]);
+
+      return {
+        zone: {
+          id: zone.id,
+          slug: zone.slug,
+          name: zone.name,
+          description: zone.description,
+          color: zone.color,
+          icon: zone.icon,
+          zoneType: zone.zone_type,
+          floor: zone.floor,
+        },
+        eventCount: eventRows?.length || 0,
+        boothCount: boothRows?.length || 0,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // VENUES: List venues (optionally by zone)
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { zone?: string } }>(
+    "/api/v1/venues",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { venues: [] };
+      let query = "flowb_venues?active=eq.true&order=is_main_venue.desc,name.asc";
+      if (request.query.zone) {
+        query += `&zone_id=eq.${encodeURIComponent(request.query.zone)}`;
+      }
+      const rows = await sbFetch<any[]>(cfg, query);
+      return {
+        venues: (rows || []).map((v: any) => ({
+          id: v.id,
+          slug: v.slug,
+          name: v.name,
+          shortName: v.short_name,
+          address: v.address,
+          city: v.city,
+          latitude: v.latitude,
+          longitude: v.longitude,
+          venueType: v.venue_type,
+          capacity: v.capacity,
+          websiteUrl: v.website_url,
+          imageUrl: v.image_url,
+          zoneId: v.zone_id,
+          isMainVenue: v.is_main_venue,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CATEGORIES: All categories for filter UI
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/categories",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { categories: [] };
+      const rows = await sbFetch<any[]>(cfg, "flowb_event_categories?active=eq.true&order=sort_order.asc");
+      return {
+        categories: (rows || []).map((c: any) => ({
+          id: c.id,
+          slug: c.slug,
+          name: c.name,
+          description: c.description,
+          icon: c.icon,
+          color: c.color,
+          parentId: c.parent_id,
+          sortOrder: c.sort_order,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // BOOTHS: List booths (filterable by zone, tier, tags, search)
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { zone?: string; tier?: string; tags?: string; q?: string; limit?: string } }>(
+    "/api/v1/booths",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { booths: [] };
+
+      const { zone, tier, tags, q, limit } = request.query;
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+      let query = `flowb_booths?active=eq.true&order=sort_order.asc,name.asc&limit=${maxResults}`;
+      if (zone) query += `&zone_id=eq.${encodeURIComponent(zone)}`;
+      if (tier) query += `&sponsor_tier=eq.${encodeURIComponent(tier)}`;
+      if (q) query += `&or=(name.ilike.*${encodeURIComponent(q)}*,description.ilike.*${encodeURIComponent(q)}*)`;
+      if (tags) {
+        const tagList = tags.split(",").map(t => t.trim()).filter(Boolean);
+        for (const t of tagList) {
+          query += `&tags=cs.{${encodeURIComponent(t)}}`;
+        }
+      }
+
+      const rows = await sbFetch<any[]>(cfg, query);
+      return { booths: (rows || []).map(dbBoothToResult) };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // BOOTHS: Featured booths (sponsors)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/booths/featured",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { booths: [] };
+      const rows = await sbFetch<any[]>(cfg, "flowb_booths?active=eq.true&featured=eq.true&order=sort_order.asc");
+      return { booths: (rows || []).map(dbBoothToResult) };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // BOOTHS: Single booth detail
+  // ------------------------------------------------------------------
+  app.get<{ Params: { slug: string } }>(
+    "/api/v1/booths/:slug",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      const rows = await sbFetch<any[]>(cfg, `flowb_booths?slug=eq.${encodeURIComponent(request.params.slug)}&active=eq.true&limit=1`);
+      if (!rows?.length) return reply.status(404).send({ error: "Booth not found" });
+      return { booth: dbBoothToResult(rows[0]) };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Create booth
+  // ------------------------------------------------------------------
+  app.post<{ Body: Record<string, any> }>(
+    "/api/v1/admin/booths",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      const b: Record<string, any> = request.body || {};
+      const slug = b.slug || (b.name as string)?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const result = await sbPost(cfg, "flowb_booths", { ...b, slug });
+      return { ok: !!result, booth: result ? dbBoothToResult(result) : null };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Update booth
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/admin/booths/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      const updates: Record<string, any> = { ...(request.body || {}), updated_at: new Date().toISOString() };
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_booths?id=eq.${request.params.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify(updates),
+        },
+      ).catch(() => {});
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Assign categories to an event
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { categories: string[] } }>(
+    "/api/v1/admin/events/:id/categorize",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { categories: catSlugs } = request.body || {};
+      if (!catSlugs?.length) return reply.status(400).send({ error: "Missing categories array" });
+
+      const catRows = await sbFetch<any[]>(cfg, `flowb_event_categories?slug=in.(${catSlugs.join(",")})&select=id,slug`);
+      if (!catRows?.length) return reply.status(400).send({ error: "No valid categories" });
+
+      for (const cat of catRows) {
+        await sbPost(cfg, "flowb_event_category_map?on_conflict=event_id,category_id", {
+          event_id: request.params.id,
+          category_id: cat.id,
+          confidence: 1.0,
+          source: "admin",
+        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+      }
+
+      return { ok: true, assigned: catRows.map(c => c.slug) };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Create venue
+  // ------------------------------------------------------------------
+  app.post<{ Body: Record<string, any> }>(
+    "/api/v1/admin/venues",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      const v: Record<string, any> = request.body || {};
+      const slug = v.slug || (v.name as string)?.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const result = await sbPost(cfg, "flowb_venues", { ...v, slug });
+      return { ok: !!result, venue: result };
     },
   );
 
@@ -2405,6 +2767,393 @@ RULES:
       return { users: users || [] };
     },
   );
+
+  // ==================================================================
+  // SPONSOR: Helpers
+  // ==================================================================
+
+  const BASE_RPC_URL = process.env.BASE_RPC_URL || "https://mainnet.base.org";
+  // Base USDC contract address
+  const USDC_CONTRACT = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+  // ERC-20 Transfer event topic
+  const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+  async function verifyUSDCTransfer(
+    txHash: string,
+    expectedRecipient: string,
+    minAmount: number,
+  ): Promise<{ valid: boolean; amount?: number; error?: string }> {
+    try {
+      const res = await fetch(BASE_RPC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionReceipt",
+          params: [txHash],
+        }),
+      });
+      const data = await res.json() as any;
+      const receipt = data?.result;
+      if (!receipt || receipt.status !== "0x1") {
+        return { valid: false, error: "Transaction not found or failed" };
+      }
+
+      // Find USDC Transfer log to our recipient
+      const recipientPadded = "0x" + expectedRecipient.slice(2).toLowerCase().padStart(64, "0");
+      const transferLog = (receipt.logs || []).find((log: any) =>
+        log.address?.toLowerCase() === USDC_CONTRACT.toLowerCase() &&
+        log.topics?.[0] === TRANSFER_TOPIC &&
+        log.topics?.[2]?.toLowerCase() === recipientPadded
+      );
+
+      if (!transferLog) {
+        return { valid: false, error: "No USDC transfer to FlowB wallet found" };
+      }
+
+      // USDC has 6 decimals
+      const rawAmount = BigInt(transferLog.data);
+      const amount = Number(rawAmount) / 1e6;
+
+      if (amount < minAmount) {
+        return { valid: false, error: `Amount $${amount} below minimum $${minAmount}` };
+      }
+
+      return { valid: true, amount };
+    } catch (err: any) {
+      return { valid: false, error: `RPC error: ${err.message}` };
+    }
+  }
+
+  function haversineMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371000;
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  // ==================================================================
+  // SPONSOR: Get wallet address
+  // ==================================================================
+  app.get(
+    "/api/v1/sponsor/wallet",
+    async () => {
+      const address = process.env.CDP_ACCOUNT_ADDRESS || "";
+      return { address };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Create sponsorship (requires auth)
+  // ==================================================================
+  app.post<{ Body: { targetType: string; targetId: string; amountUsdc: number; txHash: string } }>(
+    "/api/v1/sponsor",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { targetType, targetId, amountUsdc, txHash } = request.body || {};
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      if (!targetType || !targetId || !txHash) {
+        return reply.status(400).send({ error: "Missing targetType, targetId, or txHash" });
+      }
+      if (!["event", "location"].includes(targetType)) {
+        return reply.status(400).send({ error: "targetType must be event or location" });
+      }
+      if (!amountUsdc || amountUsdc < 0.10) {
+        return reply.status(400).send({ error: "Minimum sponsorship is $0.10 USDC" });
+      }
+
+      // Insert pending sponsorship
+      const row = await sbPost(cfg, "flowb_sponsorships", {
+        sponsor_user_id: jwt.sub,
+        target_type: targetType,
+        target_id: targetId,
+        amount_usdc: amountUsdc,
+        tx_hash: txHash,
+        status: "pending",
+      });
+
+      if (!row) {
+        return reply.status(500).send({ error: "Failed to create sponsorship" });
+      }
+
+      // Award sponsor_created points
+      await core.awardPoints(jwt.sub, jwt.platform, "sponsor_created").catch(() => {});
+
+      // Kick off async verification
+      const sponsorId = row.id;
+      const walletAddress = process.env.CDP_ACCOUNT_ADDRESS || "";
+      (async () => {
+        try {
+          const result = await verifyUSDCTransfer(txHash, walletAddress, amountUsdc);
+          if (result.valid) {
+            // Mark verified
+            await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_sponsorships?id=eq.${sponsorId}`, {
+              method: "PATCH",
+              headers: {
+                apikey: cfg.supabaseKey,
+                Authorization: `Bearer ${cfg.supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({
+                status: "verified",
+                verified_at: new Date().toISOString(),
+              }),
+            });
+
+            // Update location sponsor_amount if target is location
+            if (targetType === "location") {
+              const locs = await sbFetch<any[]>(cfg, `flowb_locations?id=eq.${targetId}&select=sponsor_amount&limit=1`);
+              const currentAmount = Number(locs?.[0]?.sponsor_amount || 0);
+              await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_locations?id=eq.${targetId}`, {
+                method: "PATCH",
+                headers: {
+                  apikey: cfg.supabaseKey,
+                  Authorization: `Bearer ${cfg.supabaseKey}`,
+                  "Content-Type": "application/json",
+                  Prefer: "return=minimal",
+                },
+                body: JSON.stringify({
+                  sponsor_amount: currentAmount + (result.amount || amountUsdc),
+                }),
+              });
+            }
+
+            // Award sponsor_verified points
+            await core.awardPoints(jwt.sub, jwt.platform, "sponsor_verified").catch(() => {});
+          } else {
+            await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_sponsorships?id=eq.${sponsorId}`, {
+              method: "PATCH",
+              headers: {
+                apikey: cfg.supabaseKey,
+                Authorization: `Bearer ${cfg.supabaseKey}`,
+                "Content-Type": "application/json",
+                Prefer: "return=minimal",
+              },
+              body: JSON.stringify({ status: "rejected" }),
+            });
+          }
+        } catch (err) {
+          console.error("[sponsor] Verification error:", err);
+        }
+      })();
+
+      return { ok: true, sponsorship: row };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Manual verify (internal)
+  // ==================================================================
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/sponsor/:id/verify",
+    async (request, reply) => {
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbFetch<any[]>(cfg, `flowb_sponsorships?id=eq.${id}&select=*&limit=1`);
+      if (!rows?.length) return reply.status(404).send({ error: "Sponsorship not found" });
+
+      const sp = rows[0];
+      const walletAddress = process.env.CDP_ACCOUNT_ADDRESS || "";
+      const result = await verifyUSDCTransfer(sp.tx_hash, walletAddress, Number(sp.amount_usdc));
+
+      if (!result.valid) {
+        await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_sponsorships?id=eq.${id}`, {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ status: "rejected" }),
+        });
+        return { ok: false, error: result.error };
+      }
+
+      await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_sponsorships?id=eq.${id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ status: "verified", verified_at: new Date().toISOString() }),
+      });
+
+      if (sp.target_type === "location") {
+        const locs = await sbFetch<any[]>(cfg, `flowb_locations?id=eq.${sp.target_id}&select=sponsor_amount&limit=1`);
+        const currentAmount = Number(locs?.[0]?.sponsor_amount || 0);
+        await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_locations?id=eq.${sp.target_id}`, {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ sponsor_amount: currentAmount + (result.amount || Number(sp.amount_usdc)) }),
+        });
+      }
+
+      await core.awardPoints(sp.sponsor_user_id, "telegram", "sponsor_verified").catch(() => {});
+      return { ok: true, amount: result.amount };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Rankings
+  // ==================================================================
+  app.get<{ Querystring: { targetType?: string } }>(
+    "/api/v1/sponsor/rankings",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { rankings: [] };
+
+      let query = "flowb_sponsorships?status=eq.verified&select=target_id,amount_usdc,target_type";
+      if (request.query.targetType) {
+        query += `&target_type=eq.${request.query.targetType}`;
+      }
+
+      const rows = await sbFetch<any[]>(cfg, query);
+      if (!rows?.length) return { rankings: [] };
+
+      // Aggregate by target_id
+      const agg = new Map<string, { total_usdc: number; sponsor_count: number }>();
+      for (const r of rows) {
+        const existing = agg.get(r.target_id) || { total_usdc: 0, sponsor_count: 0 };
+        existing.total_usdc += Number(r.amount_usdc) || 0;
+        existing.sponsor_count += 1;
+        agg.set(r.target_id, existing);
+      }
+
+      const rankings = Array.from(agg.entries())
+        .map(([target_id, data]) => ({ target_id, ...data }))
+        .sort((a, b) => b.total_usdc - a.total_usdc);
+
+      return { rankings };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Ranked locations (Top Booths)
+  // ==================================================================
+  app.get(
+    "/api/v1/locations/ranked",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { locations: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        "flowb_locations?sponsor_amount=gt.0&active=eq.true&order=sponsor_amount.desc&select=id,code,name,sponsor_amount,sponsor_label,latitude,longitude&limit=20",
+      );
+
+      return { locations: rows || [] };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Proximity auto-checkin (requires auth)
+  // ==================================================================
+  app.post<{ Body: { latitude: number; longitude: number; crewId?: string } }>(
+    "/api/v1/flow/checkin/proximity",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { latitude, longitude, crewId } = request.body || {};
+      const cfg = getSupabaseConfig();
+
+      if (!cfg || latitude == null || longitude == null) {
+        return reply.status(400).send({ error: "Missing latitude/longitude" });
+      }
+
+      // Get all active locations with coordinates
+      const locations = await sbFetch<any[]>(
+        cfg,
+        "flowb_locations?active=eq.true&select=id,code,name,latitude,longitude,proximity_radius_m,sponsor_amount",
+      );
+
+      if (!locations?.length) return { matched: [] };
+
+      // Find locations within proximity radius
+      const matched: any[] = [];
+      for (const loc of locations) {
+        if (!loc.latitude || !loc.longitude) continue;
+        const dist = haversineMeters(latitude, longitude, Number(loc.latitude), Number(loc.longitude));
+        const radius = loc.proximity_radius_m || 100;
+        if (dist <= radius) {
+          matched.push({ ...loc, distance_m: Math.round(dist) });
+        }
+      }
+
+      if (matched.length === 0) return { matched: [] };
+
+      // Get user's crews for auto-checkin
+      let crewIds: string[] = [];
+      if (crewId) {
+        crewIds = [crewId];
+      } else {
+        const memberships = await sbFetch<any[]>(cfg, `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+        crewIds = (memberships || []).map((m: any) => m.group_id);
+      }
+
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      const checkins: any[] = [];
+
+      for (const loc of matched) {
+        for (const cid of crewIds) {
+          // Check for duplicate checkin (same user, crew, location in last 30 min)
+          const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+          const existing = await sbFetch<any[]>(
+            cfg,
+            `flowb_checkins?user_id=eq.${jwt.sub}&crew_id=eq.${cid}&location_id=eq.${loc.id}&created_at=gt.${thirtyMinAgo}&limit=1`,
+          );
+          if (existing?.length) continue;
+
+          const checkin = await sbPost(cfg, "flowb_checkins", {
+            user_id: jwt.sub,
+            platform: jwt.platform,
+            crew_id: cid,
+            venue_name: loc.name,
+            status: "here",
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            location_id: loc.id,
+            expires_at: expiresAt,
+          });
+          if (checkin) checkins.push(checkin);
+        }
+
+        // Award points: sponsored_checkin if sponsored, proximity_checkin otherwise
+        const isSponsored = Number(loc.sponsor_amount) > 0;
+        const action = isSponsored ? "sponsored_checkin" : "proximity_checkin";
+        await core.awardPoints(jwt.sub, jwt.platform, action).catch(() => {});
+      }
+
+      return {
+        matched: matched.map((l) => ({
+          id: l.id,
+          code: l.code,
+          name: l.name,
+          distance_m: l.distance_m,
+          sponsored: Number(l.sponsor_amount) > 0,
+        })),
+        checkins: checkins.length,
+      };
+    },
+  );
 }
 
 // ============================================================================
@@ -2424,6 +3173,72 @@ function escapeIcsText(text: string): string {
 /** Sanitize filename for Content-Disposition */
 function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9 _-]/g, "").trim().substring(0, 60) || "event";
+}
+
+/** Map a DB row from flowb_events to the EventResult-like shape the frontend expects */
+function dbEventToResult(row: any): any {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || undefined,
+    startTime: row.starts_at || "",
+    endTime: row.ends_at || undefined,
+    allDay: row.all_day || false,
+    locationName: row.venue_name || undefined,
+    locationCity: row.city || undefined,
+    venueId: row.venue_id || undefined,
+    latitude: row.latitude || undefined,
+    longitude: row.longitude || undefined,
+    price: row.price != null ? Number(row.price) : undefined,
+    isFree: row.is_free ?? undefined,
+    isVirtual: row.is_virtual || false,
+    virtualUrl: row.virtual_url || undefined,
+    ticketUrl: row.ticket_url || undefined,
+    source: row.source,
+    sourceEventId: row.source_event_id || undefined,
+    url: row.url || undefined,
+    imageUrl: row.image_url || undefined,
+    coverUrl: row.cover_url || undefined,
+    organizerName: row.organizer_name || undefined,
+    organizerUrl: row.organizer_url || undefined,
+    eventType: row.event_type || undefined,
+    tags: row.tags || [],
+    zoneSlug: undefined, // populated by join if needed
+    zoneName: undefined,
+    rsvpCount: row.rsvp_count || 0,
+    featured: row.featured || false,
+    qualityScore: row.quality_score != null ? Number(row.quality_score) : undefined,
+    categories: [],
+  };
+}
+
+/** Map a DB row from flowb_booths to a frontend-friendly shape */
+function dbBoothToResult(row: any): any {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    description: row.description,
+    boothNumber: row.booth_number,
+    zoneId: row.zone_id,
+    venueId: row.venue_id,
+    sponsorTier: row.sponsor_tier,
+    companyUrl: row.company_url,
+    logoUrl: row.logo_url,
+    bannerUrl: row.banner_url,
+    twitterUrl: row.twitter_url,
+    farcasterUrl: row.farcaster_url,
+    discordUrl: row.discord_url,
+    telegramUrl: row.telegram_url,
+    floor: row.floor,
+    latitude: row.latitude,
+    longitude: row.longitude,
+    hasSwag: row.has_swag || false,
+    hasDemo: row.has_demo || false,
+    hasHiring: row.has_hiring || false,
+    tags: row.tags || [],
+    featured: row.featured || false,
+  };
 }
 
 function getNotifyContext(): { supabase: SbConfig } | null {

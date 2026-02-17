@@ -175,7 +175,7 @@ export async function claimPendingPoints(
 }
 
 // ============================================================================
-// Chat (OpenClaw-FlowB on Fly)
+// Chat (xAI Grok via FlowB backend)
 // ============================================================================
 
 const FLOWB_CHAT_URL = "https://flowb.fly.dev";

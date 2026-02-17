@@ -1,9 +1,17 @@
+import { useState } from "react";
 import type { EventResult } from "../api/types";
 
 interface Props {
   event: EventResult;
   flowGoing?: number;
   onClick: () => void;
+}
+
+/** Compress images via wsrv.nl proxy - converts to webp ~30-80KB */
+function optimizeImageUrl(url: string | undefined, w = 400, h = 200): string | null {
+  if (!url) return null;
+  if (url.includes("evbuc.com")) return url;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&h=${h}&fit=cover&output=webp&q=75`;
 }
 
 function formatTime(iso: string): string {
@@ -29,11 +37,42 @@ function isHappeningNow(start: string, end?: string): boolean {
   return now >= s && now <= e;
 }
 
+const SOURCE_COLORS: Record<string, string> = {
+  luma: "#FF5C00",
+  eventbrite: "#F05537",
+  ra: "#D4FC79",
+  brave: "#FB542B",
+  tavily: "#7C3AED",
+  egator: "#3b82f6",
+};
+
 export function EventCard({ event, flowGoing, onClick }: Props) {
   const live = isHappeningNow(event.startTime, event.endTime);
+  const thumbUrl = optimizeImageUrl(event.imageUrl);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <div className="card card-clickable" onClick={onClick}>
+      {thumbUrl && !imgError ? (
+        <img
+          className="event-card-img"
+          src={thumbUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgError(true)}
+        />
+      ) : event.imageUrl && !imgError ? (
+        <img
+          className="event-card-img"
+          src={event.imageUrl}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setImgError(true)}
+        />
+      ) : null}
+
       <div className="card-header">
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="card-title">{event.title}</div>
@@ -66,7 +105,14 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
         {event.isFree && <span className="badge badge-green">Free</span>}
         {event.source && (
-          <span className="category-badge" style={{ textTransform: "capitalize" }}>
+          <span
+            className="category-badge"
+            style={{
+              textTransform: "capitalize",
+              borderColor: SOURCE_COLORS[event.source] || undefined,
+              color: SOURCE_COLORS[event.source] || undefined,
+            }}
+          >
             {event.source}
           </span>
         )}
@@ -81,6 +127,22 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
           <span>{flowGoing} from your crew going</span>
         </div>
       )}
+    </div>
+  );
+}
+
+export function EventCardSkeleton() {
+  return (
+    <div className="skeleton">
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div style={{ flex: 1 }}>
+          <div className="skeleton-line skeleton-line-title" />
+          <div className="skeleton-line skeleton-line-sub" />
+        </div>
+        <div className="skeleton-line" style={{ width: 50, marginLeft: 12 }} />
+      </div>
+      <div className="skeleton-line" style={{ width: "85%", marginTop: 10, height: 12 }} />
+      <div className="skeleton-line skeleton-line-short" style={{ marginTop: 10 }} />
     </div>
   );
 }

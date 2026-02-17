@@ -21,6 +21,11 @@
         <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link active">Events</a>
+        <a href="/leaderboard.html" class="header-nav-link">Leaderboard</a>
+        <a href="/flow.html" class="header-nav-link" id="navMyFlow">My Flow</a>
+      </nav>
       <div class="header-meta">
         <span class="event-badge">ETHDenver 2026</span>
         <span class="event-dates">Feb 13 -- 20</span>
@@ -84,12 +89,6 @@
       <h1>Discover ETHDenver<br><span class="gradient-text">Side Events</span></h1>
       <p class="hero-sub">100+ hackathons, parties, meetups, and summits -- all in one place.</p>
 
-      <!-- Dashboard CTA (shown when authenticated) -->
-      <a href="#dashboardSection" class="hero-dash-btn hidden" id="heroDashBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        My Dashboard
-      </a>
-
       <!-- Search -->
       <div class="search-bar">
         <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -97,131 +96,6 @@
         </svg>
         <input type="text" id="searchInput" placeholder="Search events, organizers, venues..." autocomplete="off">
         <button id="searchClear" class="search-clear hidden">&times;</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Hidden stat containers (preserved for JS references) -->
-  <div style="display:none">
-    <span id="statCrews"></span>
-    <span id="statPoints"></span>
-    <span id="statCheckins"></span>
-    <div id="heroCrews"><div id="heroCrewsList"></div></div>
-  </div>
-
-  <!-- My Flow Section (Authenticated) -->
-  <section class="myflow-section hidden" id="myFlowSection">
-    <div class="container">
-      <div class="myflow-header">
-        <h2 class="myflow-title">My Flow</h2>
-        <div class="myflow-deeplinks">
-          <a href="https://t.me/Flow_b_bot" target="_blank" class="myflow-deeplink">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-            Open in Telegram
-          </a>
-          <a href="https://warpcast.com/flowb" target="_blank" class="myflow-deeplink">
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
-            Open in Farcaster
-          </a>
-        </div>
-      </div>
-
-      <div class="myflow-grid">
-        <!-- Upcoming RSVPs -->
-        <div class="myflow-card">
-          <div class="myflow-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>Upcoming RSVPs</span>
-          </div>
-          <div class="myflow-card-body" id="myFlowSchedule">
-            <div class="myflow-empty">Loading...</div>
-          </div>
-        </div>
-
-        <!-- Crew Activity -->
-        <div class="myflow-card">
-          <div class="myflow-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            <span>My Crews</span>
-          </div>
-          <div class="myflow-card-body" id="myFlowCrews">
-            <div class="myflow-empty">Loading...</div>
-          </div>
-        </div>
-
-        <!-- Crew Leaderboard -->
-        <div class="myflow-card myflow-card-wide">
-          <div class="myflow-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>Crew Leaderboard</span>
-          </div>
-          <div class="myflow-card-body" id="myFlowLeaderboard">
-            <div class="myflow-empty">Loading...</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- User Dashboard (Authenticated) -->
-  <section class="dashboard-section hidden" id="dashboardSection">
-    <div class="container">
-      <div class="dash-header">
-        <h2 class="dash-title">Dashboard</h2>
-        <button class="dash-settings-btn" id="dashSettingsBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          Settings
-        </button>
-      </div>
-
-      <!-- Profile Card -->
-      <div id="dashProfile"></div>
-
-      <div class="dash-grid">
-        <!-- My Schedule -->
-        <div class="dash-card">
-          <div class="dash-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            <span>My Schedule</span>
-            <span class="dash-card-badge" id="dashScheduleCount"></span>
-          </div>
-          <div class="dash-card-body" id="dashSchedule">
-            <div class="dash-loading">Loading...</div>
-          </div>
-        </div>
-
-        <!-- My Crews -->
-        <div class="dash-card">
-          <div class="dash-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            <span>My Crews</span>
-          </div>
-          <div class="dash-card-body" id="dashCrews">
-            <div class="dash-loading">Loading...</div>
-          </div>
-        </div>
-
-        <!-- Points & Milestones -->
-        <div class="dash-card">
-          <div class="dash-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            <span>Points & Milestones</span>
-          </div>
-          <div class="dash-card-body" id="dashPointsHistory">
-            <div class="dash-loading">Loading...</div>
-          </div>
-        </div>
-
-        <!-- Friends / Connections -->
-        <div class="dash-card">
-          <div class="dash-card-header">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
-            <span>Connections</span>
-          </div>
-          <div class="dash-card-body" id="dashFriends">
-            <div class="dash-loading">Loading...</div>
-          </div>
-        </div>
       </div>
     </div>
   </section>

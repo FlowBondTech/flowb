@@ -12,6 +12,13 @@ const icons: Record<string, React.ReactNode> = {
       <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
     </svg>
   ),
+  feed: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 11a9 9 0 0 1 9 9" />
+      <path d="M4 4a16 16 0 0 1 16 16" />
+      <circle cx="5" cy="19" r="1" />
+    </svg>
+  ),
   schedule: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -42,8 +49,9 @@ const icons: Record<string, React.ReactNode> = {
 
 const tabs = [
   { name: "home" as const, label: "Now" },
-  { name: "schedule" as const, label: "Schedule" },
+  { name: "feed" as const, label: "Feed" },
   { name: "chat" as const, label: "Chat" },
+  { name: "schedule" as const, label: "Schedule" },
   { name: "crew" as const, label: "Crew" },
   { name: "points" as const, label: "Points" },
 ];

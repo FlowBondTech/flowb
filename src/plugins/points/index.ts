@@ -65,6 +65,11 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   event_checkin:         { points: 5,   dailyCap: 25 },
   onboarding_complete:   { points: 10,  dailyCap: 10, once: true },
   miniapp_open:          { points: 2,   dailyCap: 10 },
+  // Sponsorship actions
+  sponsor_created:       { points: 25,  dailyCap: 100 },
+  sponsor_verified:      { points: 50,  dailyCap: 200 },
+  proximity_checkin:     { points: 5,   dailyCap: 25 },
+  sponsored_checkin:     { points: 10,  dailyCap: 50 },
 };
 
 const MILESTONES = [
@@ -86,6 +91,7 @@ export interface CrewRanking {
   emoji: string;
   totalPoints: number;
   memberCount: number;
+  sponsorBoost?: number;
 }
 
 export interface CrewMission {
@@ -430,12 +436,25 @@ export class PointsPlugin implements FlowBPlugin {
         0,
       );
 
+      // Sum verified sponsorships for all crew members → sponsor boost
+      const sponsorships = await sbQuery<any[]>(cfg, "flowb_sponsorships", {
+        select: "amount_usdc",
+        sponsor_user_id: `in.(${userIds.join(",")})`,
+        status: "eq.verified",
+      });
+      const totalSponsored = (sponsorships || []).reduce(
+        (sum: number, s: any) => sum + (Number(s.amount_usdc) || 0),
+        0,
+      );
+      const sponsorBoost = Math.floor(totalSponsored * 10);
+
       rankings.push({
         id: crew.id,
         name: crew.name,
         emoji: crew.emoji || "",
-        totalPoints,
+        totalPoints: totalPoints + sponsorBoost,
         memberCount: members.length,
+        sponsorBoost,
       });
     }
 
