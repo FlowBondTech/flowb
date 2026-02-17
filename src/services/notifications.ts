@@ -401,6 +401,55 @@ export async function notifyCrewMemberRsvp(
 }
 
 // ============================================================================
+// Crew Locate Ping ("Where are you?")
+// ============================================================================
+
+/**
+ * Send "Where are you?" ping to crew members without active checkins.
+ * Includes inline keyboard to check in via the mini app.
+ */
+export async function notifyCrewLocate(
+  ctx: NotifyContext,
+  requesterId: string,
+  crewId: string,
+  crewName: string,
+  crewEmoji: string,
+  memberIds: string[],
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  const requesterName = requesterId.replace(/^(telegram_|farcaster_)/, "@");
+  const message = `${crewEmoji} ${requesterName} is looking for you! Where are you? Check in to let your ${crewName} crew know.`;
+
+  let sent = 0;
+  for (const memberId of memberIds) {
+    // Check per-type toggle
+    const prefs = await getUserNotifyPrefs(ctx.supabase, memberId);
+    if (!prefs.notify_crew_checkins) continue;
+
+    if (await hasReachedDailyLimit(ctx.supabase, memberId)) continue;
+    if (await isUserQuietHours(ctx.supabase, memberId)) continue;
+
+    // Dedup
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      memberId,
+      "locate_ping",
+      crewId,
+      requesterId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, memberId, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, memberId, "locate_ping", crewId, requesterId);
+      sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 

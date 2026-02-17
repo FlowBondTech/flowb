@@ -236,6 +236,35 @@ body {
   margin: 20px 0 10px;
 }
 
+/* ===== Top Tabs (Segmented Control) ===== */
+.top-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  margin-bottom: 16px;
+  gap: 2px;
+}
+.top-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+}
+.top-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
 /* ===== Bottom Nav ===== */
 .bottom-nav {
   position: fixed;
@@ -659,6 +688,131 @@ body {
   font-size: 13px;
 }
 
+/* ===== Feed Items ===== */
+.feed-item {
+  display: flex;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.feed-content { flex: 1; min-width: 0; }
+.feed-text { font-size: 13px; line-height: 1.4; }
+.feed-text strong { font-weight: 600; color: var(--text); }
+.feed-time { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.feed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--orange);
+  margin-left: 4px;
+}
+
+/* ===== Vibe Score Badge ===== */
+.vibe-score-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--orange);
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+
+/* ===== Chat Section ===== */
+.chat-section {
+  margin-top: 16px;
+}
+.chat-messages {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chat-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.chat-bubble-other {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.chat-bubble-own {
+  background: var(--accent);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.chat-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-light);
+  margin-bottom: 2px;
+}
+.chat-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.chat-input-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chat-input-bar .input {
+  flex: 1;
+}
+.chat-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.chat-send-btn:hover { background: var(--accent-hover); }
+.chat-send-btn:disabled { opacity: 0.4; }
+
 /* ===== Onboarding ===== */
 .onboarding {
   min-height: 100vh;
@@ -771,3 +925,27 @@ body {
   font-size: 14px;
   justify-content: center;
 }
+
+/* ===== Crew Map ===== */
+.crew-map {
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.crew-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: var(--bg-card);
+}
+.crew-map .leaflet-popup-content-wrapper {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.crew-map .leaflet-popup-tip { background: var(--bg-card); }
+.crew-map .leaflet-popup-content { font-size: 13px; font-family: var(--font); }

@@ -24,6 +24,8 @@ import {
   notifyFriendRsvp,
   notifyCrewMemberRsvp,
   notifyCrewJoin,
+  notifyCrewCheckin,
+  notifyCrewLocate,
 } from "../services/notifications.js";
 import {
   parseWebhookEvent,
@@ -930,7 +932,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         return { ok: false, error: "Not a member of this crew" };
       }
 
-      // Insert checkin
+      // Resolve location if locationCode provided
+      let locationId: string | null = null;
+      const locationCode = (request.body as any)?.locationCode;
+      if (locationCode) {
+        const loc = await sbFetch<any[]>(cfg, `flowb_locations?code=eq.${locationCode}&active=eq.true&limit=1`);
+        if (loc?.length) {
+          locationId = loc[0].id;
+        }
+      }
+
+      // Insert checkin with expiry
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
       const checkin = await sbPost(cfg, "flowb_checkins", {
         user_id: jwt.sub,
         platform: jwt.platform,
@@ -941,10 +954,22 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         message: message || null,
         latitude: latitude || null,
         longitude: longitude || null,
+        location_id: locationId,
+        expires_at: expiresAt,
       });
 
       // Award points
       await core.awardPoints(jwt.sub, jwt.platform, "event_checkin").catch(() => {});
+
+      // Notify crew members (background)
+      const checkinNotifyCtx = getNotifyContext();
+      if (checkinNotifyCtx) {
+        // Look up crew name/emoji
+        const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${id}&select=name,emoji&limit=1`);
+        const crewName = crewRow?.[0]?.name || "crew";
+        const crewEmoji = crewRow?.[0]?.emoji || "";
+        notifyCrewCheckin(checkinNotifyCtx, jwt.sub, id, crewName, crewEmoji, venueName).catch(() => {});
+      }
 
       return { ok: true, checkin };
     },
@@ -1296,6 +1321,330 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           ...c,
           display_name: nameMap.get(c.user_id) || undefined,
         })),
+      };
+    },
+  );
+
+
+  // ------------------------------------------------------------------
+  // LOCATIONS: Resolve QR code (no auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/locations/:code",
+    async (request, reply) => {
+      const { code } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbFetch<any[]>(cfg, `flowb_locations?code=eq.${code}&active=eq.true&limit=1`);
+      if (!rows?.length) {
+        return reply.status(404).send({ error: "Location not found" });
+      }
+
+      const loc = rows[0];
+      return {
+        code: loc.code,
+        name: loc.name,
+        description: loc.description || undefined,
+        latitude: loc.latitude || undefined,
+        longitude: loc.longitude || undefined,
+        floor: loc.floor || undefined,
+        zone: loc.zone || undefined,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: QR check-in (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{
+    Body: { locationCode: string; crewId?: string };
+  }>(
+    "/api/v1/flow/checkin/qr",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { locationCode, crewId } = request.body || {};
+      const cfg = getSupabaseConfig();
+
+      if (!cfg || !locationCode) {
+        return reply.status(400).send({ error: "Missing locationCode" });
+      }
+
+      // Resolve the location
+      const locRows = await sbFetch<any[]>(cfg, `flowb_locations?code=eq.${locationCode}&active=eq.true&limit=1`);
+      if (!locRows?.length) {
+        return reply.status(404).send({ error: "Location not found" });
+      }
+      const loc = locRows[0];
+
+      // Determine which crews to check into
+      let crewIds: string[] = [];
+      if (crewId) {
+        crewIds = [crewId];
+      } else {
+        // Auto-check into all user's crews
+        const memberships = await sbFetch<any[]>(cfg, `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+        crewIds = (memberships || []).map((m: any) => m.group_id);
+      }
+
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+      const checkins: any[] = [];
+
+      for (const cid of crewIds) {
+        const checkin = await sbPost(cfg, "flowb_checkins", {
+          user_id: jwt.sub,
+          platform: jwt.platform,
+          crew_id: cid,
+          venue_name: loc.name,
+          status: "here",
+          latitude: loc.latitude || null,
+          longitude: loc.longitude || null,
+          location_id: loc.id,
+          expires_at: expiresAt,
+        });
+        if (checkin) checkins.push(checkin);
+
+        // Notify crew members (background)
+        const notCtx = getNotifyContext();
+        if (notCtx) {
+          const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${cid}&select=name,emoji&limit=1`);
+          const cName = crewRow?.[0]?.name || "crew";
+          const cEmoji = crewRow?.[0]?.emoji || "";
+          notifyCrewCheckin(notCtx, jwt.sub, cid, cName, cEmoji, loc.name).catch(() => {});
+        }
+      }
+
+      // Award QR checkin points (10 pts, higher than manual)
+      await core.awardPoints(jwt.sub, jwt.platform, "qr_checkin").catch(() => {});
+
+      return {
+        ok: true,
+        location: { code: loc.code, name: loc.name },
+        checkins: checkins.length,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Crew member locations (requires auth, member only)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/locations",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { locations: [] };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) {
+        return { locations: [] };
+      }
+
+      // Get active checkins (not expired)
+      const now = new Date().toISOString();
+      const checkins = await sbFetch<any[]>(
+        cfg,
+        `flowb_checkins?crew_id=eq.${id}&expires_at=gt.${now}&select=user_id,venue_name,status,message,latitude,longitude,created_at&order=created_at.desc`,
+      );
+
+      // Resolve display names
+      const userIds = [...new Set((checkins || []).map((c: any) => c.user_id))];
+      const sessions = userIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        : [];
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+
+      return {
+        locations: (checkins || []).map((c: any) => ({
+          user_id: c.user_id,
+          display_name: nameMap.get(c.user_id) || undefined,
+          venue_name: c.venue_name,
+          status: c.status,
+          message: c.message || undefined,
+          latitude: c.latitude || undefined,
+          longitude: c.longitude || undefined,
+          created_at: c.created_at,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: "Where are you?" ping (requires auth, any member)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/locate",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { pinged: 0 };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) {
+        return { pinged: 0 };
+      }
+
+      // Get all members
+      const members = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&select=user_id`,
+      );
+
+      // Get members with active checkins
+      const now = new Date().toISOString();
+      const activeCheckins = await sbFetch<any[]>(
+        cfg,
+        `flowb_checkins?crew_id=eq.${id}&expires_at=gt.${now}&select=user_id`,
+      );
+      const activeSet = new Set((activeCheckins || []).map((c: any) => c.user_id));
+
+      // Find members WITHOUT active checkin (excluding self)
+      const missingMembers = (members || [])
+        .filter((m: any) => m.user_id !== jwt.sub && !activeSet.has(m.user_id))
+        .map((m: any) => m.user_id);
+
+      // Send locate ping notifications
+      const notCtx = getNotifyContext();
+      if (notCtx && missingMembers.length) {
+        const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${id}&select=name,emoji&limit=1`);
+        const cName = crewRow?.[0]?.name || "crew";
+        const cEmoji = crewRow?.[0]?.emoji || "";
+        notifyCrewLocate(notCtx, jwt.sub, id, cName, cEmoji, missingMembers).catch(() => {});
+      }
+
+      return { pinged: missingMembers.length };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Crew messages - get (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { crewId: string }; Querystring: { limit?: string; before?: string } }>(
+    "/api/v1/flow/crews/:crewId/messages",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { crewId } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { messages: [] };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${crewId}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) {
+        return reply.status(403).send({ error: "Not a member of this crew" });
+      }
+
+      const limit = Math.min(parseInt(request.query.limit || "50", 10), 100);
+
+      // UUID-based cursor pagination: look up the created_at of the cursor message
+      let cursorFilter = "";
+      if (request.query.before) {
+        const cursorRow = await sbFetch<any[]>(
+          cfg,
+          `flowb_crew_messages?id=eq.${request.query.before}&select=created_at&limit=1`,
+        );
+        if (cursorRow?.length) {
+          cursorFilter = `&created_at=lt.${cursorRow[0].created_at}`;
+        }
+      }
+
+      const query = `flowb_crew_messages?crew_id=eq.${crewId}&select=id,crew_id,user_id,display_name,message,reply_to,created_at&order=created_at.desc&limit=${limit}${cursorFilter}`;
+      const messages = await sbFetch<any[]>(cfg, query);
+
+      // Resolve display names from sessions (supplement stored display_name)
+      const userIds = [...new Set((messages || []).map((m: any) => m.user_id))];
+      const sessions = userIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        : [];
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+
+      return {
+        messages: (messages || []).map((m: any) => ({
+          ...m,
+          display_name: m.display_name || nameMap.get(m.user_id) || undefined,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Crew messages - send (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { crewId: string }; Body: { message: string; replyTo?: string } }>(
+    "/api/v1/flow/crews/:crewId/messages",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { crewId } = request.params;
+      const { message: text, replyTo } = request.body || {};
+      const cfg = getSupabaseConfig();
+
+      if (!cfg) {
+        return reply.status(500).send({ error: "Not configured" });
+      }
+
+      // Validate message length (1-500 chars)
+      const trimmed = (text || "").trim();
+      if (!trimmed || trimmed.length < 1) {
+        return reply.status(400).send({ error: "Message is required" });
+      }
+      if (trimmed.length > 500) {
+        return reply.status(400).send({ error: "Message must be 500 characters or fewer" });
+      }
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${crewId}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) {
+        return reply.status(403).send({ error: "Not a member of this crew" });
+      }
+
+      // Resolve sender display name from profile
+      const sessions = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=danz_username&limit=1`,
+      );
+      const displayName = sessions?.[0]?.danz_username || undefined;
+
+      // Insert message
+      const msg = await sbPost(cfg, "flowb_crew_messages", {
+        crew_id: crewId,
+        user_id: jwt.sub,
+        display_name: displayName || null,
+        message: trimmed,
+        reply_to: replyTo || null,
+      });
+
+      if (!msg) {
+        return reply.status(500).send({ error: "Failed to send message" });
+      }
+
+      // Award points
+      await core.awardPoints(jwt.sub, jwt.platform, "crew_message").catch(() => {});
+
+      return {
+        message: {
+          ...msg,
+          display_name: msg.display_name || displayName || undefined,
+        },
       };
     },
   );

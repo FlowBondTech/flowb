@@ -27,6 +27,13 @@
   status = 302
   force = true
 
+# QR check-in links -> Telegram mini app deep link
+[[redirects]]
+  from = "/c/:code"
+  to = "https://t.me/Flow_b_bot?startapp=checkin_:code"
+  status = 302
+  force = true
+
 # Smart event links -> proxy to Fastify server for UA-based detection
 [[redirects]]
   from = "/e/:id"

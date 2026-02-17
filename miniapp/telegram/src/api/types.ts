@@ -128,6 +128,27 @@ export interface CrewMessage {
   created_at: string;
 }
 
+export interface QRLocation {
+  code: string;
+  name: string;
+  description?: string;
+  latitude?: number;
+  longitude?: number;
+  floor?: string;
+  zone?: string;
+}
+
+export interface CrewLocation {
+  user_id: string;
+  display_name?: string;
+  venue_name: string;
+  status: string;
+  message?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at: string;
+}
+
 export interface FeedItem {
   type: 'checkin' | 'rsvp' | 'join' | 'message';
   user_id: string;

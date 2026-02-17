@@ -12,7 +12,7 @@ export type Screen =
   | { name: "home" }
   | { name: "event"; id: string }
   | { name: "schedule" }
-  | { name: "crew"; id?: string }
+  | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" };
 
 export default function App() {
@@ -33,6 +33,8 @@ export default function App() {
 
     if (startParam.startsWith("event_")) {
       setScreen({ name: "event", id: startParam.slice(6) });
+    } else if (startParam.startsWith("checkin_")) {
+      setScreen({ name: "crew", checkinCode: startParam.slice(8) });
     } else if (startParam.startsWith("crew_")) {
       setScreen({ name: "crew", id: startParam.slice(5) });
     } else if (startParam === "schedule") {
@@ -112,7 +114,7 @@ export default function App() {
       {screen.name === "home" && <Home onNavigate={navigate} />}
       {screen.name === "event" && <EventDetail eventId={screen.id} onNavigate={navigate} />}
       {screen.name === "schedule" && <Schedule onNavigate={navigate} />}
-      {screen.name === "crew" && <Crew crewId={screen.id} onNavigate={navigate} />}
+      {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
 
       <BottomNav current={screen.name} onNavigate={navigate} />

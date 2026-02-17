@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import type { Screen } from "../App";
-import type { CrewInfo, CrewMember, CrewCheckin, LeaderboardEntry, DiscoveredCrew, CrewActivity, CrewMessage } from "../api/types";
+import type { CrewInfo, CrewMember, CrewCheckin, LeaderboardEntry, DiscoveredCrew, CrewActivity, CrewMessage, CrewLocation, QRLocation } from "../api/types";
 import {
   getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard,
   leaveCrew, discoverCrews, removeMember, updateMemberRole, updateCrew, getCrewActivity,
   getCrewMessages, sendCrewMessage,
+  resolveLocation, qrCheckin, getCrewLocations, pingCrewLocate,
 } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
+import { useLocation } from "../hooks/useLocation";
+import { CrewMap } from "../components/CrewMap";
 
 interface Props {
   crewId?: string;
+  checkinCode?: string;
   onNavigate: (s: Screen) => void;
 }
 
@@ -292,9 +296,10 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
   );
 }
 
-export function Crew({ crewId }: Props) {
+export function Crew({ crewId, checkinCode }: Props) {
   const { user } = useAuth();
   const currentUserId = user?.id || "";
+  const gps = useLocation();
 
   const [crews, setCrews] = useState<CrewInfo[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<CrewInfo | null>(null);
@@ -321,8 +326,40 @@ export function Crew({ crewId }: Props) {
   const [editEmoji, setEditEmoji] = useState("");
   const [editDescription, setEditDescription] = useState("");
 
+  // Location & QR checkin state
+  const [crewLocations, setCrewLocations] = useState<CrewLocation[]>([]);
+  const [showMapView, setShowMapView] = useState(false);
+  const [qrLocation, setQrLocation] = useState<QRLocation | null>(null);
+  const [showQrCheckin, setShowQrCheckin] = useState(false);
+  const [checkinStatus, setCheckinStatus] = useState<"here" | "heading" | "leaving">("here");
+  const [checkinMessage, setCheckinMessage] = useState("");
+  const [gpsEnabled, setGpsEnabled] = useState(false);
+  const [locatePinging, setLocatePinging] = useState(false);
+
   const tg = (window as any).Telegram?.WebApp;
   const isAdmin = selectedCrew && ["admin", "creator"].includes(selectedCrew.role);
+
+  // Handle QR deep link: resolve location and show auto-checkin
+  useEffect(() => {
+    if (!checkinCode) return;
+    resolveLocation(checkinCode)
+      .then((loc) => {
+        setQrLocation(loc);
+        setShowQrCheckin(true);
+      })
+      .catch(console.error);
+  }, [checkinCode]);
+
+  // Poll crew locations every 60s
+  useEffect(() => {
+    if (!selectedCrew) return;
+    const fetchLocations = () => {
+      getCrewLocations(selectedCrew.id).then(setCrewLocations).catch(() => {});
+    };
+    fetchLocations();
+    const interval = setInterval(fetchLocations, 60000);
+    return () => clearInterval(interval);
+  }, [selectedCrew]);
 
   // Load crews
   useEffect(() => {
@@ -402,14 +439,53 @@ export function Crew({ crewId }: Props) {
   const handleCheckin = async () => {
     if (!checkinVenue.trim() || !selectedCrew) return;
     try {
-      await crewCheckin(selectedCrew.id, checkinVenue.trim());
+      await crewCheckin(selectedCrew.id, checkinVenue.trim(), {
+        status: checkinStatus,
+        message: checkinMessage.trim() || undefined,
+        ...(gpsEnabled && gps.location ? { latitude: gps.location.latitude, longitude: gps.location.longitude } : {}),
+      } as any);
       setShowCheckin(false);
       setCheckinVenue("");
+      setCheckinStatus("here");
+      setCheckinMessage("");
       const { checkins: c } = await getCrewMembers(selectedCrew.id);
       setCheckins(c);
+      getCrewLocations(selectedCrew.id).then(setCrewLocations).catch(() => {});
       tg?.HapticFeedback?.notificationOccurred("success");
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleQrCheckin = async () => {
+    if (!qrLocation) return;
+    try {
+      await qrCheckin(qrLocation.code, selectedCrew?.id);
+      setShowQrCheckin(false);
+      setQrLocation(null);
+      // Refresh checkins
+      if (selectedCrew) {
+        const { checkins: c } = await getCrewMembers(selectedCrew.id);
+        setCheckins(c);
+        getCrewLocations(selectedCrew.id).then(setCrewLocations).catch(() => {});
+      }
+      tg?.HapticFeedback?.notificationOccurred("success");
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleFindCrew = async () => {
+    if (!selectedCrew || locatePinging) return;
+    setLocatePinging(true);
+    try {
+      const result = await pingCrewLocate(selectedCrew.id);
+      tg?.HapticFeedback?.notificationOccurred("success");
+      tg?.showAlert?.(`Pinged ${result.pinged} crew member${result.pinged !== 1 ? "s" : ""}!`);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLocatePinging(false);
     }
   };
 
@@ -602,6 +678,95 @@ export function Crew({ crewId }: Props) {
             </div>
           </div>
 
+          {/* Crew Locations - Where is everyone? */}
+          {crewLocations.length > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="section-title" style={{ margin: "20px 0 10px" }}>Where is everyone?</div>
+                <button
+                  className="btn btn-sm btn-secondary"
+                  onClick={() => setShowMapView(!showMapView)}
+                  style={{ fontSize: 11 }}
+                >
+                  {showMapView ? "List" : "Map"}
+                </button>
+              </div>
+
+              {showMapView ? (
+                <CrewMap locations={crewLocations} />
+              ) : (
+                <div className="card">
+                  {/* Group by venue */}
+                  {Object.entries(
+                    crewLocations.reduce((acc, loc) => {
+                      const key = loc.venue_name;
+                      if (!acc[key]) acc[key] = [];
+                      acc[key].push(loc);
+                      return acc;
+                    }, {} as Record<string, CrewLocation[]>)
+                  ).map(([venue, locs]) => (
+                    <div key={venue} style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--text)" }}>
+                        {venue}
+                      </div>
+                      {locs.map((loc, i) => (
+                        <div key={i} className="member-row" style={{ paddingLeft: 8 }}>
+                          <span className={`status-dot status-${loc.status}`} />
+                          <div style={{ flex: 1 }}>
+                            <div className="member-name">
+                              {loc.display_name || loc.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+                            </div>
+                            <div className="member-status">
+                              {loc.status === "here" ? "Here" : loc.status === "heading" ? "Heading" : "Leaving"}
+                              {loc.message && ` - "${loc.message}"`}
+                              {" \u00b7 "}{timeAgo(loc.created_at)}
+                            </div>
+                          </div>
+                          {loc.latitude && loc.longitude && (
+                            <a
+                              href={`https://maps.google.com/?q=${loc.latitude},${loc.longitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="btn btn-sm btn-secondary"
+                              style={{ fontSize: 10, padding: "4px 8px" }}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Nav
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Find my crew button */}
+              {members.length > crewLocations.length + 1 && (
+                <button
+                  className="btn btn-secondary btn-block"
+                  onClick={handleFindCrew}
+                  disabled={locatePinging}
+                  style={{ marginBottom: 12 }}
+                >
+                  {locatePinging ? "Pinging..." : "Find My Crew"}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Find my crew when nobody checked in */}
+          {crewLocations.length === 0 && members.length > 1 && (
+            <button
+              className="btn btn-secondary btn-block"
+              onClick={handleFindCrew}
+              disabled={locatePinging}
+              style={{ marginTop: 12 }}
+            >
+              {locatePinging ? "Pinging..." : "Where is My Crew?"}
+            </button>
+          )}
+
           {/* Active checkins */}
           {checkins.length > 0 && (
             <>
@@ -703,11 +868,65 @@ export function Crew({ crewId }: Props) {
                   style={{ marginBottom: 8 }}
                   autoFocus
                 />
+                {/* Status picker */}
+                <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                  {(["here", "heading", "leaving"] as const).map((s) => (
+                    <button
+                      key={s}
+                      className={`btn btn-sm ${checkinStatus === s ? "btn-primary" : "btn-secondary"}`}
+                      onClick={() => setCheckinStatus(s)}
+                      style={{ flex: 1, textTransform: "capitalize" }}
+                    >
+                      <span className={`status-dot status-${s}`} style={{ marginRight: 4 }} />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+                {/* Optional message */}
+                <input
+                  className="input"
+                  type="text"
+                  placeholder="Message (optional)"
+                  value={checkinMessage}
+                  onChange={(e) => setCheckinMessage(e.target.value)}
+                  style={{ marginBottom: 8 }}
+                />
+                {/* GPS toggle */}
+                <div
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "8px 12px", marginBottom: 8,
+                    background: "var(--bg-surface)", borderRadius: "var(--radius-sm)",
+                    border: "1px solid var(--border)", cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    if (!gpsEnabled) {
+                      gps.requestLocation();
+                    }
+                    setGpsEnabled(!gpsEnabled);
+                  }}
+                >
+                  <div style={{
+                    width: 36, height: 20, borderRadius: 10,
+                    background: gpsEnabled ? "var(--green)" : "var(--border)",
+                    position: "relative", transition: "background 0.2s",
+                  }}>
+                    <div style={{
+                      width: 16, height: 16, borderRadius: "50%",
+                      background: "#fff", position: "absolute", top: 2,
+                      left: gpsEnabled ? 18 : 2, transition: "left 0.2s",
+                    }} />
+                  </div>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                    Share GPS location
+                  </span>
+                  {gps.loading && <div className="spinner" style={{ width: 14, height: 14 }} />}
+                </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button className="btn btn-primary btn-block" onClick={handleCheckin}>
                     Check In
                   </button>
-                  <button className="btn btn-secondary" onClick={() => setShowCheckin(false)}>
+                  <button className="btn btn-secondary" onClick={() => { setShowCheckin(false); setCheckinStatus("here"); setCheckinMessage(""); }}>
                     Cancel
                   </button>
                 </div>
@@ -745,6 +964,7 @@ export function Crew({ crewId }: Props) {
       {renderEditCrewModal()}
       {renderMemberActionModal()}
       {renderActivityModal()}
+      {renderQrCheckinModal()}
     </div>
   );
 
@@ -957,6 +1177,36 @@ export function Crew({ crewId }: Props) {
               </button>
               <button className="btn btn-secondary btn-block" onClick={() => setShowMemberAction(null)}>
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  function renderQrCheckinModal() {
+    if (!showQrCheckin || !qrLocation) return null;
+    return (
+      <div className="modal-overlay" onClick={() => setShowQrCheckin(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="card" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>{"\uD83D\uDCCD"}</div>
+            <h2 style={{ fontSize: 18, marginBottom: 4 }}>{qrLocation.name}</h2>
+            {qrLocation.description && (
+              <p style={{ fontSize: 13, color: "var(--hint)", marginBottom: 4 }}>{qrLocation.description}</p>
+            )}
+            {(qrLocation.floor || qrLocation.zone) && (
+              <p style={{ fontSize: 12, color: "var(--text-dim)", marginBottom: 12 }}>
+                {[qrLocation.floor, qrLocation.zone].filter(Boolean).join(" \u00b7 ")}
+              </p>
+            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <button className="btn btn-primary btn-block" onClick={handleQrCheckin}>
+                Check In Here (+10 pts)
+              </button>
+              <button className="btn btn-secondary btn-block" onClick={() => setShowQrCheckin(false)}>
+                Not Now
               </button>
             </div>
           </div>

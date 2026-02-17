@@ -15,6 +15,8 @@ import type {
   LeaderboardEntry,
   EventSocial,
   CrewMessage,
+  QRLocation,
+  CrewLocation,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -257,4 +259,27 @@ export async function updateCrew(crewId: string, data: { name?: string; emoji?: 
 export async function getCrewActivity(crewId: string): Promise<any[]> {
   const data = await get<{ activity: any[] }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/activity`);
   return data.activity;
+}
+
+// ============================================================================
+// Flow - QR Locations & Crew GPS
+// ============================================================================
+
+export async function resolveLocation(code: string): Promise<QRLocation> {
+  return get(`/api/v1/locations/${encodeURIComponent(code)}`);
+}
+
+export async function qrCheckin(locationCode: string, crewId?: string): Promise<any> {
+  return post("/api/v1/flow/checkin/qr", { locationCode, crewId });
+}
+
+export async function getCrewLocations(crewId: string): Promise<CrewLocation[]> {
+  const data = await get<{ locations: CrewLocation[] }>(
+    `/api/v1/flow/crews/${encodeURIComponent(crewId)}/locations`,
+  );
+  return data.locations;
+}
+
+export async function pingCrewLocate(crewId: string): Promise<{ pinged: number }> {
+  return post(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/locate`);
 }

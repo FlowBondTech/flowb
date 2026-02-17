@@ -605,6 +605,73 @@ export function startTelegramBot(
       return;
     }
 
+    // --- QR checkin fallback: checkin_{code} ---
+    if (args?.startsWith("checkin_")) {
+      const locCode = args.slice(8);
+      try {
+        // Look up location
+        const sbUrl = process.env.DANZ_SUPABASE_URL;
+        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          const locRes = await fetch(`${sbUrl}/rest/v1/flowb_locations?code=eq.${locCode}&active=eq.true&limit=1`, {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+          });
+          const locs = locRes.ok ? await locRes.json() as any[] : [];
+          if (locs.length) {
+            const loc = locs[0];
+            // Get user's crews and auto-checkin to all
+            const memRes = await fetch(`${sbUrl}/rest/v1/flowb_group_members?user_id=eq.telegram_${tgId}&select=group_id`, {
+              headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+            });
+            const memberships = memRes.ok ? await memRes.json() as any[] : [];
+            const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+            for (const m of memberships) {
+              await fetch(`${sbUrl}/rest/v1/flowb_checkins`, {
+                method: "POST",
+                headers: {
+                  apikey: sbKey, Authorization: `Bearer ${sbKey}`,
+                  "Content-Type": "application/json", Prefer: "return=minimal",
+                },
+                body: JSON.stringify({
+                  user_id: `telegram_${tgId}`,
+                  platform: "telegram",
+                  crew_id: m.group_id,
+                  venue_name: loc.name,
+                  status: "here",
+                  latitude: loc.latitude || null,
+                  longitude: loc.longitude || null,
+                  location_id: loc.id,
+                  expires_at: expiresAt,
+                }),
+              }).catch(() => {});
+            }
+
+            core.awardPoints(userId(tgId), "telegram", "qr_checkin").catch(() => {});
+
+            const crewCount = memberships.length;
+            await ctx.reply(
+              `<b>\uD83D\uDCCD Checked in at ${escapeHtml(loc.name)}!</b>\n\n` +
+              (loc.floor ? `Floor: ${escapeHtml(loc.floor)}\n` : "") +
+              (loc.zone ? `Zone: ${escapeHtml(loc.zone)}\n` : "") +
+              `\nYour ${crewCount} crew${crewCount !== 1 ? "s" : ""} can now see where you are.\n<i>+10 points</i>`,
+              {
+                parse_mode: "HTML",
+                reply_markup: new InlineKeyboard()
+                  .webApp("Open FlowB", miniAppUrl || `https://t.me/${botUsername}/app`),
+              },
+            );
+            return;
+          }
+        }
+        await ctx.reply("Location not found. The QR code may have expired.");
+      } catch (err) {
+        console.error("[start] checkin_ error:", err);
+        await ctx.reply("Check-in failed. Please try again.");
+      }
+      return;
+    }
+
     if (args?.startsWith("ref_")) {
       const refCode = args.slice(4);
       core.awardPoints(userId(tgId), "telegram", "referral_signup", { referral_code: refCode }).catch(() => {});
