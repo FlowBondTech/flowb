@@ -63,6 +63,11 @@ FlowB exposes two backend servers:
 | `PATCH` | `/api/v1/flow/crews/:id/members/:userId` | Yes | Update member role (promote/demote, requires auth) |
 | `PATCH` | `/api/v1/flow/crews/:id` | Yes | Edit crew details (requires auth, admin only) |
 | `GET` | `/api/v1/flow/crews/:id/activity` | Yes | Crew activity feed - historical checkins (requires auth) |
+| `POST` | `unknown` | Yes | QR check-in (requires auth) |
+| `GET` | `/api/v1/flow/crews/:id/locations` | Yes | Crew member locations (requires auth, member only) |
+| `POST` | `/api/v1/flow/crews/:id/locate` | Yes | "Where are you?" ping (requires auth, any member) |
+| `GET` | `/api/v1/flow/crews/:crewId/messages` | Yes | Crew messages - get (requires auth) |
+| `POST` | `/api/v1/flow/crews/:crewId/messages` | Yes | Crew messages - send (requires auth) |
 
 ## POINTS
 
@@ -72,6 +77,12 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/crews/:id/leaderboard` | Yes | Crew leaderboard (requires auth) |
 | `GET` | `/api/v1/flow/leaderboard` | No | Global crew leaderboard (no auth required) |
 | `GET` | `/api/v1/flow/crews/:id/missions` | Yes | Crew missions (requires auth) |
+
+## LOCATIONS
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/locations/:code` | No | Resolve QR code (no auth) |
 
 ## FARCASTER
 
@@ -187,4 +198,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 21:13:19 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 21:54:15 UTC*

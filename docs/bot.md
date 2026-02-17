@@ -41,6 +41,7 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 | `f_` | `flowb.me/f/{code}` | Personal flow invite — connects two users as friends |
 | `g_` | `flowb.me/g/{code}` | Crew join — joins a crew via its public code |
 | `gi_` | `flowb.me/gi/{code}` | Tracked crew invite — joins via personal invite link with attribution |
+| `checkin_` | `flowb.me/checkin/{code}` | — |
 | `ref_` | `flowb.me/ref/{code}` | Referral — tracks referral signup |
 
 ## Callback Actions
@@ -121,4 +122,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-02-17 21:13:19 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-02-17 21:54:15 UTC*

@@ -13,7 +13,7 @@ Backend services that power FlowB's cross-platform features.
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postEventCard`, `postDailyDigest`, `postEveningHighlight`, `announceNewPublicCrew`, `postLeaderboardHighlight`, `postPromo`, `postNewEventAlert`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
-| notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp` |
+| notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate` |
 | privy | `src/services/privy.ts` | — |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
@@ -63,7 +63,7 @@ FlowB Notification Service
 
 **Source**: `src/services/notifications.ts`
 
-**Exports**: `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`
+**Exports**: `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`
 
 ### privy
 
@@ -81,4 +81,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-17 21:13:19 UTC*
+*Auto-generated on 2026-02-17 21:54:15 UTC*
