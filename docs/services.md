@@ -13,6 +13,7 @@ Backend services that power FlowB's cross-platform features.
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postEventCard`, `postDailyDigest`, `postEveningHighlight`, `announceNewPublicCrew`, `postLeaderboardHighlight`, `postPromo`, `postNewEventAlert`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
+| identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
 | notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate` |
 | privy | `src/services/privy.ts` | — |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
@@ -57,6 +58,14 @@ Farcaster Responder Service
 
 **Exports**: `handleMention()`
 
+### identity
+
+Cross-Platform Identity Resolution Service
+
+**Source**: `src/services/identity.ts`
+
+**Exports**: `resolveCanonicalId()`, `getLinkedIds()`
+
 ### notifications
 
 FlowB Notification Service
@@ -81,4 +90,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-17 21:55:52 UTC*
+*Auto-generated on 2026-02-17 22:03:26 UTC*

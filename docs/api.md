@@ -33,8 +33,8 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/events` | No | Discovery (enhanced for mini app) |
-| `GET` | `/api/v1/events/:id` | No | Single event detail |
+| `GET` | `/api/v1/events` | No | DB-first discovery |
+| `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
 
@@ -140,7 +140,49 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/admin/notifications/test` | No | Send test notification |
 | `GET` | `/api/v1/admin/notifications/stats` | No | Notification delivery stats |
 | `GET` | `/api/v1/admin/events` | No | All events (for curation - includes featured/hidden) |
+| `POST` | `/api/v1/admin/booths` | No | Create booth |
+| `PATCH` | `/api/v1/admin/booths/:id` | Yes | Update booth |
+| `POST` | `/api/v1/admin/events/:id/categorize` | No | Assign categories to an event |
+| `POST` | `/api/v1/admin/venues` | No | Create venue |
 | `GET` | `/api/v1/admin/users` | No | All users (for user manager) |
+
+## ZONES
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/zones` | No | List all active zones |
+| `GET` | `/api/v1/zones/:slug` | No | Single zone detail + counts |
+
+## VENUES
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/venues` | No | List venues (optionally by zone) |
+
+## CATEGORIES
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/categories` | No | All categories for filter UI |
+
+## BOOTHS
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/booths` | No | List booths (filterable by zone, tier, tags, search) |
+| `GET` | `/api/v1/booths/featured` | No | Featured booths (sponsors) |
+| `GET` | `/api/v1/booths/:slug` | No | Single booth detail |
+
+## SPONSOR
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/sponsor/wallet` | No | Get wallet address |
+| `POST` | `/api/v1/sponsor` | Yes | Create sponsorship (requires auth) |
+| `POST` | `/api/v1/sponsor/:id/verify` | No | Manual verify (internal) |
+| `GET` | `/api/v1/sponsor/rankings` | No | Rankings |
+| `GET` | `/api/v1/locations/ranked` | No | Ranked locations (Top Booths) |
+| `POST` | `/api/v1/flow/checkin/proximity` | Yes | Proximity auto-checkin (requires auth) |
 
 ## NOTE
 
@@ -204,4 +246,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 21:55:52 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 22:03:26 UTC*
