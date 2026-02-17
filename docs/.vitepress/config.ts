@@ -15,8 +15,9 @@ export default defineConfig({
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Features', link: '/features' },
-      { text: 'Commands', link: '/commands' },
-      { text: 'Points', link: '/points' },
+      { text: 'Bot', link: '/commands' },
+      { text: 'API', link: '/api' },
+      { text: 'Plugins', link: '/plugins/' },
     ],
 
     sidebar: [
@@ -25,12 +26,37 @@ export default defineConfig({
         items: [
           { text: 'Overview', link: '/' },
           { text: 'Features', link: '/features' },
+          { text: 'Architecture', link: '/architecture' },
         ],
       },
       {
         text: 'Telegram Bot',
         items: [
           { text: 'Commands', link: '/commands' },
+          { text: 'Bot Reference', link: '/bot' },
+        ],
+      },
+      {
+        text: 'API',
+        items: [
+          { text: 'API Reference', link: '/api' },
+        ],
+      },
+      {
+        text: 'Plugins',
+        items: [
+          { text: 'Overview', link: '/plugins/' },
+          { text: 'Flow', link: '/plugins/flow' },
+          { text: 'Points', link: '/plugins/points' },
+          { text: 'eGator Events', link: '/plugins/egator' },
+          { text: 'Neynar (Farcaster)', link: '/plugins/neynar' },
+          { text: 'DANZ', link: '/plugins/danz' },
+        ],
+      },
+      {
+        text: 'Backend',
+        items: [
+          { text: 'Services', link: '/services' },
         ],
       },
       {
@@ -42,11 +68,11 @@ export default defineConfig({
     ],
 
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/flowbond' },
+      { icon: 'github', link: 'https://github.com/FlowBondTech/flowb' },
     ],
 
     footer: {
-      message: 'Built for EthDenver',
+      message: 'Built for EthDenver | Docs auto-generated hourly',
       copyright: 'FlowB by FlowBond',
     },
 

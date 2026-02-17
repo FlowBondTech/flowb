@@ -2,6 +2,38 @@
   command = "npm install && npm run build && cd ../docs && npm install && npx vitepress build && cp -r .vitepress/dist ../web/dist/docs"
   publish = "dist"
 
+# Short link redirects -> Telegram bot deep links
+[[redirects]]
+  from = "/f/:code"
+  to = "https://t.me/Flow_b_bot?start=f_:code"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/g/:code"
+  to = "https://t.me/Flow_b_bot?start=g_:code"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/gi/:code"
+  to = "https://t.me/Flow_b_bot?start=gi_:code"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/ref/:code"
+  to = "https://t.me/Flow_b_bot?start=ref_:code"
+  status = 302
+  force = true
+
+# Smart event links -> proxy to Fastify server for UA-based detection
+[[redirects]]
+  from = "/e/:id"
+  to = "https://flowb.fly.dev/e/:id"
+  status = 200
+  force = true
+
 [[headers]]
   for = "/*"
   [headers.values]
