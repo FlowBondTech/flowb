@@ -29,6 +29,8 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/going` | RSVP to an event or view your schedule |
 | `/whosgoing` | See which friends and crew are going to events |
 | `/schedule` | View your upcoming RSVP'd events |
+| `/wheremycrew` | — |
+| `/onbooths` | — |
 | `/help` | Show available commands and help text |
 | `/register` | Verify your account or check status |
 
@@ -122,4 +124,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-02-17 21:54:15 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-02-17 21:54:49 UTC*
