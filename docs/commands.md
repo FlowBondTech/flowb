@@ -5,7 +5,7 @@ description: Complete reference for all commands available in the FlowB Telegram
 
 # FlowB Telegram Bot Commands
 
-Complete reference for all commands available in the FlowB Telegram bot (@flow_b_bot).
+Complete reference for all commands available in the FlowB Telegram bot (@Flow_b_bot).
 
 ---
 
@@ -267,7 +267,7 @@ The bot understands natural language in DMs and when mentioned in groups. You do
 - "fc trending" -- Trending casts
 - "fc profile dwr" -- Look up a Farcaster profile
 
-**Group behavior**: In groups, the bot only responds when mentioned by name (@flow_b_bot) or when "flowb" appears in the message. Points are still tracked for all group messages and replies.
+**Group behavior**: In groups, the bot only responds when mentioned by name (@Flow_b_bot) or when "flowb" appears in the message. Points are still tracked for all group messages and replies.
 
 ---
 

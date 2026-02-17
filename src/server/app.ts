@@ -313,7 +313,7 @@ export function buildApp(core: FlowBCore) {
     "/auth/telegram",
     async (request, reply) => {
       const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
-      const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+      const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
       if (!botToken) {
         return reply.status(500).send({ error: "Bot token not configured" });
       }
@@ -350,7 +350,7 @@ export function buildApp(core: FlowBCore) {
 
   // Serves the connect page with the Telegram Login Widget embedded
   app.get("/connect", async (request, reply) => {
-    const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+    const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
     const callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
     return reply.type("text/html").send(connectPage(botUsername, callbackUrl));
   });
@@ -370,7 +370,7 @@ export function buildApp(core: FlowBCore) {
       const { id } = request.params;
       const ua = (request.headers["user-agent"] || "").toLowerCase();
 
-      const botUser = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+      const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
       const webUrl = process.env.FLOWB_WEB_URL || "https://flowb.me";
       const fcMiniAppUrl = process.env.FLOWB_FC_MINIAPP_URL || "https://flowb-fc.netlify.app";
 
@@ -411,7 +411,7 @@ export function buildApp(core: FlowBCore) {
     app.get<{ Params: { code: string } }>(
       `/${path}/:code`,
       async (request, reply) => {
-        const botUser = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+        const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
         const code = request.params.code;
         const telegramUrl = `https://t.me/${botUser}?start=${prefix}_${code}`;
         return reply.redirect(telegramUrl);

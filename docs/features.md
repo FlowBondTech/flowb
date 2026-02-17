@@ -17,7 +17,7 @@ FlowB helps you navigate EthDenver by connecting you with friends and crews, sur
 
 There are three ways to use FlowB:
 
-**Telegram Bot** -- Start a conversation with [@flow_b_bot](https://t.me/flow_b_bot) on Telegram. Send `/start` to get going.
+**Telegram Bot** -- Start a conversation with [@Flow_b_bot](https://t.me/Flow_b_bot) on Telegram. Send `/start` to get going.
 
 **Farcaster Mini App** -- Open FlowB from your Warpcast client. Sign in with your Farcaster account to browse events, RSVP, and coordinate with crews.
 

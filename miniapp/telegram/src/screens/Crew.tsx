@@ -36,7 +36,7 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="leaderboard-name">
-          {entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+          {entry.display_name || entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
         </div>
         {entry.current_streak > 0 && (
           <div className="leaderboard-meta">
@@ -191,7 +191,7 @@ export function Crew({ crewId }: Props) {
   const shareCrewLink = () => {
     if (!selectedCrew) return;
     const tg = (window as any).Telegram?.WebApp;
-    const botUsername = "Flow_B_bot";
+    const botUsername = "Flow_b_bot";
     const link = `https://t.me/${botUsername}?startapp=crew_${selectedCrew.join_code}`;
     tg?.openTelegramLink?.(
       `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(
@@ -283,7 +283,7 @@ export function Crew({ crewId }: Props) {
                 <div key={i} className="member-row">
                   <span className={`status-dot status-${c.status}`} />
                   <div style={{ flex: 1 }}>
-                    <div className="member-name">{c.user_id.replace(/^(telegram_|farcaster_)/, "@")}</div>
+                    <div className="member-name">{c.display_name || c.user_id.replace(/^(telegram_|farcaster_)/, "@")}</div>
                     <div className="member-status">
                       {c.status === "here" ? "At" : c.status === "heading" ? "Heading to" : "Leaving"}{" "}
                       {c.venue_name}
@@ -323,10 +323,10 @@ export function Crew({ crewId }: Props) {
                 const checkin = checkins.find((c) => c.user_id === m.user_id);
                 return (
                   <div key={m.user_id} className="member-row">
-                    <div className="avatar">{m.user_id.charAt(m.user_id.length - 1).toUpperCase()}</div>
+                    <div className="avatar">{(m.display_name || m.user_id).charAt(0).toUpperCase()}</div>
                     <div style={{ flex: 1 }}>
                       <div className="member-name">
-                        {m.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+                        {m.display_name || m.user_id.replace(/^(telegram_|farcaster_)/, "@")}
                         {m.role === "admin" && <span style={{ color: "var(--accent)", fontSize: 11 }}> admin</span>}
                       </div>
                       {checkin && (

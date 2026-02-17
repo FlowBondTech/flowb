@@ -23,6 +23,8 @@ import { BraveSearchAdapter } from "./sources/brave.js";
 import { TavilyAdapter, extractEventFromUrl } from "./sources/tavily.js";
 import { ResidentAdvisorAdapter } from "./sources/ra.js";
 import { GooglePlacesAdapter } from "./sources/google-places.js";
+import { LemonadeAdapter } from "./sources/lemonade.js";
+import { SheeetsAdapter } from "./sources/sheeets.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
   id = "egator";
@@ -49,6 +51,8 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     if (sources?.tavily?.apiKey) this.adapters.push(new TavilyAdapter(sources.tavily.apiKey));
     if (sources?.ra) this.adapters.push(new ResidentAdvisorAdapter());
     if (sources?.googlePlaces?.apiKey) this.adapters.push(new GooglePlacesAdapter(sources.googlePlaces.apiKey));
+    if (sources?.lemonade?.spaceId) this.adapters.push(new LemonadeAdapter(sources.lemonade.spaceId));
+    if (sources?.sheeets?.spreadsheetId) this.adapters.push(new SheeetsAdapter(sources.sheeets.spreadsheetId, sources.sheeets.gid));
 
     const names = this.adapters.map((a) => a.name);
     if (names.length) {

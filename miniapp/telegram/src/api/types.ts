@@ -66,6 +66,7 @@ export interface CrewMember {
   user_id: string;
   role: string;
   joined_at: string;
+  display_name?: string;
 }
 
 export interface CrewCheckin {
@@ -74,6 +75,7 @@ export interface CrewCheckin {
   status: string;
   message?: string;
   created_at: string;
+  display_name?: string;
 }
 
 export interface PointsInfo {
@@ -87,6 +89,7 @@ export interface LeaderboardEntry {
   user_id: string;
   total_points: number;
   current_streak: number;
+  display_name?: string;
 }
 
 export interface EventSocial {

@@ -1,6 +1,6 @@
 -- FlowB Flow System: Connections, Groups, Attendance
 -- Personal flow (1:1 friends) + Group flow (crews/squads)
--- Deep links: t.me/Flow_B_bot?start=f_{code} (personal) | ?start=g_{code} (group)
+-- Deep links: t.me/Flow_b_bot?start=f_{code} (personal) | ?start=g_{code} (group)
 
 -- ============================================================
 -- 1. Personal Connections (mutual 1:1 flow)

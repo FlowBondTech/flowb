@@ -5,7 +5,7 @@
  * Uses FlowBCore directly for event discovery and action routing.
  */
 
-import { Bot, InlineKeyboard } from "grammy";
+import { Bot, InlineKeyboard, Keyboard } from "grammy";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
@@ -71,8 +71,14 @@ import {
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
-const MOD_BOT_USERNAME = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+const MOD_BOT_USERNAME = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
 const MOD_MINIAPP_URL = process.env.FLOWB_MINIAPP_URL || "";
+const FLOWB_CHAT_URL = "https://flowb.fly.dev";
+
+const PERSISTENT_KEYBOARD = new Keyboard()
+  .text("Events").text("Flow").row()
+  .text("Points").text("Menu")
+  .resized().persistent();
 
 interface TgSession {
   events: EventResult[];        // All fetched events (unfiltered)
@@ -93,6 +99,7 @@ interface TgSession {
   checkinEventId?: string;
   awaitingProofPhoto?: boolean;
   danceMoveForProof?: string;
+  chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
 const sessions = new Map<number, TgSession>();
@@ -244,6 +251,7 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     privyId: partial.privyId ?? existing?.privyId,
     danzUsername: partial.danzUsername ?? existing?.danzUsername,
     verified: partial.verified ?? existing?.verified ?? false,
+    chatHistory: partial.chatHistory ?? existing?.chatHistory ?? [],
   };
   sessions.set(userId, session);
 
@@ -270,7 +278,7 @@ function userId(tgId: number): string {
 function buildOnboardingWhenKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("Already here!", "onb:when:already_here")
-    .text("Feb 23-Mar 2", "onb:when:full_week")
+    .text("Feb 15-27", "onb:when:full_week")
     .row()
     .text("Just a few days", "onb:when:few_days")
     .text("Virtually", "onb:when:virtual");
@@ -413,7 +421,7 @@ export function startTelegramBot(
   privy?: PrivyClient,
 ): void {
   const bot = new Bot(token);
-  const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+  const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
   const miniAppUrl = process.env.FLOWB_MINIAPP_URL || "";
   // Prefer FlowB's own /connect page (serves Telegram Login Widget).
   // Falls back to external DANZ connect URL or localhost for dev.
@@ -619,7 +627,7 @@ export function startTelegramBot(
 
       await ctx.reply(
         formatVerifiedGreetingHtml(session.danzUsername, totalPoints, streakResult.streak),
-        { parse_mode: "HTML", reply_markup: buildMenuKeyboard(miniAppUrl || undefined) },
+        { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
     } else {
       // Not verified yet - start onboarding for preferences collection
@@ -639,7 +647,7 @@ export function startTelegramBot(
   bot.command("menu", async (ctx) => {
     await ctx.reply(formatMenuHtml(), {
       parse_mode: "HTML",
-      reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
+      reply_markup: buildCompactMenuKeyboard(miniAppUrl || undefined),
     });
   });
 
@@ -2352,24 +2360,23 @@ export function startTelegramBot(
       }
     }
 
-    // Direct menu/help triggers
-    if (lower === "menu" || lower === "/menu" || lower === "help" || lower === "hi" || lower === "hello") {
+    // "menu" keyword -> show compact inline menu
+    if (lower === "menu" || lower === "/menu") {
       await ctx.reply(formatMenuHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
+        reply_markup: buildCompactMenuKeyboard(miniAppUrl || undefined),
       });
       return;
     }
 
-    // Strip "flowb" / "hey flowb" / "@flow_b_bot" prefix for intent matching
-    const cleaned = lower
-      .replace(new RegExp(`@${botUsername.toLowerCase()}`, "g"), "")
-      .replace(/^(?:hey\s+)?flowb[,!.\s]*/i, "")
-      .trim();
+    // "events" keyword -> launch card browser directly
+    if (lower === "events") {
+      await sendEventCards(ctx, core, {});
+      return;
+    }
 
-    // ---- Flow intents ----
-    // "flow", "my flow", "friends", "crew", "crews", "who's going", "whos going", "schedule"
-    if (/^(?:my\s+)?(?:flow|friends|crew|crews|squad)$/.test(cleaned)) {
+    // "flow" keyword -> flow menu
+    if (lower === "flow") {
       await ctx.reply(formatFlowMenuHtml(), {
         parse_mode: "HTML",
         reply_markup: buildFlowMenuKeyboard(botUsername),
@@ -2377,123 +2384,32 @@ export function startTelegramBot(
       return;
     }
 
-    if (/^(?:who(?:'?s| is)\s+going|whos\s+going)/.test(cleaned)) {
-      const result = await core.execute("whos-going", {
-        action: "whos-going",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(result), {
-        parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(botUsername),
-      });
+    // "points" keyword -> show points
+    if (lower === "points") {
+      await sendCoreAction(ctx, core, "my-points");
       return;
     }
 
-    if (/^(?:my\s+)?schedule$/.test(cleaned)) {
-      const result = await core.execute("my-schedule", {
-        action: "my-schedule",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(result), {
-        parse_mode: "HTML",
-        reply_markup: buildFlowMenuKeyboard(botUsername),
-      });
-      return;
-    }
+    // ---- LLM Chat (everything else) ----
+    await ctx.replyWithChatAction("typing");
 
-    if (/^(?:share|invite|share\s+(?:my\s+)?(?:flow|link))$/.test(cleaned)) {
-      const flowPlugin = core.getFlowPlugin();
-      const flowCfg = core.getFlowConfig();
-      if (flowPlugin && flowCfg) {
-        const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
-        await ctx.reply(formatFlowShareHtml(link), {
-          parse_mode: "HTML",
-          reply_markup: buildFlowShareKeyboard(link),
-        });
-      }
-      return;
-    }
+    const session = getSession(tgId) || setSession(tgId, {});
+    const response = await sendFlowBChat(session.chatHistory, text, userId(tgId));
 
-    // ---- Farcaster intents ----
-    // "farcaster", "fc", "trending casts", "fc trending"
-    if (/^(?:farcaster|fc|casts?)$/.test(cleaned)) {
-      await ctx.reply(formatFarcasterMenuHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildFarcasterMenuKeyboard(),
-      });
-      return;
-    }
+    // Update chat history (keep last 20 messages = 10 turns)
+    const updatedHistory = [
+      ...session.chatHistory,
+      { role: "user" as const, content: text },
+      { role: "assistant" as const, content: response },
+    ].slice(-20);
 
-    // "fc trending", "trending casts", "trending on farcaster"
-    if (/^(?:(?:fc\s+)?trending(?:\s+casts?)?|trending\s+on\s+farcaster)$/.test(cleaned)) {
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("farcaster-feed", {
-        action: "farcaster-feed",
-        user_id: userId(tgId),
-        platform: "telegram",
-      });
-      await ctx.reply(markdownToHtml(result), {
-        parse_mode: "HTML",
-        reply_markup: buildFarcasterMenuKeyboard(),
-      });
-      core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
-      return;
-    }
+    setSession(tgId, { chatHistory: updatedHistory });
 
-    // "fc profile @vitalik", "farcaster profile dwr", "who is @jessepollak on fc"
-    const fcProfileMatch = cleaned.match(
-      /^(?:fc\s+(?:profile\s+)?|farcaster\s+(?:profile\s+)?|who\s+is\s+)@?(\w[\w.]+)(?:\s+on\s+(?:fc|farcaster))?$/,
-    );
-    if (fcProfileMatch) {
-      await ctx.replyWithChatAction("typing");
-      const result = await core.execute("farcaster-profile", {
-        action: "farcaster-profile",
-        user_id: userId(tgId),
-        platform: "telegram",
-        farcaster_username: fcProfileMatch[1],
-      });
-      await ctx.reply(markdownToHtml(result), {
-        parse_mode: "HTML",
-        reply_markup: buildFarcasterMenuKeyboard(),
-      });
-      core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
-      return;
-    }
-
-    // Try to parse as an event search intent
-    const intent = parseSearchIntent(text);
-
-    if (intent.isEventQuery) {
-      // Conversational card-based response
-      await sendEventCards(ctx, core, {
-        city: intent.city,
-        style: intent.style,
-        query: intent.query,
-      });
-      core.awardPoints(userId(tgId), "telegram", "search").catch(() => {});
-      return;
-    }
-
-    // Not recognized - show menu with all options
-    await ctx.reply(
-      [
-        `I can help with events, crews &amp; more! Try:`,
-        ``,
-        `\u2022 <i>"events in Denver"</i> \u2014 find events`,
-        `\u2022 <i>"who's going"</i> \u2014 see your crew's plans`,
-        `\u2022 <i>"my schedule"</i> \u2014 your RSVP'd events`,
-        `\u2022 <i>"my crew"</i> \u2014 crew coordination`,
-        `\u2022 <i>"fc profile dwr"</i> \u2014 look up a profile`,
-        ``,
-        `Or tap a button below:`,
-      ].join("\n"),
-      {
-        parse_mode: "HTML",
-        reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
-      },
-    );
+    await ctx.reply(markdownToHtml(response), {
+      parse_mode: "HTML",
+      reply_markup: PERSISTENT_KEYBOARD,
+    });
+    core.awardPoints(userId(tgId), "telegram", "chat").catch(() => {});
   });
 
   // ========================================================================
@@ -2535,6 +2451,74 @@ export function startTelegramBot(
 // ==========================================================================
 // Helpers
 // ==========================================================================
+
+/** Call FlowB chat completions API (same backend as Farcaster miniapp) */
+async function sendFlowBChat(
+  chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  userMessage: string,
+  userIdStr: string,
+): Promise<string> {
+  const systemMessage = {
+    role: "system",
+    content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events. You help users discover events, hackathons, parties, meetups, and summits happening during ETHDenver week (Feb 15-27, 2026) in Denver.
+
+You have access to a tool called "flowb" that can search events, browse categories, check tonight's events, find free events, and more. Use it when users ask about events.
+
+CRITICAL RULES:
+1. ALWAYS reply in a SINGLE message. If the user asks multiple questions, address ALL of them in ONE cohesive response with clear sections.
+2. Be conversational, helpful, and concise. Use emojis sparingly.
+3. Format event listings clearly with titles, dates, venues, and prices.
+4. The user's platform is "telegram" (bot).
+5. Keep responses under 2000 characters when possible — Telegram messages have length limits.
+6. Use markdown formatting (bold, italic, links) — it will be converted to HTML.`,
+  };
+
+  const messages = [
+    systemMessage,
+    ...chatHistory.slice(-20), // Keep last 20 messages (10 turns)
+    { role: "user", content: userMessage },
+  ];
+
+  try {
+    const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "flowb",
+        messages,
+        stream: false,
+        user: userIdStr,
+      }),
+    });
+
+    if (!res.ok) {
+      console.error(`[flowb-telegram] Chat API returned ${res.status}`);
+      return "Sorry, I'm having trouble connecting right now. Try again in a moment!";
+    }
+
+    const data = await res.json();
+    return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
+  } catch (err: any) {
+    console.error("[flowb-telegram] Chat API error:", err.message);
+    return "Sorry, something went wrong. Try again!";
+  }
+}
+
+/** Compact inline menu for secondary actions */
+function buildCompactMenuKeyboard(miniAppUrl?: string): InlineKeyboard {
+  const kb = new InlineKeyboard()
+    .text("\u2705 Check In", "mn:checkin")
+    .text("\ud83c\udfc6 Rewards", "mn:rewards")
+    .row()
+    .text("\ud83d\udc65 Crew", "fl:crew")
+    .text("\ud83d\udcf2 Share", "fl:share")
+    .row()
+    .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
+  if (miniAppUrl) {
+    kb.row().webApp("\u26a1 Open FlowB App", miniAppUrl);
+  }
+  return kb;
+}
 
 /** Send a single event card with navigation (swipe-style browser) */
 async function sendEventCards(

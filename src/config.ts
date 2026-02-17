@@ -44,6 +44,8 @@ function buildEgatorConfig(): EGatorPluginConfig | undefined {
   if (process.env.TAVILY_API_KEY) { sources.tavily = { apiKey: process.env.TAVILY_API_KEY }; hasSource = true; }
   if (process.env.EGATOR_RA === "true") { sources.ra = {}; hasSource = true; }
   if (process.env.GOOGLE_PLACES_API_KEY) { sources.googlePlaces = { apiKey: process.env.GOOGLE_PLACES_API_KEY }; hasSource = true; }
+  if (process.env.LEMONADE_SPACE_ID) { sources.lemonade = { spaceId: process.env.LEMONADE_SPACE_ID }; hasSource = true; }
+  if (process.env.SHEEETS_SPREADSHEET_ID) { sources.sheeets = { spreadsheetId: process.env.SHEEETS_SPREADSHEET_ID, gid: process.env.SHEEETS_GID }; hasSource = true; }
 
   const apiBaseUrl = process.env.EGATOR_API_URL;
 

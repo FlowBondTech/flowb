@@ -110,6 +110,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Ensure user exists in points table
       await core.awardPoints(userId, "telegram", "miniapp_open").catch(() => {});
 
+      // Store display name in sessions for leaderboard/member resolution
+      const displayName = user.first_name || user.username || `User ${user.id}`;
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        await sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+          user_id: userId,
+          danz_username: displayName,
+        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "telegram",
@@ -866,9 +876,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         `flowb_checkins?crew_id=eq.${id}&expires_at=gt.${now}&select=user_id,venue_name,status,message,created_at&order=created_at.desc`,
       );
 
+      // Resolve display names from sessions
+      const allUserIds = [
+        ...new Set([
+          ...(members || []).map((m: any) => m.user_id),
+          ...(checkins || []).map((c: any) => c.user_id),
+        ]),
+      ];
+      const sessions = allUserIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,danz_username`)
+        : [];
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+
       return {
-        members: members || [],
-        checkins: checkins || [],
+        members: (members || []).map((m: any) => ({ ...m, display_name: nameMap.get(m.user_id) || undefined })),
+        checkins: (checkins || []).map((c: any) => ({ ...c, display_name: nameMap.get(c.user_id) || undefined })),
       };
     },
   );
@@ -1044,7 +1066,19 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         `flowb_user_points?user_id=in.(${userIds.join(",")})&select=user_id,total_points,current_streak&order=total_points.desc`,
       );
 
-      return { leaderboard: points || [] };
+      // Resolve display names from sessions
+      const sessions = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`,
+      );
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+
+      const leaderboard = (points || []).map((p) => ({
+        ...p,
+        display_name: nameMap.get(p.user_id) || undefined,
+      }));
+
+      return { leaderboard };
     },
   );
 

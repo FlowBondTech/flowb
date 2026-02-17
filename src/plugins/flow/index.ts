@@ -196,7 +196,7 @@ function flowbLink(prefix: string, code: string): string {
   if (domain) {
     return `https://${domain}/${prefix}/${code}`;
   }
-  const botUsername = process.env.FLOWB_BOT_USERNAME || "flow_b_bot";
+  const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
   return `https://t.me/${botUsername}?start=${prefix}_${code}`;
 }
 

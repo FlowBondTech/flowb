@@ -316,19 +316,19 @@ In-app notifications in Warpcast's notification tab.
 ### Telegram Deep Links
 ```
 # Open mini app to home
-https://t.me/Flow_B_bot?startapp=home
+https://t.me/Flow_b_bot?startapp=home
 
 # Open to specific event
-https://t.me/Flow_B_bot?startapp=event_abc123
+https://t.me/Flow_b_bot?startapp=event_abc123
 
 # Join a crew
-https://t.me/Flow_B_bot?startapp=crew_XYZ789
+https://t.me/Flow_b_bot?startapp=crew_XYZ789
 
 # Connect with someone
-https://t.me/Flow_B_bot?startapp=connect_USR456
+https://t.me/Flow_b_bot?startapp=connect_USR456
 
 # Open schedule
-https://t.me/Flow_B_bot?startapp=schedule
+https://t.me/Flow_b_bot?startapp=schedule
 ```
 
 ### Farcaster Deep Links
@@ -484,7 +484,7 @@ ALTER TABLE flowb_groups ADD COLUMN IF NOT EXISTS
 ### Phase 5: Bot Enhancement (1-2 hours)
 - [ ] Natural language event queries: "what's at 3pm today" -> eGator search -> cards with mini app links
 - [ ] Quick crew status: "where's my crew" -> summary + "Open in FlowB" button
-- [ ] Inline mode: type @Flow_B_bot in any chat -> search events -> send as mini app link
+- [ ] Inline mode: type @Flow_b_bot in any chat -> search events -> send as mini app link
 - [ ] /schedule command -> personal schedule summary + "Open full schedule" mini app link
 - [ ] /crew command -> crew summary + "Open crew" mini app link
 

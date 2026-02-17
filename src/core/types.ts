@@ -30,6 +30,8 @@ export interface EGatorPluginConfig {
     tavily?: { apiKey: string };
     ra?: {};
     googlePlaces?: { apiKey: string };
+    lemonade?: { spaceId: string };
+    sheeets?: { spreadsheetId: string; gid?: string };
   };
 }
 

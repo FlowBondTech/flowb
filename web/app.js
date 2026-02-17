@@ -282,16 +282,26 @@ window.addEventListener('flowb-auth-ready', () => {
 
 async function loadDashboard() {
   const dashSection = document.getElementById('dashboardSection');
+  const heroDashBtn = document.getElementById('heroDashBtn');
   if (!dashSection) return;
 
   if (!Auth.isAuthenticated || !Auth.jwt) {
     dashSection.classList.add('hidden');
+    if (heroDashBtn) heroDashBtn.classList.add('hidden');
     return;
   }
 
-  dashSection.classList.remove('hidden');
+  // Show CTA button in hero instead of auto-showing dashboard
+  if (heroDashBtn) {
+    heroDashBtn.classList.remove('hidden');
+    heroDashBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      dashSection.classList.remove('hidden');
+      dashSection.scrollIntoView({ behavior: 'smooth' });
+    }, { once: true });
+  }
 
-  // Load all dashboard data in parallel
+  // Pre-load dashboard data so it's ready when user clicks
   Promise.all([
     loadDashProfile(),
     loadDashSchedule(),

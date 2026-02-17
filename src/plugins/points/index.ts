@@ -599,7 +599,7 @@ export class PointsPlugin implements FlowBPlugin {
     const domain = process.env.FLOWB_DOMAIN;
     const link = domain
       ? `https://${domain}/ref/${code}`
-      : `https://t.me/${process.env.FLOWB_BOT_USERNAME || "flow_b_bot"}?start=ref_${code}`;
+      : `https://t.me/${process.env.FLOWB_BOT_USERNAME || "Flow_b_bot"}?start=ref_${code}`;
     return `**Your Referral Link**\n\nShare this with friends:\n${link}\n\nYou earn **+3 pts** per click, **+10 pts** per signup!`;
   }
 

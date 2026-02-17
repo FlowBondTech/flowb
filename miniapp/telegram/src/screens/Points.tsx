@@ -44,7 +44,7 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="leaderboard-name">
-          {entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+          {entry.display_name || entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
         </div>
         {entry.current_streak > 0 && (
           <div className="leaderboard-meta">

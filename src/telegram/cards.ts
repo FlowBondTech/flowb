@@ -345,18 +345,16 @@ export function getDateFilterLabel(dateFilter: string): string {
   return entry?.label ?? dateFilter;
 }
 
-/** ETHDenver 2026 date filters (Feb 23 - Mar 2) */
-const ETHDENVER_DATE_FILTERS = [
-  { id: "all", label: "All Dates" },
-  { id: "2026-02-23", label: "Mon 2/23" },
-  { id: "2026-02-24", label: "Tue 2/24" },
-  { id: "2026-02-25", label: "Wed 2/25" },
-  { id: "2026-02-26", label: "Thu 2/26" },
-  { id: "2026-02-27", label: "Fri 2/27" },
-  { id: "2026-02-28", label: "Sat 2/28" },
-  { id: "2026-03-01", label: "Sun 3/1" },
-  { id: "2026-03-02", label: "Mon 3/2" },
-];
+/** ETHDenver 2026 date filters (Feb 15 - Feb 27) */
+const ETHDENVER_DATE_FILTERS = (() => {
+  const filters: { id: string; label: string }[] = [{ id: "all", label: "All Dates" }];
+  for (let d = 15; d <= 27; d++) {
+    const dt = new Date(2026, 1, d);
+    const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
+    filters.push({ id: `2026-02-${String(d).padStart(2, "0")}`, label: `${weekday} 2/${d}` });
+  }
+  return filters;
+})();
 
 export function buildDateFilterKeyboard(activeDateFilter?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
