@@ -5,7 +5,7 @@
  * Uses FlowBCore directly for event discovery and action routing.
  */
 
-import { Bot, InlineKeyboard, Keyboard } from "grammy";
+import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
@@ -1107,6 +1107,166 @@ export function startTelegramBot(
       parse_mode: "HTML",
       reply_markup: buildFlowMenuKeyboard(botUsername),
     });
+  });
+
+  // /wheremycrew - show crew member locations
+  bot.command("wheremycrew", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const uid = userId(tgId);
+    const sbUrl = process.env.DANZ_SUPABASE_URL;
+    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
+
+    // Get user's crews
+    const memRes = await fetch(`${sbUrl}/rest/v1/flowb_group_members?user_id=eq.${uid}&select=group_id,flowb_groups(id,name,emoji)`, {
+      headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+    });
+    const memberships = memRes.ok ? await memRes.json() as any[] : [];
+    if (!memberships.length) {
+      await ctx.reply("You're not in any crews yet! Use /crew to create or join one.");
+      return;
+    }
+
+    const now = new Date().toISOString();
+    const lines: string[] = [];
+
+    for (const m of memberships) {
+      const crew = m.flowb_groups;
+      if (!crew) continue;
+
+      // Get active checkins for this crew
+      const chRes = await fetch(
+        `${sbUrl}/rest/v1/flowb_checkins?crew_id=eq.${crew.id}&expires_at=gt.${now}&select=user_id,venue_name,status,created_at&order=created_at.desc`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+      );
+      const checkins = chRes.ok ? await chRes.json() as any[] : [];
+
+      // Resolve display names
+      const uids = [...new Set(checkins.map((c: any) => c.user_id))];
+      let nameMap = new Map<string, string>();
+      if (uids.length) {
+        const sRes = await fetch(`${sbUrl}/rest/v1/flowb_sessions?user_id=in.(${uids.join(",")})&select=user_id,danz_username`, {
+          headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+        });
+        const sessions = sRes.ok ? await sRes.json() as any[] : [];
+        nameMap = new Map(sessions.map((s) => [s.user_id, s.danz_username]));
+      }
+
+      const crewLabel = `${crew.emoji || ""} <b>${escapeHtml(crew.name)}</b>`;
+      if (!checkins.length) {
+        lines.push(`${crewLabel}: No one checked in`);
+      } else {
+        const memberLines = checkins.map((c: any) => {
+          const name = nameMap.get(c.user_id) || c.user_id.replace(/^(telegram_|farcaster_)/, "@");
+          const ago = Math.floor((Date.now() - new Date(c.created_at).getTime()) / 60000);
+          const agoStr = ago < 1 ? "just now" : ago < 60 ? `${ago}m ago` : `${Math.floor(ago / 60)}h ago`;
+          const statusIcon = c.status === "here" ? "\uD83D\uDFE2" : c.status === "heading" ? "\uD83D\uDFE1" : "\uD83D\uDD34";
+          return `  ${statusIcon} ${escapeHtml(name)} at ${escapeHtml(c.venue_name)} (${agoStr})`;
+        });
+        lines.push(`${crewLabel}:\n${memberLines.join("\n")}`);
+      }
+    }
+
+    const keyboard = new InlineKeyboard()
+      .webApp("Open in App", miniAppUrl || `https://t.me/${botUsername}/app`);
+
+    await ctx.reply(
+      `\uD83D\uDCCD <b>Where is my crew?</b>\n\n${lines.join("\n\n")}`,
+      { parse_mode: "HTML", reply_markup: keyboard },
+    );
+  });
+
+  // /onbooths - admin only, create QR booth locations
+  bot.command("onbooths", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const sbUrl = process.env.DANZ_SUPABASE_URL;
+    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
+
+    // Parse: /onbooths <name> [floor] [zone]
+    const args = ctx.match?.trim();
+    if (!args) {
+      await ctx.reply(
+        "<b>Create a QR check-in location</b>\n\n" +
+        "Usage: <code>/onbooths Location Name | floor | zone</code>\n" +
+        "Example: <code>/onbooths Main Stage | Ground | Hall A</code>\n\n" +
+        "The QR code will be generated automatically.",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const parts = args.split("|").map((p) => p.trim());
+    const name = parts[0];
+    const floor = parts[1] || null;
+    const zone = parts[2] || null;
+
+    // Generate a short code
+    const code = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 20) +
+      "-" + Math.random().toString(36).slice(2, 6);
+
+    // Insert into flowb_locations
+    const insertRes = await fetch(`${sbUrl}/rest/v1/flowb_locations`, {
+      method: "POST",
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        code,
+        name,
+        floor,
+        zone,
+        created_by: `telegram_${tgId}`,
+      }),
+    });
+
+    if (!insertRes.ok) {
+      await ctx.reply("Failed to create location. Please try again.");
+      return;
+    }
+
+    const qrUrl = `https://flowb.me/c/${code}`;
+
+    // Generate QR code image
+    try {
+      const QRCode = await import("qrcode");
+      const qrBuffer = await QRCode.default.toBuffer(qrUrl, {
+        width: 400,
+        margin: 2,
+        color: { dark: "#000000", light: "#ffffff" },
+      });
+
+      await ctx.replyWithPhoto(
+        new InputFile(qrBuffer, "checkin-qr.png"),
+        {
+          caption:
+            `\uD83D\uDCCD <b>${escapeHtml(name)}</b>\n` +
+            (floor ? `Floor: ${escapeHtml(floor)}\n` : "") +
+            (zone ? `Zone: ${escapeHtml(zone)}\n` : "") +
+            `\nQR URL: <code>${qrUrl}</code>\n` +
+            `Code: <code>${code}</code>\n\n` +
+            `<i>Print this QR code and display at the booth. When scanned, users auto-check in and earn 10 points.</i>`,
+          parse_mode: "HTML",
+        },
+      );
+    } catch (err) {
+      console.error("[onbooths] QR generation error:", err);
+      // Fallback: send text-only
+      await ctx.reply(
+        `\uD83D\uDCCD <b>${escapeHtml(name)}</b> created!\n\n` +
+        `QR URL: <code>${qrUrl}</code>\n` +
+        `Code: <code>${code}</code>\n\n` +
+        `<i>Generate a QR code for this URL and display at the booth.</i>`,
+        { parse_mode: "HTML" },
+      );
+    }
   });
 
   bot.command("help", async (ctx) => {
