@@ -59,6 +59,7 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   group_message:         { points: 1,   dailyCap: 30 },
   group_reply:           { points: 2,   dailyCap: 20 },
   channel_reaction:      { points: 1,   dailyCap: 20 },
+  chatter_signal:        { points: 5,   dailyCap: 25 },
   // EthDenver mini app & event actions
   event_checkin:         { points: 5,   dailyCap: 25 },
   onboarding_complete:   { points: 10,  dailyCap: 10, once: true },

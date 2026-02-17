@@ -135,6 +135,21 @@ export interface EventResult {
 }
 
 // ============================================================================
+// Channel Chatter Signal
+// ============================================================================
+
+export interface ChatterSignal {
+  event_title?: string;
+  event_date?: string;
+  event_time?: string;
+  parsed_datetime?: string;
+  venue_name?: string;
+  event_url?: string;
+  description?: string;
+  confidence: number;
+}
+
+// ============================================================================
 // FlowB Context & Input
 // ============================================================================
 

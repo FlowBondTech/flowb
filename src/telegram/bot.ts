@@ -11,6 +11,16 @@ import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
 import { PrivyClient } from "../services/privy.js";
 import {
+  initChatter,
+  shouldAnalyze,
+  extractSignals,
+  storeSignal,
+  registerChannel,
+  deactivateChannel,
+  buildDigest,
+  getActiveChannelsWithSignals,
+} from "./chatter.js";
+import {
   escapeHtml,
   formatEventCardsHtml,
   buildEventKeyboard,
@@ -432,6 +442,9 @@ export function startTelegramBot(
 
   // Check persistent session table on startup
   ensureSessionTable().catch(() => {});
+
+  // Initialize chatter capture system
+  initChatter();
 
   // ========================================================================
   // Privy auto-verify
@@ -1080,6 +1093,24 @@ export function startTelegramBot(
       );
 
       console.log(`[flowb-telegram] New member in ${groupName}: ${firstName} (${member.id})`);
+    }
+  });
+
+  // ========================================================================
+  // Bot added/removed from group (channel registration)
+  // ========================================================================
+
+  bot.on("my_chat_member", async (ctx) => {
+    const update = ctx.myChatMember;
+    const chat = update.chat;
+    const newStatus = update.new_chat_member.status;
+
+    if (newStatus === "member" || newStatus === "administrator") {
+      await registerChannel(chat.id, chat.type, (chat as any).title, update.from.id);
+      console.log(`[flowb-chatter] Bot added to ${(chat as any).title || chat.id} (${chat.id})`);
+    } else if (newStatus === "left" || newStatus === "kicked") {
+      await deactivateChannel(chat.id);
+      console.log(`[flowb-chatter] Bot removed from ${(chat as any).title || chat.id}`);
     }
   });
 
@@ -2305,6 +2336,30 @@ export function startTelegramBot(
       const action = isReply ? "group_reply" : "group_message";
       core.awardPoints(userId(tgId), "telegram", action).catch(() => {});
 
+      // Chatter capture (fire-and-forget, never blocks response)
+      if (shouldAnalyze(ctx.message.text)) {
+        (async () => {
+          try {
+            const signal = await extractSignals(ctx.message.text);
+            if (signal && signal.confidence >= 0.6) {
+              const senderName = ctx.from?.first_name || ctx.from?.username || "Unknown";
+              await storeSignal(
+                ctx.chat.id,
+                ctx.message.message_id,
+                tgId,
+                senderName,
+                signal,
+                ctx.message.text,
+              );
+              core.awardPoints(userId(tgId), "telegram", "chatter_signal").catch(() => {});
+              console.log(`[flowb-chatter] Signal stored: "${signal.event_title}" (${signal.confidence})`);
+            }
+          } catch (err: any) {
+            console.error("[flowb-chatter] extraction error:", err.message);
+          }
+        })();
+      }
+
       const textLower = ctx.message.text.toLowerCase();
       const isReplyToBot = ctx.message.reply_to_message?.from?.id === bot.botInfo?.id;
       const mentioned = textLower.includes("flowb")
@@ -2444,6 +2499,23 @@ export function startTelegramBot(
       }
     }
   }, 5 * 60 * 1000);
+
+  // Chatter digest: post event digests to active channels every 4 hours
+  const DIGEST_INTERVAL_MS = 4 * 60 * 60 * 1000;
+  setInterval(async () => {
+    try {
+      const chatIds = await getActiveChannelsWithSignals();
+      for (const chatId of chatIds) {
+        const digest = await buildDigest(chatId);
+        if (digest) {
+          await bot.api.sendMessage(chatId, digest, { parse_mode: "HTML" });
+          console.log(`[flowb-chatter] Digest sent to ${chatId}`);
+        }
+      }
+    } catch (err: any) {
+      console.error("[flowb-chatter] Digest scheduler error:", err.message);
+    }
+  }, DIGEST_INTERVAL_MS);
 
   console.log("[flowb-telegram] Bot initialized");
 }
