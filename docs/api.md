@@ -84,6 +84,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/locations/:code` | No | Resolve QR code (no auth) |
 
+## CHAT
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/v1/chat/completions` | No | AI Chat Completions (xAI Grok proxy) |
+
 ## FARCASTER
 
 | Method | Path | Auth | Description |
@@ -198,4 +204,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 21:54:49 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-17 21:55:52 UTC*
