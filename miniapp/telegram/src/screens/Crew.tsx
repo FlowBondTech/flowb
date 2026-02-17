@@ -6,10 +6,12 @@ import {
   leaveCrew, discoverCrews, removeMember, updateMemberRole, updateCrew, getCrewActivity,
   getCrewMessages, sendCrewMessage,
   resolveLocation, qrCheckin, getCrewLocations, pingCrewLocate,
+  proximityCheckin,
 } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useLocation } from "../hooks/useLocation";
 import { CrewMap } from "../components/CrewMap";
+import { SponsorModal } from "../components/SponsorModal";
 
 interface Props {
   crewId?: string;
@@ -34,9 +36,10 @@ function getMissions(memberCount: number, checkinCount: number): Mission[] {
   ];
 }
 
-function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
+function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry & { sponsor_boost?: number; effective_points?: number }; rank: number }) {
   const rankClass = rank <= 3 ? `leaderboard-rank-${rank}` : "";
   const crownIcons: Record<number, string> = { 1: "\uD83D\uDC51", 2: "\uD83E\uDD48", 3: "\uD83E\uDD49" };
+  const displayPoints = entry.effective_points || entry.total_points;
 
   return (
     <div className="leaderboard-row">
@@ -47,13 +50,20 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
         <div className="leaderboard-name">
           {entry.display_name || entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
         </div>
-        {entry.current_streak > 0 && (
-          <div className="leaderboard-meta">
-            {"\uD83D\uDD25"} {entry.current_streak} day streak
-          </div>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {entry.current_streak > 0 && (
+            <div className="leaderboard-meta">
+              {"\uD83D\uDD25"} {entry.current_streak} day streak
+            </div>
+          )}
+          {entry.sponsor_boost != null && entry.sponsor_boost > 0 && (
+            <div className="leaderboard-meta" style={{ color: "var(--purple)" }}>
+              +{entry.sponsor_boost} boost
+            </div>
+          )}
+        </div>
       </div>
-      <div className="leaderboard-points">{entry.total_points}</div>
+      <div className="leaderboard-points">{displayPoints}</div>
     </div>
   );
 }
@@ -335,6 +345,8 @@ export function Crew({ crewId, checkinCode }: Props) {
   const [checkinMessage, setCheckinMessage] = useState("");
   const [gpsEnabled, setGpsEnabled] = useState(false);
   const [locatePinging, setLocatePinging] = useState(false);
+  const [showSponsorModal, setShowSponsorModal] = useState<string | null>(null);
+  const [proximityToast, setProximityToast] = useState<string | null>(null);
 
   const tg = (window as any).Telegram?.WebApp;
   const isAdmin = selectedCrew && ["admin", "creator"].includes(selectedCrew.role);
@@ -360,6 +372,31 @@ export function Crew({ crewId, checkinCode }: Props) {
     const interval = setInterval(fetchLocations, 60000);
     return () => clearInterval(interval);
   }, [selectedCrew]);
+
+  // Auto proximity checkin every 60s when GPS is active
+  useEffect(() => {
+    if (!gps.location || !selectedCrew) return;
+    const doProximity = async () => {
+      try {
+        const result = await proximityCheckin(
+          gps.location!.latitude,
+          gps.location!.longitude,
+          selectedCrew.id,
+        );
+        if (result.matched.length > 0) {
+          const names = result.matched.map((m) => m.name).join(", ");
+          setProximityToast(`Checked in at ${names}!`);
+          setTimeout(() => setProximityToast(null), 4000);
+          tg?.HapticFeedback?.notificationOccurred("success");
+          // Refresh locations
+          getCrewLocations(selectedCrew.id).then(setCrewLocations).catch(() => {});
+        }
+      } catch {}
+    };
+    doProximity();
+    const interval = setInterval(doProximity, 60000);
+    return () => clearInterval(interval);
+  }, [gps.location?.latitude, gps.location?.longitude, selectedCrew?.id]);
 
   // Load crews
   useEffect(() => {
@@ -706,8 +743,19 @@ export function Crew({ crewId, checkinCode }: Props) {
                     }, {} as Record<string, CrewLocation[]>)
                   ).map(([venue, locs]) => (
                     <div key={venue} style={{ marginBottom: 12 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--text)" }}>
-                        {venue}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                          {venue}
+                        </div>
+                        {locs[0]?.latitude && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ fontSize: 10, padding: "2px 8px", background: "rgba(168, 85, 247, 0.1)", color: "var(--purple)", border: "1px solid rgba(168, 85, 247, 0.2)" }}
+                            onClick={(e) => { e.stopPropagation(); setShowSponsorModal(venue); }}
+                          >
+                            Boost
+                          </button>
+                        )}
                       </div>
                       {locs.map((loc, i) => (
                         <div key={i} className="member-row" style={{ paddingLeft: 8 }}>
@@ -965,6 +1013,37 @@ export function Crew({ crewId, checkinCode }: Props) {
       {renderMemberActionModal()}
       {renderActivityModal()}
       {renderQrCheckinModal()}
+
+      {/* Sponsor modal for boosting a location */}
+      {showSponsorModal && (
+        <SponsorModal
+          targetType="location"
+          targetId={showSponsorModal}
+          onClose={() => setShowSponsorModal(null)}
+          onSuccess={() => setShowSponsorModal(null)}
+        />
+      )}
+
+      {/* Proximity auto-checkin toast */}
+      {proximityToast && (
+        <div style={{
+          position: "fixed",
+          bottom: 80,
+          left: "50%",
+          transform: "translateX(-50%)",
+          background: "var(--green)",
+          color: "#fff",
+          padding: "10px 20px",
+          borderRadius: "var(--radius-pill)",
+          fontSize: 13,
+          fontWeight: 600,
+          zIndex: 1000,
+          boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+          animation: "fadeIn 0.3s ease",
+        }}>
+          {proximityToast}
+        </div>
+      )}
     </div>
   );
 

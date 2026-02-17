@@ -4,6 +4,7 @@ import type { EventResult } from "../api/types";
 interface Props {
   event: EventResult;
   flowGoing?: number;
+  sponsorAmount?: number;
   onClick: () => void;
 }
 
@@ -46,7 +47,7 @@ const SOURCE_COLORS: Record<string, string> = {
   egator: "#3b82f6",
 };
 
-export function EventCard({ event, flowGoing, onClick }: Props) {
+export function EventCard({ event, flowGoing, sponsorAmount, onClick }: Props) {
   const live = isHappeningNow(event.startTime, event.endTime);
   const thumbUrl = optimizeImageUrl(event.imageUrl);
   const [imgError, setImgError] = useState(false);
@@ -103,6 +104,9 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+        {sponsorAmount != null && sponsorAmount > 0 && (
+          <span className="badge badge-purple">Sponsored</span>
+        )}
         {event.isFree && <span className="badge badge-green">Free</span>}
         {event.source && (
           <span

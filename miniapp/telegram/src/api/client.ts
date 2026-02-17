@@ -17,6 +17,9 @@ import type {
   CrewMessage,
   QRLocation,
   CrewLocation,
+  Sponsorship,
+  SponsorRanking,
+  RankedLocation,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -284,6 +287,45 @@ export async function getCrewLocations(crewId: string): Promise<CrewLocation[]> 
 
 export async function pingCrewLocate(crewId: string): Promise<{ pinged: number }> {
   return post(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/locate`);
+}
+
+// ============================================================================
+// Sponsorships
+// ============================================================================
+
+export async function getSponsorWallet(): Promise<string> {
+  const data = await get<{ address: string }>("/api/v1/sponsor/wallet");
+  return data.address;
+}
+
+export async function createSponsorship(
+  targetType: "event" | "location",
+  targetId: string,
+  amountUsdc: number,
+  txHash: string,
+): Promise<{ ok: boolean; sponsorship: Sponsorship }> {
+  return post("/api/v1/sponsor", { targetType, targetId, amountUsdc, txHash });
+}
+
+export async function getSponsorRankings(targetType?: string): Promise<SponsorRanking[]> {
+  const path = targetType
+    ? `/api/v1/sponsor/rankings?targetType=${encodeURIComponent(targetType)}`
+    : "/api/v1/sponsor/rankings";
+  const data = await get<{ rankings: SponsorRanking[] }>(path);
+  return data.rankings;
+}
+
+export async function getRankedLocations(): Promise<RankedLocation[]> {
+  const data = await get<{ locations: RankedLocation[] }>("/api/v1/locations/ranked");
+  return data.locations;
+}
+
+export async function proximityCheckin(
+  latitude: number,
+  longitude: number,
+  crewId?: string,
+): Promise<{ matched: Array<{ id: string; code: string; name: string; distance_m: number; sponsored: boolean }>; checkins: number }> {
+  return post("/api/v1/flow/checkin/proximity", { latitude, longitude, crewId });
 }
 
 // ============================================================================

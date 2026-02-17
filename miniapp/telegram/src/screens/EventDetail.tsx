@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { Screen } from "../App";
 import type { EventResult, EventSocial } from "../api/types";
 import { getEvent, getEventSocial, rsvpEvent, cancelRsvp } from "../api/client";
+import { SponsorModal } from "../components/SponsorModal";
 
 interface Props {
   eventId: string;
@@ -36,6 +37,7 @@ export function EventDetail({ eventId }: Props) {
   const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [showSponsor, setShowSponsor] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -243,6 +245,23 @@ export function EventDetail({ eventId }: Props) {
           {linkCopied ? "Copied!" : "Copy"}
         </button>
       </div>
+
+      {/* Sponsor button */}
+      <button
+        className="btn btn-secondary btn-block"
+        onClick={() => setShowSponsor(true)}
+        style={{ marginBottom: 16 }}
+      >
+        Sponsor This Event
+      </button>
+
+      {showSponsor && (
+        <SponsorModal
+          targetType="event"
+          targetId={eventId}
+          onClose={() => setShowSponsor(false)}
+        />
+      )}
 
       {/* External link */}
       {event.url && (

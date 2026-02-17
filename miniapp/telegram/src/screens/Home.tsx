@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Screen } from "../App";
-import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember } from "../api/types";
-import { getEvents, getCrews, getCrewMembers } from "../api/client";
+import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation } from "../api/types";
+import { getEvents, getCrews, getCrewMembers, getRankedLocations } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 
 interface Props {
@@ -157,6 +157,14 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const [crewRsvpEventIds, setCrewRsvpEventIds] = useState<Set<string>>(new Set());
   const [vibesLoaded, setVibesLoaded] = useState(false);
   const [vibesLoading, setVibesLoading] = useState(false);
+
+  // Top Booths state
+  const [rankedLocations, setRankedLocations] = useState<RankedLocation[]>([]);
+
+  // Load ranked locations on mount
+  useEffect(() => {
+    getRankedLocations().then(setRankedLocations).catch(console.error);
+  }, []);
 
   // Load events with category filter support
   useEffect(() => {
@@ -358,6 +366,40 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
       {/* =================== DISCOVER TAB =================== */}
       {activeTab === "discover" && (
         <>
+          {/* Top Booths - Sponsored locations */}
+          {rankedLocations.length > 0 && (
+            <>
+              <div className="section-title">Top Booths</div>
+              <div className="booth-scroll">
+                {rankedLocations.map((loc) => (
+                  <div
+                    key={loc.id}
+                    className="booth-card"
+                    onClick={() => onNavigate({ name: "crew", checkinCode: loc.code })}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4 }}>{loc.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--purple)" }}>
+                      ${Number(loc.sponsor_amount).toFixed(2)} USDC
+                    </div>
+                    {loc.sponsor_label && (
+                      <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>{loc.sponsor_label}</div>
+                    )}
+                    <button
+                      className="btn btn-sm btn-primary"
+                      style={{ marginTop: 8, fontSize: 11, padding: "4px 12px" }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onNavigate({ name: "crew", checkinCode: loc.code });
+                      }}
+                    >
+                      Check In
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Featured Events - Date Aware */}
           {featured.map((feat, i) => (
             <div

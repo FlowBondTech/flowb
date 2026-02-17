@@ -31,7 +31,7 @@ import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
-import { resolveCanonicalId } from "../services/identity.js";
+// Identity resolution imported dynamically where needed (../services/identity.js)
 
 // ============================================================================
 // Supabase helper (reused from flow plugin pattern)

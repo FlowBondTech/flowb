@@ -1269,6 +1269,91 @@ export function startTelegramBot(
     }
   });
 
+  // /sponsor - view your sponsorships or get wallet address
+  bot.command("sponsor", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const sbUrl = process.env.DANZ_SUPABASE_URL;
+    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
+
+    // Fetch user's sponsorships
+    const rows = await sbQueryBot(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_sponsorships",
+      {
+        select: "id,target_type,target_id,amount_usdc,status,created_at",
+        sponsor_user_id: `eq.telegram_${tgId}`,
+        order: "created_at.desc",
+        limit: "10",
+      },
+    );
+
+    const walletAddr = process.env.CDP_ACCOUNT_ADDRESS || "Not configured";
+    const lines: string[] = [
+      "<b>Your Sponsorships</b>",
+      "",
+    ];
+
+    if (rows && rows.length > 0) {
+      for (const r of rows) {
+        const statusEmoji = r.status === "verified" ? "\u2705" : r.status === "pending" ? "\u23f3" : "\u274c";
+        lines.push(`${statusEmoji} <b>$${Number(r.amount_usdc).toFixed(2)}</b> \u2192 ${r.target_type}:${r.target_id.slice(0, 8)} (${r.status})`);
+      }
+    } else {
+      lines.push("<i>No sponsorships yet.</i>");
+    }
+
+    lines.push(
+      "",
+      "<b>Sponsor a booth or event:</b>",
+      `1. Send USDC (Base) to:`,
+      `<code>${walletAddr}</code>`,
+      `2. Copy the transaction hash`,
+      `3. Open the FlowB miniapp and tap "Sponsor"`,
+      "",
+      "<i>Min $0.10 USDC. Sponsorships boost leaderboard rankings!</i>",
+    );
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  });
+
+  // /topsponsor - public leaderboard of top sponsored items
+  bot.command("topsponsor", async (ctx) => {
+    const sbUrl = process.env.DANZ_SUPABASE_URL;
+    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
+
+    // Get top sponsored locations (booths)
+    const locations = await sbQueryBot(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_locations",
+      {
+        select: "name,sponsor_amount,sponsor_label",
+        sponsor_amount: "gt.0",
+        order: "sponsor_amount.desc",
+        limit: "5",
+      },
+    );
+
+    const lines: string[] = [
+      "<b>\ud83c\udfc6 Top Sponsored</b>",
+      "",
+    ];
+
+    if (locations && locations.length > 0) {
+      lines.push("<b>Booths</b>");
+      locations.forEach((loc: any, i: number) => {
+        const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}.`;
+        const label = loc.sponsor_label ? ` (${loc.sponsor_label})` : "";
+        lines.push(`${medal} <b>${escapeHtml(loc.name)}</b>${label} \u2014 $${Number(loc.sponsor_amount).toFixed(2)} USDC`);
+      });
+    } else {
+      lines.push("<i>No sponsorships yet. Be the first! Use /sponsor</i>");
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  });
+
   bot.command("help", async (ctx) => {
     await sendCoreAction(ctx, core, "help");
   });
