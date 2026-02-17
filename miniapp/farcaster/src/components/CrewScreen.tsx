@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry } from "../api/types";
-import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard } from "../api/client";
+import { useState, useEffect, useRef } from "react";
+import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry, CrewMessage } from "../api/types";
+import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard, getCrewMessages, sendCrewMessage } from "../api/client";
 
 interface Props {
   authed: boolean;
+  currentUserId?: string;
 }
 
 /** Crew missions with progress tracking */
@@ -92,7 +93,189 @@ function SkeletonMembers() {
   );
 }
 
-export function CrewScreen({ authed }: Props) {
+function formatChatTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) +
+    " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+
+function getAvatarColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = ((hash << 5) - hash) + userId.charCodeAt(i);
+    hash |= 0;
+  }
+  const colors = [
+    "linear-gradient(135deg, #3b82f6, #a855f7)",
+    "linear-gradient(135deg, #22c55e, #06b6d4)",
+    "linear-gradient(135deg, #f97316, #ef4444)",
+    "linear-gradient(135deg, #eab308, #f97316)",
+    "linear-gradient(135deg, #a855f7, #ec4899)",
+    "linear-gradient(135deg, #06b6d4, #3b82f6)",
+    "linear-gradient(135deg, #ec4899, #f43f5e)",
+    "linear-gradient(135deg, #14b8a6, #22c55e)",
+  ];
+  return colors[Math.abs(hash) % colors.length];
+}
+
+interface CrewChatProps {
+  crewId: string;
+  currentUserId: string;
+}
+
+function CrewChat({ crewId, currentUserId }: CrewChatProps) {
+  const [messages, setMessages] = useState<CrewMessage[]>([]);
+  const [chatLoading, setChatLoading] = useState(true);
+  const [messageText, setMessageText] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Load initial messages
+  useEffect(() => {
+    setChatLoading(true);
+    getCrewMessages(crewId, 20)
+      .then((msgs) => {
+        setMessages(msgs.reverse());
+        setTimeout(scrollToBottom, 100);
+      })
+      .catch(console.error)
+      .finally(() => setChatLoading(false));
+  }, [crewId]);
+
+  // Poll for new messages every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const msgs = await getCrewMessages(crewId, 20);
+        setMessages((prev) => {
+          const reversed = msgs.reverse();
+          if (reversed.length !== prev.length || (reversed.length > 0 && prev.length > 0 && reversed[reversed.length - 1].id !== prev[prev.length - 1].id)) {
+            setTimeout(scrollToBottom, 100);
+            return reversed;
+          }
+          return prev;
+        });
+      } catch {
+        // Silently fail polling
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [crewId]);
+
+  const handleSend = async () => {
+    if (!messageText.trim() || sending) return;
+    const text = messageText.trim();
+    setMessageText("");
+    setSending(true);
+    try {
+      const newMsg = await sendCrewMessage(crewId, text);
+      setMessages((prev) => [...prev, newMsg]);
+      setTimeout(scrollToBottom, 100);
+    } catch (err) {
+      console.error("Send message failed:", err);
+      setMessageText(text);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  };
+
+  return (
+    <div className="crew-chat-section">
+      <div className="section-title">Crew Chat</div>
+      <div className="card" style={{ padding: 12 }}>
+        {chatLoading ? (
+          <div style={{ textAlign: "center", padding: 24, color: "var(--text-dim)", fontSize: 13 }}>
+            <div className="spinner" style={{ margin: "0 auto 8px" }} />
+            Loading chat...
+          </div>
+        ) : messages.length === 0 ? (
+          <div style={{ textAlign: "center", padding: 24, color: "var(--text-dim)", fontSize: 13 }}>
+            No messages yet. Start the conversation!
+          </div>
+        ) : (
+          <div className="crew-chat-messages">
+            {messages.map((msg) => {
+              const isOwn = msg.user_id === currentUserId;
+              const displayName = msg.display_name || msg.user_id.replace(/^(telegram_|farcaster_)/, "@");
+              const initial = displayName.charAt(0).toUpperCase();
+
+              return (
+                <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isOwn ? "flex-end" : "flex-start" }}>
+                  {!isOwn && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                      <div
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: getAvatarColor(msg.user_id),
+                          color: "#fff",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 9,
+                          fontWeight: 700,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {initial}
+                      </div>
+                      <span className="crew-chat-sender">{displayName}</span>
+                    </div>
+                  )}
+                  <div className={`crew-chat-bubble ${isOwn ? "crew-chat-bubble-own" : "crew-chat-bubble-other"}`}>
+                    {msg.message}
+                  </div>
+                  <div className="crew-chat-time">{formatChatTime(msg.created_at)}</div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+        <div className="crew-chat-input-bar">
+          <input
+            className="input"
+            type="text"
+            placeholder="Message your crew..."
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            style={{ flex: 1 }}
+          />
+          <button
+            className="crew-chat-send"
+            onClick={handleSend}
+            disabled={!messageText.trim() || sending}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function CrewScreen({ authed, currentUserId }: Props) {
   const [crews, setCrews] = useState<CrewInfo[]>([]);
   const [selectedCrew, setSelectedCrew] = useState<CrewInfo | null>(null);
   const [members, setMembers] = useState<CrewMember[]>([]);
@@ -339,6 +522,11 @@ export function CrewScreen({ authed }: Props) {
                 );
               })}
             </div>
+          )}
+
+          {/* Crew Chat */}
+          {currentUserId && (
+            <CrewChat crewId={selectedCrew.id} currentUserId={currentUserId} />
           )}
 
           {/* Check in button */}

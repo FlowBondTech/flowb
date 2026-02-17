@@ -283,3 +283,27 @@ export async function getCrewLocations(crewId: string): Promise<CrewLocation[]> 
 export async function pingCrewLocate(crewId: string): Promise<{ pinged: number }> {
   return post(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/locate`);
 }
+
+// ============================================================================
+// AI Chat
+// ============================================================================
+
+export async function sendChat(
+  messages: Array<{ role: string; content: string }>,
+  userId?: string,
+): Promise<string> {
+  const CHAT_URL = import.meta.env.VITE_API_URL || "https://flowb.fly.dev";
+  const res = await fetch(`${CHAT_URL}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "flowb",
+      messages,
+      stream: false,
+      user: userId || "telegram-anon",
+    }),
+  });
+  if (!res.ok) throw new Error(`FlowB chat returned ${res.status}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
+}

@@ -9,6 +9,7 @@ import type {
   CrewInfo,
   CrewMember,
   CrewCheckin,
+  CrewMessage,
   PointsInfo,
   LeaderboardEntry,
   EventSocial,
@@ -131,6 +132,18 @@ export async function crewCheckin(crewId: string, venueName: string, opts?: { ev
 export async function getCrewLeaderboard(crewId: string): Promise<LeaderboardEntry[]> {
   const data = await get<{ leaderboard: LeaderboardEntry[] }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/leaderboard`);
   return data.leaderboard;
+}
+
+export async function getCrewMessages(crewId: string, limit = 50, before?: string): Promise<CrewMessage[]> {
+  let path = `/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages?limit=${limit}`;
+  if (before) path += `&before=${encodeURIComponent(before)}`;
+  const data = await get<{ messages: CrewMessage[] }>(path);
+  return data.messages;
+}
+
+export async function sendCrewMessage(crewId: string, message: string, replyTo?: string): Promise<CrewMessage> {
+  const data = await post<{ message: CrewMessage }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages`, { message, replyTo });
+  return data.message;
 }
 
 export async function getFriends(): Promise<any[]> {

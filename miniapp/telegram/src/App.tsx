@@ -7,11 +7,13 @@ import { EventDetail } from "./screens/EventDetail";
 import { Schedule } from "./screens/Schedule";
 import { Crew } from "./screens/Crew";
 import { Points } from "./screens/Points";
+import { Chat } from "./screens/Chat";
 
 export type Screen =
   | { name: "home" }
   | { name: "event"; id: string }
   | { name: "schedule" }
+  | { name: "chat" }
   | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" };
 
@@ -41,6 +43,8 @@ export default function App() {
       setScreen({ name: "schedule" });
     } else if (startParam === "points") {
       setScreen({ name: "points" });
+    } else if (startParam === "chat") {
+      setScreen({ name: "chat" });
     }
   }, []);
 
@@ -114,6 +118,7 @@ export default function App() {
       {screen.name === "home" && <Home onNavigate={navigate} />}
       {screen.name === "event" && <EventDetail eventId={screen.id} onNavigate={navigate} />}
       {screen.name === "schedule" && <Schedule onNavigate={navigate} />}
+      {screen.name === "chat" && <Chat onNavigate={navigate} />}
       {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
 

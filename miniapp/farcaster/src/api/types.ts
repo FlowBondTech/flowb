@@ -65,15 +65,27 @@ export interface CrewInfo {
 
 export interface CrewMember {
   user_id: string;
+  display_name?: string;
   role: string;
   joined_at: string;
 }
 
 export interface CrewCheckin {
   user_id: string;
+  display_name?: string;
   venue_name: string;
   status: string;
   message?: string;
+  created_at: string;
+}
+
+export interface CrewMessage {
+  id: string;
+  crew_id: string;
+  user_id: string;
+  display_name?: string;
+  message: string;
+  reply_to?: string;
   created_at: string;
 }
 
@@ -124,4 +136,15 @@ export interface FeedCast {
   };
   embeds?: Array<{ url?: string }>;
   channel?: { id: string; name: string };
+}
+
+export interface FeedItem {
+  type: "checkin" | "rsvp" | "join" | "message";
+  user_id: string;
+  display_name?: string;
+  text: string;
+  crew_name?: string;
+  event_title?: string;
+  venue_name?: string;
+  created_at: string;
 }

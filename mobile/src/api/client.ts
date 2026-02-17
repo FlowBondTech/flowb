@@ -6,6 +6,7 @@ import type {
   CrewInfo,
   CrewMember,
   CrewCheckin,
+  CrewMessage,
   PointsInfo,
   LeaderboardEntry,
   EventSocial,
@@ -189,6 +190,54 @@ export async function getCrewMissions(
     `/api/v1/flow/crews/${encodeURIComponent(crewId)}/missions`
   );
   return data.missions;
+}
+
+// ── Crew Messages ────────────────────────────────────────────────────
+export async function getCrewMessages(
+  crewId: string,
+  limit = 50,
+  before?: string
+): Promise<CrewMessage[]> {
+  let path = `/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages?limit=${limit}`;
+  if (before) path += `&before=${encodeURIComponent(before)}`;
+  const data = await get<{ messages: CrewMessage[] }>(path);
+  return data.messages;
+}
+
+export async function sendCrewMessage(
+  crewId: string,
+  message: string,
+  replyTo?: string
+): Promise<CrewMessage> {
+  const data = await post<{ message: CrewMessage }>(
+    `/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages`,
+    { message, replyTo }
+  );
+  return data.message;
+}
+
+// ── FlowB AI Chat ───────────────────────────────────────────────────
+export async function sendChat(
+  messages: Array<{ role: string; content: string }>,
+  userId?: string
+): Promise<string> {
+  const base = API_URL || "https://flowb.fly.dev";
+  const res = await fetch(`${base}/v1/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "flowb",
+      messages,
+      stream: false,
+      user: userId || "mobile-anon",
+    }),
+  });
+  if (!res.ok) throw new Error(`FlowB chat returned ${res.status}`);
+  const data = await res.json();
+  return (
+    data?.choices?.[0]?.message?.content ||
+    "Sorry, I couldn't process that."
+  );
 }
 
 // ── Friends ───────────────────────────────────────────────────────────

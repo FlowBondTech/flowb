@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { GlassTabBar } from "../components/glass/GlassTabBar";
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { ScheduleScreen } from "../screens/schedule/ScheduleScreen";
+import { ChatScreen } from "../screens/chat/ChatScreen";
 import { CrewListScreen } from "../screens/crew/CrewListScreen";
 import { PointsScreen } from "../screens/points/PointsScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
@@ -39,6 +40,19 @@ export function TabNavigator() {
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
               name={focused ? "calendar" : "calendar-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ChatTab"
+        component={ChatScreen}
+        options={{
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons
+              name={focused ? "chatbubble" : "chatbubble-outline"}
               size={24}
               color={color}
             />

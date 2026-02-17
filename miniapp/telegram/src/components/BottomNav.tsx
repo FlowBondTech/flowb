@@ -20,6 +20,11 @@ const icons: Record<string, React.ReactNode> = {
       <line x1="3" y1="10" x2="21" y2="10" />
     </svg>
   ),
+  chat: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  ),
   crew: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -38,6 +43,7 @@ const icons: Record<string, React.ReactNode> = {
 const tabs = [
   { name: "home" as const, label: "Now" },
   { name: "schedule" as const, label: "Schedule" },
+  { name: "chat" as const, label: "Chat" },
   { name: "crew" as const, label: "Crew" },
   { name: "points" as const, label: "Points" },
 ];

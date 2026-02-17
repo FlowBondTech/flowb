@@ -76,6 +76,16 @@ export interface CrewCheckin {
   created_at: string;
 }
 
+export interface CrewMessage {
+  id: string;
+  crew_id: string;
+  user_id: string;
+  display_name?: string;
+  message: string;
+  reply_to?: string;
+  created_at: string;
+}
+
 export interface PointsInfo {
   points: number;
   streak: number;

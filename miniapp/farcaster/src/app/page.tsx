@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl } from "../lib/farcaster";
-import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints, sendChat } from "../api/client";
+import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints, sendChat, getCrews, getCrewMembers } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
-import type { EventResult, ScheduleEntry } from "../api/types";
+import type { EventResult, ScheduleEntry, FeedItem, CrewInfo, CrewMember, CrewCheckin as CrewCheckinType } from "../api/types";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { BottomNav } from "../components/BottomNav";
 import { CrewScreen } from "../components/CrewScreen";
@@ -15,6 +15,7 @@ import { FlowBChat } from "../components/FlowBChat";
 import { EthDenverFeed } from "../components/EthDenverFeed";
 
 type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed";
+type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
 // Featured Events - Date-aware picks for EthDenver Feb 15-27
@@ -116,12 +117,49 @@ const FILTER_CATEGORIES = [
   { id: "workshops", label: "Workshops" },
 ];
 
+// ============================================================================
+// Helpers
+// ============================================================================
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+function getInitial(name?: string, userId?: string): string {
+  if (name) return name.charAt(0).toUpperCase();
+  if (userId) return userId.replace(/^(telegram_|farcaster_)/, "").charAt(0).toUpperCase();
+  return "?";
+}
+
+function FeedSkeleton() {
+  return (
+    <>
+      {[1, 2, 3, 4].map((i) => (
+        <div key={i} className="feed-item">
+          <div className="skeleton-circle" style={{ width: 32, height: 32 }} />
+          <div style={{ flex: 1 }}>
+            <div className="skeleton-line" style={{ width: "80%", height: 14, marginBottom: 6 }} />
+            <div className="skeleton-line" style={{ width: "40%", height: 10 }} />
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export default function FarcasterApp() {
   const [screen, setScreen] = useState<Screen>("home");
   const [eventId, setEventId] = useState<string>("");
   const [authed, setAuthed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [username, setUsername] = useState<string>("");
+  const [userId, setUserId] = useState<string>("");
   const [inMiniApp, setInMiniApp] = useState<boolean | null>(null);
 
   // Onboarding
@@ -142,19 +180,32 @@ export default function FarcasterApp() {
   // Share feedback
   const [linkCopied, setLinkCopied] = useState(false);
 
-  // Init — detect context first, then run appropriate flow
+  // Home tabs
+  const [homeTab, setHomeTab] = useState<HomeTab>("discover");
+
+  // Feed tab state
+  const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedLoaded, setFeedLoaded] = useState(false);
+
+  // Vibes tab state
+  const [crewRsvpEventIds, setCrewRsvpEventIds] = useState<Set<string>>(new Set());
+  const [vibesLoaded, setVibesLoaded] = useState(false);
+  const [vibesLoading, setVibesLoading] = useState(false);
+
+  // Init -- detect context first, then run appropriate flow
   useEffect(() => {
     (async () => {
       const miniApp = await isInMiniApp();
       setInMiniApp(miniApp);
 
       if (!miniApp) {
-        // Outside Farcaster/Base — show web landing
+        // Outside Farcaster/Base -- show web landing
         setLoading(false);
         return;
       }
 
-      // Inside mini app — normal init flow
+      // Inside mini app -- normal init flow
       const ctx = await initFarcaster();
       if (ctx.username) setUsername(ctx.username);
       if (ctx.added) setAppAdded(true);
@@ -165,6 +216,7 @@ export default function FarcasterApp() {
           const result = await authFarcasterQuick(token);
           setAuthed(true);
           if (result.user.username) setUsername(result.user.username);
+          if (result.user.id) setUserId(result.user.id);
 
           const pending = getPendingActions();
           if (pending.length > 0) {
@@ -227,17 +279,112 @@ export default function FarcasterApp() {
     } catch {}
   }, [screen, eventId]);
 
-  // Load events on home — with category filter support
+  // Load events on home -- with category filter support
   useEffect(() => {
     if (screen === "home" && !showOnboarding) {
       setEventsLoading(true);
       const cats = activeFilter !== "all" && activeFilter !== "now" ? [activeFilter] : undefined;
-      getEvents("Denver", 30, cats)
+      getEvents("Denver", 50, cats)
         .then(setEvents)
         .catch(console.error)
         .finally(() => setEventsLoading(false));
     }
   }, [screen, showOnboarding, activeFilter]);
+
+  // Load feed when Feed tab is first activated
+  useEffect(() => {
+    if (screen !== "home" || homeTab !== "feed" || feedLoaded) return;
+    setFeedLoading(true);
+    loadFeedData()
+      .then(setFeedItems)
+      .catch(console.error)
+      .finally(() => {
+        setFeedLoading(false);
+        setFeedLoaded(true);
+      });
+  }, [screen, homeTab, feedLoaded]);
+
+  // Load vibes crew data when Vibes tab is first activated
+  useEffect(() => {
+    if (screen !== "home" || homeTab !== "vibes" || vibesLoaded) return;
+    setVibesLoading(true);
+    loadVibesData()
+      .then(setCrewRsvpEventIds)
+      .catch(console.error)
+      .finally(() => {
+        setVibesLoading(false);
+        setVibesLoaded(true);
+      });
+  }, [screen, homeTab, vibesLoaded]);
+
+  async function loadFeedData(): Promise<FeedItem[]> {
+    const items: FeedItem[] = [];
+    try {
+      const crews = await getCrews();
+      if (crews.length === 0) return items;
+
+      const memberResults = await Promise.all(
+        crews.map(async (crew: CrewInfo) => {
+          try {
+            const { members, checkins } = await getCrewMembers(crew.id);
+            return { crew, members, checkins };
+          } catch {
+            return { crew, members: [] as CrewMember[], checkins: [] as CrewCheckinType[] };
+          }
+        }),
+      );
+
+      for (const { crew, members, checkins } of memberResults) {
+        for (const checkin of checkins) {
+          const displayName = checkin.display_name || checkin.user_id.replace(/^(telegram_|farcaster_)/, "@");
+          items.push({
+            type: "checkin",
+            user_id: checkin.user_id,
+            display_name: displayName,
+            text: `checked in at ${checkin.venue_name}`,
+            crew_name: crew.name,
+            venue_name: checkin.venue_name,
+            created_at: checkin.created_at,
+          });
+        }
+
+        const recentJoinThreshold = Date.now() - 24 * 60 * 60 * 1000;
+        for (const member of members) {
+          if (new Date(member.joined_at).getTime() > recentJoinThreshold) {
+            const displayName = member.display_name || member.user_id.replace(/^(telegram_|farcaster_)/, "@");
+            items.push({
+              type: "join",
+              user_id: member.user_id,
+              display_name: displayName,
+              text: `joined ${crew.emoji} ${crew.name}`,
+              crew_name: crew.name,
+              created_at: member.joined_at,
+            });
+          }
+        }
+      }
+
+      items.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    } catch (err) {
+      console.error("Feed load error:", err);
+    }
+    return items;
+  }
+
+  async function loadVibesData(): Promise<Set<string>> {
+    const eventIds = new Set<string>();
+    try {
+      const crews = await getCrews();
+      for (const crew of crews) {
+        if (crew.event_context) {
+          eventIds.add(crew.event_context);
+        }
+      }
+    } catch (err) {
+      console.error("Vibes load error:", err);
+    }
+    return eventIds;
+  }
 
   // Load schedule
   useEffect(() => {
@@ -320,7 +467,7 @@ export default function FarcasterApp() {
     return <div className="loading"><div className="spinner" /></div>;
   }
 
-  // Outside Farcaster — show simple landing with deep links
+  // Outside Farcaster -- show simple landing with deep links
   if (inMiniApp === false) {
     return <WebLanding />;
   }
@@ -367,6 +514,38 @@ export default function FarcasterApp() {
   // Featured events
   const featured = getFeaturedEvents();
 
+  // Vibes tab data: sorted by social proof
+  const vibesEvents = (() => {
+    const hotNow = events
+      .filter((e) => {
+        const start = new Date(e.startTime).getTime();
+        const end = e.endTime ? new Date(e.endTime).getTime() : start + 3600000;
+        return now >= start && now <= end;
+      })
+      .sort((a, b) => {
+        const scoreA = (a.isFree ? 2 : 0) + (a.description ? 1 : 0) + (a.locationName ? 1 : 0);
+        const scoreB = (b.isFree ? 2 : 0) + (b.description ? 1 : 0) + (b.locationName ? 1 : 0);
+        return scoreB - scoreA;
+      });
+
+    const crewPicks = events.filter((e) => crewRsvpEventIds.has(e.id));
+
+    const trendingUpcoming = events
+      .filter((e) => new Date(e.startTime).getTime() > now)
+      .map((e) => {
+        let score = 0;
+        if (e.isFree) score += 3;
+        if (e.description && e.description.length > 50) score += 2;
+        if (e.locationName) score += 1;
+        if (e.source === "luma" || e.source === "eventbrite") score += 1;
+        return { event: e, score };
+      })
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.event);
+
+    return { hotNow, crewPicks, trendingUpcoming };
+  })();
+
   return (
     <div className="app">
       {/* Home Screen */}
@@ -392,167 +571,344 @@ export default function FarcasterApp() {
             </button>
           )}
 
-          {/* Featured Events - Date Aware */}
-          {featured.map((feat, i) => (
-            <a
-              key={i}
-              href={feat.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ textDecoration: "none", color: "inherit" }}
-              onClick={(e) => {
-                e.preventDefault();
-                openUrl(feat.url);
-              }}
-            >
-              <div className="featured-card">
-                {feat.imageUrl ? (
-                  <img
-                    className="featured-img"
-                    src={optimizeImageUrl(feat.imageUrl, 600, 200) || feat.imageUrl}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                  />
-                ) : (
-                  <div className="featured-img" />
-                )}
-                <div className="featured-body">
-                  <span className="featured-badge">{feat.badge}</span>
-                  <div className="featured-title">{feat.title}</div>
-                  <div className="featured-meta">
-                    <div className="featured-meta-row">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                      {feat.date} &middot; {feat.time}
-                    </div>
-                    <div className="featured-meta-row">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
-                      </svg>
-                      {feat.location}
-                    </div>
-                  </div>
-                  <div className="featured-footer">
-                    <span className={`badge ${feat.isFree ? "badge-green" : "badge-yellow"}`}>
-                      {feat.isFree ? "Free" : "Paid"}
-                    </span>
-                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>EthDenver 2026</span>
-                  </div>
-                </div>
-              </div>
-            </a>
-          ))}
-
-          {/* Date Filter Chips */}
-          <div className="filter-chips" style={{ marginBottom: 6 }}>
+          {/* Top Tabs - Segmented Control */}
+          <div className="top-tabs">
             <button
-              className={`filter-chip ${activeDate === "any" ? "active" : ""}`}
-              onClick={() => setActiveDate("any")}
+              className={`top-tab ${homeTab === "discover" ? "active" : ""}`}
+              onClick={() => setHomeTab("discover")}
             >
-              All Days
+              Discover
             </button>
-            {ETHDENVER_DATES.map((d) => (
-              <button
-                key={d.id}
-                className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
-                onClick={() => setActiveDate(d.id)}
-              >
-                {d.label}
-              </button>
-            ))}
+            <button
+              className={`top-tab ${homeTab === "feed" ? "active" : ""}`}
+              onClick={() => setHomeTab("feed")}
+            >
+              Feed
+            </button>
+            <button
+              className={`top-tab ${homeTab === "vibes" ? "active" : ""}`}
+              onClick={() => setHomeTab("vibes")}
+            >
+              Vibes
+            </button>
           </div>
 
-          {/* Category Filter Chips */}
-          <div className="filter-chips">
-            {FILTER_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                className={`filter-chip ${activeFilter === cat.id ? "active" : ""}`}
-                onClick={() => setActiveFilter(cat.id)}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-
-          {eventsLoading ? (
+          {/* =================== DISCOVER TAB =================== */}
+          {homeTab === "discover" && (
             <>
-              <EventCardSkeleton />
-              <EventCardSkeleton />
-              <EventCardSkeleton />
-            </>
-          ) : dateFiltered.length === 0 ? (
-            <div className="card">
-              <div className="empty-state">
-                <div className="empty-state-emoji">{"\uD83D\uDD0D"}</div>
-                <div className="empty-state-title">No events found</div>
-                <div className="empty-state-text">
-                  {activeDate !== "any"
-                    ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
-                    : activeFilter !== "all"
-                    ? `No ${activeFilter} events right now. Try a different filter!`
-                    : "No events in Denver right now. Check back soon!"}
-                </div>
-                {(activeFilter !== "all" || activeDate !== "any") && (
-                  <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* "Happening Now" filter shows only live events */}
-              {isNowFilter ? (
-                happeningNow.length > 0 ? (
-                  <>
-                    <div className="section-title">Happening Now</div>
-                    {happeningNow.map((e) => (
-                      <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
-                    ))}
-                  </>
-                ) : (
-                  <div className="card">
-                    <div className="empty-state">
-                      <div className="empty-state-emoji">{"\u23F0"}</div>
-                      <div className="empty-state-title">Nothing happening right now</div>
-                      <div className="empty-state-text">Check back soon or browse upcoming events!</div>
-                      <button className="btn btn-secondary" onClick={() => setActiveFilter("all")}>
-                        Show All Events
-                      </button>
+              {/* Featured Events - Date Aware */}
+              {featured.map((feat, i) => (
+                <a
+                  key={i}
+                  href={feat.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    openUrl(feat.url);
+                  }}
+                >
+                  <div className="featured-card">
+                    {feat.imageUrl ? (
+                      <img
+                        className="featured-img"
+                        src={optimizeImageUrl(feat.imageUrl, 600, 200) || feat.imageUrl}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                      />
+                    ) : (
+                      <div className="featured-img" />
+                    )}
+                    <div className="featured-body">
+                      <span className="featured-badge">{feat.badge}</span>
+                      <div className="featured-title">{feat.title}</div>
+                      <div className="featured-meta">
+                        <div className="featured-meta-row">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                          </svg>
+                          {feat.date} &middot; {feat.time}
+                        </div>
+                        <div className="featured-meta-row">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                          </svg>
+                          {feat.location}
+                        </div>
+                      </div>
+                      <div className="featured-footer">
+                        <span className={`badge ${feat.isFree ? "badge-green" : "badge-yellow"}`}>
+                          {feat.isFree ? "Free" : "Paid"}
+                        </span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>EthDenver 2026</span>
+                      </div>
                     </div>
                   </div>
-                )
+                </a>
+              ))}
+
+              {/* Date Filter Chips */}
+              <div className="filter-chips" style={{ marginBottom: 6 }}>
+                <button
+                  className={`filter-chip ${activeDate === "any" ? "active" : ""}`}
+                  onClick={() => setActiveDate("any")}
+                >
+                  All Days
+                </button>
+                {ETHDENVER_DATES.map((d) => (
+                  <button
+                    key={d.id}
+                    className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
+                    onClick={() => setActiveDate(d.id)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Category Filter Chips */}
+              <div className="filter-chips">
+                {FILTER_CATEGORIES.map((cat) => (
+                  <button
+                    key={cat.id}
+                    className={`filter-chip ${activeFilter === cat.id ? "active" : ""}`}
+                    onClick={() => setActiveFilter(cat.id)}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {eventsLoading ? (
+                <>
+                  <EventCardSkeleton />
+                  <EventCardSkeleton />
+                  <EventCardSkeleton />
+                </>
+              ) : dateFiltered.length === 0 ? (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-state-emoji">{"\uD83D\uDD0D"}</div>
+                    <div className="empty-state-title">No events found</div>
+                    <div className="empty-state-text">
+                      {activeDate !== "any"
+                        ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
+                        : activeFilter !== "all"
+                        ? `No ${activeFilter} events right now. Try a different filter!`
+                        : "No events in Denver right now. Check back soon!"}
+                    </div>
+                    {(activeFilter !== "all" || activeDate !== "any") && (
+                      <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
+                        Clear Filters
+                      </button>
+                    )}
+                  </div>
+                </div>
               ) : (
                 <>
-                  {happeningNow.length > 0 && (
+                  {/* "Happening Now" filter shows only live events */}
+                  {isNowFilter ? (
+                    happeningNow.length > 0 ? (
+                      <>
+                        <div className="section-title">Happening Now</div>
+                        {happeningNow.map((e) => (
+                          <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                        ))}
+                      </>
+                    ) : (
+                      <div className="card">
+                        <div className="empty-state">
+                          <div className="empty-state-emoji">{"\u23F0"}</div>
+                          <div className="empty-state-title">Nothing happening right now</div>
+                          <div className="empty-state-text">Check back soon or browse upcoming events!</div>
+                          <button className="btn btn-secondary" onClick={() => setActiveFilter("all")}>
+                            Show All Events
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  ) : (
                     <>
-                      <div className="section-title">Happening Now</div>
-                      {happeningNow.map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                      {happeningNow.length > 0 && (
+                        <>
+                          <div className="section-title">Happening Now</div>
+                          {happeningNow.map((e) => (
+                            <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                          ))}
+                        </>
+                      )}
+
+                      {nextUp.length > 0 && (
+                        <>
+                          <div className="section-title">Next Up</div>
+                          {nextUp.map((e) => (
+                            <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                          ))}
+                        </>
+                      )}
+
+                      {later.length > 0 && (
+                        <>
+                          <div className="section-title">Later</div>
+                          {later.slice(0, 15).map((e) => (
+                            <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                          ))}
+                        </>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* =================== FEED TAB =================== */}
+          {homeTab === "feed" && (
+            <>
+              {feedLoading ? (
+                <div className="card">
+                  <FeedSkeleton />
+                </div>
+              ) : feedItems.length === 0 ? (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
+                    <div className="empty-state-title">No activity yet</div>
+                    <div className="empty-state-text">
+                      Join a crew to see what your friends are up to
+                    </div>
+                    <button
+                      className="btn btn-primary"
+                      onClick={() => setScreen("crew")}
+                    >
+                      Find a Crew
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="card">
+                  {feedItems.map((item, i) => (
+                    <div key={`${item.user_id}-${item.created_at}-${i}`} className="feed-item">
+                      <div className="feed-avatar">
+                        {getInitial(item.display_name, item.user_id)}
+                      </div>
+                      <div className="feed-content">
+                        <div className="feed-text">
+                          <strong>{item.display_name || item.user_id.replace(/^(telegram_|farcaster_)/, "@")}</strong>{" "}
+                          {item.text}
+                          {item.type === "checkin" && (
+                            <span className="feed-badge">
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                              </svg>
+                              here
+                            </span>
+                          )}
+                          {item.type === "join" && (
+                            <span className="feed-badge" style={{ background: "rgba(34, 197, 94, 0.1)", color: "var(--green)" }}>
+                              new
+                            </span>
+                          )}
+                        </div>
+                        <div className="feed-time">{timeAgo(item.created_at)}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* =================== VIBES TAB =================== */}
+          {homeTab === "vibes" && (
+            <>
+              {eventsLoading || vibesLoading ? (
+                <>
+                  <EventCardSkeleton />
+                  <EventCardSkeleton />
+                  <EventCardSkeleton />
+                </>
+              ) : events.length === 0 ? (
+                <div className="card">
+                  <div className="empty-state">
+                    <div className="empty-state-emoji">{"\uD83C\uDF1F"}</div>
+                    <div className="empty-state-title">No vibes yet</div>
+                    <div className="empty-state-text">
+                      Events will show up here once they start happening
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Hot Right Now */}
+                  {vibesEvents.hotNow.length > 0 && (
+                    <>
+                      <div className="section-title">Hot Right Now</div>
+                      {vibesEvents.hotNow.slice(0, 5).map((e) => (
+                        <div key={e.id} style={{ position: "relative" }}>
+                          <EventCard
+                            event={e}
+                            onClick={() => openEvent(e.id)}
+                          />
+                          <span className="vibe-score-badge">
+                            {"\uD83D\uDD25"} LIVE
+                          </span>
+                        </div>
                       ))}
                     </>
                   )}
 
-                  {nextUp.length > 0 && (
+                  {/* Your Crew Picks */}
+                  {vibesEvents.crewPicks.length > 0 && (
                     <>
-                      <div className="section-title">Next Up</div>
-                      {nextUp.map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                      <div className="section-title">Your Crew Picks</div>
+                      {vibesEvents.crewPicks.slice(0, 5).map((e) => (
+                        <div key={e.id} style={{ position: "relative" }}>
+                          <EventCard
+                            event={e}
+                            onClick={() => openEvent(e.id)}
+                          />
+                          <span className="vibe-score-badge" style={{ background: "rgba(168, 85, 247, 0.12)", color: "var(--purple)" }}>
+                            {"\uD83D\uDC65"} crew pick
+                          </span>
+                        </div>
                       ))}
                     </>
                   )}
 
-                  {later.length > 0 && (
+                  {/* Trending Upcoming */}
+                  {vibesEvents.trendingUpcoming.length > 0 && (
                     <>
-                      <div className="section-title">Later</div>
-                      {later.slice(0, 15).map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => openEvent(e.id)} />
+                      <div className="section-title">Trending</div>
+                      {vibesEvents.trendingUpcoming.slice(0, 10).map((e, idx) => (
+                        <div key={e.id} style={{ position: "relative" }}>
+                          <EventCard
+                            event={e}
+                            onClick={() => openEvent(e.id)}
+                          />
+                          {idx < 3 && (
+                            <span className="vibe-score-badge">
+                              {"\uD83D\uDD25"} {idx === 0 ? "top pick" : idx === 1 ? "rising" : "hot"}
+                            </span>
+                          )}
+                        </div>
                       ))}
                     </>
+                  )}
+
+                  {vibesEvents.hotNow.length === 0 && vibesEvents.crewPicks.length === 0 && vibesEvents.trendingUpcoming.length === 0 && (
+                    <div className="card">
+                      <div className="empty-state">
+                        <div className="empty-state-emoji">{"\uD83C\uDF1F"}</div>
+                        <div className="empty-state-title">Vibes incoming</div>
+                        <div className="empty-state-text">
+                          Events will show up here once they start happening. Check back later!
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -737,11 +1093,11 @@ export default function FarcasterApp() {
         </div>
       )}
 
-      {/* Feed Screen */}
+      {/* Feed Screen (standalone - from bottom nav) */}
       {screen === "feed" && <EthDenverFeed authed={authed} />}
 
       {/* Crew Screen */}
-      {screen === "crew" && <CrewScreen authed={authed} />}
+      {screen === "crew" && <CrewScreen authed={authed} currentUserId={userId} />}
 
       {/* Points Screen */}
       {screen === "points" && <PointsScreen authed={authed} />}

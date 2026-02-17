@@ -247,6 +247,94 @@ div.featured-img {
   margin: 20px 0 10px;
 }
 
+/* ===== Top Tabs (Segmented Control) ===== */
+.top-tabs {
+  display: flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  padding: 3px;
+  margin-bottom: 16px;
+  gap: 2px;
+}
+.top-tab {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font);
+}
+.top-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ===== Feed Items ===== */
+.feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.feed-content { flex: 1; min-width: 0; }
+.feed-text { font-size: 13px; line-height: 1.4; color: var(--text); }
+.feed-text strong { font-weight: 600; }
+.feed-time { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+.feed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 600;
+  background: var(--accent-glow);
+  color: var(--accent-light);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* ===== Vibe Score Badge ===== */
+.vibe-score-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--orange);
+  text-transform: lowercase;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ===== Bottom Nav ===== */
 .bottom-nav {
   position: fixed;
@@ -783,7 +871,7 @@ div.featured-img {
   flex-shrink: 0;
 }
 
-/* ===== Chat ===== */
+/* ===== Chat (FlowB AI Chat) ===== */
 .chat-screen {
   display: flex;
   flex-direction: column;
@@ -878,6 +966,69 @@ div.featured-img {
 @keyframes typingBounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* ===== Crew Chat ===== */
+.crew-chat-section { margin-top: 16px; }
+.crew-chat-messages {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.crew-chat-bubble {
+  max-width: 80%;
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.crew-chat-bubble-other {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+.crew-chat-bubble-own {
+  background: var(--accent);
+  color: #fff;
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+.crew-chat-sender {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-light);
+  margin-bottom: 2px;
+}
+.crew-chat-time {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.crew-chat-input-bar {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.crew-chat-send {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.crew-chat-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* ===== Error ===== */

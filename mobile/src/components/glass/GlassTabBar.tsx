@@ -49,6 +49,7 @@ const INDICATOR_RADIUS = 18;
 const TAB_LABELS: Record<string, string> = {
   HomeTab: 'Discover',
   ScheduleTab: 'Schedule',
+  ChatTab: 'Chat',
   CrewTab: 'Crew',
   PointsTab: 'Points',
   ProfileTab: 'Profile',

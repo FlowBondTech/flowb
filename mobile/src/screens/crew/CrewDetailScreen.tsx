@@ -1,17 +1,21 @@
 /**
  * CrewDetailScreen
  *
- * Full crew view with member list, active check-ins, and a leaderboard.
- * Loads member and check-in data from the crew store and leaderboard
- * from the API. Provides a bottom check-in CTA.
+ * Full crew view with member list, active check-ins, crew chat,
+ * and a leaderboard. Loads member and check-in data from the crew
+ * store and leaderboard from the API. Provides a bottom check-in CTA.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
+  Keyboard,
+  Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -23,6 +27,7 @@ import { GlassHeader } from '../../components/glass/GlassHeader';
 import { GlassPill } from '../../components/glass/GlassPill';
 import * as api from '../../api/client';
 import { useCrewStore } from '../../stores/useCrewStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 import { colors } from '../../theme/colors';
 import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
@@ -31,7 +36,7 @@ import { haptics } from '../../utils/haptics';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../../navigation/types';
-import type { CrewCheckin, CrewMember, LeaderboardEntry } from '../../api/types';
+import type { CrewCheckin, CrewMember, CrewMessage, LeaderboardEntry } from '../../api/types';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -46,6 +51,71 @@ const STATUS_COLORS: Record<string, string> = {
   leaving: colors.accent.rose,
 };
 
+// ── Avatar color palette for crew members ────────────────────────────
+
+const AVATAR_COLORS = [
+  colors.accent.primary,
+  colors.accent.cyan,
+  colors.accent.emerald,
+  colors.accent.amber,
+  colors.accent.rose,
+  colors.accent.secondary,
+];
+
+function getAvatarColor(userId: string): string {
+  let hash = 0;
+  for (let i = 0; i < userId.length; i++) {
+    hash = (hash * 31 + userId.charCodeAt(i)) | 0;
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitials(displayName?: string, userId?: string): string {
+  if (displayName) {
+    const parts = displayName.split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return displayName.slice(0, 2).toUpperCase();
+  }
+  if (userId) {
+    return userId.slice(0, 2).toUpperCase();
+  }
+  return '??';
+}
+
+// ── Crew Chat Message Component ─────────────────────────────────────
+
+function ChatMessageItem({
+  msg,
+  isOwn,
+}: {
+  msg: CrewMessage;
+  isOwn: boolean;
+}) {
+  const avatarColor = getAvatarColor(msg.user_id);
+  const initials = getInitials(msg.display_name, msg.user_id);
+
+  return (
+    <View style={[chatStyles.messageRow, isOwn ? chatStyles.messageRowOwn : chatStyles.messageRowOther]}>
+      {!isOwn && (
+        <View style={[chatStyles.avatar, { backgroundColor: avatarColor }]}>
+          <Text style={chatStyles.avatarText}>{initials}</Text>
+        </View>
+      )}
+      <View style={[chatStyles.messageBubble, isOwn ? chatStyles.bubbleOwn : chatStyles.bubbleOther]}>
+        {!isOwn && msg.display_name && (
+          <Text style={chatStyles.senderName}>{msg.display_name}</Text>
+        )}
+        <Text style={[chatStyles.messageText, isOwn ? chatStyles.messageTextOwn : chatStyles.messageTextOther]}>
+          {msg.message}
+        </Text>
+        <Text style={chatStyles.messageTime}>{formatRelative(msg.created_at)}</Text>
+      </View>
+    </View>
+  );
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 export function CrewDetailScreen() {
@@ -54,11 +124,22 @@ export function CrewDetailScreen() {
   const { crewId, crewName, crewEmoji } = route.params;
 
   const getMembers = useCrewStore((s) => s.getMembers);
+  const currentUser = useAuthStore((s) => s.user);
 
   const [members, setMembers] = useState<CrewMember[]>([]);
   const [checkins, setCheckins] = useState<CrewCheckin[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<CrewMessage[]>([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatSending, setChatSending] = useState(false);
+  const [chatExpanded, setChatExpanded] = useState(false);
+  const chatInputRef = useRef<TextInput>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const currentUserId = currentUser?.id || '';
 
   // ── Data loading ────────────────────────────────────────────────────
 
@@ -79,9 +160,32 @@ export function CrewDetailScreen() {
     }
   }, [crewId, getMembers]);
 
+  const loadMessages = useCallback(async () => {
+    try {
+      const msgs = await api.getCrewMessages(crewId);
+      setChatMessages(msgs);
+    } catch {
+      // Silent -- chat is supplementary
+    }
+  }, [crewId]);
+
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    loadMessages();
+  }, [loadData, loadMessages]);
+
+  // Poll for new messages every 5 seconds when chat is expanded
+  useEffect(() => {
+    if (chatExpanded) {
+      pollTimerRef.current = setInterval(loadMessages, 5000);
+    }
+    return () => {
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+    };
+  }, [chatExpanded, loadMessages]);
 
   // ── Handlers ────────────────────────────────────────────────────────
 
@@ -93,6 +197,45 @@ export function CrewDetailScreen() {
   const handleBack = useCallback(() => {
     navigation.goBack();
   }, [navigation]);
+
+  const toggleChat = useCallback(() => {
+    haptics.tap();
+    setChatExpanded((prev) => !prev);
+    if (!chatExpanded) {
+      loadMessages();
+    }
+  }, [chatExpanded, loadMessages]);
+
+  const handleSendMessage = useCallback(async () => {
+    const text = chatInput.trim();
+    if (!text || chatSending) return;
+
+    haptics.tap();
+    setChatSending(true);
+    setChatInput('');
+    Keyboard.dismiss();
+
+    try {
+      const newMsg = await api.sendCrewMessage(crewId, text);
+      setChatMessages((prev) => [...prev, newMsg]);
+    } catch {
+      // Restore input on failure
+      setChatInput(text);
+    } finally {
+      setChatSending(false);
+    }
+  }, [chatInput, chatSending, crewId]);
+
+  // ── Chat render item ──────────────────────────────────────────────
+
+  const renderChatItem = useCallback(
+    ({ item }: { item: CrewMessage }) => (
+      <ChatMessageItem msg={item} isOwn={item.user_id === currentUserId} />
+    ),
+    [currentUserId]
+  );
+
+  const chatKeyExtractor = useCallback((item: CrewMessage) => item.id, []);
 
   // ── Render ──────────────────────────────────────────────────────────
 
@@ -194,6 +337,86 @@ export function CrewDetailScreen() {
           )}
         </View>
 
+        {/* ── Crew Chat section ────────────────────────────────────────── */}
+        <View style={styles.section}>
+          <Pressable style={styles.chatHeaderRow} onPress={toggleChat}>
+            <Text style={styles.sectionTitle}>Crew Chat</Text>
+            <View style={styles.chatToggle}>
+              <Text style={styles.chatToggleLabel}>
+                {chatMessages.length > 0 ? `${chatMessages.length} messages` : 'Start chatting'}
+              </Text>
+              <Ionicons
+                name={chatExpanded ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={colors.text.secondary}
+              />
+            </View>
+          </Pressable>
+
+          {chatExpanded && (
+            <GlassCard variant="subtle" style={chatStyles.chatCard}>
+              {chatMessages.length === 0 ? (
+                <View style={chatStyles.emptyChat}>
+                  <Ionicons
+                    name="chatbubbles-outline"
+                    size={32}
+                    color={colors.text.tertiary}
+                  />
+                  <Text style={chatStyles.emptyChatText}>
+                    No messages yet. Start the conversation!
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={chatMessages}
+                  renderItem={renderChatItem}
+                  keyExtractor={chatKeyExtractor}
+                  inverted
+                  style={chatStyles.chatList}
+                  contentContainerStyle={chatStyles.chatListContent}
+                  showsVerticalScrollIndicator={false}
+                />
+              )}
+
+              {/* Chat input */}
+              <View style={chatStyles.inputRow}>
+                <TextInput
+                  ref={chatInputRef}
+                  style={chatStyles.textInput}
+                  placeholder="Message your crew..."
+                  placeholderTextColor={colors.text.tertiary}
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  editable={!chatSending}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendMessage}
+                  selectionColor={colors.accent.primary}
+                  keyboardAppearance="dark"
+                  multiline={false}
+                />
+                <Pressable
+                  style={[
+                    chatStyles.sendButton,
+                    (!chatInput.trim() || chatSending) && chatStyles.sendButtonDisabled,
+                  ]}
+                  onPress={handleSendMessage}
+                  disabled={!chatInput.trim() || chatSending}
+                >
+                  <Ionicons
+                    name="send"
+                    size={16}
+                    color={
+                      chatInput.trim() && !chatSending
+                        ? colors.white
+                        : colors.text.tertiary
+                    }
+                  />
+                </Pressable>
+              </View>
+            </GlassCard>
+          )}
+        </View>
+
         {/* ── Leaderboard section ────────────────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Leaderboard</Text>
@@ -276,6 +499,23 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text.tertiary,
     paddingVertical: spacing.md,
+  },
+
+  // Chat header row
+  chatHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  chatToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  chatToggleLabel: {
+    ...typography.caption,
+    color: colors.text.secondary,
   },
 
   // Members
@@ -381,5 +621,150 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.base,
     borderTopWidth: 1,
     borderTopColor: colors.border.subtle,
+  },
+});
+
+// ── Chat styles ──────────────────────────────────────────────────────
+
+const AVATAR_SIZE = 32;
+
+const chatStyles = StyleSheet.create({
+  chatCard: {
+    overflow: 'hidden',
+  },
+
+  // Empty state
+  emptyChat: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+    gap: spacing.sm,
+  },
+  emptyChatText: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+  },
+
+  // Message list
+  chatList: {
+    maxHeight: 300,
+  },
+  chatListContent: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+
+  // Message rows
+  messageRow: {
+    flexDirection: 'row',
+    marginVertical: spacing.xs,
+    alignItems: 'flex-end',
+  },
+  messageRowOwn: {
+    justifyContent: 'flex-end',
+  },
+  messageRowOther: {
+    justifyContent: 'flex-start',
+  },
+
+  // Avatar
+  avatar: {
+    width: AVATAR_SIZE,
+    height: AVATAR_SIZE,
+    borderRadius: AVATAR_SIZE / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.xs,
+  },
+  avatarText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.white,
+  },
+
+  // Bubbles
+  messageBubble: {
+    maxWidth: '75%',
+    paddingHorizontal: spacing.sm + 4,
+    paddingVertical: spacing.sm,
+    borderRadius: 14,
+  },
+  bubbleOwn: {
+    backgroundColor: colors.accent.primary,
+    borderBottomRightRadius: 4,
+  },
+  bubbleOther: {
+    backgroundColor: colors.background.depth2,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+    borderBottomLeftRadius: 4,
+  },
+
+  // Sender name
+  senderName: {
+    ...typography.micro,
+    color: colors.accent.cyan,
+    marginBottom: 2,
+    fontSize: 11,
+    letterSpacing: 0,
+    textTransform: 'none',
+    fontWeight: '600',
+  },
+
+  // Message text
+  messageText: {
+    ...typography.body,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  messageTextOwn: {
+    color: colors.white,
+  },
+  messageTextOther: {
+    color: colors.text.primary,
+  },
+
+  // Time
+  messageTime: {
+    ...typography.micro,
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 2,
+    textAlign: 'right',
+    letterSpacing: 0,
+    textTransform: 'none',
+  },
+
+  // Input row
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text.primary,
+    paddingVertical: Platform.select({ ios: 10, android: 8 }),
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.background.depth1,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: colors.border.subtle,
+  },
+  sendButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.accent.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: colors.glass.light,
   },
 });
