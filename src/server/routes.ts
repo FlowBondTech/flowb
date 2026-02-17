@@ -521,7 +521,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      const maxResults = Math.min(parseInt(limit || "20", 10), 50);
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
       return { events: filtered.slice(0, maxResults) };
     },
   );
@@ -1103,6 +1103,200 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const { id } = request.params;
       const missions = await core.getCrewMissions(id);
       return { missions };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Leave crew (requires auth)
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/leave",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      if (!flowPlugin || !flowCfg) {
+        return { ok: false, error: "Flow plugin not configured" };
+      }
+
+      const result = await flowPlugin.execute("crew-leave", {
+        action: "crew-leave",
+        user_id: jwt.sub,
+        group_id: request.params.id,
+      }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
+
+      return { ok: true, message: result };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Discover public crews (requires auth)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/flow/crews/discover",
+    { preHandler: authMiddleware },
+    async () => {
+      if (!flowPlugin || !flowCfg) {
+        return { crews: [] };
+      }
+
+      const result = await flowPlugin.execute("crew-browse", {
+        action: "crew-browse",
+      }, { userId: "", platform: "telegram", config: {} as any });
+
+      let crews: any[] = [];
+      try {
+        crews = JSON.parse(result);
+      } catch {
+        crews = [];
+      }
+
+      // Enrich with member counts
+      const cfg = getSupabaseConfig();
+      if (cfg && crews.length) {
+        for (const crew of crews) {
+          const members = await sbFetch<any[]>(
+            cfg,
+            `flowb_group_members?group_id=eq.${crew.id}&select=user_id`,
+          );
+          crew.member_count = members?.length || 0;
+        }
+      }
+
+      return { crews };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Remove member from crew (admin, requires auth)
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { id: string; userId: string } }>(
+    "/api/v1/flow/crews/:id/members/:userId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      if (!flowPlugin || !flowCfg) {
+        return { ok: false, error: "Flow plugin not configured" };
+      }
+
+      const result = await flowPlugin.execute("crew-remove-member", {
+        action: "crew-remove-member",
+        user_id: jwt.sub,
+        group_id: request.params.id,
+        friend_id: request.params.userId,
+      }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
+
+      return { ok: true, message: result };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Update member role (promote/demote, requires auth)
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string; userId: string }; Body: { role: string } }>(
+    "/api/v1/flow/crews/:id/members/:userId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      if (!flowPlugin || !flowCfg) {
+        return { ok: false, error: "Flow plugin not configured" };
+      }
+
+      const action = request.body.role === "admin" ? "crew-promote" : "crew-demote";
+      const result = await flowPlugin.execute(action, {
+        action,
+        user_id: jwt.sub,
+        group_id: request.params.id,
+        friend_id: request.params.userId,
+      }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
+
+      return { ok: true, message: result };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Edit crew details (requires auth, admin only)
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string }; Body: { name?: string; emoji?: string; description?: string } }>(
+    "/api/v1/flow/crews/:id",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Verify caller is admin/creator
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${request.params.id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length || !["creator", "admin"].includes(membership[0].role)) {
+        return { ok: false, error: "Only crew admins can edit crew details" };
+      }
+
+      const updates: Record<string, any> = {};
+      if (request.body.name) updates.name = request.body.name;
+      if (request.body.emoji) updates.emoji = request.body.emoji;
+      if (request.body.description !== undefined) updates.description = request.body.description;
+
+      if (Object.keys(updates).length === 0) {
+        return { ok: false, error: "Nothing to update" };
+      }
+
+      await sbFetch(cfg, `flowb_groups?id=eq.${request.params.id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(updates),
+      });
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Crew activity feed - historical checkins (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/activity",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { activity: [] };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) {
+        return { activity: [] };
+      }
+
+      // Get recent checkins (last 50, including expired)
+      const checkins = await sbFetch<any[]>(
+        cfg,
+        `flowb_checkins?crew_id=eq.${id}&select=user_id,venue_name,status,message,created_at&order=created_at.desc&limit=50`,
+      );
+
+      // Resolve display names
+      const userIds = [...new Set((checkins || []).map((c: any) => c.user_id))];
+      const sessions = userIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        : [];
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+
+      return {
+        activity: (checkins || []).map((c: any) => ({
+          ...c,
+          display_name: nameMap.get(c.user_id) || undefined,
+        })),
+      };
     },
   );
 

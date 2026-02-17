@@ -98,3 +98,43 @@ export interface EventSocial {
   flowGoing?: number;
   flowMaybe?: number;
 }
+
+export interface DiscoveredCrew {
+  id: string;
+  name: string;
+  emoji: string;
+  description?: string;
+  join_mode: string;
+  member_count: number;
+  created_at: string;
+}
+
+export interface CrewActivity {
+  user_id: string;
+  display_name?: string;
+  venue_name: string;
+  status: string;
+  message?: string;
+  created_at: string;
+}
+
+export interface CrewMessage {
+  id: string;
+  crew_id: string;
+  user_id: string;
+  display_name?: string;
+  message: string;
+  reply_to?: string;
+  created_at: string;
+}
+
+export interface FeedItem {
+  type: 'checkin' | 'rsvp' | 'join' | 'message';
+  user_id: string;
+  display_name?: string;
+  text: string;
+  crew_name?: string;
+  event_title?: string;
+  venue_name?: string;
+  created_at: string;
+}

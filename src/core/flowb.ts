@@ -138,7 +138,7 @@ export class FlowBCore {
           city: input.city,
           category: input.category,
           danceStyle: input.dance_style,
-          limit: 15,
+          limit: 50,
         })
       )
     );

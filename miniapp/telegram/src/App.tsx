@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { BottomNav } from "./components/BottomNav";
+import { OnboardingScreen } from "./components/OnboardingScreen";
 import { Home } from "./screens/Home";
 import { EventDetail } from "./screens/EventDetail";
 import { Schedule } from "./screens/Schedule";
@@ -17,8 +18,14 @@ export type Screen =
 export default function App() {
   const { user, loading, error } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: "home" });
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   // Parse deep link from startapp parameter
+  const hasDeepLink = (() => {
+    const tg = (window as any).Telegram?.WebApp;
+    return !!tg?.initDataUnsafe?.start_param;
+  })();
+
   useEffect(() => {
     const tg = (window as any).Telegram?.WebApp;
     const startParam = tg?.initDataUnsafe?.start_param;
@@ -34,6 +41,16 @@ export default function App() {
       setScreen({ name: "points" });
     }
   }, []);
+
+  // Show onboarding after auth if not completed and no deep link
+  useEffect(() => {
+    if (!user || hasDeepLink) return;
+    try {
+      if (!localStorage.getItem("flowb_onboarded")) {
+        setShowOnboarding(true);
+      }
+    } catch {}
+  }, [user, hasDeepLink]);
 
   // Set up Telegram back button
   useEffect(() => {
@@ -77,6 +94,18 @@ export default function App() {
     const tg = (window as any).Telegram?.WebApp;
     tg?.HapticFeedback?.selectionChanged();
   };
+
+  if (showOnboarding) {
+    return (
+      <OnboardingScreen
+        onComplete={() => setShowOnboarding(false)}
+        onNavigateCrew={(action) => {
+          setShowOnboarding(false);
+          setScreen({ name: "crew" });
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app">

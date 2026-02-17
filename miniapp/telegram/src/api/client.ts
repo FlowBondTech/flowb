@@ -14,6 +14,7 @@ import type {
   PointsInfo,
   LeaderboardEntry,
   EventSocial,
+  CrewMessage,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -51,6 +52,16 @@ async function del<T>(path: string): Promise<T> {
   return res.json();
 }
 
+async function patch<T>(path: string, body: any): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "PATCH",
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
 // ============================================================================
 // Auth
 // ============================================================================
@@ -79,7 +90,7 @@ export async function authFarcaster(message: string, signature: string): Promise
 // Events
 // ============================================================================
 
-export async function getEvents(city = "Denver", limit = 20): Promise<EventResult[]> {
+export async function getEvents(city = "Denver", limit = 50): Promise<EventResult[]> {
   const data = await get<{ events: EventResult[] }>(
     `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`,
   );
@@ -155,6 +166,22 @@ export async function getCrewLeaderboard(crewId: string): Promise<LeaderboardEnt
 }
 
 // ============================================================================
+// Flow - Crew Messages
+// ============================================================================
+
+export async function getCrewMessages(crewId: string, limit = 50, before?: string): Promise<CrewMessage[]> {
+  let path = `/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages?limit=${limit}`;
+  if (before) path += `&before=${encodeURIComponent(before)}`;
+  const data = await get<{ messages: CrewMessage[] }>(path);
+  return data.messages;
+}
+
+export async function sendCrewMessage(crewId: string, message: string, replyTo?: string): Promise<CrewMessage> {
+  const data = await post<{ message: CrewMessage }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages`, { message, replyTo });
+  return data.message;
+}
+
+// ============================================================================
 // Flow - Friends
 // ============================================================================
 
@@ -188,4 +215,46 @@ export async function claimPendingPoints(
   actions: Array<{ action: string; ts: number }>,
 ): Promise<{ claimed: number; total: number }> {
   return post("/api/v1/auth/claim-points", { actions });
+}
+
+// ============================================================================
+// Preferences
+// ============================================================================
+
+export async function updatePreferences(data: {
+  arrival_date?: string;
+  interest_categories?: string[];
+  onboarding_complete?: boolean;
+}): Promise<any> {
+  return patch("/api/v1/me/preferences", data);
+}
+
+// ============================================================================
+// Flow - Crew Management
+// ============================================================================
+
+export async function leaveCrew(crewId: string): Promise<any> {
+  return del(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/leave`);
+}
+
+export async function discoverCrews(): Promise<any[]> {
+  const data = await get<{ crews: any[] }>("/api/v1/flow/crews/discover");
+  return data.crews;
+}
+
+export async function removeMember(crewId: string, userId: string): Promise<any> {
+  return del(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/members/${encodeURIComponent(userId)}`);
+}
+
+export async function updateMemberRole(crewId: string, userId: string, role: string): Promise<any> {
+  return patch(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/members/${encodeURIComponent(userId)}`, { role });
+}
+
+export async function updateCrew(crewId: string, data: { name?: string; emoji?: string; description?: string }): Promise<any> {
+  return patch(`/api/v1/flow/crews/${encodeURIComponent(crewId)}`, data);
+}
+
+export async function getCrewActivity(crewId: string): Promise<any[]> {
+  const data = await get<{ activity: any[] }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/activity`);
+  return data.activity;
 }
