@@ -1,10 +1,8 @@
 const API = 'https://egator-api.fly.dev';
 const FLOWB_API = 'https://flowb.fly.dev';
 
-// OpenClaw Gateway config (set via Netlify env or override here)
-const OPENCLAW_GATEWAY = window.FLOWB_GATEWAY_URL || 'https://gateway.openclaw.ai';
-const OPENCLAW_TOKEN = window.FLOWB_GATEWAY_TOKEN || '';
-const FLOWB_AGENT_ID = 'flowb';
+// FlowB Chat API (proxied through flowb.fly.dev → xAI Grok)
+const FLOWB_CHAT_URL = FLOWB_API;
 
 // State
 let allEvents = [];
@@ -1170,7 +1168,7 @@ loadMoreBtn.addEventListener('click', () => {
 });
 
 // ===================================================================
-// FlowB Chat - OpenClaw Integration
+// FlowB Chat
 // ===================================================================
 
 function openChat() {
@@ -1458,49 +1456,18 @@ function setStatus(status, text) {
   }
 }
 
-// ===== OpenClaw Chat Completions =====
+// ===== FlowB Chat (xAI Grok via backend proxy) =====
 
-async function sendToOpenClaw(userMessage) {
-  // Add to history
+async function sendToFlowB(userMessage) {
   chatHistory.push({ role: 'user', content: userMessage });
 
-  // Get user's display name for replies
-  const userName = Auth.isAuthenticated ? (Auth.user?.username || Auth.user?.email || null) : null;
-
-  // Build system message with context
-  const systemMsg = {
-    role: 'system',
-    content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events. You help users discover events, hackathons, parties, meetups, and summits happening during ETHDenver week (Feb 13-20, 2026) in Denver.
-
-You have access to a tool called "flowb" that can search events, browse categories, check tonight's events, find free events, and more. Use it when users ask about events.
-
-CRITICAL RULES:
-1. ALWAYS reply in a SINGLE message. If the user asks multiple questions, address ALL of them in ONE cohesive response with clear sections. NEVER send multiple separate messages.
-2. If a user asks two things like "what is X? also show me Y events", gather ALL the information first, then respond once with everything.
-3. When using the flowb tool, batch your tool calls and combine all results into one response.
-4. ${userName ? `Address the user as "${userName}" when greeting them.` : 'Be friendly and conversational.'}
-5. Respond when the user mentions "flowb" or "@flowb" — treat it as them talking to you.
-6. Be conversational, helpful, and concise. Use emojis sparingly.
-7. Format event listings clearly with titles, dates, venues, and prices.
-
-The user's platform is "web" and their user_id is "${Points.anonId || 'anon'}".`
-  };
-
-  const messages = [systemMsg, ...chatHistory.slice(-20)]; // Keep last 20 messages
+  const messages = chatHistory.slice(-20);
 
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    if (OPENCLAW_TOKEN) {
-      headers['Authorization'] = `Bearer ${OPENCLAW_TOKEN}`;
-    }
-
-    const res = await fetch(`${OPENCLAW_GATEWAY}/v1/chat/completions`, {
+    const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: `openclaw:${FLOWB_AGENT_ID}`,
         messages,
         stream: false,
         user: Points.anonId || 'web-anon',
@@ -1508,7 +1475,7 @@ The user's platform is "web" and their user_id is "${Points.anonId || 'anon'}".`
     });
 
     if (!res.ok) {
-      throw new Error(`Gateway returned ${res.status}`);
+      throw new Error(`Chat returned ${res.status}`);
     }
 
     const data = await res.json();
@@ -1517,12 +1484,12 @@ The user's platform is "web" and their user_id is "${Points.anonId || 'anon'}".`
     chatHistory.push({ role: 'assistant', content: reply });
     return reply;
   } catch (err) {
-    console.warn('[flowb-chat] OpenClaw gateway error:', err.message);
+    console.warn('[flowb-chat] Error:', err.message);
     throw err;
   }
 }
 
-// ===== Local Fallback (when OpenClaw unavailable) =====
+// ===== Local Fallback (when AI unavailable) =====
 
 /** Strip "flowb" / "@flowb" / "hey flowb" prefix from input */
 function stripFlowbMention(text) {
@@ -1703,7 +1670,7 @@ function formatChatEvents(events, title) {
   return text.trim();
 }
 
-// ===== Send Message (tries OpenClaw, falls back to local) =====
+// ===== Send Message (tries backend AI, falls back to local) =====
 
 async function sendChatMessage(msg) {
   if (isStreaming) return;
@@ -1718,8 +1685,8 @@ async function sendChatMessage(msg) {
   const cleanMsg = stripFlowbMention(msg);
 
   try {
-    // Try OpenClaw gateway first
-    const response = await sendToOpenClaw(cleanMsg);
+    // Try FlowB backend (xAI Grok)
+    const response = await sendToFlowB(cleanMsg);
     removeTypingIndicator();
     addChatMessage(response, 'bot');
     setStatus('ok', 'connected');
@@ -1842,9 +1809,9 @@ function handleEventUrlParam() {
   loadMyFlow();
   loadDashboard();
 
-  // Check OpenClaw gateway availability
+  // Check FlowB chat backend availability
   try {
-    const res = await fetch(`${OPENCLAW_GATEWAY}/health`, { method: 'GET', signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${FLOWB_CHAT_URL}/health`, { method: 'GET', signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       setStatus('ok', 'connected');
     } else {

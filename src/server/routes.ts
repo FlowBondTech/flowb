@@ -1650,6 +1650,76 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // CHAT: AI Chat Completions (xAI Grok proxy)
+  //
+  // OpenAI-compatible /v1/chat/completions endpoint.
+  // Used by: Farcaster mini app, web app, Telegram mini app.
+  // Requires XAI_API_KEY env var set on Fly.
+  // ------------------------------------------------------------------
+  app.post<{ Body: { messages: Array<{ role: string; content: string }>; model?: string; stream?: boolean; user?: string } }>(
+    "/v1/chat/completions",
+    async (request, reply) => {
+      const apiKey = process.env.XAI_API_KEY;
+      if (!apiKey) {
+        return reply.status(503).send({ error: "Chat not configured" });
+      }
+
+      const { messages = [], stream = false, user } = request.body || {};
+      if (!messages.length) {
+        return reply.status(400).send({ error: "Missing messages" });
+      }
+
+      // Inject FlowB system prompt if none provided
+      const hasSystem = messages.some((m) => m.role === "system");
+      const chatMessages = hasSystem
+        ? messages.slice(-25)
+        : [
+            {
+              role: "system",
+              content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events in Denver (Feb 15-27, 2026). You help users discover events, hackathons, parties, meetups, and summits.
+
+RULES:
+1. Reply in a SINGLE concise message. Use clear sections if answering multiple questions.
+2. Be conversational and helpful. Use emojis sparingly.
+3. Format event listings with titles, dates/times, venues, and prices.
+4. If asked about non-event topics, stay friendly but steer back to ETHDenver.
+5. When you don't know specifics, suggest the user check flowb.me for the latest listings.`,
+            },
+            ...messages.slice(-24),
+          ];
+
+      try {
+        const res = await fetch("https://api.x.ai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "grok-3-mini-fast",
+            messages: chatMessages,
+            stream: false,
+            max_tokens: 1024,
+            temperature: 0.7,
+          }),
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          console.error(`[chat] xAI error ${res.status}:`, errText);
+          return reply.status(502).send({ error: "AI service error" });
+        }
+
+        const data = await res.json();
+        return data;
+      } catch (err: any) {
+        console.error("[chat] xAI request failed:", err.message);
+        return reply.status(502).send({ error: "AI service unavailable" });
+      }
+    },
+  );
+
+  // ------------------------------------------------------------------
   // FARCASTER: Notification webhook (verified via @farcaster/miniapp-node)
   // ------------------------------------------------------------------
   app.post(
