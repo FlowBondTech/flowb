@@ -11,6 +11,7 @@ export type RootStackParamList = {
   Checkin: { crewId: string; crewName: string };
   Preferences: undefined;
   Friends: undefined;
+  About: undefined;
   AdminDashboard: undefined;
   PluginManager: undefined;
   EventCurator: undefined;

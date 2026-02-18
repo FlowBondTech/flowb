@@ -1,10 +1,33 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { EventResult } from "../api/types";
 
 interface Props {
   event: EventResult;
   flowGoing?: number;
   onClick: () => void;
+}
+
+/** Prevent click from firing when user was scrolling */
+function useScrollGuard(onClick: () => void) {
+  const startY = useRef(0);
+  const moved = useRef(false);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    startY.current = e.touches[0].clientY;
+    moved.current = false;
+  }, []);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (Math.abs(e.touches[0].clientY - startY.current) > 10) {
+      moved.current = true;
+    }
+  }, []);
+
+  const guardedClick = useCallback(() => {
+    if (!moved.current) onClick();
+  }, [onClick]);
+
+  return { onTouchStart, onTouchMove, onClick: guardedClick };
 }
 
 /** Compress images via wsrv.nl proxy - converts to webp ~30-80KB */
@@ -57,9 +80,10 @@ export function EventCard({ event, flowGoing, onClick }: Props) {
   const live = isHappeningNow(event.startTime, event.endTime);
   const thumbUrl = optimizeImageUrl(event.imageUrl);
   const [imgError, setImgError] = useState(false);
+  const touch = useScrollGuard(onClick);
 
   return (
-    <div className="card card-clickable" onClick={onClick}>
+    <div className="card card-clickable" onClick={touch.onClick} onTouchStart={touch.onTouchStart} onTouchMove={touch.onTouchMove}>
       {/* Event image */}
       {thumbUrl && !imgError ? (
         <img

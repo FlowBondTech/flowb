@@ -2006,6 +2006,149 @@ RULES:
   );
 
   // ------------------------------------------------------------------
+  // LINKED ACCOUNTS: Show all connected platforms for the user
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/linked-accounts",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { accounts: [], canonical_id: null };
+
+      const { resolveCanonicalId, getLinkedIds } = await import("../services/identity.js");
+      const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+      const allIds = await getLinkedIds(cfg, canonicalId);
+
+      // Fetch identity rows with display names
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_identities?canonical_id=eq.${encodeURIComponent(canonicalId)}&select=platform,platform_user_id,display_name,avatar_url,privy_id`,
+      );
+
+      const accounts = (rows || []).map((r: any) => ({
+        platform: r.platform,
+        platform_user_id: r.platform_user_id,
+        display_name: r.display_name,
+        avatar_url: r.avatar_url,
+        is_current: r.platform_user_id === jwt.sub,
+      }));
+
+      return { accounts, canonical_id: canonicalId };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PRIVACY SETTINGS: Control visibility and data sharing
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/privacy",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { privacy: {} };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=privacy_profile_visible,privacy_schedule_visible,privacy_crews_visible,privacy_points_visible,privacy_activity_visible,privacy_share_with_crews,privacy_share_cross_platform&limit=1`,
+      );
+
+      const p = rows?.[0] || {};
+      return {
+        privacy: {
+          profile_visible: p.privacy_profile_visible ?? "friends",
+          schedule_visible: p.privacy_schedule_visible ?? "friends",
+          crews_visible: p.privacy_crews_visible ?? "public",
+          points_visible: p.privacy_points_visible ?? "public",
+          activity_visible: p.privacy_activity_visible ?? "friends",
+          share_with_crews: p.privacy_share_with_crews ?? true,
+          share_cross_platform: p.privacy_share_cross_platform ?? true,
+        },
+      };
+    },
+  );
+
+  app.patch<{
+    Body: {
+      profile_visible?: string;
+      schedule_visible?: string;
+      crews_visible?: string;
+      points_visible?: string;
+      activity_visible?: string;
+      share_with_crews?: boolean;
+      share_cross_platform?: boolean;
+    };
+  }>(
+    "/api/v1/me/privacy",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const valid = ["public", "friends", "crews", "private"];
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      const body = request.body || {};
+
+      if (body.profile_visible && valid.includes(body.profile_visible)) updates.privacy_profile_visible = body.profile_visible;
+      if (body.schedule_visible && valid.includes(body.schedule_visible)) updates.privacy_schedule_visible = body.schedule_visible;
+      if (body.crews_visible && valid.includes(body.crews_visible)) updates.privacy_crews_visible = body.crews_visible;
+      if (body.points_visible && valid.includes(body.points_visible)) updates.privacy_points_visible = body.points_visible;
+      if (body.activity_visible && valid.includes(body.activity_visible)) updates.privacy_activity_visible = body.activity_visible;
+      if (body.share_with_crews !== undefined) updates.privacy_share_with_crews = body.share_with_crews;
+      if (body.share_cross_platform !== undefined) updates.privacy_share_cross_platform = body.share_cross_platform;
+
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_sessions`,
+        {
+          method: "POST",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal,resolution=merge-duplicates",
+          },
+          body: JSON.stringify({
+            user_id: jwt.sub,
+            ...updates,
+          }),
+        },
+      ).catch(() => {});
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW MEMBERSHIPS: List crews with privacy context
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/crew-visibility",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { crews: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_members?user_id=eq.${jwt.sub}&select=crew_id,role,flowb_crews(id,name,emoji,member_count)`,
+      );
+
+      const crews = (rows || []).map((r: any) => ({
+        id: r.flowb_crews?.id || r.crew_id,
+        name: r.flowb_crews?.name || "Unknown",
+        emoji: r.flowb_crews?.emoji || "",
+        role: r.role || "member",
+        member_count: r.flowb_crews?.member_count || 0,
+      }));
+
+      return { crews };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // WHO'S GOING: Social proof for an event (optionally authed, cross-platform)
   // ------------------------------------------------------------------
   app.get<{ Params: { id: string } }>(

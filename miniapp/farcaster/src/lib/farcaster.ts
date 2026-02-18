@@ -6,6 +6,69 @@
 import { sdk } from "@farcaster/miniapp-sdk";
 
 let sdkReady = false;
+let detectedClient: "warpcast" | "base" | "unknown" = "unknown";
+
+/**
+ * Detect which Farcaster client we're running inside.
+ * Base uses Farcaster internally — links should stay in Base, not bounce to Warpcast.
+ */
+export function getClientType(): "warpcast" | "base" | "unknown" {
+  if (detectedClient !== "unknown") return detectedClient;
+  if (typeof window === "undefined") return "unknown";
+
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("base")) {
+    detectedClient = "base";
+  } else if (ua.includes("warpcast")) {
+    detectedClient = "warpcast";
+  } else {
+    // Check referrer / URL hints
+    const ref = (document.referrer || "").toLowerCase();
+    if (ref.includes("base.org")) detectedClient = "base";
+    else if (ref.includes("warpcast.com")) detectedClient = "warpcast";
+  }
+  return detectedClient;
+}
+
+/**
+ * Set client type from SDK context (called during init).
+ * Warpcast clientFid = 9152, Base clientFid = unknown but we detect via context.
+ */
+function detectClientFromContext(context: any): void {
+  if (detectedClient !== "unknown") return;
+  const clientFid = context?.client?.clientFid;
+  if (clientFid === 9152) {
+    detectedClient = "warpcast";
+  } else if (clientFid) {
+    // Non-Warpcast Farcaster client — likely Base
+    detectedClient = "base";
+  }
+}
+
+/**
+ * Build a cast URL that opens in the correct client.
+ * Base: uses farcaster.xyz (protocol-level, opens natively in Base)
+ * Warpcast: uses warpcast.com
+ */
+export function getCastUrl(username: string, hash: string): string {
+  const shortHash = hash.startsWith("0x") ? hash.slice(0, 10) : `0x${hash.slice(0, 8)}`;
+  const client = getClientType();
+  if (client === "base") {
+    return `https://farcaster.xyz/${username}/${shortHash}`;
+  }
+  return `https://warpcast.com/${username}/${shortHash}`;
+}
+
+/**
+ * Build a profile URL for the correct client.
+ */
+export function getProfileUrl(username: string): string {
+  const client = getClientType();
+  if (client === "base") {
+    return `https://farcaster.xyz/${username}`;
+  }
+  return `https://warpcast.com/${username}`;
+}
 
 /**
  * Detect whether we're running inside a Farcaster/Base mini app context.
@@ -52,6 +115,11 @@ export async function initFarcaster(): Promise<{
     ]);
 
     sdkReady = true;
+
+    // Detect client type from SDK context
+    if (context) detectClientFromContext(context);
+    // Also try UA-based detection
+    getClientType();
 
     // Tell the client we're ready (hides splash screen)
     try {
@@ -115,11 +183,22 @@ export async function quickAuth(): Promise<string | null> {
 
 export async function composeCast(text: string, embeds?: string[]): Promise<void> {
   try {
-    await sdk.actions.openUrl(
-      `https://warpcast.com/~/compose?text=${encodeURIComponent(text)}${embeds?.length ? `&embeds[]=${encodeURIComponent(embeds[0])}` : ""}`,
-    );
-  } catch (err) {
-    console.error("[farcaster] composeCast failed:", err);
+    // Use SDK-native composeCast — works across Warpcast, Base, and any Farcaster client
+    await (sdk.actions as any).composeCast({
+      text,
+      embeds: embeds?.map((url) => ({ url })),
+    });
+  } catch {
+    // Fallback: open compose URL in the correct client
+    try {
+      const client = getClientType();
+      const base = client === "base" ? "https://farcaster.xyz" : "https://warpcast.com";
+      await sdk.actions.openUrl(
+        `${base}/~/compose?text=${encodeURIComponent(text)}${embeds?.length ? `&embeds[]=${encodeURIComponent(embeds[0])}` : ""}`,
+      );
+    } catch (err) {
+      console.error("[farcaster] composeCast failed:", err);
+    }
   }
 }
 

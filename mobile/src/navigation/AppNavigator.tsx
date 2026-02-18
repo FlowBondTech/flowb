@@ -20,6 +20,7 @@ import { NotificationCenter } from "../screens/admin/NotificationCenter";
 import { SettingsEditor } from "../screens/admin/SettingsEditor";
 import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
 import { FriendsScreen } from "../screens/profile/FriendsScreen";
+import { AboutScreen } from "../screens/profile/AboutScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -97,6 +98,7 @@ export function AppNavigator() {
             <Stack.Screen name="CrewDetail" component={CrewDetailScreen} />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
+            <Stack.Screen name="About" component={AboutScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
             <Stack.Screen name="PluginManager" component={PluginManager} />
             <Stack.Screen name="EventCurator" component={EventCurator} />

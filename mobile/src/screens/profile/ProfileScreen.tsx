@@ -260,6 +260,15 @@ export function ProfileScreen() {
                 />
                 <View style={styles.divider} />
                 <SettingsRow icon="link-outline" label="Linked Accounts" disabled />
+                <View style={styles.divider} />
+                <SettingsRow
+                  icon="information-circle-outline"
+                  label="About FlowB"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('About');
+                  }}
+                />
               </GlassCard>
             </Animated.View>
 

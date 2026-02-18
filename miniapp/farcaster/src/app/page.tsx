@@ -13,8 +13,9 @@ import { OnboardingScreen } from "../components/OnboardingScreen";
 import { WebLanding } from "../components/WebLanding";
 import { FlowBChat } from "../components/FlowBChat";
 import { EthDenverFeed } from "../components/EthDenverFeed";
+import { AboutScreen } from "../components/AboutScreen";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about";
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
@@ -551,11 +552,22 @@ export default function FarcasterApp() {
       {/* Home Screen */}
       {screen === "home" && (
         <div className="screen">
-          <div style={{ marginBottom: 16 }}>
-            <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
-            <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-              EthDenver - Denver{username ? ` | @${username}` : ""}
+          <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+            <div>
+              <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
+              <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
+                EthDenver - Denver{username ? ` | @${username}` : ""}
+              </div>
             </div>
+            <button
+              onClick={() => setScreen("about")}
+              style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 6, marginTop: 2 }}
+              title="About FlowB"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+                <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+              </svg>
+            </button>
           </div>
 
           {!appAdded && (
@@ -1104,6 +1116,9 @@ export default function FarcasterApp() {
 
       {/* Chat Screen */}
       {screen === "chat" && <FlowBChat authed={authed} username={username} />}
+
+      {/* About Screen */}
+      {screen === "about" && <AboutScreen onBack={() => setScreen("home")} />}
 
       {/* Bottom Navigation */}
       <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />

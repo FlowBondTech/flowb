@@ -22,6 +22,7 @@
         <a href="/" class="header-nav-link">Events</a>
         <a href="/leaderboard.html" class="header-nav-link">Leaderboard</a>
         <a href="/flow.html" class="header-nav-link active">My Flow</a>
+        <a href="/about.html" class="header-nav-link">About</a>
       </nav>
       <div class="header-meta">
         <span class="event-badge">ETHDenver 2026</span>
@@ -51,7 +52,7 @@
           <div class="user-avatar" id="userAvatar">?</div>
           <div class="user-dropdown hidden" id="userDropdown">
             <div class="user-dropdown-header" id="userDropdownHeader"></div>
-            <button class="user-dropdown-item" id="notifSettingsBtn">Notification Settings</button>
+            <button class="user-dropdown-item" onclick="window.location='/settings.html'">Settings</button>
             <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
           </div>
         </div>
@@ -108,10 +109,10 @@
             <p class="page-subtitle" id="flowGreeting">Your ETHDenver 2026 dashboard</p>
           </div>
           <div class="page-header-actions">
-            <button class="page-action-btn" id="flowSettingsBtn">
+            <a href="/settings.html" class="page-action-btn">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
               Settings
-            </button>
+            </a>
             <a href="https://t.me/Flow_b_bot" target="_blank" class="page-action-btn secondary">
               <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
               Telegram
@@ -176,51 +177,6 @@
       </div>
     </div>
   </main>
-
-  <!-- Notification Settings Modal -->
-  <div class="notif-settings-backdrop hidden" id="notifSettingsBackdrop"></div>
-  <div class="notif-settings-modal hidden" id="notifSettingsModal">
-    <button class="event-modal-close" id="notifSettingsClose">&times;</button>
-    <h3 class="notif-settings-title">Notification Settings</h3>
-    <div class="notif-settings-section">
-      <h4 class="notif-settings-section-title">Default Reminders</h4>
-      <p class="notif-settings-hint">Applied to new RSVPs automatically</p>
-      <div class="reminder-chips" id="defaultReminderChips">
-        <button class="reminder-chip" data-mins="15">15m</button>
-        <button class="reminder-chip active" data-mins="30">30m</button>
-        <button class="reminder-chip" data-mins="60">1h</button>
-        <button class="reminder-chip" data-mins="120">2h</button>
-        <button class="reminder-chip" data-mins="1440">Day before</button>
-      </div>
-    </div>
-    <div class="notif-settings-section">
-      <h4 class="notif-settings-section-title">Notification Types</h4>
-      <label class="notif-toggle"><input type="checkbox" id="notifCrewCheckins" checked><span>Crew checkins</span></label>
-      <label class="notif-toggle"><input type="checkbox" id="notifFriendRsvps" checked><span>Friend RSVPs</span></label>
-      <label class="notif-toggle"><input type="checkbox" id="notifCrewRsvps" checked><span>Crew member RSVPs</span></label>
-      <label class="notif-toggle"><input type="checkbox" id="notifEventReminders" checked><span>Event reminders</span></label>
-      <label class="notif-toggle"><input type="checkbox" id="notifDailyDigest" checked><span>Daily digest</span></label>
-    </div>
-    <div class="notif-settings-section">
-      <h4 class="notif-settings-section-title">Quiet Hours</h4>
-      <label class="notif-toggle"><input type="checkbox" id="notifQuietHours"><span>Enable quiet hours</span></label>
-      <div class="notif-quiet-hours-row" id="quietHoursRow">
-        <label class="notif-field-label">From <select id="quietHoursStart" class="notif-select"></select></label>
-        <label class="notif-field-label">To <select id="quietHoursEnd" class="notif-select"></select></label>
-      </div>
-    </div>
-    <div class="notif-settings-section">
-      <h4 class="notif-settings-section-title">Timezone</h4>
-      <select id="notifTimezone" class="notif-select notif-tz-select">
-        <option value="America/Denver">America/Denver (MST)</option>
-        <option value="America/New_York">America/New_York (EST)</option>
-        <option value="America/Chicago">America/Chicago (CST)</option>
-        <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
-        <option value="UTC">UTC</option>
-      </select>
-    </div>
-    <button class="notif-save-btn" id="notifSaveBtn">Save Settings</button>
-  </div>
 
   <!-- Footer -->
   <footer class="footer">
@@ -483,94 +439,6 @@
         </div>
       `).join('');
     }
-
-    // ===== Notification Settings =====
-
-    function openNotifSettings() {
-      document.getElementById('notifSettingsModal').classList.remove('hidden');
-      document.getElementById('notifSettingsBackdrop').classList.remove('hidden');
-      document.body.style.overflow = 'hidden';
-      loadNotifSettings();
-    }
-
-    function closeNotifSettings() {
-      document.getElementById('notifSettingsModal').classList.add('hidden');
-      document.getElementById('notifSettingsBackdrop').classList.add('hidden');
-      document.body.style.overflow = '';
-    }
-
-    (function initHourSelects() {
-      const startSel = document.getElementById('quietHoursStart');
-      const endSel = document.getElementById('quietHoursEnd');
-      if (!startSel || !endSel) return;
-      for (let h = 0; h < 24; h++) {
-        const label = h.toString().padStart(2, '0') + ':00';
-        startSel.add(new Option(label, h));
-        endSel.add(new Option(label, h));
-      }
-      startSel.value = 22;
-      endSel.value = 8;
-    })();
-
-    document.getElementById('defaultReminderChips')?.addEventListener('click', (e) => {
-      const chip = e.target.closest('.reminder-chip');
-      if (chip) chip.classList.toggle('active');
-    });
-
-    document.getElementById('flowSettingsBtn')?.addEventListener('click', openNotifSettings);
-    document.getElementById('notifSettingsBtn')?.addEventListener('click', openNotifSettings);
-    document.getElementById('notifSettingsClose')?.addEventListener('click', closeNotifSettings);
-    document.getElementById('notifSettingsBackdrop')?.addEventListener('click', closeNotifSettings);
-
-    async function loadNotifSettings() {
-      const data = await fetchAuthed('/api/v1/me/preferences');
-      if (!data || !data.preferences) return;
-      const p = data.preferences;
-      const defaults = p.reminder_defaults || [30];
-      document.querySelectorAll('#defaultReminderChips .reminder-chip').forEach(chip => {
-        chip.classList.toggle('active', defaults.includes(parseInt(chip.dataset.mins, 10)));
-      });
-      document.getElementById('notifCrewCheckins').checked = p.notify_crew_checkins ?? true;
-      document.getElementById('notifFriendRsvps').checked = p.notify_friend_rsvps ?? true;
-      document.getElementById('notifCrewRsvps').checked = p.notify_crew_rsvps ?? true;
-      document.getElementById('notifEventReminders').checked = p.notify_event_reminders ?? true;
-      document.getElementById('notifDailyDigest').checked = p.notify_daily_digest ?? true;
-      document.getElementById('notifQuietHours').checked = p.quiet_hours_enabled || false;
-      document.getElementById('quietHoursStart').value = p.quiet_hours_start ?? 22;
-      document.getElementById('quietHoursEnd').value = p.quiet_hours_end ?? 8;
-      document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
-    }
-
-    document.getElementById('notifSaveBtn')?.addEventListener('click', async () => {
-      if (!Auth.isAuthenticated) return;
-      const chips = document.querySelectorAll('#defaultReminderChips .reminder-chip.active');
-      const reminder_defaults = Array.from(chips).map(c => parseInt(c.dataset.mins, 10)).filter(Boolean);
-      const body = {
-        reminder_defaults: reminder_defaults.length ? reminder_defaults : [30],
-        notify_crew_checkins: document.getElementById('notifCrewCheckins').checked,
-        notify_friend_rsvps: document.getElementById('notifFriendRsvps').checked,
-        notify_crew_rsvps: document.getElementById('notifCrewRsvps').checked,
-        notify_event_reminders: document.getElementById('notifEventReminders').checked,
-        notify_daily_digest: document.getElementById('notifDailyDigest').checked,
-        quiet_hours_enabled: document.getElementById('notifQuietHours').checked,
-        quiet_hours_start: parseInt(document.getElementById('quietHoursStart').value, 10),
-        quiet_hours_end: parseInt(document.getElementById('quietHoursEnd').value, 10),
-        timezone: document.getElementById('notifTimezone').value,
-      };
-      const result = await fetchAuthed('/api/v1/me/preferences', { method: 'PATCH', body: JSON.stringify(body) });
-      const btn = document.getElementById('notifSaveBtn');
-      if (result && result.ok) {
-        btn.textContent = 'Saved!';
-        btn.classList.add('saved');
-        setTimeout(() => { btn.textContent = 'Save Settings'; btn.classList.remove('saved'); }, 1500);
-      }
-    });
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && !document.getElementById('notifSettingsModal').classList.contains('hidden')) {
-        closeNotifSettings();
-      }
-    });
 
     // Init
     updateFlowPage();

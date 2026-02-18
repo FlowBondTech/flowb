@@ -72,11 +72,19 @@ body {
   margin-bottom: 12px;
   transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
-.card-clickable { cursor: pointer; }
-.card-clickable:hover {
-  border-color: var(--border-hover);
-  background: var(--bg-card-hover);
-  box-shadow: var(--shadow);
+.card-clickable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+}
+@media (hover: hover) {
+  .card-clickable:hover {
+    border-color: var(--border-hover);
+    background: var(--bg-card-hover);
+    box-shadow: var(--shadow);
+  }
 }
 .card-clickable:active {
   transform: scale(0.98);

@@ -15,6 +15,17 @@ let displayCount = 12;
 let chatHistory = [];
 let isStreaming = false;
 
+// Touch scroll guard – prevent click firing when user is scrolling
+let _touchStartY = 0;
+let _touchMoved = false;
+document.addEventListener('touchstart', (e) => {
+  _touchStartY = e.touches[0].clientY;
+  _touchMoved = false;
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (Math.abs(e.touches[0].clientY - _touchStartY) > 10) _touchMoved = true;
+}, { passive: true });
+
 // DOM - Events
 const grid = document.getElementById('eventsGrid');
 const catRow = document.getElementById('categoriesRow');
@@ -269,6 +280,8 @@ function createEventCard(e) {
 let currentModalEvent = {};
 
 function openEventModal(title, url, img, source, id, meta, shareOnly) {
+  // Skip if user was scrolling (not a deliberate tap)
+  if (_touchMoved && !shareOnly) return;
   currentModalEvent = { title, url, img, source, id, meta };
 
   const modal = document.getElementById('eventModal');

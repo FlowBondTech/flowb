@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { getEthDenverFeed } from "../api/client";
-import { openUrl } from "../lib/farcaster";
+import { openUrl, getCastUrl } from "../lib/farcaster";
 import type { FeedCast } from "../api/types";
 
 interface Props {
@@ -19,12 +19,12 @@ function timeAgo(ts: string): string {
 }
 
 function CastCard({ cast }: { cast: FeedCast }) {
-  const warpcastUrl = `https://warpcast.com/${cast.author.username}/${cast.hash.slice(0, 10)}`;
+  const castUrl = getCastUrl(cast.author.username, cast.hash);
 
   return (
     <div
       className="card card-clickable"
-      onClick={() => openUrl(warpcastUrl)}
+      onClick={() => openUrl(castUrl)}
     >
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         {cast.author.pfp_url ? (

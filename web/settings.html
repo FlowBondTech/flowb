@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings -- FlowB</title>
+  <meta name="description" content="Manage your FlowB privacy, connected accounts, notifications, and crew visibility.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .settings-page { padding: 40px 0 80px; }
+
+    .settings-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      transition: color 0.2s;
+    }
+    .settings-back:hover { color: var(--text); text-decoration: none; }
+
+    .settings-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .settings-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    /* Tabs */
+    .settings-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .settings-tab {
+      padding: 10px 18px;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .settings-tab:hover { color: var(--text); }
+    .settings-tab.active {
+      color: var(--accent-light);
+      border-bottom-color: var(--accent);
+    }
+
+    /* Panel */
+    .settings-panel { display: none; }
+    .settings-panel.active { display: block; }
+
+    /* Section card */
+    .settings-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .settings-section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .settings-section-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    /* Toggle row */
+    .settings-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-toggle:last-child { border-bottom: none; }
+    .settings-toggle-info { flex: 1; margin-right: 16px; }
+    .settings-toggle-label {
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+    .settings-toggle-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Visibility select */
+    .vis-select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 6px 28px 6px 10px;
+      font: inherit;
+      font-size: 0.82rem;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238888a0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .switch-slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: var(--text);
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    .switch input:checked + .switch-slider {
+      background: var(--accent);
+    }
+    .switch input:checked + .switch-slider::before {
+      transform: translateX(20px);
+    }
+
+    /* Connected accounts */
+    .account-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 8px;
+      transition: border-color 0.2s;
+    }
+    .account-card.connected { border-color: var(--green); }
+    .account-card-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .account-card-icon.tg { background: #229ed9; }
+    .account-card-icon.fc { background: #472a91; }
+    .account-card-icon.web { background: var(--accent); }
+    .account-card-icon.wallet { background: #f59e0b; }
+    .account-card-icon svg { width: 18px; height: 18px; }
+    .account-card-info { flex: 1; }
+    .account-card-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .account-card-detail {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 1px;
+    }
+    .account-card-status {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      flex-shrink: 0;
+    }
+    .account-card-status.linked {
+      background: var(--green-dim);
+      color: var(--green);
+    }
+    .account-card-status.available {
+      background: var(--accent-glow);
+      color: var(--accent-light);
+      cursor: pointer;
+    }
+    .account-card-status.available:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Crew visibility */
+    .crew-vis-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .crew-vis-row:last-child { border-bottom: none; }
+    .crew-vis-emoji {
+      font-size: 1.3rem;
+      width: 32px;
+      text-align: center;
+    }
+    .crew-vis-info { flex: 1; }
+    .crew-vis-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .crew-vis-role {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+    }
+    .crew-vis-members {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+
+    /* Encouragement banner */
+    .settings-encourage {
+      background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(168,85,247,0.08));
+      border: 1px solid rgba(37,99,235,0.2);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .settings-encourage-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .settings-encourage-msg {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+    .settings-encourage-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .settings-encourage-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-pill);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .settings-encourage-btn:hover { background: var(--accent-light); text-decoration: none; }
+    .settings-encourage-btn.secondary {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .settings-encourage-btn.secondary:hover { border-color: var(--accent); }
+
+    /* Save bar */
+    .settings-save-bar {
+      position: sticky;
+      bottom: 0;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 14px 0;
+      margin-top: 24px;
+    }
+    .settings-save-bar .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .settings-save-hint {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+    .settings-save-btn {
+      padding: 10px 28px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-pill);
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .settings-save-btn:hover { background: var(--accent-light); }
+    .settings-save-btn:active { transform: scale(0.97); }
+    .settings-save-btn.saved {
+      background: var(--green);
+    }
+
+    /* Sign-in gate for settings */
+    .settings-gate {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    .settings-gate-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      color: var(--text-dim);
+    }
+    .settings-gate h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .settings-gate p {
+      color: var(--text-muted);
+      max-width: 400px;
+      margin: 0 auto 20px;
+      line-height: 1.6;
+    }
+    .settings-gate-btn {
+      padding: 12px 32px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-pill);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    @media (max-width: 600px) {
+      .settings-tabs { gap: 0; }
+      .settings-tab { padding: 10px 12px; font-size: 0.82rem; }
+      .settings-section { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leaderboard.html" class="header-nav-link">Leaderboard</a>
+        <a href="/flow.html" class="header-nav-link">My Flow</a>
+        <a href="/about.html" class="header-nav-link">About</a>
+      </nav>
+      <div class="header-meta">
+        <span class="event-badge">ETHDenver 2026</span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" onclick="window.location='/settings.html'">Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Content -->
+  <main class="settings-page">
+    <div class="container">
+
+      <!-- Sign-in Gate -->
+      <div id="settingsGate" class="settings-gate">
+        <div class="settings-gate-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64">
+            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+          </svg>
+        </div>
+        <h2>Sign in to manage settings</h2>
+        <p>Control your privacy, connect your accounts across platforms, and manage what you share with your crews.</p>
+        <button class="settings-gate-btn" id="settingsSigninBtn">Sign In</button>
+      </div>
+
+      <!-- Authenticated Content -->
+      <div id="settingsAuthed" class="hidden">
+        <a href="/flow.html" class="settings-back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to My Flow
+        </a>
+
+        <h1 class="settings-title">Settings</h1>
+        <p class="settings-subtitle">Your data, your rules. Control how FlowB works for you.</p>
+
+        <!-- Tabs -->
+        <div class="settings-tabs">
+          <button class="settings-tab active" data-tab="accounts">Connected Accounts</button>
+          <button class="settings-tab" data-tab="privacy">Privacy</button>
+          <button class="settings-tab" data-tab="crews">Crews & Groups</button>
+          <button class="settings-tab" data-tab="notifications">Notifications</button>
+        </div>
+
+        <!-- ====== CONNECTED ACCOUNTS TAB ====== -->
+        <div class="settings-panel active" id="panel-accounts">
+
+          <!-- Encouragement Banner -->
+          <div class="settings-encourage">
+            <p class="settings-encourage-title">Connect everything, miss nothing</p>
+            <p class="settings-encourage-msg">When you link your accounts, your RSVPs, crews, points, and schedule sync across Telegram, Farcaster, and the web. One identity, every platform.</p>
+            <div class="settings-encourage-actions">
+              <a href="https://t.me/Flow_b_bot" target="_blank" class="settings-encourage-btn">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+                Open on Telegram
+              </a>
+              <a href="https://warpcast.com/flowb" target="_blank" class="settings-encourage-btn secondary">
+                <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
+                Open on Farcaster
+              </a>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Your Connected Accounts</h3>
+            <p class="settings-section-desc">These platforms are linked to your FlowB identity. Sign in on each platform to automatically link them through Privy.</p>
+            <div id="accountsList">
+              <div style="color:var(--text-dim);font-size:0.85rem;padding:16px 0;">Loading accounts...</div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Add More Connections</h3>
+            <p class="settings-section-desc">Sign in on these platforms with the same email or wallet to auto-link them. Your points, crews, and schedule will merge.</p>
+            <div id="availableAccounts"></div>
+          </div>
+        </div>
+
+        <!-- ====== PRIVACY TAB ====== -->
+        <div class="settings-panel" id="panel-privacy">
+          <div class="settings-section">
+            <h3 class="settings-section-title">Who Can See Your Info</h3>
+            <p class="settings-section-desc">Choose who sees different parts of your profile. You're always in control.</p>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Profile</div>
+                <div class="settings-toggle-hint">Your display name and avatar</div>
+              </div>
+              <select class="vis-select" id="privacyProfile">
+                <option value="public">Everyone</option>
+                <option value="friends" selected>Friends only</option>
+                <option value="crews">Crew members</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Schedule &amp; RSVPs</div>
+                <div class="settings-toggle-hint">Which events you're going to</div>
+              </div>
+              <select class="vis-select" id="privacySchedule">
+                <option value="public">Everyone</option>
+                <option value="friends" selected>Friends only</option>
+                <option value="crews">Crew members</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Crew Memberships</div>
+                <div class="settings-toggle-hint">Which crews you belong to</div>
+              </div>
+              <select class="vis-select" id="privacyCrews">
+                <option value="public" selected>Everyone</option>
+                <option value="friends">Friends only</option>
+                <option value="crews">Crew members</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Points &amp; Rank</div>
+                <div class="settings-toggle-hint">Your score on the leaderboard</div>
+              </div>
+              <select class="vis-select" id="privacyPoints">
+                <option value="public" selected>Everyone</option>
+                <option value="friends">Friends only</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Activity Feed</div>
+                <div class="settings-toggle-hint">RSVPs, checkins, and social actions</div>
+              </div>
+              <select class="vis-select" id="privacyActivity">
+                <option value="public">Everyone</option>
+                <option value="friends" selected>Friends only</option>
+                <option value="crews">Crew members</option>
+                <option value="private">Only me</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Data Sharing</h3>
+            <p class="settings-section-desc">Control how your information flows between platforms and groups.</p>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Share activity with my crews</div>
+                <div class="settings-toggle-hint">Let crew members see when you RSVP or check in to events</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="shareWithCrews" checked>
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Cross-platform sync</div>
+                <div class="settings-toggle-hint">Sync your RSVPs and schedule across Telegram, Farcaster, and Web</div>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="shareCrossPlatform" checked>
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== CREWS & GROUPS TAB ====== -->
+        <div class="settings-panel" id="panel-crews">
+          <div class="settings-section">
+            <h3 class="settings-section-title">Your Crews</h3>
+            <p class="settings-section-desc">See which crews you're in and what they can see about you. Crew members can see your RSVPs by default so you can coordinate events together.</p>
+            <div id="crewsList">
+              <div style="color:var(--text-dim);font-size:0.85rem;padding:16px 0;">Loading crews...</div>
+            </div>
+          </div>
+
+          <div class="settings-encourage">
+            <p class="settings-encourage-title">Crews make ETHDenver better</p>
+            <p class="settings-encourage-msg">Form a crew with your friends to coordinate events, check in together, and climb the leaderboard. Everyone in your crew can see shared RSVPs so nobody misses the move.</p>
+            <div class="settings-encourage-actions">
+              <a href="https://t.me/Flow_b_bot" target="_blank" class="settings-encourage-btn">Create a Crew on Telegram</a>
+              <a href="/leaderboard.html" class="settings-encourage-btn secondary">View Leaderboard</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- ====== NOTIFICATIONS TAB ====== -->
+        <div class="settings-panel" id="panel-notifications">
+          <div class="settings-section">
+            <h3 class="settings-section-title">Default Reminders</h3>
+            <p class="settings-section-desc">Applied to new RSVPs automatically</p>
+            <div class="reminder-chips" id="defaultReminderChips">
+              <button class="reminder-chip" data-mins="15">15m</button>
+              <button class="reminder-chip active" data-mins="30">30m</button>
+              <button class="reminder-chip" data-mins="60">1h</button>
+              <button class="reminder-chip" data-mins="120">2h</button>
+              <button class="reminder-chip" data-mins="1440">Day before</button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Notification Types</h3>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Crew checkins</div>
+                <div class="settings-toggle-hint">When crew members check in at events</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifCrewCheckins" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Friend RSVPs</div>
+                <div class="settings-toggle-hint">When friends RSVP to events</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifFriendRsvps" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Crew member RSVPs</div>
+                <div class="settings-toggle-hint">When anyone in your crew RSVPs</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifCrewRsvps" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Event reminders</div>
+                <div class="settings-toggle-hint">Alerts before your RSVP'd events start</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifEventReminders" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Daily digest</div>
+                <div class="settings-toggle-hint">A morning summary of today's events</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifDailyDigest" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Quiet Hours</h3>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Enable quiet hours</div>
+                <div class="settings-toggle-hint">No notifications during these hours</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifQuietHours"><span class="switch-slider"></span></label>
+            </div>
+            <div style="display:flex;gap:12px;margin-top:12px;">
+              <label style="font-size:0.82rem;color:var(--text-muted);">From <select id="quietHoursStart" class="vis-select" style="margin-left:6px;"></select></label>
+              <label style="font-size:0.82rem;color:var(--text-muted);">To <select id="quietHoursEnd" class="vis-select" style="margin-left:6px;"></select></label>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Timezone</h3>
+            <select id="notifTimezone" class="vis-select" style="width:100%;max-width:300px;">
+              <option value="America/Denver">America/Denver (MST)</option>
+              <option value="America/New_York">America/New_York (EST)</option>
+              <option value="America/Chicago">America/Chicago (CST)</option>
+              <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
+              <option value="UTC">UTC</option>
+              <option value="Europe/London">Europe/London</option>
+              <option value="Europe/Berlin">Europe/Berlin</option>
+              <option value="Asia/Tokyo">Asia/Tokyo</option>
+              <option value="Asia/Singapore">Asia/Singapore</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Save Bar -->
+        <div class="settings-save-bar">
+          <div class="container">
+            <span class="settings-save-hint">Changes are saved to your account</span>
+            <button class="settings-save-btn" id="saveAllBtn">Save All Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by eGator</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://warpcast.com/flowb" target="_blank" class="footer-link">Farcaster</a>
+        <a href="https://egator-api.fly.dev/api" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const FLOWB_API = 'https://flowb.fly.dev';
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAuthToken() {
+      return Auth.jwt || localStorage.getItem('flowb-jwt') || null;
+    }
+
+    async function fetchAuthed(path, opts = {}) {
+      const token = getAuthToken();
+      if (!token) return null;
+      try {
+        const res = await fetch(`${FLOWB_API}${path}`, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(opts.headers || {}),
+          },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch { return null; }
+    }
+
+    // ===== Tab Switching =====
+
+    document.querySelectorAll('.settings-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tab)?.classList.add('active');
+      });
+    });
+
+    // ===== Reminder chip toggling =====
+
+    document.getElementById('defaultReminderChips')?.addEventListener('click', (e) => {
+      const chip = e.target.closest('.reminder-chip');
+      if (chip) chip.classList.toggle('active');
+    });
+
+    // ===== Hour selects =====
+
+    (function initHourSelects() {
+      const startSel = document.getElementById('quietHoursStart');
+      const endSel = document.getElementById('quietHoursEnd');
+      if (!startSel || !endSel) return;
+      for (let h = 0; h < 24; h++) {
+        const label = h.toString().padStart(2, '0') + ':00';
+        startSel.add(new Option(label, h));
+        endSel.add(new Option(label, h));
+      }
+      startSel.value = 22;
+      endSel.value = 8;
+    })();
+
+    // ===== Auth State =====
+
+    function updateSettingsPage() {
+      const gate = document.getElementById('settingsGate');
+      const authed = document.getElementById('settingsAuthed');
+
+      if (Auth.isAuthenticated && Auth.jwt) {
+        gate.classList.add('hidden');
+        authed.classList.remove('hidden');
+        loadAllSettings();
+      } else {
+        gate.classList.remove('hidden');
+        authed.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('flowb-auth-ready', () => setTimeout(updateSettingsPage, 200));
+    window.addEventListener('privy-auth-change', () => setTimeout(updateSettingsPage, 500));
+
+    document.getElementById('settingsSigninBtn')?.addEventListener('click', () => {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn')?.click();
+      }
+    });
+
+    // ===== Load All Settings =====
+
+    async function loadAllSettings() {
+      loadLinkedAccounts();
+      loadPrivacySettings();
+      loadCrewVisibility();
+      loadNotificationSettings();
+    }
+
+    // ===== Connected Accounts =====
+
+    async function loadLinkedAccounts() {
+      const listEl = document.getElementById('accountsList');
+      const availEl = document.getElementById('availableAccounts');
+
+      const data = await fetchAuthed('/api/v1/me/linked-accounts');
+      const accounts = data?.accounts || [];
+
+      const platforms = {
+        telegram: { name: 'Telegram', icon: 'tg', desc: 'Bot, mini app, crew chat, reminders', svg: '<svg viewBox="0 0 24 24" fill="#fff" width="18" height="18"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>', link: 'https://t.me/Flow_b_bot' },
+        farcaster: { name: 'Farcaster', icon: 'fc', desc: 'Warpcast mini app, social sharing', svg: '<svg viewBox="0 0 24 24" fill="#fff" width="18" height="18"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>', link: 'https://warpcast.com/flowb' },
+        web: { name: 'Web (Privy)', icon: 'web', desc: 'Email, wallet, or social login', svg: '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>', link: '/' },
+      };
+
+      const connectedPlatforms = new Set(accounts.map(a => a.platform));
+
+      // Render connected accounts
+      if (accounts.length) {
+        listEl.innerHTML = accounts.map(a => {
+          const p = platforms[a.platform] || { name: a.platform, icon: 'web', desc: '', svg: '' };
+          const current = a.is_current ? ' (current session)' : '';
+          const displayId = a.display_name || a.platform_user_id.replace(/^(telegram_|farcaster_|web_)/, '');
+          return `
+            <div class="account-card connected">
+              <div class="account-card-icon ${p.icon}">${p.svg}</div>
+              <div class="account-card-info">
+                <div class="account-card-name">${p.name}</div>
+                <div class="account-card-detail">${escapeHtml(displayId)}${current}</div>
+              </div>
+              <span class="account-card-status linked">Linked</span>
+            </div>
+          `;
+        }).join('');
+      } else {
+        // Show current session info
+        const name = Auth.user?.username || Auth.user?.email || 'User';
+        listEl.innerHTML = `
+          <div class="account-card connected">
+            <div class="account-card-icon web"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div class="account-card-info">
+              <div class="account-card-name">Web (Privy)</div>
+              <div class="account-card-detail">${escapeHtml(name)} (current session)</div>
+            </div>
+            <span class="account-card-status linked">Linked</span>
+          </div>
+        `;
+      }
+
+      // Render available (unlinked) accounts
+      const unlinked = Object.entries(platforms).filter(([key]) => !connectedPlatforms.has(key));
+      if (unlinked.length) {
+        availEl.innerHTML = unlinked.map(([key, p]) => `
+          <a href="${p.link}" target="_blank" class="account-card" style="text-decoration:none;color:inherit;">
+            <div class="account-card-icon ${p.icon}">${p.svg}</div>
+            <div class="account-card-info">
+              <div class="account-card-name">${p.name}</div>
+              <div class="account-card-detail">${p.desc}</div>
+            </div>
+            <span class="account-card-status available">Connect</span>
+          </a>
+        `).join('');
+      } else {
+        availEl.innerHTML = '<p style="color:var(--green);font-size:0.85rem;padding:8px 0;">All platforms connected!</p>';
+      }
+    }
+
+    // ===== Privacy Settings =====
+
+    async function loadPrivacySettings() {
+      const data = await fetchAuthed('/api/v1/me/privacy');
+      if (!data || !data.privacy) return;
+      const p = data.privacy;
+
+      document.getElementById('privacyProfile').value = p.profile_visible || 'friends';
+      document.getElementById('privacySchedule').value = p.schedule_visible || 'friends';
+      document.getElementById('privacyCrews').value = p.crews_visible || 'public';
+      document.getElementById('privacyPoints').value = p.points_visible || 'public';
+      document.getElementById('privacyActivity').value = p.activity_visible || 'friends';
+      document.getElementById('shareWithCrews').checked = p.share_with_crews ?? true;
+      document.getElementById('shareCrossPlatform').checked = p.share_cross_platform ?? true;
+    }
+
+    // ===== Crew Visibility =====
+
+    async function loadCrewVisibility() {
+      const el = document.getElementById('crewsList');
+      const data = await fetchAuthed('/api/v1/me/crew-visibility');
+      const crews = data?.crews || [];
+
+      if (!crews.length) {
+        el.innerHTML = `
+          <div style="text-align:center;padding:24px 0;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28" style="color:var(--text-dim);margin-bottom:8px;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            <p style="font-size:0.88rem;color:var(--text-muted);">No crews yet</p>
+            <p style="font-size:0.78rem;color:var(--text-dim);">Join a crew on Telegram or Farcaster to coordinate with friends</p>
+          </div>
+        `;
+        return;
+      }
+
+      el.innerHTML = crews.map(c => `
+        <div class="crew-vis-row">
+          <span class="crew-vis-emoji">${c.emoji || ''}</span>
+          <div class="crew-vis-info">
+            <div class="crew-vis-name">${escapeHtml(c.name)}</div>
+            <div class="crew-vis-role">${c.role === 'admin' ? 'Admin' : 'Member'}</div>
+          </div>
+          <span class="crew-vis-members">${c.member_count} member${c.member_count !== 1 ? 's' : ''}</span>
+        </div>
+      `).join('');
+    }
+
+    // ===== Notification Settings =====
+
+    async function loadNotificationSettings() {
+      const data = await fetchAuthed('/api/v1/me/preferences');
+      if (!data || !data.preferences) return;
+      const p = data.preferences;
+
+      const defaults = p.reminder_defaults || [30];
+      document.querySelectorAll('#defaultReminderChips .reminder-chip').forEach(chip => {
+        chip.classList.toggle('active', defaults.includes(parseInt(chip.dataset.mins, 10)));
+      });
+
+      document.getElementById('notifCrewCheckins').checked = p.notify_crew_checkins ?? true;
+      document.getElementById('notifFriendRsvps').checked = p.notify_friend_rsvps ?? true;
+      document.getElementById('notifCrewRsvps').checked = p.notify_crew_rsvps ?? true;
+      document.getElementById('notifEventReminders').checked = p.notify_event_reminders ?? true;
+      document.getElementById('notifDailyDigest').checked = p.notify_daily_digest ?? true;
+      document.getElementById('notifQuietHours').checked = p.quiet_hours_enabled || false;
+      document.getElementById('quietHoursStart').value = p.quiet_hours_start ?? 22;
+      document.getElementById('quietHoursEnd').value = p.quiet_hours_end ?? 8;
+      document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+    }
+
+    // ===== Save All =====
+
+    document.getElementById('saveAllBtn')?.addEventListener('click', async () => {
+      if (!Auth.isAuthenticated) return;
+      const btn = document.getElementById('saveAllBtn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      // Save privacy
+      await fetchAuthed('/api/v1/me/privacy', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          profile_visible: document.getElementById('privacyProfile').value,
+          schedule_visible: document.getElementById('privacySchedule').value,
+          crews_visible: document.getElementById('privacyCrews').value,
+          points_visible: document.getElementById('privacyPoints').value,
+          activity_visible: document.getElementById('privacyActivity').value,
+          share_with_crews: document.getElementById('shareWithCrews').checked,
+          share_cross_platform: document.getElementById('shareCrossPlatform').checked,
+        }),
+      });
+
+      // Save notifications/preferences
+      const chips = document.querySelectorAll('#defaultReminderChips .reminder-chip.active');
+      const reminder_defaults = Array.from(chips).map(c => parseInt(c.dataset.mins, 10)).filter(Boolean);
+
+      await fetchAuthed('/api/v1/me/preferences', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          reminder_defaults: reminder_defaults.length ? reminder_defaults : [30],
+          notify_crew_checkins: document.getElementById('notifCrewCheckins').checked,
+          notify_friend_rsvps: document.getElementById('notifFriendRsvps').checked,
+          notify_crew_rsvps: document.getElementById('notifCrewRsvps').checked,
+          notify_event_reminders: document.getElementById('notifEventReminders').checked,
+          notify_daily_digest: document.getElementById('notifDailyDigest').checked,
+          quiet_hours_enabled: document.getElementById('notifQuietHours').checked,
+          quiet_hours_start: parseInt(document.getElementById('quietHoursStart').value, 10),
+          quiet_hours_end: parseInt(document.getElementById('quietHoursEnd').value, 10),
+          timezone: document.getElementById('notifTimezone').value,
+        }),
+      });
+
+      // Success feedback
+      btn.textContent = 'Saved!';
+      btn.classList.add('saved');
+      setTimeout(() => {
+        btn.textContent = 'Save All Settings';
+        btn.classList.remove('saved');
+        btn.disabled = false;
+      }, 1500);
+    });
+
+    // ===== URL tab parameter =====
+
+    (function checkTabParam() {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      if (tab) {
+        const tabBtn = document.querySelector(`.settings-tab[data-tab="${tab}"]`);
+        if (tabBtn) tabBtn.click();
+      }
+    })();
+
+    // Init
+    updateSettingsPage();
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>

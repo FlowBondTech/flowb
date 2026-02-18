@@ -351,9 +351,20 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   return (
     <div className="screen">
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
-        <div style={{ fontSize: 13, color: "var(--text-muted)" }}>EthDenver - Denver</div>
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>EthDenver - Denver</div>
+        </div>
+        <button
+          onClick={() => onNavigate({ name: "about" })}
+          style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 6, marginTop: 2 }}
+          title="About FlowB"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 20, height: 20 }}>
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+          </svg>
+        </button>
       </div>
 
       {/* Top Tabs */}
