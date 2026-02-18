@@ -20,6 +20,7 @@ import type {
   Sponsorship,
   SponsorRanking,
   RankedLocation,
+  FeaturedEventBid,
 } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_URL || "";
@@ -299,12 +300,17 @@ export async function getSponsorWallet(): Promise<string> {
 }
 
 export async function createSponsorship(
-  targetType: "event" | "location",
+  targetType: "event" | "location" | "featured_event",
   targetId: string,
   amountUsdc: number,
   txHash: string,
 ): Promise<{ ok: boolean; sponsorship: Sponsorship }> {
   return post("/api/v1/sponsor", { targetType, targetId, amountUsdc, txHash });
+}
+
+export async function getFeaturedEventBid(): Promise<FeaturedEventBid | null> {
+  const data = await get<{ featured: FeaturedEventBid | null }>("/api/v1/sponsor/featured-event");
+  return data.featured;
 }
 
 export async function getSponsorRankings(targetType?: string): Promise<SponsorRanking[]> {

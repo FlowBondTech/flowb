@@ -4,7 +4,7 @@
 CREATE TABLE IF NOT EXISTS flowb_sponsorships (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   sponsor_user_id TEXT NOT NULL,
-  target_type TEXT NOT NULL CHECK (target_type IN ('event', 'location')),
+  target_type TEXT NOT NULL CHECK (target_type IN ('event', 'location', 'featured_event')),
   target_id TEXT NOT NULL,
   amount_usdc NUMERIC(12,6) NOT NULL DEFAULT 0,
   tx_hash TEXT NOT NULL,

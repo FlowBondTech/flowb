@@ -1,23 +1,25 @@
 import { useState, useEffect } from "react";
-import { getSponsorWallet, createSponsorship } from "../api/client";
+import { getSponsorWallet, createSponsorship, getFeaturedEventBid } from "../api/client";
+import type { FeaturedEventBid } from "../api/types";
 
 interface Props {
-  targetType: "event" | "location" | "featured_event";
-  targetId: string;
   onClose: () => void;
   onSuccess?: () => void;
 }
 
-export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props) {
+export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
   const [walletAddress, setWalletAddress] = useState("");
+  const [eventUrl, setEventUrl] = useState("");
   const [amount, setAmount] = useState("");
   const [txHash, setTxHash] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [currentBid, setCurrentBid] = useState<FeaturedEventBid | null>(null);
 
   useEffect(() => {
     getSponsorWallet().then(setWalletAddress).catch(console.error);
+    getFeaturedEventBid().then(setCurrentBid).catch(console.error);
   }, []);
 
   const handleCopy = async () => {
@@ -30,9 +32,21 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
   };
 
   const handleSubmit = async () => {
+    if (!eventUrl.trim()) {
+      setResult({ ok: false, message: "Enter your event URL" });
+      return;
+    }
+    try {
+      new URL(eventUrl.trim());
+    } catch {
+      setResult({ ok: false, message: "Enter a valid URL (e.g. https://lu.ma/...)" });
+      return;
+    }
+
     const amountNum = parseFloat(amount);
-    if (!amountNum || amountNum < 0.10) {
-      setResult({ ok: false, message: "Minimum $0.10 USDC" });
+    const minBid = currentBid ? currentBid.amount_usdc + 0.10 : 0.10;
+    if (!amountNum || amountNum < minBid) {
+      setResult({ ok: false, message: `Minimum bid is $${minBid.toFixed(2)} USDC` });
       return;
     }
     if (!txHash.trim() || !txHash.startsWith("0x")) {
@@ -42,8 +56,8 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
 
     setSubmitting(true);
     try {
-      await createSponsorship(targetType, targetId, amountNum, txHash.trim());
-      setResult({ ok: true, message: `Sponsorship submitted! +25 pts. Verifying on-chain...` });
+      await createSponsorship("featured_event", eventUrl.trim(), amountNum, txHash.trim());
+      setResult({ ok: true, message: "Bid submitted! +25 pts. Verifying on-chain..." });
       (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
       onSuccess?.();
     } catch (err: any) {
@@ -58,11 +72,30 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
         <div className="card sponsor-modal">
           <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-            Sponsor this {targetType}
+            Feature Your Event
           </h2>
           <p style={{ fontSize: 13, color: "var(--hint)", marginBottom: 16 }}>
-            Send USDC on Base to the FlowB wallet, then paste your tx hash below.
+            Bid for the featured spot on the FlowB home screen. The highest verified bid wins the spot.
           </p>
+
+          {/* Current highest bid */}
+          {currentBid && (
+            <div style={{
+              background: "rgba(168, 85, 247, 0.08)",
+              border: "1px solid rgba(168, 85, 247, 0.2)",
+              borderRadius: "var(--radius-sm)",
+              padding: "10px 12px",
+              marginBottom: 16,
+              fontSize: 12,
+            }}>
+              <div style={{ fontWeight: 600, color: "var(--purple)", marginBottom: 2 }}>
+                Current top bid: ${currentBid.amount_usdc.toFixed(2)} USDC
+              </div>
+              <div style={{ color: "var(--text-muted)" }}>
+                You must bid at least ${(currentBid.amount_usdc + 0.10).toFixed(2)} USDC to outbid
+              </div>
+            </div>
+          )}
 
           {/* Wallet address */}
           <div style={{ marginBottom: 16 }}>
@@ -104,7 +137,7 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
                 color: result.ok ? "var(--green)" : "var(--red)",
                 marginBottom: 4,
               }}>
-                {result.ok ? "Submitted!" : "Error"}
+                {result.ok ? "Bid Submitted!" : "Error"}
               </div>
               <div style={{ fontSize: 13, color: "var(--hint)" }}>{result.message}</div>
               {result.ok && (
@@ -115,17 +148,32 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
             </div>
           ) : (
             <>
+              {/* Event URL input */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
+                  Your Event Link
+                </div>
+                <input
+                  className="input"
+                  type="url"
+                  placeholder="https://lu.ma/your-event"
+                  value={eventUrl}
+                  onChange={(e) => setEventUrl(e.target.value)}
+                  style={{ fontSize: 13 }}
+                />
+              </div>
+
               {/* Amount input */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
-                  Amount (USDC, min $0.10)
+                  Bid Amount (USDC{currentBid ? `, min $${(currentBid.amount_usdc + 0.10).toFixed(2)}` : ", min $0.10"})
                 </div>
                 <input
                   className="input sponsor-amount-input"
                   type="number"
                   step="0.01"
-                  min="0.10"
-                  placeholder="0.10"
+                  min={currentBid ? (currentBid.amount_usdc + 0.10).toFixed(2) : "0.10"}
+                  placeholder={currentBid ? (currentBid.amount_usdc + 0.10).toFixed(2) : "0.10"}
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                 />
@@ -146,13 +194,17 @@ export function SponsorModal({ targetType, targetId, onClose, onSuccess }: Props
                 />
               </div>
 
+              <p style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 12 }}>
+                Send USDC on Base to the wallet above, then paste your tx hash. Once verified, your event takes the featured spot.
+              </p>
+
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   className="btn btn-primary btn-block"
                   onClick={handleSubmit}
                   disabled={submitting}
                 >
-                  {submitting ? "Submitting..." : "Submit Sponsorship"}
+                  {submitting ? "Submitting..." : "Submit Bid"}
                 </button>
                 <button className="btn btn-secondary" onClick={onClose}>
                   Cancel

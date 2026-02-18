@@ -3006,8 +3006,8 @@ RULES:
       if (!targetType || !targetId || !txHash) {
         return reply.status(400).send({ error: "Missing targetType, targetId, or txHash" });
       }
-      if (!["event", "location"].includes(targetType)) {
-        return reply.status(400).send({ error: "targetType must be event or location" });
+      if (!["event", "location", "featured_event"].includes(targetType)) {
+        return reply.status(400).send({ error: "targetType must be event, location, or featured_event" });
       }
       if (!amountUsdc || amountUsdc < 0.10) {
         return reply.status(400).send({ error: "Minimum sponsorship is $0.10 USDC" });
@@ -3204,6 +3204,36 @@ RULES:
       );
 
       return { locations: rows || [] };
+    },
+  );
+
+  // ==================================================================
+  // SPONSOR: Featured event bid (highest verified bid for featured spot)
+  // ==================================================================
+  app.get(
+    "/api/v1/sponsor/featured-event",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { featured: null };
+
+      // Get all verified featured_event sponsorships, ordered by amount desc
+      const rows = await sbFetch<any[]>(
+        cfg,
+        "flowb_sponsorships?target_type=eq.featured_event&status=eq.verified&order=amount_usdc.desc&limit=1",
+      );
+
+      if (!rows?.length) return { featured: null };
+
+      const top = rows[0];
+      return {
+        featured: {
+          target_id: top.target_id,
+          amount_usdc: Number(top.amount_usdc),
+          sponsor_user_id: top.sponsor_user_id,
+          created_at: top.created_at,
+          expires_at: top.expires_at,
+        },
+      };
     },
   );
 

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Screen } from "../App";
-import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation } from "../api/types";
-import { getEvents, getCrews, getCrewMembers, getRankedLocations } from "../api/client";
+import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBid } from "../api/types";
+import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBid } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
+import { FeaturedSponsorModal } from "../components/FeaturedSponsorModal";
 
 interface Props {
   onNavigate: (s: Screen) => void;
@@ -10,76 +11,6 @@ interface Props {
 }
 
 type HomeTab = "discover" | "feed" | "vibes";
-
-// ============================================================================
-// Featured Events - Date-aware picks for EthDenver Feb 15-27
-// ============================================================================
-interface FeaturedEvent {
-  title: string;
-  date: string;
-  time: string;
-  location: string;
-  badge: string;
-  url: string;
-  isFree: boolean;
-  imageUrl?: string;
-}
-
-function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | null {
-  if (!url) return null;
-  if (url.includes("evbuc.com")) return url;
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&h=${h}&fit=cover&output=webp&q=75`;
-}
-
-function getFeaturedEvents(): FeaturedEvent[] {
-  const today = new Date();
-  const month = today.getMonth(); // 0-indexed, Feb = 1
-  const day = today.getDate();
-
-  if (month !== 1 || day < 15 || day > 27) {
-    return getDefaultFeatured();
-  }
-
-  const dayEvents: Record<number, FeaturedEvent[]> = {
-    15: [
-      { title: "Camp BUIDL Kickoff", date: "Sat, Feb 15", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    16: [
-      { title: "Camp BUIDL Day 2", date: "Sun, Feb 16", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
-      { title: "Multichain Day", date: "Sun, Feb 16", time: "All Day", location: "Denver, CO", badge: "Side Event", url: "https://www.ethdenver.com", isFree: false },
-    ],
-    17: [
-      { title: "EthDenver Opening Day", date: "Mon, Feb 17", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    18: [
-      { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
-    ],
-    19: [
-      { title: "EthDenver Main Stage", date: "Wed, Feb 19", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    20: [
-      { title: "EthDenver Day 4", date: "Thu, Feb 20", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    21: [
-      { title: "BUIDLathon Awards & Finality Party", date: "Fri, Feb 21", time: "4:00 PM - 2:00 AM MT", location: "National Western Center, Denver", badge: "Closing", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    22: [
-      { title: "SporkDAO Mountain Retreat", date: "Feb 22-27", time: "All Day", location: "Colorado Mountains", badge: "Post-Event", url: "https://www.ethdenver.com", isFree: false },
-    ],
-  };
-
-  for (let d = 23; d <= 27; d++) {
-    dayEvents[d] = dayEvents[22];
-  }
-
-  return dayEvents[day] || getDefaultFeatured();
-}
-
-function getDefaultFeatured(): FeaturedEvent[] {
-  return [
-    { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
-  ];
-}
 
 // ============================================================================
 // Date Filter - EthDenver Feb 15-27
@@ -161,9 +92,14 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   // Top Booths state
   const [rankedLocations, setRankedLocations] = useState<RankedLocation[]>([]);
 
-  // Load ranked locations on mount
+  // Featured event sponsorship state
+  const [featuredBid, setFeaturedBid] = useState<FeaturedEventBid | null>(null);
+  const [showFeaturedModal, setShowFeaturedModal] = useState(false);
+
+  // Load ranked locations and featured bid on mount
   useEffect(() => {
     getRankedLocations().then(setRankedLocations).catch(console.error);
+    getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
   }, []);
 
   // Load events with category filter support
@@ -300,7 +236,6 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const later = upcoming.filter((e) => new Date(e.startTime).getTime() > twoHoursFromNow);
 
   const isNowFilter = activeFilter === "now";
-  const featured = getFeaturedEvents();
 
   // Vibes tab data
   const vibesEvents = useMemo(() => {
@@ -411,52 +346,61 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             </>
           )}
 
-          {/* Featured Events - Date Aware */}
-          {featured.map((feat, i) => (
-            <div
-              key={i}
-              className="featured-card"
-              style={{ cursor: "pointer" }}
-              onClick={() => openUrl(feat.url)}
-            >
-              {feat.imageUrl ? (
-                <img
-                  className="featured-img"
-                  src={optimizeImageUrl(feat.imageUrl, 600, 200) || feat.imageUrl}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                />
-              ) : (
-                <div className="featured-img" />
-              )}
-              <div className="featured-body">
-                <span className="featured-badge">{feat.badge}</span>
-                <div className="featured-title">{feat.title}</div>
-                <div className="featured-meta">
+          {/* Featured Event Sponsorship CTA */}
+          <div
+            className="featured-card"
+            style={{ cursor: "pointer" }}
+            onClick={() => featuredBid ? openUrl(featuredBid.target_id) : setShowFeaturedModal(true)}
+          >
+            <div className="featured-img" />
+            <div className="featured-body">
+              <span className="featured-badge">
+                {featuredBid ? "Sponsored" : "Featured Spot"}
+              </span>
+              <div className="featured-title">
+                {featuredBid ? featuredBid.target_id : "Feature Your Event Here"}
+              </div>
+              <div className="featured-meta">
+                {featuredBid ? (
                   <div className="featured-meta-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    {feat.date} &middot; {feat.time}
+                    Current bid: ${featuredBid.amount_usdc.toFixed(2)} USDC
                   </div>
+                ) : (
                   <div className="featured-meta-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    {feat.location}
+                    Submit your event link and bid with USDC
                   </div>
-                </div>
-                <div className="featured-footer">
-                  <span className={`badge ${feat.isFree ? "badge-green" : "badge-yellow"}`}>
-                    {feat.isFree ? "Free" : "Paid"}
-                  </span>
-                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>EthDenver 2026</span>
-                </div>
+                )}
+              </div>
+              <div className="featured-footer">
+                <span className="badge badge-purple">Sponsorship</span>
+                <button
+                  className="btn btn-sm btn-primary"
+                  style={{ fontSize: 11, padding: "4px 14px" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowFeaturedModal(true);
+                  }}
+                >
+                  {featuredBid ? "Outbid" : "Bid Now"}
+                </button>
               </div>
             </div>
-          ))}
+          </div>
+
+          {showFeaturedModal && (
+            <FeaturedSponsorModal
+              onClose={() => setShowFeaturedModal(false)}
+              onSuccess={() => {
+                getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
+              }}
+            />
+          )}
 
           {/* Date Filter Chips */}
           <div className="filter-chips" style={{ marginBottom: 6 }}>
