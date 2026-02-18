@@ -108,6 +108,10 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/me/preferences` | Yes |  |
 | `PATCH` | `unknown` | No |  |
+| `GET` | `/api/v1/me/linked-accounts` | Yes |  |
+| `GET` | `/api/v1/me/privacy` | Yes |  |
+| `PATCH` | `unknown` | Yes |  |
+| `GET` | `/api/v1/me/crew-visibility` | Yes |  |
 | `GET` | `/api/v1/events/:id/social` | No |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
@@ -246,4 +250,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-18 20:10:29 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-18 20:44:28 UTC*
