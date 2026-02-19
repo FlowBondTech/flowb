@@ -109,6 +109,7 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/me/preferences` | Yes |  |
 | `PATCH` | `unknown` | No |  |
 | `GET` | `/api/v1/me/linked-accounts` | Yes |  |
+| `POST` | `/api/v1/me/sync-linked-accounts` | Yes |  |
 | `GET` | `/api/v1/me/privacy` | Yes |  |
 | `PATCH` | `unknown` | Yes |  |
 | `GET` | `/api/v1/me/crew-visibility` | Yes |  |
@@ -251,4 +252,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 18:15:35 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 19:07:22 UTC*
