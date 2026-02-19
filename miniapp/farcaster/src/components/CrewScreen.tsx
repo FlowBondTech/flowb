@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry, CrewMessage } from "../api/types";
 import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard, getCrewMessages, sendCrewMessage } from "../api/client";
-import { composeCast, copyToClipboard } from "../lib/farcaster";
+import { composeCast, copyToClipboard, hapticImpact, hapticNotification, hapticSelection } from "../lib/farcaster";
 
 interface Props {
   authed: boolean;
@@ -330,6 +330,7 @@ export function CrewScreen({ authed, currentUserId }: Props) {
 
   const handleCreate = async () => {
     if (!newCrewName.trim()) return;
+    hapticImpact("medium");
     try {
       await createCrew(newCrewName.trim());
       setShowCreate(false);
@@ -337,13 +338,16 @@ export function CrewScreen({ authed, currentUserId }: Props) {
       const c = await getCrews();
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
+      hapticNotification("success");
     } catch (err) {
       console.error(err);
+      hapticNotification("error");
     }
   };
 
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
+    hapticImpact("medium");
     try {
       await joinCrew(joinCode.trim());
       setShowJoin(false);
@@ -351,21 +355,26 @@ export function CrewScreen({ authed, currentUserId }: Props) {
       const c = await getCrews();
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
+      hapticNotification("success");
     } catch (err) {
       console.error(err);
+      hapticNotification("error");
     }
   };
 
   const handleCheckin = async () => {
     if (!checkinVenue.trim() || !selectedCrew) return;
+    hapticImpact("heavy");
     try {
       await crewCheckin(selectedCrew.id, checkinVenue.trim());
       setShowCheckin(false);
       setCheckinVenue("");
       const { checkins: c } = await getCrewMembers(selectedCrew.id);
       setCheckins(c);
+      hapticNotification("success");
     } catch (err) {
       console.error(err);
+      hapticNotification("error");
     }
   };
 

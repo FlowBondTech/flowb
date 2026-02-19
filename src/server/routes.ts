@@ -27,6 +27,7 @@ import {
   notifyCrewCheckin,
   notifyCrewLocate,
 } from "../services/notifications.js";
+import { handleChat, type UserContext } from "../services/ai-chat.js";
 import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
@@ -496,6 +497,111 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return {
         casts: allCasts.slice(0, 50),
         nextCursor: lastCursor,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FEED: Global activity feed — check-ins, hot venues, trending events
+  // Optional auth: logged-in users can filter to friends/crew scope
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { scope?: string; venue?: string; hours?: string } }>(
+    "/api/v1/feed/activity",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { venues: [], timeline: [], trending: [], stats: {} };
+
+      const scope = request.query.scope || "global";
+      const hours = Math.min(parseInt(request.query.hours || "4", 10), 24);
+      const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
+      const jwt = extractJwt(request);
+
+      let checkins: any[] = [];
+
+      if (scope === "friends" && jwt?.sub) {
+        const conns = await sbFetch<any[]>(cfg, `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+        const friendIds = (conns || []).map((c: any) => c.friend_id);
+        if (friendIds.length) {
+          checkins = await sbFetch<any[]>(cfg,
+            `flowb_checkins?user_id=in.(${friendIds.join(",")})&created_at=gte.${cutoff}&crew_id=neq.__personal__&order=created_at.desc&limit=40`,
+          ) || [];
+        }
+      } else if (scope === "crew" && jwt?.sub) {
+        const memberships = await sbFetch<any[]>(cfg, `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+        const crewIds = (memberships || []).map((m: any) => m.group_id);
+        if (crewIds.length) {
+          checkins = await sbFetch<any[]>(cfg,
+            `flowb_checkins?crew_id=in.(${crewIds.join(",")})&created_at=gte.${cutoff}&order=created_at.desc&limit=50`,
+          ) || [];
+        }
+      } else {
+        checkins = await sbFetch<any[]>(cfg,
+          `flowb_checkins?created_at=gte.${cutoff}&crew_id=not.like.__*&order=created_at.desc&limit=60`,
+        ) || [];
+      }
+
+      // Venue filter
+      if (request.query.venue) {
+        const v = request.query.venue.toLowerCase();
+        checkins = checkins.filter((c: any) => c.venue_name?.toLowerCase().includes(v));
+      }
+
+      // Resolve display names
+      const userIds = [...new Set(checkins.map((c: any) => c.user_id))] as string[];
+      const sessions = userIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name,danz_username`)
+        : [];
+      const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || "Someone"]));
+
+      // Aggregate by venue
+      const venueMap = new Map<string, { count: number; people: string[]; latest: string }>();
+      const seenPerVenue = new Set<string>();
+      for (const c of checkins) {
+        const venue = c.venue_name || "Unknown";
+        const entry = venueMap.get(venue) || { count: 0, people: [] as string[], latest: c.created_at };
+        const key = `${c.user_id}:${venue}`;
+        if (!seenPerVenue.has(key)) {
+          entry.count++;
+          if (entry.people.length < 5) entry.people.push(String(nameMap.get(c.user_id) || "Someone"));
+          seenPerVenue.add(key);
+        }
+        venueMap.set(venue, entry);
+      }
+
+      const venues = [...venueMap.entries()]
+        .sort((a, b) => b[1].count - a[1].count)
+        .map(([name, data]) => ({ name, ...data }));
+
+      // Timeline (recent individual check-ins)
+      const timeline = checkins.slice(0, 15).map((c: any) => ({
+        user: nameMap.get(c.user_id) || "Someone",
+        venue: c.venue_name,
+        message: c.message || null,
+        ago: timeSince(c.created_at),
+        created_at: c.created_at,
+      }));
+
+      // Trending events
+      const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
+      const recentRsvps = await sbFetch<any[]>(cfg,
+        `flowb_event_attendance?created_at=gte.${dayAgo}&select=event_id,event_name&order=created_at.desc&limit=50`,
+      );
+      const eventCounts = new Map<string, { name: string; count: number }>();
+      for (const r of recentRsvps || []) {
+        const e = eventCounts.get(r.event_id) || { name: r.event_name, count: 0 };
+        e.count++;
+        eventCounts.set(r.event_id, e);
+      }
+      const trending = [...eventCounts.entries()]
+        .sort((a, b) => b[1].count - a[1].count)
+        .slice(0, 5)
+        .map(([id, e]) => ({ id, name: e.name, rsvps: e.count }));
+
+      return {
+        venues,
+        timeline,
+        trending,
+        stats: { active_people: userIds.length, active_venues: venues.length, scope, hours },
       };
     },
   );
@@ -1750,11 +1856,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // CHAT: AI Chat Completions (xAI Grok proxy)
+  // CHAT: AI Chat with tool calling (xAI Grok + FlowB tools)
   //
-  // OpenAI-compatible /v1/chat/completions endpoint.
-  // Used by: Farcaster mini app, web app, Telegram mini app.
-  // Requires XAI_API_KEY env var set on Fly.
+  // OpenAI-compatible /v1/chat/completions endpoint with function calling.
+  // The AI can search events, locate friends/crew, update locations,
+  // RSVP to events, share location codes, and check points.
+  // Auth optional — logged-in users get full tool access.
   // ------------------------------------------------------------------
   app.post<{ Body: { messages: Array<{ role: string; content: string }>; model?: string; stream?: boolean; user?: string } }>(
     "/v1/chat/completions",
@@ -1764,58 +1871,123 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         return reply.status(503).send({ error: "Chat not configured" });
       }
 
-      const { messages = [], stream = false, user } = request.body || {};
+      const cfg = getSupabaseConfig();
+      const { messages = [], model } = request.body || {};
       if (!messages.length) {
         return reply.status(400).send({ error: "Missing messages" });
       }
 
-      // Inject FlowB system prompt if none provided
-      const hasSystem = messages.some((m) => m.role === "system");
-      const chatMessages = hasSystem
-        ? messages.slice(-25)
-        : [
-            {
-              role: "system",
-              content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events in Denver (Feb 15-27, 2026). You help users discover events, hackathons, parties, meetups, and summits.
+      // Extract optional JWT for user context (enables location, crew, friend tools)
+      const jwt = extractJwt(request);
+      const userContext: UserContext = {
+        userId: jwt?.sub || null,
+        platform: jwt?.platform || null,
+        displayName: null,
+      };
 
-RULES:
-1. Reply in a SINGLE concise message. Use clear sections if answering multiple questions.
-2. Be conversational and helpful. Use emojis sparingly.
-3. Format event listings with titles, dates/times, venues, and prices.
-4. If asked about non-event topics, stay friendly but steer back to ETHDenver.
-5. When you don't know specifics, suggest the user check flowb.me for the latest listings.`,
-            },
-            ...messages.slice(-24),
-          ];
+      // Resolve display name for personalized responses
+      if (jwt?.sub && cfg) {
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name,danz_username&limit=1`);
+        if (sessions?.[0]) {
+          userContext.displayName = sessions[0].display_name || sessions[0].danz_username || null;
+        }
+      }
+
+      // Fallback: simple proxy if Supabase not configured (tools won't work)
+      if (!cfg) {
+        try {
+          const res = await fetch("https://api.x.ai/v1/chat/completions", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({ model: model || "grok-3-mini-fast", messages: messages.slice(-25), max_tokens: 1024, temperature: 0.7 }),
+          });
+          if (!res.ok) return reply.status(502).send({ error: "AI service error" });
+          return res.json();
+        } catch {
+          return reply.status(502).send({ error: "AI service unavailable" });
+        }
+      }
 
       try {
-        const res = await fetch("https://api.x.ai/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify({
-            model: "grok-3-mini-fast",
-            messages: chatMessages,
-            stream: false,
-            max_tokens: 1024,
-            temperature: 0.7,
-          }),
+        const result = await handleChat(messages, {
+          sb: cfg,
+          xaiKey: apiKey,
+          user: userContext,
+          model,
         });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          console.error(`[chat] xAI error ${res.status}:`, errText);
-          return reply.status(502).send({ error: "AI service error" });
-        }
-
-        const data = await res.json();
-        return data;
+        // Return OpenAI-compatible format for backward compat
+        return {
+          id: `chatcmpl-${Date.now()}`,
+          object: "chat.completion",
+          created: Math.floor(Date.now() / 1000),
+          model: model || "grok-3-mini-fast",
+          choices: [{ index: 0, message: result, finish_reason: "stop" }],
+        };
       } catch (err: any) {
-        console.error("[chat] xAI request failed:", err.message);
-        return reply.status(502).send({ error: "AI service unavailable" });
+        console.error("[ai-chat] handler failed:", err.message);
+        return reply.status(502).send({ error: "AI service error" });
       }
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // LOCATION: Update personal location (requires auth)
+  //
+  // Sets the user's current venue so friends/crew can find them.
+  // Also broadcasts to all their crews automatically.
+  // ------------------------------------------------------------------
+  app.post<{ Body: { venue: string; message?: string; latitude?: number; longitude?: number } }>(
+    "/api/v1/me/location",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { venue, message, latitude, longitude } = request.body || {};
+      const cfg = getSupabaseConfig();
+
+      if (!cfg || !venue) return { ok: false, error: "Missing venue name" };
+
+      const expiresAt = new Date(Date.now() + 4 * 3600_000).toISOString();
+
+      // Personal check-in
+      await sbPost(cfg, "flowb_checkins", {
+        user_id: jwt.sub,
+        platform: jwt.platform,
+        crew_id: "__personal__",
+        venue_name: venue,
+        status: "here",
+        message: message || null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        expires_at: expiresAt,
+      });
+
+      // Broadcast to all user's crews
+      const memberships = await sbFetch<any[]>(cfg, `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+      for (const m of memberships || []) {
+        await sbPost(cfg, "flowb_checkins", {
+          user_id: jwt.sub,
+          platform: jwt.platform,
+          crew_id: m.group_id,
+          venue_name: venue,
+          status: "here",
+          message: message || null,
+          latitude: latitude || null,
+          longitude: longitude || null,
+          expires_at: expiresAt,
+        });
+
+        // Notify crew members
+        const notCtx = getNotifyContext();
+        if (notCtx) {
+          const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${m.group_id}&select=name,emoji&limit=1`);
+          const cName = crewRow?.[0]?.name || "crew";
+          const cEmoji = crewRow?.[0]?.emoji || "";
+          notifyCrewCheckin(notCtx, jwt.sub, m.group_id, cName, cEmoji, venue).catch(() => {});
+        }
+      }
+
+      return { ok: true, venue, expiresAt };
     },
   );
 
@@ -3532,6 +3704,17 @@ RULES:
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/** Human-readable time-since string */
+function timeSince(iso: string): string {
+  const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (sec < 60) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.floor(hr / 24)}d ago`;
+}
 
 /** Convert ISO date to ICS format (YYYYMMDDTHHmmssZ) */
 function toIcsDate(iso: string): string {

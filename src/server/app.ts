@@ -235,6 +235,74 @@ export function buildApp(core: FlowBCore) {
     };
   });
 
+  // Luma API health check (cached 5 min)
+  let lumaHealthCache: { data: any; ts: number } | null = null;
+  const LUMA_HEALTH_TTL = 5 * 60 * 1000;
+
+  app.get("/api/v1/health/luma", async () => {
+    if (lumaHealthCache && Date.now() - lumaHealthCache.ts < LUMA_HEALTH_TTL) {
+      return lumaHealthCache.data;
+    }
+
+    const result: any = {
+      discover: { status: "unknown", latency: 0 },
+      official: { status: "unknown", latency: 0 },
+      checkedAt: new Date().toISOString(),
+    };
+
+    // Check Discover API (public, no auth)
+    try {
+      const t0 = Date.now();
+      const res = await fetch(
+        "https://api.lu.ma/discover/get-paginated-events?pagination_limit=1&geo_latitude=39.7392&geo_longitude=-104.9903",
+        { signal: AbortSignal.timeout(5000) },
+      );
+      result.discover.latency = Date.now() - t0;
+      result.discover.status = res.ok ? "ok" : "degraded";
+      if (res.ok) {
+        const data = await res.json();
+        result.discover.eventCount = (data.entries || data.events || []).length;
+      }
+    } catch (err: any) {
+      result.discover.status = "down";
+      result.discover.error = err.message;
+    }
+
+    // Check Official API (needs LUMA_API_KEY)
+    const lumaKey = process.env.LUMA_API_KEY;
+    if (lumaKey && lumaKey.length > 10) {
+      try {
+        const t0 = Date.now();
+        const res = await fetch(
+          "https://public-api.luma.com/v1/calendar/list-events?pagination_limit=1",
+          {
+            headers: { "x-luma-api-key": lumaKey },
+            signal: AbortSignal.timeout(5000),
+          },
+        );
+        result.official.latency = Date.now() - t0;
+        result.official.status = res.ok ? "ok" : "degraded";
+        if (!res.ok) result.official.httpStatus = res.status;
+      } catch (err: any) {
+        result.official.status = "down";
+        result.official.error = err.message;
+      }
+    } else {
+      result.official.status = "no-key";
+    }
+
+    // Overall
+    result.status =
+      result.discover.status === "ok" && result.official.status === "ok"
+        ? "ok"
+        : result.discover.status === "down" && result.official.status === "down"
+        ? "down"
+        : "degraded";
+
+    lumaHealthCache = { data: result, ts: Date.now() };
+    return result;
+  });
+
   // Generic action endpoint - preserves the agent/plugin router pattern
   app.post<{ Body: ToolInput }>("/api/v1/action", async (request, reply) => {
     const input = request.body;

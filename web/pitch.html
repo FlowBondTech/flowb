@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB -- GoverNinit Summit 2026</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050508;
+      --bg-card: rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.08);
+      --text: #e8e8f0;
+      --text-muted: #7a7a90;
+      --accent: #2563eb;
+      --accent-light: #60a5fa;
+      --green: #22c55e;
+      --green-glow: rgba(34, 197, 94, 0.15);
+      --purple: #a855f7;
+      --orange: #f97316;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== Slide System ===== */
+    .deck {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 80px;
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+                  transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .slide.active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+      z-index: 1;
+    }
+
+    .slide.exit-up {
+      opacity: 0;
+      transform: translateY(-30px);
+    }
+
+    /* ===== Background Effects ===== */
+    .bg-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .bg-glow-1 { background: var(--accent); top: -200px; right: -100px; }
+    .bg-glow-2 { background: var(--green); bottom: -200px; left: -100px; opacity: 0.08; }
+    .bg-glow-3 { background: var(--purple); top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; }
+
+    /* Subtle grid */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    /* ===== Typography ===== */
+    .slide-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent-light);
+      background: rgba(37, 99, 235, 0.1);
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      padding: 6px 14px;
+      border-radius: 100px;
+      margin-bottom: 24px;
+    }
+
+    .slide-tag.green {
+      color: var(--green);
+      background: rgba(34, 197, 94, 0.1);
+      border-color: rgba(34, 197, 94, 0.2);
+    }
+
+    .slide-tag.purple {
+      color: var(--purple);
+      background: rgba(168, 85, 247, 0.1);
+      border-color: rgba(168, 85, 247, 0.2);
+    }
+
+    .slide-tag.orange {
+      color: var(--orange);
+      background: rgba(249, 115, 22, 0.1);
+      border-color: rgba(249, 115, 22, 0.2);
+    }
+
+    h1 {
+      font-size: 4rem;
+      font-weight: 900;
+      line-height: 1.05;
+      text-align: center;
+      letter-spacing: -0.03em;
+      max-width: 900px;
+    }
+
+    h2 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      line-height: 1.1;
+      text-align: center;
+      letter-spacing: -0.025em;
+      max-width: 800px;
+    }
+
+    h3 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 1.3rem;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 620px;
+      line-height: 1.6;
+      margin-top: 20px;
+      font-weight: 400;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--accent-light), var(--green), var(--purple));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .gradient-green {
+      background: linear-gradient(135deg, var(--green), #86efac);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .gradient-purple {
+      background: linear-gradient(135deg, var(--purple), #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ===== Cards Grid ===== */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      max-width: 960px;
+      width: 100%;
+      margin-top: 40px;
+    }
+
+    .cards-grid.two-col {
+      grid-template-columns: repeat(2, 1fr);
+      max-width: 700px;
+    }
+
+    .cards-grid.four-col {
+      grid-template-columns: repeat(4, 1fr);
+      max-width: 1100px;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      text-align: center;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(255,255,255,0.12);
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      font-size: 2.4rem;
+      margin-bottom: 14px;
+      display: block;
+    }
+
+    .card h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .card p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ===== Problem Bullets ===== */
+    .problem-list {
+      list-style: none;
+      max-width: 640px;
+      margin-top: 36px;
+      width: 100%;
+    }
+
+    .problem-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 1.15rem;
+      line-height: 1.5;
+    }
+
+    .problem-list li:last-child { border-bottom: none; }
+
+    .problem-icon {
+      font-size: 1.4rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* ===== Stats Row ===== */
+    .stats-row {
+      display: flex;
+      gap: 48px;
+      margin-top: 40px;
+      text-align: center;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-val {
+      font-size: 3rem;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+
+    .stat-val.blue { color: var(--accent-light); }
+    .stat-val.green { color: var(--green); }
+    .stat-val.purple { color: var(--purple); }
+    .stat-val.orange { color: var(--orange); }
+
+    .stat-label {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* ===== Platform Cards ===== */
+    .platform-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 40px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .platform-pill {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 60px;
+      padding: 14px 28px 14px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: border-color 0.3s, background 0.3s;
+    }
+
+    .platform-pill:hover {
+      border-color: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .platform-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .platform-pill .p-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      flex-shrink: 0;
+    }
+
+    .platform-sub {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* ===== Team ===== */
+    .team-grid {
+      display: flex;
+      gap: 48px;
+      margin-top: 48px;
+      justify-content: center;
+    }
+
+    .team-member {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      text-align: center;
+    }
+
+    .team-avatar {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 3.2rem;
+      font-weight: 800;
+      color: white;
+      border: 3px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 40px rgba(37, 99, 235, 0.2);
+    }
+
+    .team-avatar.steph {
+      background: linear-gradient(135deg, var(--green), #059669);
+      box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
+    }
+
+    .team-name {
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .team-role {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: -8px;
+    }
+
+    .team-links {
+      display: flex;
+      gap: 8px;
+      font-size: 0.82rem;
+      color: var(--accent-light);
+    }
+
+    .team-links a {
+      color: var(--accent-light);
+      text-decoration: none;
+      padding: 4px 10px;
+      border-radius: 100px;
+      border: 1px solid rgba(37, 99, 235, 0.2);
+      transition: all 0.2s;
+    }
+
+    .team-links a:hover {
+      background: rgba(37, 99, 235, 0.1);
+    }
+
+    /* ===== Title Slide Logo ===== */
+    .title-logo {
+      width: 120px;
+      height: 120px;
+      border-radius: 28px;
+      margin-bottom: 28px;
+      box-shadow: 0 0 60px rgba(37, 99, 235, 0.25);
+    }
+
+    .event-context {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 32px;
+      padding: 10px 20px;
+      border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .event-context strong {
+      color: var(--green);
+      font-weight: 600;
+    }
+
+    /* ===== Coordination Diagram ===== */
+    .coord-visual {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-top: 40px;
+    }
+
+    .coord-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 28px;
+      text-align: center;
+      min-width: 140px;
+    }
+
+    .coord-node .node-icon { font-size: 1.6rem; margin-bottom: 6px; }
+    .coord-node .node-label { font-weight: 600; font-size: 0.9rem; }
+
+    .coord-arrow {
+      font-size: 1.6rem;
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* ===== Feature Highlights ===== */
+    .feature-showcase {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 900px;
+      width: 100%;
+      margin-top: 36px;
+    }
+
+    .feature-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+
+    .feature-item .fi-icon {
+      font-size: 1.6rem;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .feature-item h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .feature-item p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ===== CTA ===== */
+    .cta-links {
+      display: flex;
+      gap: 16px;
+      margin-top: 36px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 28px;
+      border-radius: 100px;
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.3s;
+      border: none;
+      cursor: pointer;
+    }
+
+    .cta-btn.primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+    }
+
+    .cta-btn.primary:hover {
+      background: var(--accent-light);
+      box-shadow: 0 4px 24px rgba(37, 99, 235, 0.4);
+    }
+
+    .cta-btn.secondary {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .cta-btn.secondary:hover {
+      border-color: rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* ===== Governance Quote ===== */
+    .quote-block {
+      max-width: 700px;
+      text-align: center;
+      margin-top: 32px;
+    }
+
+    .quote-text {
+      font-size: 1.5rem;
+      font-weight: 500;
+      line-height: 1.6;
+      color: var(--text);
+      font-style: italic;
+    }
+
+    .quote-author {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 16px;
+    }
+
+    /* ===== Navigation ===== */
+    .nav-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+      background: rgba(10, 10, 15, 0.85);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 8px 16px;
+    }
+
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      cursor: pointer;
+      transition: all 0.3s;
+      border: none;
+    }
+
+    .nav-dot.active {
+      background: var(--accent-light);
+      width: 24px;
+      border-radius: 4px;
+    }
+
+    .nav-dot:hover:not(.active) {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .nav-counter {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 500;
+      margin-left: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .nav-hint {
+      position: fixed;
+      bottom: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 100;
+      transition: opacity 1s;
+    }
+
+    /* ===== Animations ===== */
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 40px rgba(37, 99, 235, 0.2); }
+      50% { box-shadow: 0 0 60px rgba(37, 99, 235, 0.35); }
+    }
+
+    .title-logo { animation: pulse-glow 3s ease-in-out infinite; }
+
+    .slide.active .card,
+    .slide.active .feature-item,
+    .slide.active .platform-pill,
+    .slide.active .team-member,
+    .slide.active .stat-item,
+    .slide.active .coord-node {
+      animation: fadeUp 0.5s ease-out both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide.active .card:nth-child(1),
+    .slide.active .feature-item:nth-child(1),
+    .slide.active .platform-pill:nth-child(1),
+    .slide.active .stat-item:nth-child(1) { animation-delay: 0.1s; }
+
+    .slide.active .card:nth-child(2),
+    .slide.active .feature-item:nth-child(2),
+    .slide.active .platform-pill:nth-child(2),
+    .slide.active .stat-item:nth-child(2) { animation-delay: 0.2s; }
+
+    .slide.active .card:nth-child(3),
+    .slide.active .feature-item:nth-child(3),
+    .slide.active .platform-pill:nth-child(3),
+    .slide.active .stat-item:nth-child(3) { animation-delay: 0.3s; }
+
+    .slide.active .card:nth-child(4),
+    .slide.active .feature-item:nth-child(4),
+    .slide.active .platform-pill:nth-child(4),
+    .slide.active .stat-item:nth-child(4) { animation-delay: 0.4s; }
+
+    .slide.active .team-member:nth-child(1) { animation-delay: 0.15s; }
+    .slide.active .team-member:nth-child(2) { animation-delay: 0.3s; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+      .slide { padding: 40px 24px; }
+      h1 { font-size: 2.4rem; }
+      h2 { font-size: 1.8rem; }
+      .cards-grid { grid-template-columns: 1fr; }
+      .cards-grid.four-col { grid-template-columns: repeat(2, 1fr); }
+      .feature-showcase { grid-template-columns: 1fr; }
+      .stats-row { gap: 24px; flex-wrap: wrap; }
+      .stat-val { font-size: 2rem; }
+      .team-grid { flex-direction: column; gap: 32px; }
+      .coord-visual { flex-wrap: wrap; justify-content: center; }
+      .title-logo { width: 80px; height: 80px; border-radius: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Background Effects -->
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+  <div class="bg-glow bg-glow-3"></div>
+
+  <div class="deck" id="deck">
+
+    <!-- ==================== SLIDE 1: Title ==================== -->
+    <div class="slide active" data-slide="0">
+      <img src="flowb.png" alt="FlowB" class="title-logo">
+      <h1><span class="gradient-text">FlowB</span></h1>
+      <p class="subtitle">Coordination infrastructure for the humans of ETHDenver</p>
+      <div class="event-context">
+        <span>Presented at</span>
+        <strong>GoverNinit Summit 2026</strong>
+        <span>&middot; Golden, CO</span>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 2: The Problem ==================== -->
+    <div class="slide" data-slide="1">
+      <span class="slide-tag orange">The Problem</span>
+      <h2>ETHDenver is <span class="gradient-text">massive</span>. Coordination is <em>hard</em>.</h2>
+      <ul class="problem-list">
+        <li>
+          <span class="problem-icon">&#x1F30A;</span>
+          <span><strong>100+ side events</strong> across Denver every week -- hackathons, talks, parties, summits, workshops. Nobody can track them all.</span>
+        </li>
+        <li>
+          <span class="problem-icon">&#x1F465;</span>
+          <span><strong>Fragmented coordination.</strong> Your crew is split across group chats, Luma invites, Google Sheets, and DMs. Who's going where?</span>
+        </li>
+        <li>
+          <span class="problem-icon">&#x1F6AB;</span>
+          <span><strong>Discovery is broken.</strong> The best events aren't always the loudest. First-timers miss hidden gems. Veterans miss new builders.</span>
+        </li>
+        <li>
+          <span class="problem-icon">&#x1F914;</span>
+          <span><strong>No shared context.</strong> You arrive in Denver and ask "what's happening tonight?" -- but there's no single answer.</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ==================== SLIDE 3: The Solution ==================== -->
+    <div class="slide" data-slide="2">
+      <span class="slide-tag green">The Solution</span>
+      <h2>One place to <span class="gradient-green">discover, coordinate,</span> and <span class="gradient-green">go together</span></h2>
+      <p class="subtitle">FlowB aggregates every side event into one feed, lets you form crews, and rewards exploration. Your ETHDenver companion -- free and open.</p>
+
+      <div class="coord-visual">
+        <div class="coord-node">
+          <div class="node-icon">&#x1F50D;</div>
+          <div class="node-label">Discover</div>
+        </div>
+        <span class="coord-arrow">&#x2192;</span>
+        <div class="coord-node">
+          <div class="node-icon">&#x1F91D;</div>
+          <div class="node-label">Crew Up</div>
+        </div>
+        <span class="coord-arrow">&#x2192;</span>
+        <div class="coord-node">
+          <div class="node-icon">&#x1F4C5;</div>
+          <div class="node-label">RSVP</div>
+        </div>
+        <span class="coord-arrow">&#x2192;</span>
+        <div class="coord-node">
+          <div class="node-icon">&#x1F525;</div>
+          <div class="node-label">Earn & Share</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 4: Features ==================== -->
+    <div class="slide" data-slide="3">
+      <span class="slide-tag">Core Features</span>
+      <h2>Built for <span class="gradient-text">real coordination</span></h2>
+
+      <div class="feature-showcase">
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F30D;</span>
+          <div>
+            <h4>Event Aggregation</h4>
+            <p>100+ events from Luma, Eventbrite, RA, and more. Filter by category, date, or vibe. Search anything.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F46B;</span>
+          <div>
+            <h4>Crews</h4>
+            <p>Form squads, share schedules, check in together. Crew-based coordination for the week. No group chat chaos.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F525;</span>
+          <div>
+            <h4>Points & Milestones</h4>
+            <p>RSVP, check in, invite friends, complete quests. Climb the leaderboard. Gamified exploration rewards showing up.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F916;</span>
+          <div>
+            <h4>AI Event Guide</h4>
+            <p>"What's happening tonight?" Ask FlowB and get instant, context-aware answers about events across Denver.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 5: Multi-Platform ==================== -->
+    <div class="slide" data-slide="4">
+      <span class="slide-tag purple">Meet People Where They Are</span>
+      <h2><span class="gradient-purple">Every platform</span>, one experience</h2>
+      <p class="subtitle">Telegram, Farcaster, Web, and soon mobile. Your account, your crews, your schedule -- everywhere.</p>
+
+      <div class="platform-row">
+        <div class="platform-pill">
+          <div class="p-icon">&#x1F310;</div>
+          <div>
+            <div>Web App</div>
+            <div class="platform-sub">flowb.me</div>
+          </div>
+        </div>
+        <div class="platform-pill">
+          <div class="p-icon">&#x2708;&#xFE0F;</div>
+          <div>
+            <div>Telegram Bot</div>
+            <div class="platform-sub">@Flow_b_bot</div>
+          </div>
+        </div>
+        <div class="platform-pill">
+          <div class="p-icon">&#x1F7E3;</div>
+          <div>
+            <div>Farcaster MiniApp</div>
+            <div class="platform-sub">In Warpcast</div>
+          </div>
+        </div>
+        <div class="platform-pill">
+          <div class="p-icon">&#x1F4F1;</div>
+          <div>
+            <div>Mobile App</div>
+            <div class="platform-sub">iOS & Android (soon)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 6: Ethereum Localism ==================== -->
+    <div class="slide" data-slide="5">
+      <span class="slide-tag green">Ethereum Localism</span>
+      <h2>Governance starts with <span class="gradient-green">showing up</span></h2>
+
+      <div class="quote-block">
+        <p class="quote-text">"The best governance happens when people coordinate in physical space. FlowB makes it easier to find each other, form groups, and act together -- not just online, but on the ground."</p>
+      </div>
+
+      <div class="cards-grid two-col" style="margin-top: 36px;">
+        <div class="card">
+          <span class="card-icon">&#x1F3D8;&#xFE0F;</span>
+          <h4>Local-First</h4>
+          <p>Built for Denver, designed for any city. Coordination tooling that starts with geography, not tokens.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F331;</span>
+          <h4>Regenerative</h4>
+          <p>Rewarding exploration, not extraction. Points incentivize showing up, connecting, and supporting local builders.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 7: Traction ==================== -->
+    <div class="slide" data-slide="6">
+      <span class="slide-tag">Live at ETHDenver 2026</span>
+      <h2>Already in the <span class="gradient-text">wild</span></h2>
+
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-val blue">100+</span>
+          <span class="stat-label">Events Indexed</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val green">4</span>
+          <span class="stat-label">Platforms Live</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val purple">15+</span>
+          <span class="stat-label">Categories</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val orange">Free</span>
+          <span class="stat-label">Always</span>
+        </div>
+      </div>
+
+      <div class="cards-grid" style="margin-top: 40px;">
+        <div class="card">
+          <span class="card-icon">&#x1F50D;</span>
+          <h4>Multi-Source Discovery</h4>
+          <p>Luma, Eventbrite, Resident Advisor, Google Places, and Brave Search</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F514;</span>
+          <h4>Smart Reminders</h4>
+          <p>Cross-platform notifications via Telegram DM and Farcaster push</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F517;</span>
+          <h4>Open API</h4>
+          <p>Public API at flowb.fly.dev -- anyone can build on top of our event data</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 8: Team ==================== -->
+    <div class="slide" data-slide="7">
+      <span class="slide-tag green">The Builders</span>
+      <h2>Team <span class="gradient-green">FlowB</span></h2>
+      <p class="subtitle">Two ETHDenver regulars who got tired of missing great events and losing track of friends.</p>
+
+      <div class="team-grid">
+        <div class="team-member">
+          <div class="team-avatar">K</div>
+          <span class="team-name">Koh</span>
+          <span class="team-role">Engineering & Product</span>
+          <div class="team-links">
+            <a href="#">Builder</a>
+            <a href="#">Full-stack</a>
+            <a href="#">AI + Web3</a>
+          </div>
+        </div>
+        <div class="team-member">
+          <div class="team-avatar steph">S</div>
+          <span class="team-name">Steph</span>
+          <span class="team-role">Strategy & Community</span>
+          <div class="team-links">
+            <a href="#">Community</a>
+            <a href="#">Governance</a>
+            <a href="#">Coordination</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 9: Vision ==================== -->
+    <div class="slide" data-slide="8">
+      <span class="slide-tag purple">Vision</span>
+      <h2>Beyond <span class="gradient-purple">ETHDenver</span></h2>
+      <p class="subtitle">FlowB is a coordination layer for any conference ecosystem. What works in Denver can work everywhere builders gather.</p>
+
+      <div class="cards-grid">
+        <div class="card">
+          <span class="card-icon">&#x1F5FA;&#xFE0F;</span>
+          <h4>Any City, Any Event</h4>
+          <p>Devconnect, EthCC, Solana Breakpoint -- wherever the community gathers</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F3DB;&#xFE0F;</span>
+          <h4>Governance Integration</h4>
+          <p>On-chain reputation from real-world participation. Proof of showing up.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F91D;</span>
+          <h4>Coordination Protocol</h4>
+          <p>Open infrastructure for community coordination. APIs for builders, data for DAOs.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== SLIDE 10: CTA ==================== -->
+    <div class="slide" data-slide="9">
+      <img src="flowb.png" alt="FlowB" class="title-logo" style="width:80px;height:80px;border-radius:20px;">
+      <h1 style="font-size:3rem;">Let's <span class="gradient-text">flow</span> together</h1>
+      <p class="subtitle">Open, free, community-built. Try FlowB tonight and find the best after-party.</p>
+
+      <div class="cta-links">
+        <a href="https://flowb.me" class="cta-btn primary" target="_blank">
+          &#x1F310; flowb.me
+        </a>
+        <a href="https://t.me/Flow_b_bot" class="cta-btn secondary" target="_blank">
+          Telegram Bot
+        </a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" class="cta-btn secondary" target="_blank">
+          Farcaster MiniApp
+        </a>
+      </div>
+
+      <div class="event-context" style="margin-top: 40px;">
+        <span>&#x1F33F; GoverNinit Summit</span>
+        <span>&middot;</span>
+        <span>Golden Kava Lounge</span>
+        <span>&middot;</span>
+        <strong>ETHDenver 2026</strong>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Navigation -->
+  <div class="nav-bar" id="navBar"></div>
+  <div class="nav-hint" id="navHint">Arrow keys or click to navigate</div>
+
+  <script>
+    const slides = document.querySelectorAll('.slide');
+    const navBar = document.getElementById('navBar');
+    const navHint = document.getElementById('navHint');
+    let current = 0;
+    const total = slides.length;
+
+    // Build nav dots
+    for (let i = 0; i < total; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+      dot.dataset.idx = i;
+      dot.addEventListener('click', () => goTo(i));
+      navBar.appendChild(dot);
+    }
+
+    const counter = document.createElement('span');
+    counter.className = 'nav-counter';
+    counter.textContent = `1 / ${total}`;
+    navBar.appendChild(counter);
+
+    function goTo(idx) {
+      if (idx < 0 || idx >= total || idx === current) return;
+
+      // Exit current
+      slides[current].classList.remove('active');
+      slides[current].classList.add(idx > current ? 'exit-up' : '');
+      setTimeout(() => slides[current === idx ? current : current].classList.remove('exit-up'), 600);
+
+      const prev = current;
+      current = idx;
+
+      // Activate new
+      slides[current].classList.add('active');
+
+      // Update nav
+      document.querySelectorAll('.nav-dot').forEach((d, i) => {
+        d.classList.toggle('active', i === current);
+      });
+      counter.textContent = `${current + 1} / ${total}`;
+
+      // Hide hint after first nav
+      navHint.style.opacity = '0';
+    }
+
+    function next() { goTo(current + 1); }
+    function prev() { goTo(current - 1); }
+
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
+        e.preventDefault();
+        next();
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        prev();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        goTo(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        goTo(total - 1);
+      }
+    });
+
+    // Touch swipe
+    let touchStartX = 0;
+    let touchStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    });
+    document.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+        dx < 0 ? next() : prev();
+      }
+    });
+
+    // Click sides to navigate
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.nav-bar') || e.target.closest('a') || e.target.closest('button')) return;
+      const x = e.clientX / window.innerWidth;
+      if (x > 0.65) next();
+      else if (x < 0.35) prev();
+    });
+
+    // Auto-hide hint
+    setTimeout(() => { navHint.style.opacity = '0'; }, 5000);
+  </script>
+</body>
+</html>

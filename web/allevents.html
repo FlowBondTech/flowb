@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlowB -- All Events Audit</title>
+  <title>FlowB -- All Events</title>
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -16,9 +16,21 @@
     .audit-wrap { padding: 24px 0; }
     .audit-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
     .audit-header h1 { font-size: 1.4rem; font-weight: 700; }
-    .audit-stats { display: flex; gap: 16px; flex-wrap: wrap; }
-    .audit-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 0.85rem; }
+    .audit-header-right { display: flex; align-items: center; gap: 12px; }
+    .audit-stats { display: flex; gap: 10px; flex-wrap: wrap; }
+    .audit-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 0.8rem; }
     .audit-stat strong { color: var(--accent-light); }
+
+    /* Luma status in header */
+    .luma-health { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; padding: 5px 10px; border-radius: var(--radius-pill); border: 1px solid var(--border); color: var(--text-muted); }
+    .luma-health-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); }
+    .luma-health.ok .luma-health-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+    .luma-health.ok { color: var(--green); border-color: rgba(34,197,94,0.2); }
+    .luma-health.degraded .luma-health-dot { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
+    .luma-health.degraded { color: var(--orange); border-color: rgba(249,115,22,0.2); }
+    .luma-health.down .luma-health-dot { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
+    .luma-health.down { color: #ef4444; border-color: rgba(239,68,68,0.2); }
+    .luma-health-detail { font-size: 0.7rem; color: var(--text-dim); }
 
     .audit-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
     .audit-controls input, .audit-controls select {
@@ -29,36 +41,72 @@
     .audit-controls select { min-width: 140px; }
 
     .audit-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
-    .audit-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1400px; }
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 900px; }
     .audit-table th {
       background: var(--bg-surface); color: var(--text-muted); text-transform: uppercase;
       font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px;
-      padding: 10px 12px; text-align: left; white-space: nowrap;
-      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; cursor: pointer;
+      padding: 10px 10px; text-align: left; white-space: nowrap;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2;
     }
-    .audit-table th:hover { color: var(--text); }
-    .audit-table th.sorted-asc::after { content: ' \u25B2'; }
-    .audit-table th.sorted-desc::after { content: ' \u25BC'; }
     .audit-table td {
-      padding: 8px 12px; border-bottom: 1px solid var(--border);
-      vertical-align: top; max-width: 250px; overflow: hidden; text-overflow: ellipsis;
+      padding: 7px 10px; border-bottom: 1px solid var(--border);
+      vertical-align: top; max-width: 220px; overflow: hidden; text-overflow: ellipsis;
     }
     .audit-table tr:hover td { background: var(--bg-card-hover); }
 
     .cell-missing { color: #ef4444; font-style: italic; }
     .cell-ok { color: var(--green); }
     .cell-warn { color: var(--orange); }
-    .cell-link { color: var(--accent-light); word-break: break-all; }
-    .cell-link:hover { text-decoration: underline; }
-    .cell-desc { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .cell-desc:hover { white-space: normal; overflow: visible; }
-    .cell-thumb { width: 60px; height: 36px; object-fit: cover; border-radius: 4px; }
+    .cell-desc { max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-desc:hover { white-space: normal; overflow: visible; max-width: 400px; }
+    .cell-thumb { width: 48px; height: 30px; object-fit: cover; border-radius: 3px; }
     .cell-price-flag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
     .cell-free { background: var(--green-dim); color: var(--green); }
     .cell-paid { background: rgba(249,115,22,0.12); color: var(--orange); }
 
+    /* Copy URL icon button */
+    .copy-url-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 4px; padding: 3px 5px; cursor: pointer; transition: all 0.15s;
+      display: inline-flex; align-items: center; gap: 3px; font-size: 0.7rem;
+    }
+    .copy-url-btn:hover { color: var(--accent-light); border-color: var(--accent-light); }
+    .copy-url-btn.copied { color: var(--green); border-color: var(--green); }
+    .copy-url-btn svg { width: 12px; height: 12px; }
+
     .loading-msg { text-align: center; padding: 60px 20px; color: var(--text-muted); }
     .flag-row td { background: rgba(239,68,68,0.06) !important; }
+    .going-row td { background: rgba(34,197,94,0.04) !important; }
+    .event-count-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+
+    /* Register button */
+    .rsvp-btn {
+      background: none; border: 1px solid var(--accent-dim); color: var(--accent-light);
+      border-radius: 4px; padding: 3px 8px; cursor: pointer; transition: all 0.15s;
+      font-size: 0.72rem; font-weight: 600; font-family: var(--font);
+      white-space: nowrap; display: inline-flex; align-items: center; gap: 3px;
+    }
+    .rsvp-btn:hover { background: var(--accent-dim); color: #fff; }
+    .rsvp-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .rsvp-btn.going {
+      background: var(--green-dim); color: var(--green);
+      border-color: rgba(34,197,94,0.3); cursor: default;
+    }
+    .rsvp-btn.going:hover { background: var(--green-dim); }
+    .rsvp-btn svg { width: 11px; height: 11px; flex-shrink: 0; }
+    .rsvp-cell { display: flex; align-items: center; gap: 6px; }
+    .rsvp-count { font-size: 0.72rem; color: var(--text-dim); }
+
+    /* Toast notification */
+    .audit-toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px);
+      background: var(--bg-card); border: 1px solid var(--green); color: var(--green);
+      padding: 12px 20px; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600;
+      z-index: 1000; transition: transform 0.3s ease; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .audit-toast.show { transform: translateX(-50%) translateY(0); }
+    .audit-toast svg { width: 18px; height: 18px; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -74,22 +122,61 @@
         <a href="/flow" class="header-nav-link">My Flow</a>
         <a href="/allevents" class="header-nav-link active">All Events</a>
       </nav>
+      <div class="header-meta">
+        <!-- Points Badge -->
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <!-- Auth Button -->
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <!-- User Menu (logged in) -->
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" onclick="window.location='/settings'">Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
 
   <main class="container audit-wrap">
     <div class="audit-header">
-      <h1>All Events Audit</h1>
-      <div class="audit-stats" id="auditStats"></div>
+      <h1>All Events</h1>
+      <div class="audit-header-right">
+        <div class="luma-health" id="lumaHealth" title="Checking Luma API...">
+          <span class="luma-health-dot"></span>
+          <span id="lumaHealthLabel">Checking...</span>
+          <span class="luma-health-detail" id="lumaHealthDetail"></span>
+        </div>
+        <div class="audit-stats" id="auditStats"></div>
+      </div>
     </div>
 
     <div class="audit-controls">
-      <input type="text" id="auditSearch" placeholder="Search title, venue, organizer...">
-      <select id="auditSource">
-        <option value="">All Sources</option>
-      </select>
+      <input type="text" id="auditSearch" placeholder="Search title, venue, organizer, description...">
       <select id="auditIssue">
         <option value="">All Events</option>
+        <option value="my-rsvps">My RSVPs</option>
         <option value="missing-venue">Missing Venue</option>
         <option value="missing-price">Missing Price Info</option>
         <option value="missing-description">Missing Description</option>
@@ -113,37 +200,152 @@
     </div>
   </main>
 
+  <!-- Toast for RSVP confirmation -->
+  <div class="audit-toast" id="auditToast"></div>
+
+  <!-- Privy root for auth -->
+  <div id="privy-root"></div>
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
   <script>
     const API = 'https://flowb.fly.dev';
     let allEvents = [];
     let filteredEvents = [];
+    let myRsvpIds = new Set(); // event IDs user has RSVP'd to
 
     const searchEl = document.getElementById('auditSearch');
-    const sourceEl = document.getElementById('auditSource');
     const issueEl = document.getElementById('auditIssue');
     const sortEl = document.getElementById('auditSort');
     const contentEl = document.getElementById('auditContent');
     const statsEl = document.getElementById('auditStats');
 
+    // ===== Auth-aware fetch =====
+    async function fetchAuthed(path, opts = {}) {
+      const token = getAuthToken();
+      if (!token) return null;
+      try {
+        const res = await fetch(`${API}${path}`, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(opts.headers || {}),
+          },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    // ===== Load user's existing RSVPs =====
+    async function loadMyRsvps() {
+      const data = await fetchAuthed('/api/v1/me/schedule');
+      if (!data) return;
+      myRsvpIds.clear();
+      const items = data.schedule || data.items || data || [];
+      if (Array.isArray(items)) {
+        for (const item of items) {
+          const eid = item.event_id || item.eventId || item.id;
+          if (eid) myRsvpIds.add(eid);
+        }
+      }
+      // Re-render to show Going state
+      if (allEvents.length > 0) renderTable();
+    }
+
+    // Listen for auth changes to load RSVPs
+    window.addEventListener('flowb-auth-ready', () => {
+      if (Auth.isAuthenticated) {
+        loadMyRsvps();
+      } else {
+        myRsvpIds.clear();
+        if (allEvents.length > 0) renderTable();
+      }
+    });
+
+    // ===== RSVP Handler =====
+    async function handleRsvp(eventId, btnEl) {
+      if (!requireAuth('register for events')) return;
+
+      // Optimistic UI
+      btnEl.classList.add('going');
+      btnEl.disabled = true;
+      btnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Going';
+
+      const eventData = allEvents.find(e => e.id === eventId);
+      const rsvpBody = { status: 'going' };
+      if (eventData) {
+        rsvpBody.eventTitle = eventData.title;
+        rsvpBody.eventSource = eventData.source;
+        rsvpBody.eventUrl = eventData.url;
+        rsvpBody.venueName = eventData.locationName || null;
+        rsvpBody.startTime = eventData.startTime;
+        rsvpBody.endTime = eventData.endTime;
+      }
+
+      const result = await fetchAuthed(`/api/v1/events/${encodeURIComponent(eventId)}/rsvp`, {
+        method: 'POST',
+        body: JSON.stringify(rsvpBody),
+      });
+
+      if (result) {
+        myRsvpIds.add(eventId);
+        if (typeof awardPoints === 'function') awardPoints(3, 'RSVP bonus');
+        if (typeof awardFirstAction === 'function') awardFirstAction('first_rsvp', 5, 'First RSVP!');
+        showToast(eventData?.title || 'Event');
+      } else {
+        // Revert on failure
+        btnEl.classList.remove('going');
+        btnEl.disabled = false;
+        btnEl.innerHTML = 'Register';
+      }
+    }
+    window.handleRsvp = handleRsvp;
+
+    function showToast(title) {
+      const toast = document.getElementById('auditToast');
+      toast.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Added "${esc(title)}" to your Flow`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // ===== Load events =====
     async function loadAll() {
       try {
         const res = await fetch(`${API}/api/v1/events?limit=500`);
         const data = await res.json();
         allEvents = (data.events || []);
-        populateSources();
         applyFilters();
+        // If already authenticated, load RSVPs
+        if (Auth.isAuthenticated) loadMyRsvps();
       } catch (err) {
         contentEl.innerHTML = `<div class="loading-msg" style="color:#ef4444">Failed to load events: ${err.message}</div>`;
       }
     }
 
-    function populateSources() {
-      const sources = [...new Set(allEvents.map(e => e.source).filter(Boolean))].sort();
-      for (const s of sources) {
-        const opt = document.createElement('option');
-        opt.value = s;
-        opt.textContent = s;
-        sourceEl.appendChild(opt);
+    // Check Luma API health
+    async function checkLumaHealth() {
+      const el = document.getElementById('lumaHealth');
+      const labelEl = document.getElementById('lumaHealthLabel');
+      const detailEl = document.getElementById('lumaHealthDetail');
+      try {
+        const res = await fetch(`${API}/api/v1/health/luma`, { signal: AbortSignal.timeout(6000) });
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        el.className = 'luma-health ' + (data.status || 'unknown');
+        labelEl.textContent = data.status === 'ok' ? 'Luma API OK' : data.status === 'degraded' ? 'Degraded' : 'Down';
+        const parts = [];
+        if (data.discover?.latency) parts.push(`D:${data.discover.latency}ms`);
+        if (data.official?.latency) parts.push(`O:${data.official.latency}ms`);
+        detailEl.textContent = parts.join(' ');
+        el.title = `Discover: ${data.discover?.status || '?'} | Official: ${data.official?.status || '?'}`;
+      } catch {
+        el.className = 'luma-health down';
+        labelEl.textContent = 'Offline';
+        detailEl.textContent = '';
       }
     }
 
@@ -161,7 +363,6 @@
 
     function applyFilters() {
       const q = searchEl.value.toLowerCase().trim();
-      const source = sourceEl.value;
       const issue = issueEl.value;
       const sort = sortEl.value;
 
@@ -170,19 +371,21 @@
           const hay = `${e.title || ''} ${e.locationName || ''} ${e.organizerName || ''} ${e.description || ''}`.toLowerCase();
           if (!hay.includes(q)) return false;
         }
-        if (source && e.source !== source) return false;
         if (issue) {
-          const issues = getIssues(e);
-          if (issue === 'has-issues') {
-            if (issues.length === 0) return false;
+          if (issue === 'my-rsvps') {
+            if (!myRsvpIds.has(e.id)) return false;
           } else {
-            if (!issues.includes(issue)) return false;
+            const issues = getIssues(e);
+            if (issue === 'has-issues') {
+              if (issues.length === 0) return false;
+            } else {
+              if (!issues.includes(issue)) return false;
+            }
           }
         }
         return true;
       });
 
-      // Sort
       filteredEvents.sort((a, b) => {
         if (sort === 'date-asc') return (a.startTime || '').localeCompare(b.startTime || '');
         if (sort === 'date-desc') return (b.startTime || '').localeCompare(a.startTime || '');
@@ -199,35 +402,25 @@
     function renderStats() {
       const total = allEvents.length;
       const shown = filteredEvents.length;
-      const sources = {};
-      const issueCount = { venue: 0, price: 0, desc: 0, img: 0, org: 0, endTime: 0, url: 0 };
-      let freeCount = 0, paidCount = 0, unknownPrice = 0;
-
+      let freeCount = 0, paidCount = 0;
       for (const e of allEvents) {
-        sources[e.source || 'unknown'] = (sources[e.source || 'unknown'] || 0) + 1;
-        const iss = getIssues(e);
-        if (iss.includes('missing-venue')) issueCount.venue++;
-        if (iss.includes('missing-price')) issueCount.price++;
-        if (iss.includes('missing-description')) issueCount.desc++;
-        if (iss.includes('missing-image')) issueCount.img++;
-        if (iss.includes('missing-organizer')) issueCount.org++;
-        if (iss.includes('missing-end-time')) issueCount.endTime++;
-        if (iss.includes('missing-url')) issueCount.url++;
-        if (e.isFree) freeCount++;
+        if (e.isFree || e.price === 0) freeCount++;
         else if (e.price != null && e.price > 0) paidCount++;
-        else if (e.price == null && e.isFree == null) unknownPrice++;
       }
-
       const withAnyIssue = allEvents.filter(e => getIssues(e).length > 0).length;
+      const myCount = myRsvpIds.size;
 
-      statsEl.innerHTML = `
+      let html = `
         <div class="audit-stat"><strong>${total}</strong> total</div>
         <div class="audit-stat">Showing <strong>${shown}</strong></div>
         <div class="audit-stat" style="color:var(--green)"><strong>${freeCount}</strong> free</div>
         <div class="audit-stat" style="color:var(--orange)"><strong>${paidCount}</strong> paid</div>
-        <div class="audit-stat" style="color:#ef4444"><strong>${unknownPrice}</strong> unknown price</div>
-        <div class="audit-stat" style="color:#ef4444"><strong>${withAnyIssue}</strong> with issues</div>
+        <div class="audit-stat" style="color:#ef4444"><strong>${withAnyIssue}</strong> issues</div>
       `;
+      if (myCount > 0) {
+        html += `<div class="audit-stat" style="color:var(--accent-light)"><strong>${myCount}</strong> registered</div>`;
+      }
+      statsEl.innerHTML = html;
     }
 
     function esc(str) {
@@ -238,25 +431,47 @@
     function fmtDate(iso) {
       if (!iso) return '';
       const d = new Date(iso);
-      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
         ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
     }
 
-    function cellVal(val, type) {
-      if (val === undefined || val === null || val === '') {
-        return `<span class="cell-missing">--</span>`;
+    function copyUrl(btn, url) {
+      navigator.clipboard.writeText(url).then(() => {
+        btn.classList.add('copied');
+        btn.querySelector('.copy-label').textContent = 'Copied';
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.querySelector('.copy-label').textContent = '';
+        }, 1200);
+      });
+    }
+
+    function urlCopyBtn(url, label) {
+      if (!url) return '<span class="cell-missing">--</span>';
+      return `<button class="copy-url-btn" onclick="copyUrl(this, '${esc(url).replace(/'/g, "\\'")}'); event.stopPropagation();" title="${esc(url)}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+        <span class="copy-label"></span>
+      </button>`;
+    }
+
+    function rsvpBtn(e) {
+      const isGoing = myRsvpIds.has(e.id);
+      const safeId = esc(e.id).replace(/'/g, "\\'");
+      const count = e.rsvpCount ? `<span class="rsvp-count">${e.rsvpCount}</span>` : '';
+
+      if (isGoing) {
+        return `<div class="rsvp-cell">
+          <button class="rsvp-btn going" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg> Going
+          </button>
+          ${count}
+        </div>`;
       }
-      if (type === 'url' && val) {
-        const short = val.length > 40 ? val.slice(0, 40) + '...' : val;
-        return `<a class="cell-link" href="${esc(val)}" target="_blank" title="${esc(val)}">${esc(short)}</a>`;
-      }
-      if (type === 'date') return fmtDate(val);
-      if (type === 'bool') return val ? '<span class="cell-ok">Yes</span>' : '<span class="cell-missing">No</span>';
-      if (type === 'price') {
-        if (val === 0) return '<span class="cell-price-flag cell-free">Free</span>';
-        return `<span class="cell-price-flag cell-paid">$${val}</span>`;
-      }
-      return esc(String(val));
+
+      return `<div class="rsvp-cell">
+        <button class="rsvp-btn" onclick="handleRsvp('${safeId}', this); event.stopPropagation();">Register</button>
+        ${count}
+      </div>`;
     }
 
     function renderTable() {
@@ -265,73 +480,58 @@
         return;
       }
 
-      const cols = [
-        { key: 'title', label: 'Title', width: '200px' },
-        { key: 'source', label: 'Source' },
-        { key: 'startTime', label: 'Start', type: 'date' },
-        { key: 'endTime', label: 'End', type: 'date' },
-        { key: 'locationName', label: 'Venue' },
-        { key: 'locationCity', label: 'City' },
-        { key: 'price', label: 'Price', type: 'price' },
-        { key: 'isFree', label: 'Free?', type: 'bool' },
-        { key: 'organizerName', label: 'Organizer' },
-        { key: 'description', label: 'Description', cls: 'cell-desc' },
-        { key: 'url', label: 'URL', type: 'url' },
-        { key: 'ticketUrl', label: 'Ticket URL', type: 'url' },
-        { key: 'imageUrl', label: 'Image', type: 'img' },
-        { key: 'isVirtual', label: 'Virtual?', type: 'bool' },
-        { key: 'eventType', label: 'Type' },
-        { key: 'tags', label: 'Tags' },
-        { key: 'rsvpCount', label: 'RSVPs' },
-        { key: 'featured', label: 'Featured', type: 'bool' },
-        { key: 'issues', label: 'Issues' },
-      ];
-
       let html = '<div class="audit-table-wrap"><table class="audit-table"><thead><tr>';
-      html += '<th>#</th>';
-      for (const col of cols) {
-        html += `<th>${col.label}</th>`;
-      }
+      html += '<th>#</th><th>Title</th><th>Start</th><th>End</th><th>Venue</th><th>City</th>';
+      html += '<th>Price</th><th>Register</th><th>Organizer</th><th>Description</th><th>Img</th>';
+      html += '<th>URL</th><th>Ticket</th><th>Issues</th>';
       html += '</tr></thead><tbody>';
 
       for (let i = 0; i < filteredEvents.length; i++) {
         const e = filteredEvents[i];
         const issues = getIssues(e);
-        const rowCls = issues.length > 0 ? ' class="flag-row"' : '';
+        const isGoing = myRsvpIds.has(e.id);
+        const rowCls = isGoing ? ' class="going-row"' : (issues.length > 0 ? ' class="flag-row"' : '');
 
         html += `<tr${rowCls}>`;
         html += `<td>${i + 1}</td>`;
+        html += `<td style="max-width:180px;font-weight:500">${esc(e.title || '')}</td>`;
+        html += `<td style="white-space:nowrap">${fmtDate(e.startTime)}</td>`;
+        html += `<td style="white-space:nowrap">${fmtDate(e.endTime)}</td>`;
+        html += `<td>${e.locationName ? esc(e.locationName) : (e.isVirtual ? '<span class="cell-ok">Online</span>' : '<span class="cell-missing">--</span>')}</td>`;
+        html += `<td>${e.locationCity ? esc(e.locationCity) : '<span class="cell-missing">--</span>'}</td>`;
 
-        for (const col of cols) {
-          if (col.key === 'issues') {
-            if (issues.length === 0) {
-              html += '<td><span class="cell-ok">OK</span></td>';
-            } else {
-              html += `<td><span class="cell-warn">${issues.map(i => i.replace('missing-', '')).join(', ')}</span></td>`;
-            }
-            continue;
-          }
-
-          if (col.key === 'tags') {
-            const tags = e.tags || [];
-            html += `<td>${tags.length ? esc(tags.join(', ')) : '<span class="cell-missing">--</span>'}</td>`;
-            continue;
-          }
-
-          if (col.type === 'img') {
-            const url = e[col.key] || e.coverUrl;
-            if (url) {
-              html += `<td><img class="cell-thumb" src="${esc(url)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=cell-missing>broken</span>'"></td>`;
-            } else {
-              html += `<td><span class="cell-missing">--</span></td>`;
-            }
-            continue;
-          }
-
-          const val = e[col.key];
-          const tdCls = col.cls ? ` class="${col.cls}" title="${esc(String(val || ''))}"` : '';
-          html += `<td${tdCls}>${cellVal(val, col.type)}</td>`;
+        // Price
+        if (e.isFree || e.price === 0) {
+          html += '<td><span class="cell-price-flag cell-free">Free</span></td>';
+        } else if (e.price != null && e.price > 0) {
+          html += `<td><span class="cell-price-flag cell-paid">$${e.price}</span></td>`;
+        } else {
+          html += '<td><span class="cell-missing">--</span></td>';
         }
+
+        // Register button (replaces old RSVPs-only column)
+        html += `<td>${rsvpBtn(e)}</td>`;
+
+        html += `<td>${e.organizerName ? esc(e.organizerName) : '<span class="cell-missing">--</span>'}</td>`;
+        html += `<td class="cell-desc" title="${esc(e.description || '')}">${e.description ? esc(e.description.substring(0, 80)) : '<span class="cell-missing">--</span>'}</td>`;
+
+        // Image thumbnail
+        const imgUrl = e.imageUrl || e.coverUrl;
+        html += imgUrl
+          ? `<td><img class="cell-thumb" src="${esc(imgUrl)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=cell-missing>--</span>'"></td>`
+          : '<td><span class="cell-missing">--</span></td>';
+
+        // URL + Ticket URL as copy buttons
+        html += `<td>${urlCopyBtn(e.url, 'URL')}</td>`;
+        html += `<td>${urlCopyBtn(e.ticketUrl, 'Ticket')}</td>`;
+
+        // Issues
+        if (issues.length === 0) {
+          html += '<td><span class="cell-ok">OK</span></td>';
+        } else {
+          html += `<td><span class="cell-warn">${issues.map(i => i.replace('missing-', '')).join(', ')}</span></td>`;
+        }
+
         html += '</tr>';
       }
 
@@ -339,14 +539,42 @@
       contentEl.innerHTML = html;
     }
 
+    // Make functions available globally
+    window.copyUrl = copyUrl;
+
     // Bind filters
     searchEl.addEventListener('input', applyFilters);
-    sourceEl.addEventListener('change', applyFilters);
     issueEl.addEventListener('change', applyFilters);
     sortEl.addEventListener('change', applyFilters);
 
     // Init
     loadAll();
+    checkLumaHealth();
+  </script>
+  <!-- Privy loaded lazily on first Sign In click or if returning user -->
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
   </script>
 </body>
 </html>

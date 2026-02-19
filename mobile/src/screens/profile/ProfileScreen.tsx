@@ -6,7 +6,7 @@
  * entrance animations and animated collapsing header.
  */
 
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -41,6 +41,7 @@ import { usePointsStore } from '../../stores/usePointsStore';
 import { formatPoints } from '../../utils/formatters';
 import { haptics } from '../../utils/haptics';
 import type { RootStackParamList } from '../../navigation/types';
+import { API_URL } from '../../utils/constants';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
@@ -77,6 +78,73 @@ function SettingsRow({ icon, label, disabled, onPress }: SettingsRowProps) {
   }
 
   return content;
+}
+
+// ── Luma API status row ──────────────────────────────────────────
+
+type LumaHealth = 'checking' | 'ok' | 'degraded' | 'down';
+
+function useLumaHealth() {
+  const [status, setStatus] = useState<LumaHealth>('checking');
+  const [detail, setDetail] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/v1/health/luma`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        setStatus(data.status === 'ok' ? 'ok' : data.status === 'degraded' ? 'degraded' : 'down');
+        const parts: string[] = [];
+        if (data.discover?.latency) parts.push(`D:${data.discover.latency}ms`);
+        if (data.official?.latency) parts.push(`O:${data.official.latency}ms`);
+        setDetail(parts.join(' '));
+      } catch {
+        if (!controller.signal.aborted) setStatus('down');
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  return { status, detail };
+}
+
+const LUMA_STATUS_COLORS: Record<LumaHealth, string> = {
+  checking: colors.text.tertiary,
+  ok: '#22c55e',
+  degraded: '#f97316',
+  down: '#ef4444',
+};
+
+const LUMA_STATUS_LABELS: Record<LumaHealth, string> = {
+  checking: 'Checking...',
+  ok: 'Connected',
+  degraded: 'Degraded',
+  down: 'Offline',
+};
+
+function LumaStatusRow() {
+  const { status, detail } = useLumaHealth();
+  const dotColor = LUMA_STATUS_COLORS[status];
+
+  return (
+    <View style={styles.settingsRow}>
+      <Ionicons name="cloud-outline" size={20} color={colors.text.secondary} />
+      <Text style={styles.settingsLabel}>Luma API</Text>
+      <View style={styles.settingsRight}>
+        <View style={[styles.lumaStatusDot, { backgroundColor: dotColor }]} />
+        <Text style={[styles.lumaStatusText, { color: dotColor }]}>
+          {LUMA_STATUS_LABELS[status]}
+        </Text>
+        {detail ? (
+          <Text style={styles.lumaStatusDetail}>{detail}</Text>
+        ) : null}
+      </View>
+    </View>
+  );
 }
 
 // ── Mini stat card ────────────────────────────────────────────────
@@ -269,6 +337,8 @@ export function ProfileScreen() {
                     navigation.navigate('About');
                   }}
                 />
+                <View style={styles.divider} />
+                <LumaStatusRow />
               </GlassCard>
             </Animated.View>
 
@@ -398,6 +468,21 @@ const styles = StyleSheet.create({
   comingSoon: {
     ...typography.micro,
     color: colors.text.tertiary,
+  },
+  lumaStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 4,
+  },
+  lumaStatusText: {
+    ...typography.micro,
+    fontWeight: '600',
+  },
+  lumaStatusDetail: {
+    ...typography.micro,
+    color: colors.text.tertiary,
+    marginLeft: 4,
   },
   divider: {
     height: 1,

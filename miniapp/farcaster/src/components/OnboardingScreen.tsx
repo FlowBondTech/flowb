@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { updatePreferences } from "../api/client";
-import { composeCast, shareToX, copyToClipboard } from "../lib/farcaster";
+import { composeCast, shareToX, copyToClipboard, hapticImpact, hapticSelection } from "../lib/farcaster";
 
 const ARRIVAL_OPTIONS = [
   { value: "already-here", label: "I'm already here", emoji: "\uD83C\uDFD4\uFE0F" },
@@ -49,6 +49,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
   const progressPercent = Math.min(((step) / totalSteps) * 100, 100);
 
   const toggleInterest = useCallback((id: string) => {
+    hapticSelection();
     setSelectedInterests((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
@@ -56,6 +57,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
 
   const finishOnboarding = useCallback(
     async (crewAction?: "browse" | "create") => {
+      hapticImpact("medium");
       setSaving(true);
       try {
         await updatePreferences({

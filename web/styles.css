@@ -93,10 +93,34 @@ a:hover { text-decoration: underline; }
   border: 1px solid rgba(37, 99, 235, 0.2);
 }
 
-.event-dates {
-  font-size: 0.8rem;
+/* Luma API Status */
+.luma-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 500;
   color: var(--text-muted);
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  cursor: default;
+  transition: all 0.2s;
 }
+.luma-status:hover { border-color: var(--border-hover); }
+.luma-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: background 0.3s;
+}
+.luma-status.ok .luma-status-dot { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.luma-status.degraded .luma-status-dot { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
+.luma-status.down .luma-status-dot { background: #ef4444; box-shadow: 0 0 4px #ef4444; }
+.luma-status.ok .luma-status-label { color: var(--green); }
+.luma-status.degraded .luma-status-label { color: var(--orange); }
+.luma-status.down .luma-status-label { color: #ef4444; }
 
 /* ===== Header Nav ===== */
 .header-nav {
@@ -1465,19 +1489,18 @@ a:hover { text-decoration: underline; }
 
 .event-modal-header {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  flex-direction: column;
+  gap: 12px;
   margin-bottom: 20px;
   padding-right: 24px;
 }
 
 .event-modal-img {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-sm);
+  width: 100%;
+  height: 160px;
+  border-radius: var(--radius);
   object-fit: cover;
   background: var(--bg-surface);
-  flex-shrink: 0;
 }
 
 .event-modal-title {
@@ -2386,7 +2409,6 @@ a:hover { text-decoration: underline; }
   }
 
   .event-card-img { height: 140px; }
-  .header-meta .event-dates { display: none; }
   .footer-inner { flex-direction: column; gap: 12px; }
 
   .myflow-grid { grid-template-columns: 1fr; }
@@ -2853,7 +2875,6 @@ a:hover { text-decoration: underline; }
 }
 
 @media (max-width: 480px) {
-  .event-dates { display: none; }
   .points-tooltip { right: -60px; }
 }
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl } from "../lib/farcaster";
+import { sdk } from "@farcaster/miniapp-sdk";
+import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl, hapticImpact, hapticNotification, hapticSelection, sendToken, swapToken, viewToken, BASE_USDC, BASE_ETH } from "../lib/farcaster";
 import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints, sendChat, getCrews, getCrewMembers } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
 import type { EventResult, ScheduleEntry, FeedItem, CrewInfo, CrewMember, CrewCheckin as CrewCheckinType } from "../api/types";
@@ -200,7 +201,20 @@ export default function FarcasterApp() {
   // Init -- detect context first, then run appropriate flow
   useEffect(() => {
     (async () => {
-      const miniApp = await isInMiniApp();
+      let miniApp = await isInMiniApp();
+
+      if (!miniApp) {
+        // One more attempt: try SDK init directly.
+        // Base app sometimes fails all detection but SDK context still works.
+        try {
+          const ctx = await Promise.race([
+            sdk.context,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+          ]);
+          if (ctx) miniApp = true;
+        } catch {}
+      }
+
       setInMiniApp(miniApp);
 
       if (!miniApp) {
@@ -412,6 +426,7 @@ export default function FarcasterApp() {
   const [showRsvpConfirm, setShowRsvpConfirm] = useState(false);
 
   const openEvent = useCallback((id: string) => {
+    hapticImpact("light");
     setEventId(id);
     setScreen("event");
     setRsvpStatus(null);
@@ -420,12 +435,15 @@ export default function FarcasterApp() {
 
   const handleRsvp = async (status: "going" | "maybe") => {
     if (!eventId) return;
+    hapticImpact("medium");
     await rsvpEvent(eventId, status);
     setRsvpStatus(status);
     setShowRsvpConfirm(true);
+    hapticNotification("success");
   };
 
   const handleShareEventFarcaster = (event: EventResult) => {
+    hapticImpact("light");
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
     composeCast(
       `I'm going to ${event.title}! Who's joining?`,
@@ -434,6 +452,7 @@ export default function FarcasterApp() {
   };
 
   const handleShareEventX = (event: EventResult) => {
+    hapticImpact("light");
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
     shareToX(
       `I'm going to ${event.title}! Who's joining? - found on FlowB`,
@@ -445,23 +464,51 @@ export default function FarcasterApp() {
     const url = event.url || `${process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app"}?event=${event.id}`;
     const ok = await copyToClipboard(url);
     if (ok) {
+      hapticNotification("success");
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 1500);
     }
   };
 
+  // Wallet actions
+  const handleSendTip = async (recipientFid?: number) => {
+    hapticImpact("medium");
+    const result = await sendToken({
+      token: BASE_USDC,
+      recipientFid,
+    });
+    if (!result.success) {
+      hapticNotification("error");
+    }
+  };
+
+  const handleSwapToUsdc = async () => {
+    hapticImpact("medium");
+    const result = await swapToken({
+      sellToken: BASE_ETH,
+      buyToken: BASE_USDC,
+    });
+    if (!result.success) {
+      hapticNotification("error");
+    }
+  };
+
   const handleScheduleCheckin = async (entry: ScheduleEntry) => {
     try {
+      hapticImpact("heavy");
       await checkinScheduleEntry(entry.id);
       setSchedule((prev) =>
         prev.map((e) => (e.id === entry.id ? { ...e, checked_in: true } : e)),
       );
+      hapticNotification("success");
     } catch (err) {
       console.error("Checkin failed:", err);
+      hapticNotification("error");
     }
   };
 
   const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat") => {
+    hapticSelection();
     setScreen(tab);
   }, []);
 
@@ -585,8 +632,9 @@ export default function FarcasterApp() {
               className="btn btn-primary btn-block"
               style={{ marginBottom: 12 }}
               onClick={async () => {
+                hapticImpact("medium");
                 const r = await promptAddMiniApp();
-                if (r.added) setAppAdded(true);
+                if (r.added) { setAppAdded(true); hapticNotification("success"); }
               }}
             >
               Add FlowB + Enable Notifications
@@ -597,19 +645,19 @@ export default function FarcasterApp() {
           <div className="top-tabs">
             <button
               className={`top-tab ${homeTab === "discover" ? "active" : ""}`}
-              onClick={() => setHomeTab("discover")}
+              onClick={() => { hapticSelection(); setHomeTab("discover"); }}
             >
               Discover
             </button>
             <button
               className={`top-tab ${homeTab === "feed" ? "active" : ""}`}
-              onClick={() => setHomeTab("feed")}
+              onClick={() => { hapticSelection(); setHomeTab("feed"); }}
             >
               Feed
             </button>
             <button
               className={`top-tab ${homeTab === "vibes" ? "active" : ""}`}
-              onClick={() => setHomeTab("vibes")}
+              onClick={() => { hapticSelection(); setHomeTab("vibes"); }}
             >
               Vibes
             </button>
@@ -676,7 +724,7 @@ export default function FarcasterApp() {
               <div className="filter-chips" style={{ marginBottom: 6 }}>
                 <button
                   className={`filter-chip ${activeDate === "any" ? "active" : ""}`}
-                  onClick={() => setActiveDate("any")}
+                  onClick={() => { hapticSelection(); setActiveDate("any"); }}
                 >
                   All Days
                 </button>
@@ -684,7 +732,7 @@ export default function FarcasterApp() {
                   <button
                     key={d.id}
                     className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
-                    onClick={() => setActiveDate(d.id)}
+                    onClick={() => { hapticSelection(); setActiveDate(d.id); }}
                   >
                     {d.label}
                   </button>
@@ -697,7 +745,7 @@ export default function FarcasterApp() {
                   <button
                     key={cat.id}
                     className={`filter-chip ${activeFilter === cat.id ? "active" : ""}`}
-                    onClick={() => setActiveFilter(cat.id)}
+                    onClick={() => { hapticSelection(); setActiveFilter(cat.id); }}
                   >
                     {cat.label}
                   </button>
@@ -1082,6 +1130,46 @@ export default function FarcasterApp() {
               </svg>
               {linkCopied ? "Copied!" : "Copy"}
             </button>
+          </div>
+
+          {/* Wallet Actions */}
+          <div className="card" style={{ marginTop: 12, padding: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-muted)" }}>
+              Wallet
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                className="btn btn-block"
+                style={{ background: "#0052FF", color: "#fff", border: "none", fontSize: 13, fontWeight: 600, padding: "10px 12px", borderRadius: "var(--radius)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                onClick={() => handleSendTip()}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" style={{ width: 15, height: 15 }}>
+                  <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+                </svg>
+                Send
+              </button>
+              <button
+                className="btn btn-block"
+                style={{ background: "rgba(99, 102, 241, 0.12)", color: "var(--accent, #6366f1)", border: "none", fontSize: 13, fontWeight: 600, padding: "10px 12px", borderRadius: "var(--radius)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                onClick={handleSwapToUsdc}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" style={{ width: 15, height: 15 }}>
+                  <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/>
+                  <polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/>
+                </svg>
+                Swap
+              </button>
+              <button
+                className="btn btn-block"
+                style={{ background: "rgba(34, 197, 94, 0.1)", color: "var(--green, #22c55e)", border: "none", fontSize: 13, fontWeight: 600, padding: "10px 12px", borderRadius: "var(--radius)", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                onClick={() => viewToken(BASE_USDC)}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15" style={{ width: 15, height: 15 }}>
+                  <circle cx="12" cy="12" r="10"/><path d="M12 6v12"/><path d="M15.5 9.5a3.5 3.5 0 00-3.5-1h-1a3 3 0 000 6h2a3 3 0 010 6h-1a3.5 3.5 0 01-3.5-1"/>
+                </svg>
+                USDC
+              </button>
+            </div>
           </div>
         </div>
       )}

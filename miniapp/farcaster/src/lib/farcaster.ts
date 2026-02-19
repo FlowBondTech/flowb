@@ -72,7 +72,8 @@ export function getProfileUrl(username: string): string {
 
 /**
  * Detect whether we're running inside a Farcaster/Base mini app context.
- * Falls back to iframe/UA/URL detection if SDK check fails (Base app issue).
+ * Falls back to iframe/UA/URL/referrer/SDK-context detection.
+ * Base app often fails sdk.isInMiniApp() so we use multiple fallbacks.
  */
 export async function isInMiniApp(): Promise<boolean> {
   try {
@@ -80,8 +81,8 @@ export async function isInMiniApp(): Promise<boolean> {
     if (sdkResult) return true;
   } catch {}
 
-  // Fallback: iframe detection (mini apps run in iframes)
   if (typeof window !== "undefined") {
+    // Fallback: iframe detection (mini apps run in iframes)
     try {
       if (window.parent !== window || window.self !== window.top) return true;
     } catch {
@@ -96,6 +97,20 @@ export async function isInMiniApp(): Promise<boolean> {
     // URL param override (for testing / deep links)
     const params = new URLSearchParams(window.location.search);
     if (params.has("miniapp") || params.has("fc_frame")) return true;
+
+    // Referrer detection (Base opens via base.org/farcaster.xyz)
+    const ref = (document.referrer || "").toLowerCase();
+    if (ref.includes("base.org") || ref.includes("warpcast.com") || ref.includes("farcaster.xyz")) return true;
+
+    // Last resort: try SDK context with short timeout.
+    // If context resolves, we ARE in a mini app regardless of other checks.
+    try {
+      const ctx = await Promise.race([
+        sdk.context,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
+      ]);
+      if (ctx) return true;
+    } catch {}
   }
 
   return false;
@@ -282,4 +297,101 @@ export function shareToX(text: string, url?: string): void {
 
 export function copyToClipboard(text: string): Promise<boolean> {
   return navigator.clipboard.writeText(text).then(() => true).catch(() => false);
+}
+
+// ============================================================================
+// Haptics
+// ============================================================================
+
+/** Trigger impact haptic feedback. */
+export async function hapticImpact(style: "light" | "medium" | "heavy" | "soft" | "rigid" = "medium"): Promise<void> {
+  try { await sdk.haptics.impactOccurred(style); } catch {}
+}
+
+/** Trigger notification haptic feedback. */
+export async function hapticNotification(type: "success" | "warning" | "error" = "success"): Promise<void> {
+  try { await sdk.haptics.notificationOccurred(type); } catch {}
+}
+
+/** Trigger selection change haptic feedback. */
+export async function hapticSelection(): Promise<void> {
+  try { await sdk.haptics.selectionChanged(); } catch {}
+}
+
+// ============================================================================
+// Wallet — Token Actions
+// ============================================================================
+
+// CAIP-19 token IDs for Base chain
+export const BASE_USDC = "eip155:8453/erc20:0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+export const BASE_ETH = "eip155:8453/native";
+
+export type SendTokenResult = { success: true; tx: string } | { success: false; reason: string };
+export type SwapTokenResult = { success: true; txs: string[] } | { success: false; reason: string };
+
+/** Prompt user to send tokens to a recipient (by address or FID). */
+export async function sendToken(opts: {
+  token?: string;
+  amount?: string;
+  recipientAddress?: string;
+  recipientFid?: number;
+}): Promise<SendTokenResult> {
+  try {
+    const result = await sdk.actions.sendToken({
+      token: opts.token,
+      amount: opts.amount,
+      recipientAddress: opts.recipientAddress,
+      recipientFid: opts.recipientFid,
+    });
+    if (result.success) {
+      hapticNotification("success");
+      return { success: true, tx: result.send.transaction };
+    }
+    return { success: false, reason: result.reason };
+  } catch (err) {
+    console.error("[farcaster] sendToken failed:", err);
+    return { success: false, reason: "send_failed" };
+  }
+}
+
+/** Prompt user to swap tokens. */
+export async function swapToken(opts: {
+  sellToken?: string;
+  buyToken?: string;
+  sellAmount?: string;
+}): Promise<SwapTokenResult> {
+  try {
+    const result = await sdk.actions.swapToken({
+      sellToken: opts.sellToken,
+      buyToken: opts.buyToken,
+      sellAmount: opts.sellAmount,
+    });
+    if (result.success) {
+      hapticNotification("success");
+      return { success: true, txs: result.swap.transactions };
+    }
+    return { success: false, reason: result.reason };
+  } catch (err) {
+    console.error("[farcaster] swapToken failed:", err);
+    return { success: false, reason: "swap_failed" };
+  }
+}
+
+/** Open native token viewer. */
+export async function viewToken(token: string): Promise<void> {
+  try {
+    await sdk.actions.viewToken({ token });
+  } catch (err) {
+    console.error("[farcaster] viewToken failed:", err);
+  }
+}
+
+/** Get the EIP-1193 Ethereum provider for direct wallet interaction. */
+export async function getWalletProvider() {
+  try {
+    return await sdk.wallet.getEthereumProvider();
+  } catch (err) {
+    console.error("[farcaster] getWalletProvider failed:", err);
+    return undefined;
+  }
 }
