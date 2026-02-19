@@ -7,7 +7,7 @@ import {
   parseTelegramAuthParams,
 } from "../services/telegram-auth.js";
 import { registerMiniAppRoutes } from "./routes.js";
-import { processEventQueue, postDailyDigest, postEveningHighlight } from "../services/farcaster-poster.js";
+import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 
 export function buildApp(core: FlowBCore) {
@@ -26,13 +26,6 @@ export function buildApp(core: FlowBCore) {
   const supabaseKey = process.env.DANZ_SUPABASE_KEY;
 
   if (supabaseUrl && supabaseKey) {
-    // Event queue processor: every 15 minutes
-    setInterval(() => {
-      processEventQueue(supabaseUrl, supabaseKey).catch((err) =>
-        console.error("[scheduler] Event queue error:", err),
-      );
-    }, 15 * 60 * 1000);
-
     // Event scanner: every 4 hours
     setInterval(() => {
       scanForNewEvents(
@@ -49,8 +42,9 @@ export function buildApp(core: FlowBCore) {
       ).catch((err) => console.error("[scheduler] Initial scan error:", err));
     }, 30_000);
 
-    // Time-based casts: check every minute for 9am and 5pm MST
-    const firedToday = { morning: "", evening: "" };
+    // Time-slot based Farcaster posting: check every 5 minutes
+    // Posts today's EthDenver events at 8am, 10am, 12pm, 3pm, 5pm, 8pm MST
+    const firedSlots: Record<string, string> = {};
 
     setInterval(async () => {
       try {
@@ -60,66 +54,30 @@ export function buildApp(core: FlowBCore) {
         if (!parts) return;
 
         const hour = parseInt(parts[0], 10);
-        const minute = parseInt(parts[1], 10);
         const dateKey = now.toISOString().slice(0, 10);
 
-        // Morning digest at 9:00 AM MST
-        if (hour === 9 && minute < 2 && firedToday.morning !== dateKey) {
-          firedToday.morning = dateKey;
-          console.log("[scheduler] Firing morning digest");
+        // Slot hours: 8, 10, 12, 15, 17, 20
+        const slotHours = [8, 10, 12, 15, 17, 20];
+        const matchedHour = slotHours.find((h) => hour === h);
+        if (matchedHour === undefined) return;
 
-          const events = await core.discoverEventsRaw({ action: "events", city: "Denver" });
-          // Filter to today's events
-          const todayStart = new Date(now);
-          todayStart.setHours(0, 0, 0, 0);
-          const todayEnd = new Date(todayStart);
-          todayEnd.setDate(todayEnd.getDate() + 1);
+        const slotKey = `${dateKey}_${matchedHour}`;
+        if (firedSlots[slotKey]) return;
+        firedSlots[slotKey] = new Date().toISOString();
 
-          const todayEvents = events.filter((e) => {
-            const t = new Date(e.startTime).getTime();
-            return t >= todayStart.getTime() && t < todayEnd.getTime();
-          });
+        console.log(`[scheduler] Firing time-slot cast for hour ${matchedHour} MST`);
+        await processEventQueue(supabaseUrl, supabaseKey);
 
-          if (todayEvents.length > 0) {
-            const topEvents = todayEvents.slice(0, 5).map((e) => ({
-              title: e.title,
-              time: new Date(e.startTime).toLocaleTimeString("en-US", {
-                hour: "numeric",
-                minute: "2-digit",
-                timeZone: "America/Denver",
-              }),
-            }));
-            await postDailyDigest(todayEvents.length, topEvents);
-          }
-        }
-
-        // Evening highlight at 5:00 PM MST
-        if (hour === 17 && minute < 2 && firedToday.evening !== dateKey) {
-          firedToday.evening = dateKey;
-          console.log("[scheduler] Firing evening highlight");
-
-          const events = await core.discoverEventsRaw({ action: "events", city: "Denver" });
-          // Filter to events starting in the next 6 hours (5pm - 11pm)
-          const sixHoursFromNow = new Date(now.getTime() + 6 * 60 * 60 * 1000);
-          const eveningEvents = events.filter((e) => {
-            const t = new Date(e.startTime).getTime();
-            return t >= now.getTime() && t <= sixHoursFromNow.getTime();
-          });
-
-          if (eveningEvents.length > 0) {
-            const picks = eveningEvents.slice(0, 3).map((e) => ({
-              title: e.title,
-              venue: e.locationName,
-            }));
-            await postEveningHighlight(picks);
-          }
+        // Clean up old slot keys (keep only today)
+        for (const key of Object.keys(firedSlots)) {
+          if (!key.startsWith(dateKey)) delete firedSlots[key];
         }
       } catch (err) {
-        console.error("[scheduler] Time-based cast error:", err);
+        console.error("[scheduler] Time-slot cast error:", err);
       }
-    }, 60 * 1000);
+    }, 5 * 60 * 1000);
 
-    console.log("[scheduler] Farcaster poster + event scanner scheduled");
+    console.log("[scheduler] Farcaster time-slot poster + event scanner scheduled");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
@@ -372,7 +330,7 @@ export function buildApp(core: FlowBCore) {
 
       const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
       const webUrl = process.env.FLOWB_WEB_URL || "https://flowb.me";
-      const fcMiniAppUrl = process.env.FLOWB_FC_MINIAPP_URL || "https://flowb-fc.netlify.app";
+      const fcMiniAppUrl = process.env.FLOWB_FC_MINIAPP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
 
       // Telegram in-app browser detection
       // Telegram WebView includes "Telegram" or "TelegramBot" in the UA

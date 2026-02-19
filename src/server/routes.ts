@@ -160,7 +160,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           const qaClient = createClient();
           const payload = await qaClient.verifyJwt({
             token: quickAuthToken,
-            domain: new URL(process.env.FARCASTER_APP_URL || "https://flowb-farcaster.netlify.app").hostname,
+            domain: new URL(process.env.FARCASTER_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb").hostname,
           });
 
           const fid = typeof payload.sub === "string" ? parseInt(payload.sub, 10) : payload.sub;
