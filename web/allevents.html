@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB -- All Events Audit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .audit-wrap { padding: 24px 0; }
+    .audit-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 20px; }
+    .audit-header h1 { font-size: 1.4rem; font-weight: 700; }
+    .audit-stats { display: flex; gap: 16px; flex-wrap: wrap; }
+    .audit-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 8px 14px; font-size: 0.85rem; }
+    .audit-stat strong { color: var(--accent-light); }
+
+    .audit-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; align-items: center; }
+    .audit-controls input, .audit-controls select {
+      background: var(--bg-card); border: 1px solid var(--border); color: var(--text);
+      border-radius: var(--radius-sm); padding: 8px 12px; font-size: 0.85rem; font-family: var(--font);
+    }
+    .audit-controls input { flex: 1; min-width: 200px; }
+    .audit-controls select { min-width: 140px; }
+
+    .audit-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 1400px; }
+    .audit-table th {
+      background: var(--bg-surface); color: var(--text-muted); text-transform: uppercase;
+      font-size: 0.7rem; font-weight: 600; letter-spacing: 0.5px;
+      padding: 10px 12px; text-align: left; white-space: nowrap;
+      border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; cursor: pointer;
+    }
+    .audit-table th:hover { color: var(--text); }
+    .audit-table th.sorted-asc::after { content: ' \u25B2'; }
+    .audit-table th.sorted-desc::after { content: ' \u25BC'; }
+    .audit-table td {
+      padding: 8px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: top; max-width: 250px; overflow: hidden; text-overflow: ellipsis;
+    }
+    .audit-table tr:hover td { background: var(--bg-card-hover); }
+
+    .cell-missing { color: #ef4444; font-style: italic; }
+    .cell-ok { color: var(--green); }
+    .cell-warn { color: var(--orange); }
+    .cell-link { color: var(--accent-light); word-break: break-all; }
+    .cell-link:hover { text-decoration: underline; }
+    .cell-desc { max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cell-desc:hover { white-space: normal; overflow: visible; }
+    .cell-thumb { width: 60px; height: 36px; object-fit: cover; border-radius: 4px; }
+    .cell-price-flag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+    .cell-free { background: var(--green-dim); color: var(--green); }
+    .cell-paid { background: rgba(249,115,22,0.12); color: var(--orange); }
+
+    .loading-msg { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .flag-row td { background: rgba(239,68,68,0.06) !important; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leaderboard.html" class="header-nav-link">Leaderboard</a>
+        <a href="/flow.html" class="header-nav-link">My Flow</a>
+        <a href="/allevents.html" class="header-nav-link active">All Events</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container audit-wrap">
+    <div class="audit-header">
+      <h1>All Events Audit</h1>
+      <div class="audit-stats" id="auditStats"></div>
+    </div>
+
+    <div class="audit-controls">
+      <input type="text" id="auditSearch" placeholder="Search title, venue, organizer...">
+      <select id="auditSource">
+        <option value="">All Sources</option>
+      </select>
+      <select id="auditIssue">
+        <option value="">All Events</option>
+        <option value="missing-venue">Missing Venue</option>
+        <option value="missing-price">Missing Price Info</option>
+        <option value="missing-description">Missing Description</option>
+        <option value="missing-image">Missing Image</option>
+        <option value="missing-organizer">Missing Organizer</option>
+        <option value="missing-end-time">Missing End Time</option>
+        <option value="missing-url">Missing URL</option>
+        <option value="has-issues">Any Issues</option>
+      </select>
+      <select id="auditSort">
+        <option value="date-asc">Date (earliest first)</option>
+        <option value="date-desc">Date (latest first)</option>
+        <option value="title-asc">Title A-Z</option>
+        <option value="price-desc">Price (high to low)</option>
+        <option value="issues-desc">Most Issues First</option>
+      </select>
+    </div>
+
+    <div id="auditContent">
+      <div class="loading-msg">Loading all events...</div>
+    </div>
+  </main>
+
+  <script>
+    const API = 'https://flowb.fly.dev';
+    let allEvents = [];
+    let filteredEvents = [];
+
+    const searchEl = document.getElementById('auditSearch');
+    const sourceEl = document.getElementById('auditSource');
+    const issueEl = document.getElementById('auditIssue');
+    const sortEl = document.getElementById('auditSort');
+    const contentEl = document.getElementById('auditContent');
+    const statsEl = document.getElementById('auditStats');
+
+    async function loadAll() {
+      try {
+        const res = await fetch(`${API}/api/v1/events?limit=500`);
+        const data = await res.json();
+        allEvents = (data.events || []);
+        populateSources();
+        applyFilters();
+      } catch (err) {
+        contentEl.innerHTML = `<div class="loading-msg" style="color:#ef4444">Failed to load events: ${err.message}</div>`;
+      }
+    }
+
+    function populateSources() {
+      const sources = [...new Set(allEvents.map(e => e.source).filter(Boolean))].sort();
+      for (const s of sources) {
+        const opt = document.createElement('option');
+        opt.value = s;
+        opt.textContent = s;
+        sourceEl.appendChild(opt);
+      }
+    }
+
+    function getIssues(e) {
+      const issues = [];
+      if (!e.locationName && !e.isVirtual) issues.push('missing-venue');
+      if (e.price == null && e.isFree == null) issues.push('missing-price');
+      if (!e.description) issues.push('missing-description');
+      if (!e.imageUrl && !e.coverUrl) issues.push('missing-image');
+      if (!e.organizerName) issues.push('missing-organizer');
+      if (!e.endTime) issues.push('missing-end-time');
+      if (!e.url) issues.push('missing-url');
+      return issues;
+    }
+
+    function applyFilters() {
+      const q = searchEl.value.toLowerCase().trim();
+      const source = sourceEl.value;
+      const issue = issueEl.value;
+      const sort = sortEl.value;
+
+      filteredEvents = allEvents.filter(e => {
+        if (q) {
+          const hay = `${e.title || ''} ${e.locationName || ''} ${e.organizerName || ''} ${e.description || ''}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (source && e.source !== source) return false;
+        if (issue) {
+          const issues = getIssues(e);
+          if (issue === 'has-issues') {
+            if (issues.length === 0) return false;
+          } else {
+            if (!issues.includes(issue)) return false;
+          }
+        }
+        return true;
+      });
+
+      // Sort
+      filteredEvents.sort((a, b) => {
+        if (sort === 'date-asc') return (a.startTime || '').localeCompare(b.startTime || '');
+        if (sort === 'date-desc') return (b.startTime || '').localeCompare(a.startTime || '');
+        if (sort === 'title-asc') return (a.title || '').localeCompare(b.title || '');
+        if (sort === 'price-desc') return (b.price || 0) - (a.price || 0);
+        if (sort === 'issues-desc') return getIssues(b).length - getIssues(a).length;
+        return 0;
+      });
+
+      renderStats();
+      renderTable();
+    }
+
+    function renderStats() {
+      const total = allEvents.length;
+      const shown = filteredEvents.length;
+      const sources = {};
+      const issueCount = { venue: 0, price: 0, desc: 0, img: 0, org: 0, endTime: 0, url: 0 };
+      let freeCount = 0, paidCount = 0, unknownPrice = 0;
+
+      for (const e of allEvents) {
+        sources[e.source || 'unknown'] = (sources[e.source || 'unknown'] || 0) + 1;
+        const iss = getIssues(e);
+        if (iss.includes('missing-venue')) issueCount.venue++;
+        if (iss.includes('missing-price')) issueCount.price++;
+        if (iss.includes('missing-description')) issueCount.desc++;
+        if (iss.includes('missing-image')) issueCount.img++;
+        if (iss.includes('missing-organizer')) issueCount.org++;
+        if (iss.includes('missing-end-time')) issueCount.endTime++;
+        if (iss.includes('missing-url')) issueCount.url++;
+        if (e.isFree) freeCount++;
+        else if (e.price != null && e.price > 0) paidCount++;
+        else if (e.price == null && e.isFree == null) unknownPrice++;
+      }
+
+      const withAnyIssue = allEvents.filter(e => getIssues(e).length > 0).length;
+
+      statsEl.innerHTML = `
+        <div class="audit-stat"><strong>${total}</strong> total</div>
+        <div class="audit-stat">Showing <strong>${shown}</strong></div>
+        <div class="audit-stat" style="color:var(--green)"><strong>${freeCount}</strong> free</div>
+        <div class="audit-stat" style="color:var(--orange)"><strong>${paidCount}</strong> paid</div>
+        <div class="audit-stat" style="color:#ef4444"><strong>${unknownPrice}</strong> unknown price</div>
+        <div class="audit-stat" style="color:#ef4444"><strong>${withAnyIssue}</strong> with issues</div>
+      `;
+    }
+
+    function esc(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) +
+        ' ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
+    function cellVal(val, type) {
+      if (val === undefined || val === null || val === '') {
+        return `<span class="cell-missing">--</span>`;
+      }
+      if (type === 'url' && val) {
+        const short = val.length > 40 ? val.slice(0, 40) + '...' : val;
+        return `<a class="cell-link" href="${esc(val)}" target="_blank" title="${esc(val)}">${esc(short)}</a>`;
+      }
+      if (type === 'date') return fmtDate(val);
+      if (type === 'bool') return val ? '<span class="cell-ok">Yes</span>' : '<span class="cell-missing">No</span>';
+      if (type === 'price') {
+        if (val === 0) return '<span class="cell-price-flag cell-free">Free</span>';
+        return `<span class="cell-price-flag cell-paid">$${val}</span>`;
+      }
+      return esc(String(val));
+    }
+
+    function renderTable() {
+      if (filteredEvents.length === 0) {
+        contentEl.innerHTML = '<div class="loading-msg">No events match filters</div>';
+        return;
+      }
+
+      const cols = [
+        { key: 'title', label: 'Title', width: '200px' },
+        { key: 'source', label: 'Source' },
+        { key: 'startTime', label: 'Start', type: 'date' },
+        { key: 'endTime', label: 'End', type: 'date' },
+        { key: 'locationName', label: 'Venue' },
+        { key: 'locationCity', label: 'City' },
+        { key: 'price', label: 'Price', type: 'price' },
+        { key: 'isFree', label: 'Free?', type: 'bool' },
+        { key: 'organizerName', label: 'Organizer' },
+        { key: 'description', label: 'Description', cls: 'cell-desc' },
+        { key: 'url', label: 'URL', type: 'url' },
+        { key: 'ticketUrl', label: 'Ticket URL', type: 'url' },
+        { key: 'imageUrl', label: 'Image', type: 'img' },
+        { key: 'isVirtual', label: 'Virtual?', type: 'bool' },
+        { key: 'eventType', label: 'Type' },
+        { key: 'tags', label: 'Tags' },
+        { key: 'rsvpCount', label: 'RSVPs' },
+        { key: 'featured', label: 'Featured', type: 'bool' },
+        { key: 'issues', label: 'Issues' },
+      ];
+
+      let html = '<div class="audit-table-wrap"><table class="audit-table"><thead><tr>';
+      html += '<th>#</th>';
+      for (const col of cols) {
+        html += `<th>${col.label}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      for (let i = 0; i < filteredEvents.length; i++) {
+        const e = filteredEvents[i];
+        const issues = getIssues(e);
+        const rowCls = issues.length > 0 ? ' class="flag-row"' : '';
+
+        html += `<tr${rowCls}>`;
+        html += `<td>${i + 1}</td>`;
+
+        for (const col of cols) {
+          if (col.key === 'issues') {
+            if (issues.length === 0) {
+              html += '<td><span class="cell-ok">OK</span></td>';
+            } else {
+              html += `<td><span class="cell-warn">${issues.map(i => i.replace('missing-', '')).join(', ')}</span></td>`;
+            }
+            continue;
+          }
+
+          if (col.key === 'tags') {
+            const tags = e.tags || [];
+            html += `<td>${tags.length ? esc(tags.join(', ')) : '<span class="cell-missing">--</span>'}</td>`;
+            continue;
+          }
+
+          if (col.type === 'img') {
+            const url = e[col.key] || e.coverUrl;
+            if (url) {
+              html += `<td><img class="cell-thumb" src="${esc(url)}" alt="" loading="lazy" onerror="this.outerHTML='<span class=cell-missing>broken</span>'"></td>`;
+            } else {
+              html += `<td><span class="cell-missing">--</span></td>`;
+            }
+            continue;
+          }
+
+          const val = e[col.key];
+          const tdCls = col.cls ? ` class="${col.cls}" title="${esc(String(val || ''))}"` : '';
+          html += `<td${tdCls}>${cellVal(val, col.type)}</td>`;
+        }
+        html += '</tr>';
+      }
+
+      html += '</tbody></table></div>';
+      contentEl.innerHTML = html;
+    }
+
+    // Bind filters
+    searchEl.addEventListener('input', applyFilters);
+    sourceEl.addEventListener('change', applyFilters);
+    issueEl.addEventListener('change', applyFilters);
+    sortEl.addEventListener('change', applyFilters);
+
+    // Init
+    loadAll();
+  </script>
+</body>
+</html>

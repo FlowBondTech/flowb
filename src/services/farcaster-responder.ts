@@ -5,7 +5,7 @@
  */
 
 const NEYNAR_API = "https://api.neynar.com/v2/farcaster";
-const FLOWB_FC_APP_URL = process.env.FLOWB_FC_APP_URL || "https://flowb-farcaster.netlify.app";
+const FLOWB_FC_APP_URL = process.env.FLOWB_FC_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
 
 // In-memory rate limit: fid -> last reply timestamp
 const replyRateLimit = new Map<number, number>();

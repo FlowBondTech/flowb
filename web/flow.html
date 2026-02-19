@@ -26,7 +26,7 @@
       </nav>
       <div class="header-meta">
         <span class="event-badge">ETHDenver 2026</span>
-        <span class="event-dates">Feb 13 -- 20</span>
+        <span class="event-dates">Feb 15 -- 27</span>
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
             <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
@@ -142,13 +142,82 @@
           </div>
 
           <!-- My Crews -->
-          <div class="flow-card">
+          <div class="flow-card flow-card-wide">
             <div class="flow-card-header">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
               <span>My Crews</span>
+              <span class="flow-card-badge" id="flowCrewsCount"></span>
+              <div class="flow-card-actions">
+                <button class="flow-card-action-btn" id="crewDiscoverBtn" title="Discover crews">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  Discover
+                </button>
+                <button class="flow-card-action-btn" id="crewCreateBtn" title="Create a crew">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Create
+                </button>
+                <button class="flow-card-action-btn" id="crewJoinCodeBtn" title="Join with code">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  Code
+                </button>
+              </div>
             </div>
             <div class="flow-card-body" id="flowCrews">
               <div class="flow-loading">Loading...</div>
+            </div>
+
+            <!-- Discover Crews Panel (hidden by default) -->
+            <div class="crew-panel hidden" id="crewDiscoverPanel">
+              <div class="crew-panel-header">
+                <h3>Discover Crews</h3>
+                <button class="crew-panel-close" id="crewDiscoverClose">&times;</button>
+              </div>
+              <div class="crew-panel-body" id="crewDiscoverList">
+                <div class="flow-loading">Loading crews...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Create Crew Modal -->
+          <div class="crew-modal-backdrop hidden" id="crewCreateBackdrop"></div>
+          <div class="crew-modal hidden" id="crewCreateModal">
+            <div class="crew-modal-header">
+              <h3>Create a Crew</h3>
+              <button class="crew-panel-close" id="crewCreateClose">&times;</button>
+            </div>
+            <div class="crew-modal-body">
+              <div class="crew-form-group">
+                <label>Emoji</label>
+                <input type="text" id="crewCreateEmoji" maxlength="4" placeholder="Pick one..." class="crew-input crew-input-emoji">
+              </div>
+              <div class="crew-form-group">
+                <label>Crew Name</label>
+                <input type="text" id="crewCreateName" maxlength="40" placeholder="My awesome crew" class="crew-input">
+              </div>
+              <div class="crew-form-group">
+                <label>Description <span class="crew-form-opt">(optional)</span></label>
+                <input type="text" id="crewCreateDesc" maxlength="120" placeholder="What's your crew about?" class="crew-input">
+              </div>
+              <button class="crew-submit-btn" id="crewCreateSubmit">Create Crew</button>
+              <p class="crew-form-note" id="crewCreateMsg"></p>
+            </div>
+          </div>
+
+          <!-- Join by Code Modal -->
+          <div class="crew-modal-backdrop hidden" id="crewJoinBackdrop"></div>
+          <div class="crew-modal hidden" id="crewJoinModal">
+            <div class="crew-modal-header">
+              <h3>Join by Code</h3>
+              <button class="crew-panel-close" id="crewJoinClose">&times;</button>
+            </div>
+            <div class="crew-modal-body">
+              <p class="crew-form-hint">Enter a crew's join code or invite link to join.</p>
+              <div class="crew-form-group">
+                <label>Join Code</label>
+                <input type="text" id="crewJoinCode" maxlength="20" placeholder="e.g. abc123" class="crew-input">
+              </div>
+              <button class="crew-submit-btn" id="crewJoinSubmit">Join Crew</button>
+              <p class="crew-form-note" id="crewJoinMsg"></p>
             </div>
           </div>
 
@@ -353,31 +422,234 @@
       }).join('');
     }
 
+    let myCrews = [];
+
     async function loadCrews() {
       const el = document.getElementById('flowCrews');
       if (!el) return;
 
       const data = await fetchAuthed('/api/v1/flow/crews');
-      if (!data || !data.crews || !data.crews.length) {
+      myCrews = (data && data.crews) ? data.crews : [];
+
+      const countEl = document.getElementById('flowCrewsCount');
+      if (countEl) countEl.textContent = myCrews.length || '';
+
+      if (!myCrews.length) {
         el.innerHTML = `
           <div class="dash-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
             <p>No crews yet</p>
-            <span>Join or create a crew on <a href="https://t.me/Flow_b_bot" target="_blank">Telegram</a> or <a href="https://warpcast.com/flowb" target="_blank">Farcaster</a></span>
+            <span>Discover crews, create your own, or join with a code above!</span>
           </div>`;
         return;
       }
 
-      el.innerHTML = data.crews.map(crew => `
+      el.innerHTML = myCrews.map(crew => `
         <div class="dash-crew-item">
           <span class="dash-crew-emoji">${crew.emoji || ''}</span>
           <div class="dash-crew-info">
             <div class="dash-crew-name">${escapeHtml(crew.name)}</div>
-            <div class="dash-crew-role">${crew.role || 'member'}</div>
+            <div class="dash-crew-meta">
+              <span class="dash-crew-role">${crew.role || 'member'}</span>
+              ${crew.join_code ? `<span class="dash-crew-code" title="Share this code">Code: ${escapeHtml(crew.join_code)}</span>` : ''}
+            </div>
           </div>
+          <button class="crew-leave-btn" title="Leave crew" onclick="leaveCrew('${crew.id}', '${escapeHtml(crew.name).replace(/'/g, "\\'")}')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
         </div>
       `).join('');
     }
+
+    async function leaveCrew(crewId, crewName) {
+      if (!confirm('Leave ' + crewName + '?')) return;
+      const result = await fetchAuthed('/api/v1/flow/crews/' + crewId + '/leave', { method: 'DELETE' });
+      if (result && result.ok) {
+        loadCrews();
+      }
+    }
+
+    // ===== Discover Crews =====
+
+    document.getElementById('crewDiscoverBtn').addEventListener('click', () => {
+      const panel = document.getElementById('crewDiscoverPanel');
+      panel.classList.toggle('hidden');
+      if (!panel.classList.contains('hidden')) {
+        loadDiscoverCrews();
+      }
+    });
+
+    document.getElementById('crewDiscoverClose').addEventListener('click', () => {
+      document.getElementById('crewDiscoverPanel').classList.add('hidden');
+    });
+
+    async function loadDiscoverCrews() {
+      const el = document.getElementById('crewDiscoverList');
+      el.innerHTML = '<div class="flow-loading">Loading crews...</div>';
+
+      const data = await fetchAuthed('/api/v1/flow/crews/discover');
+      const crews = (data && data.crews) ? data.crews : [];
+
+      if (!crews.length) {
+        el.innerHTML = '<div class="dash-empty"><p>No public crews found</p><span>Be the first to create one!</span></div>';
+        return;
+      }
+
+      // Filter out crews user already belongs to
+      const myCrewIds = new Set(myCrews.map(c => c.id));
+      const available = crews.filter(c => !myCrewIds.has(c.id));
+
+      if (!available.length) {
+        el.innerHTML = '<div class="dash-empty"><p>You\'re in all available crews!</p></div>';
+        return;
+      }
+
+      el.innerHTML = available.map(crew => `
+        <div class="crew-discover-item">
+          <span class="dash-crew-emoji">${crew.emoji || ''}</span>
+          <div class="dash-crew-info">
+            <div class="dash-crew-name">${escapeHtml(crew.name)}</div>
+            <div class="dash-crew-meta">
+              ${crew.description ? `<span class="dash-crew-desc">${escapeHtml(crew.description)}</span>` : ''}
+              <span class="dash-crew-members">${crew.member_count || 0} members</span>
+            </div>
+          </div>
+          <button class="crew-join-btn" onclick="joinCrew('${crew.id}', this)">Join</button>
+        </div>
+      `).join('');
+    }
+
+    async function joinCrew(crewId, btnEl) {
+      btnEl.disabled = true;
+      btnEl.textContent = 'Joining...';
+
+      const result = await fetchAuthed('/api/v1/flow/crews/' + crewId + '/join', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+
+      if (result && result.ok) {
+        btnEl.textContent = 'Joined!';
+        btnEl.classList.add('joined');
+        loadCrews();
+      } else {
+        btnEl.textContent = result?.message || 'Failed';
+        btnEl.disabled = false;
+        setTimeout(() => { btnEl.textContent = 'Join'; }, 2000);
+      }
+    }
+
+    // ===== Create Crew =====
+
+    function openCreateCrew() {
+      document.getElementById('crewCreateModal').classList.remove('hidden');
+      document.getElementById('crewCreateBackdrop').classList.remove('hidden');
+      document.getElementById('crewCreateMsg').textContent = '';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeCreateCrew() {
+      document.getElementById('crewCreateModal').classList.add('hidden');
+      document.getElementById('crewCreateBackdrop').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('crewCreateBtn').addEventListener('click', openCreateCrew);
+    document.getElementById('crewCreateClose').addEventListener('click', closeCreateCrew);
+    document.getElementById('crewCreateBackdrop').addEventListener('click', closeCreateCrew);
+
+    document.getElementById('crewCreateSubmit').addEventListener('click', async () => {
+      const name = document.getElementById('crewCreateName').value.trim();
+      const emoji = document.getElementById('crewCreateEmoji').value.trim();
+      const desc = document.getElementById('crewCreateDesc').value.trim();
+      const msgEl = document.getElementById('crewCreateMsg');
+      const btn = document.getElementById('crewCreateSubmit');
+
+      if (!name) { msgEl.textContent = 'Name is required'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      const result = await fetchAuthed('/api/v1/flow/crews', {
+        method: 'POST',
+        body: JSON.stringify({ name, emoji: emoji || undefined, description: desc || undefined }),
+      });
+
+      if (result && result.ok) {
+        msgEl.textContent = result.message || 'Crew created!';
+        msgEl.style.color = 'var(--green, #22c55e)';
+        document.getElementById('crewCreateName').value = '';
+        document.getElementById('crewCreateEmoji').value = '';
+        document.getElementById('crewCreateDesc').value = '';
+        loadCrews();
+        setTimeout(closeCreateCrew, 1500);
+      } else {
+        msgEl.textContent = result?.message || result?.error || 'Failed to create crew';
+        msgEl.style.color = 'var(--red, #ef4444)';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Create Crew';
+    });
+
+    // ===== Join by Code =====
+
+    function openJoinCode() {
+      document.getElementById('crewJoinModal').classList.remove('hidden');
+      document.getElementById('crewJoinBackdrop').classList.remove('hidden');
+      document.getElementById('crewJoinMsg').textContent = '';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeJoinCode() {
+      document.getElementById('crewJoinModal').classList.add('hidden');
+      document.getElementById('crewJoinBackdrop').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('crewJoinCodeBtn').addEventListener('click', openJoinCode);
+    document.getElementById('crewJoinClose').addEventListener('click', closeJoinCode);
+    document.getElementById('crewJoinBackdrop').addEventListener('click', closeJoinCode);
+
+    document.getElementById('crewJoinSubmit').addEventListener('click', async () => {
+      let code = document.getElementById('crewJoinCode').value.trim();
+      const msgEl = document.getElementById('crewJoinMsg');
+      const btn = document.getElementById('crewJoinSubmit');
+
+      if (!code) { msgEl.textContent = 'Enter a join code'; return; }
+
+      // Extract code from full URL if pasted (flowb.me/g/CODE or /gi/CODE)
+      const urlMatch = code.match(/\/g[i]?\/([a-zA-Z0-9]+)/);
+      if (urlMatch) code = urlMatch[1];
+
+      btn.disabled = true;
+      btn.textContent = 'Joining...';
+
+      const result = await fetchAuthed('/api/v1/flow/crews/' + encodeURIComponent(code) + '/join', {
+        method: 'POST',
+        body: JSON.stringify({ joinCode: code }),
+      });
+
+      if (result && result.ok) {
+        msgEl.textContent = result.message || 'Joined!';
+        msgEl.style.color = 'var(--green, #22c55e)';
+        document.getElementById('crewJoinCode').value = '';
+        loadCrews();
+        setTimeout(closeJoinCode, 1500);
+      } else {
+        msgEl.textContent = result?.message || result?.error || 'Could not join. Check the code and try again.';
+        msgEl.style.color = 'var(--red, #ef4444)';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Join Crew';
+    });
+
+    // Close modals on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeCreateCrew();
+        closeJoinCode();
+      }
+    });
 
     async function loadPoints() {
       const el = document.getElementById('flowPoints');

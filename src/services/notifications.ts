@@ -477,7 +477,7 @@ async function sendToUser(
   if (userId.startsWith("farcaster_")) {
     const fid = parseInt(userId.replace("farcaster_", ""), 10);
     if (!isNaN(fid)) {
-      const appUrl = process.env.FLOWB_FC_APP_URL || "https://flowb-farcaster.netlify.app";
+      const appUrl = process.env.FLOWB_FC_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
       return sendFarcasterNotification(ctx.supabase, fid, "FlowB", message, appUrl);
     }
   }

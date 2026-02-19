@@ -474,13 +474,19 @@ a:hover { text-decoration: underline; }
 .flow-card-header svg { opacity: 0.6; }
 
 .flow-card-badge {
-  margin-left: auto;
   font-size: 0.7rem;
   font-weight: 600;
   padding: 1px 8px;
   border-radius: var(--radius-pill);
   background: var(--accent-glow);
   color: var(--accent-light);
+}
+
+.flow-card-badge:empty { display: none; }
+
+/* When badge is the last child, push right */
+.flow-card-header > .flow-card-badge:last-child {
+  margin-left: auto;
 }
 
 .flow-card-body {
@@ -3519,6 +3525,248 @@ a:hover { text-decoration: underline; }
   font-size: 0.68rem;
   color: var(--text-dim);
   text-transform: capitalize;
+}
+
+.dash-crew-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dash-crew-code {
+  font-size: 0.65rem;
+  color: var(--accent-light);
+  background: var(--accent-glow);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.dash-crew-desc {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+.dash-crew-members {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+/* Crew card wide layout */
+.flow-card-wide {
+  grid-column: 1 / -1;
+}
+
+.flow-card-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.flow-card-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.flow-card-action-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent-light);
+  border-color: var(--accent-light);
+}
+
+/* Crew Leave Button */
+.crew-leave-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s;
+}
+
+.dash-crew-item:hover .crew-leave-btn { opacity: 1; }
+.crew-leave-btn:hover { color: #ef4444; border-color: #ef4444; }
+
+/* Crew Join Button */
+.crew-join-btn {
+  padding: 5px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.crew-join-btn:hover { opacity: 0.85; }
+.crew-join-btn:disabled { opacity: 0.5; cursor: default; }
+.crew-join-btn.joined { background: var(--green, #22c55e); }
+
+/* Discover Crew Item */
+.crew-discover-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.crew-discover-item:last-child { border-bottom: none; }
+
+/* Crew Panel (inline, slides open) */
+.crew-panel {
+  border-top: 1px solid var(--border);
+  padding: 0 16px 16px;
+}
+
+.crew-panel.hidden { display: none; }
+
+.crew-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0 8px;
+}
+
+.crew-panel-header h3 {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.crew-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.crew-panel-close:hover { color: var(--text); }
+
+/* Crew Modal */
+.crew-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+.crew-modal-backdrop.hidden { display: none; }
+
+.crew-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 92%;
+  max-width: 400px;
+  background: var(--card-bg, var(--surface));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 12px);
+  z-index: 1000;
+  overflow: hidden;
+}
+.crew-modal.hidden { display: none; }
+
+.crew-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.crew-modal-header h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.crew-modal-body {
+  padding: 16px;
+}
+
+.crew-form-group {
+  margin-bottom: 14px;
+}
+
+.crew-form-group label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.crew-form-opt {
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.crew-input {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  outline: none;
+  box-sizing: border-box;
+}
+
+.crew-input:focus {
+  border-color: var(--accent-light);
+}
+
+.crew-input-emoji {
+  width: 60px;
+  font-size: 1.3rem;
+  text-align: center;
+}
+
+.crew-submit-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.crew-submit-btn:hover { opacity: 0.85; }
+.crew-submit-btn:disabled { opacity: 0.5; cursor: default; }
+
+.crew-form-note {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  text-align: center;
+  min-height: 1.2em;
+}
+
+.crew-form-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 14px;
 }
 
 /* Dashboard: Points & Milestones */

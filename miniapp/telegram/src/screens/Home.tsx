@@ -13,12 +13,85 @@ interface Props {
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
-// Date Filter - EthDenver Feb 15-27
+// Featured Events - Date-aware picks for EthDenver Feb 15-27
+// ============================================================================
+interface FeaturedEvent {
+  title: string;
+  date: string;
+  time: string;
+  location: string;
+  badge: string;
+  url: string;
+  isFree: boolean;
+  imageUrl?: string;
+}
+
+function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | null {
+  if (!url) return null;
+  if (url.includes("evbuc.com")) return url;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${w}&h=${h}&fit=cover&output=webp&q=75`;
+}
+
+function getFeaturedEvents(): FeaturedEvent[] {
+  const today = new Date();
+  const month = today.getMonth(); // 0-indexed, Feb = 1
+  const day = today.getDate();
+
+  if (month !== 1 || day < 15 || day > 27) {
+    return getDefaultFeatured();
+  }
+
+  const dayEvents: Record<number, FeaturedEvent[]> = {
+    15: [
+      { title: "Camp BUIDL Kickoff", date: "Sat, Feb 15", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
+    ],
+    16: [
+      { title: "Camp BUIDL Day 2", date: "Sun, Feb 16", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "Multichain Day", date: "Sun, Feb 16", time: "All Day", location: "Denver, CO", badge: "Side Event", url: "https://www.ethdenver.com", isFree: false },
+    ],
+    17: [
+      { title: "EthDenver Opening Day", date: "Mon, Feb 17", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+    ],
+    18: [
+      { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
+    ],
+    19: [
+      { title: "EthDenver Main Stage", date: "Wed, Feb 19", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+    ],
+    20: [
+      { title: "EthDenver Day 4", date: "Thu, Feb 20", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+    ],
+    21: [
+      { title: "BUIDLathon Awards & Finality Party", date: "Fri, Feb 21", time: "4:00 PM - 2:00 AM MT", location: "National Western Center, Denver", badge: "Closing", url: "https://www.ethdenver.com", isFree: true },
+    ],
+    22: [
+      { title: "SporkDAO Mountain Retreat", date: "Feb 22-27", time: "All Day", location: "Colorado Mountains", badge: "Post-Event", url: "https://www.ethdenver.com", isFree: false },
+    ],
+  };
+
+  for (let d = 23; d <= 27; d++) {
+    dayEvents[d] = dayEvents[22];
+  }
+
+  return dayEvents[day] || getDefaultFeatured();
+}
+
+function getDefaultFeatured(): FeaturedEvent[] {
+  return [
+    { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
+  ];
+}
+
+// ============================================================================
+// Date Filter - EthDenver Feb 15-27 (only show today and future dates)
 // ============================================================================
 const ETHDENVER_DATES = (() => {
   const dates: { id: string; label: string; date: Date }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   for (let d = 15; d <= 27; d++) {
     const dt = new Date(2026, 1, d);
+    if (dt < today) continue;
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
     dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
   }
