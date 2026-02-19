@@ -244,7 +244,7 @@ export function EventDetailScreen({ route, navigation }: Props) {
         {/* ── External link ──────────────────────────────── */}
         {event.url ? (
           <GlassButton
-            title="View on source"
+            title={event.source === 'luma' ? 'View on Luma' : event.source === 'eventbrite' ? 'View on Eventbrite' : 'View on source'}
             onPress={handleOpenUrl}
             variant="ghost"
             size="sm"
@@ -266,21 +266,46 @@ export function EventDetailScreen({ route, navigation }: Props) {
       {/* ── RSVP actions ─────────────────────────────────── */}
       <View style={styles.actionBar}>
         {myRsvp ? (
-          <>
-            <GlassPill
-              label={myRsvp === 'going' ? 'You\'re going!' : 'Marked as maybe'}
-              active
-              color={myRsvp === 'going' ? colors.accent.emerald : colors.accent.amber}
-            />
-            <GlassButton
-              title="Cancel RSVP"
-              onPress={handleCancelRsvp}
-              variant="ghost"
-              size="sm"
-              loading={rsvpLoading}
-              style={styles.cancelButton}
-            />
-          </>
+          <View style={styles.actionBarInner}>
+            <View style={styles.rsvpConfirmRow}>
+              <GlassPill
+                label={myRsvp === 'going' ? 'You\'re going!' : 'Marked as maybe'}
+                active
+                color={myRsvp === 'going' ? colors.accent.emerald : colors.accent.amber}
+              />
+              <GlassButton
+                title="Cancel RSVP"
+                onPress={handleCancelRsvp}
+                variant="ghost"
+                size="sm"
+                loading={rsvpLoading}
+                style={styles.cancelButton}
+              />
+            </View>
+            {event.source === 'luma' && event.url ? (
+              <GlassButton
+                title="Also RSVP on Luma"
+                onPress={handleOpenUrl}
+                variant="secondary"
+                size="sm"
+                icon={
+                  <Ionicons name="open-outline" size={14} color={colors.accent.cyan} />
+                }
+                style={styles.lumaRsvpButton}
+              />
+            ) : event.source === 'eventbrite' && event.url ? (
+              <GlassButton
+                title="Also RSVP on Eventbrite"
+                onPress={handleOpenUrl}
+                variant="secondary"
+                size="sm"
+                icon={
+                  <Ionicons name="open-outline" size={14} color={colors.accent.amber} />
+                }
+                style={styles.lumaRsvpButton}
+              />
+            ) : null}
+          </View>
         ) : (
           <>
             <GlassButton
@@ -412,15 +437,23 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     paddingBottom: spacing.xl,
     backgroundColor: colors.background.depth1,
     borderTopWidth: 1,
     borderTopColor: colors.border.subtle,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.sm,
+  },
+  actionBarInner: {
+    flex: 1,
+    gap: spacing.sm,
+  },
+  rsvpConfirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   goingButton: {
     flex: 1,
@@ -430,5 +463,8 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     marginLeft: spacing.sm,
+  },
+  lumaRsvpButton: {
+    alignSelf: 'flex-start',
   },
 });
