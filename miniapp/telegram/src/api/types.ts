@@ -182,12 +182,20 @@ export interface FeedItem {
 export interface Sponsorship {
   id: string;
   sponsor_user_id: string;
-  target_type: "event" | "location";
+  target_type: "event" | "location" | "featured_event";
   target_id: string;
   amount_usdc: number;
   tx_hash: string;
   status: "pending" | "verified" | "rejected";
   created_at: string;
+}
+
+export interface FeaturedEventBid {
+  target_id: string;
+  amount_usdc: number;
+  sponsor_user_id: string;
+  created_at: string;
+  expires_at: string;
 }
 
 export interface SponsorRanking {
