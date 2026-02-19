@@ -11,7 +11,7 @@ Backend services that power FlowB's cross-platform features.
 | cdp | `src/services/cdp.ts` | — |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
-| farcaster poster | `src/services/farcaster-poster.ts` | `postEventCard`, `postDailyDigest`, `postEveningHighlight`, `announceNewPublicCrew`, `postLeaderboardHighlight`, `postPromo`, `postNewEventAlert`, `processEventQueue` |
+| farcaster poster | `src/services/farcaster-poster.ts` | `postTimeSlotCast`, `postEventCard`, `postDailyDigest`, `postEveningHighlight`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
 | notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate` |
@@ -48,7 +48,7 @@ FlowB Farcaster Poster Service
 
 **Source**: `src/services/farcaster-poster.ts`
 
-**Exports**: `postEventCard()`, `postDailyDigest()`, `postEveningHighlight()`, `announceNewPublicCrew()`, `postLeaderboardHighlight()`, `postPromo()`, `postNewEventAlert()`, `processEventQueue()`
+**Exports**: `postTimeSlotCast()`, `postEventCard()`, `postDailyDigest()`, `postEveningHighlight()`, `processEventQueue()`
 
 ### farcaster responder
 
@@ -90,4 +90,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-19 17:18:45 UTC*
+*Auto-generated on 2026-02-19 17:28:47 UTC*

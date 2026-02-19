@@ -4,13 +4,12 @@ title: API Reference
 
 # API Reference
 
-FlowB runs on a single consolidated backend server:
+FlowB exposes two backend servers:
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **FlowB API** | `flowb.fly.dev` | All routes: events, categories, auth, social, crews, points, RSVP, calendar |
-
-> **Note:** `egator-api.fly.dev` is deprecated (returns 404). All event discovery routes have been consolidated into `flowb.fly.dev`.
+| **eGator API** | `egator-api.fly.dev` | Event discovery (categories, discover, tonight) |
+| **FlowB API** | `flowb.fly.dev` | User auth, social, crews, points, RSVP, calendar |
 
 ---
 
@@ -34,7 +33,7 @@ FlowB runs on a single consolidated backend server:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/events` | No | DB-first discovery (`?city=&categories=&zone=&type=&date=&from=&to=&featured=&free=&q=&limit=&offset=`) |
+| `GET` | `/api/v1/events` | No | DB-first discovery |
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
@@ -252,4 +251,4 @@ FlowB runs on a single consolidated backend server:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 17:18:45 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 17:28:47 UTC*
