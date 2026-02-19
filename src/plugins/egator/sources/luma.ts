@@ -11,8 +11,8 @@
 
 import type { EventQuery, EventResult, EventSourceAdapter } from "../../../core/types.js";
 
-// Unofficial public discover endpoint (no auth, max 50 per call)
-const LUMA_DISCOVER_API = "https://api.lu.ma/public/v2";
+// Unofficial public discover endpoint (no auth, paginated)
+const LUMA_DISCOVER_API = "https://api.lu.ma";
 
 // Official API (requires x-luma-api-key)
 const LUMA_OFFICIAL_API = "https://public-api.luma.com";
@@ -83,12 +83,14 @@ export class LumaAdapter implements EventSourceAdapter {
   async fetchEvents(params: EventQuery): Promise<EventResult[]> {
     try {
       const queryParams = new URLSearchParams();
-      if (params.city) queryParams.set("geo_city", params.city);
-      if (params.limit) queryParams.set("limit", String(Math.min(params.limit, 50)));
+      // Denver coordinates for geo-based discover
+      if (params.city?.toLowerCase() === "denver") {
+        queryParams.set("geo_latitude", "39.7392");
+        queryParams.set("geo_longitude", "-104.9903");
+      }
+      if (params.limit) queryParams.set("pagination_limit", String(Math.min(params.limit, 50)));
 
-      const res = await fetch(`${LUMA_DISCOVER_API}/discover/events?${queryParams}`, {
-        headers: { "Content-Type": "application/json" },
-      });
+      const res = await fetch(`${LUMA_DISCOVER_API}/discover/get-paginated-events?${queryParams}`);
 
       if (!res.ok) {
         console.error(`[luma] Discover ${res.status}: ${await res.text()}`);
@@ -100,29 +102,30 @@ export class LumaAdapter implements EventSourceAdapter {
 
       return entries.map((entry: any) => {
         const e = entry.event || entry;
-        const geo = e.geo_address_info || e.geo_address_json || {};
+        const geo = e.geo_address_info || {};
+        const coord = e.coordinate || {};
+        const cal = entry.calendar || {};
         return {
           id: `luma_${e.api_id || e.id}`,
           sourceEventId: e.api_id || e.id,
-          title: e.name || e.title || "Untitled",
+          title: e.name || "Untitled",
           description: e.description?.substring(0, 500) || e.description_md?.substring(0, 500),
-          startTime: e.start_at || e.startTime,
-          endTime: e.end_at || e.endTime,
-          locationName: geo.city_state || geo.full_address || e.geo_address_info?.city_state || e.location,
+          startTime: e.start_at,
+          endTime: e.end_at,
+          locationName: geo.address || geo.short_address || geo.city_state,
           locationCity: geo.city || params.city,
-          latitude: e.geo_latitude || undefined,
-          longitude: e.geo_longitude || undefined,
-          isFree: !e.ticket_price,
-          price: e.ticket_price ? Number(e.ticket_price) / 100 : undefined,
-          isVirtual: e.is_online || false,
-          virtualUrl: e.meeting_url || undefined,
+          latitude: coord.latitude || undefined,
+          longitude: coord.longitude || undefined,
+          isFree: e.location_type !== "offline" ? undefined : true,
+          isVirtual: e.location_type === "online",
+          virtualUrl: e.virtual_info?.has_access ? e.meeting_url : undefined,
           source: "luma",
-          url: e.url || `https://lu.ma/${e.api_id || e.id}`,
-          imageUrl: e.cover_url || e.image_url || undefined,
+          url: e.url ? `https://lu.ma/${e.url}` : `https://lu.ma/${e.api_id || e.id}`,
+          imageUrl: e.cover_url || undefined,
           coverUrl: e.cover_url || undefined,
-          organizerName: entry.hosts?.[0]?.name || e.organizer_name || undefined,
-          organizerUrl: entry.hosts?.[0]?.url || undefined,
-          rsvpCount: e.guest_count || entry.guest_count || undefined,
+          organizerName: cal.name || undefined,
+          organizerUrl: cal.api_id ? `https://lu.ma/${cal.slug || cal.api_id}` : undefined,
+          rsvpCount: entry.guest_count || undefined,
           tags: e.tags || [],
         };
       });
