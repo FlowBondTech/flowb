@@ -186,6 +186,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/sponsor/:id/verify` | No | Manual verify (internal) |
 | `GET` | `/api/v1/sponsor/rankings` | No | Rankings |
 | `GET` | `/api/v1/locations/ranked` | No | Ranked locations (Top Booths) |
+| `GET` | `/api/v1/sponsor/featured-event` | No | Featured event bid (highest verified bid for featured spot) |
 | `POST` | `/api/v1/flow/checkin/proximity` | Yes | Proximity auto-checkin (requires auth) |
 
 ## NOTE
@@ -250,4 +251,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 06:19:58 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 06:29:30 UTC*
