@@ -96,15 +96,57 @@ export function Chat({ onNavigate }: Props) {
     }
   };
 
-  // Simple markdown-like rendering: bold, links, line breaks
+  // Markdown rendering: bold, italic, inline code, links, lists, line breaks
   const renderContent = (content: string) => {
-    return content
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(
-        /(https?:\/\/[^\s<]+)/g,
-        '<a href="$1" target="_blank" rel="noopener">$1</a>',
-      )
-      .replace(/\n/g, "<br>");
+    // Escape HTML first
+    let html = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+
+    // Code blocks (``` ... ```)
+    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+    // Italic
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+    // Links
+    html = html.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener">$1</a>',
+    );
+    html = html.replace(
+      /(https?:\/\/[^\s<]+)/g,
+      '<a href="$1" target="_blank" rel="noopener">$1</a>',
+    );
+
+    // Bullet lists: lines starting with "- " or "* "
+    html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
+    html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+
+    // Numbered lists: lines starting with "1. ", "2. ", etc.
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+
+    // Headers
+    html = html.replace(/^### (.+)$/gm, '<strong style="font-size:14px">$1</strong>');
+    html = html.replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>');
+
+    // Line breaks (but not inside <ul>)
+    html = html.replace(/\n/g, "<br>");
+
+    // Clean up double <br> inside lists
+    html = html.replace(/<br><ul>/g, '<ul>');
+    html = html.replace(/<\/ul><br>/g, '</ul>');
+    html = html.replace(/<br><li>/g, '<li>');
+    html = html.replace(/<\/li><br>/g, '</li>');
+
+    return html;
   };
 
   return (

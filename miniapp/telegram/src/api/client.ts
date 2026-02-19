@@ -345,7 +345,7 @@ export async function sendChat(
   const CHAT_URL = import.meta.env.VITE_API_URL || "https://flowb.fly.dev";
   const res = await fetch(`${CHAT_URL}/v1/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify({
       model: "flowb",
       messages,

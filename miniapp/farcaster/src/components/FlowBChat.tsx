@@ -78,12 +78,29 @@ export function FlowBChat({ authed, username }: Props) {
     }
   };
 
-  // Simple markdown-like rendering: bold and links
+  // Markdown rendering: bold, italic, inline code, links, lists, line breaks
   const renderContent = (content: string) => {
-    return content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent-light)">$1</a>')
-      .replace(/\n/g, '<br>');
+    let html = content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+    html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" style="color:var(--accent-light)">$1</a>');
+    html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--accent-light)">$1</a>');
+    html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
+    html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+    html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+    html = html.replace(/^### (.+)$/gm, '<strong style="font-size:14px">$1</strong>');
+    html = html.replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>');
+    html = html.replace(/\n/g, "<br>");
+    html = html.replace(/<br><ul>/g, '<ul>');
+    html = html.replace(/<\/ul><br>/g, '</ul>');
+    html = html.replace(/<br><li>/g, '<li>');
+    html = html.replace(/<\/li><br>/g, '</li>');
+    return html;
   };
 
   return (

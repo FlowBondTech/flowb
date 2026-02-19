@@ -186,7 +186,7 @@ export async function sendChat(
 ): Promise<string> {
   const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: headers(),
     body: JSON.stringify({
       model: "flowb",
       messages,

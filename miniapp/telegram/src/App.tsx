@@ -9,6 +9,7 @@ import { Crew } from "./screens/Crew";
 import { Points } from "./screens/Points";
 import { Chat } from "./screens/Chat";
 import { About } from "./screens/About";
+import { Settings } from "./screens/Settings";
 
 export type Screen =
   | { name: "home" }
@@ -18,7 +19,8 @@ export type Screen =
   | { name: "chat" }
   | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" }
-  | { name: "about" };
+  | { name: "about" }
+  | { name: "settings" };
 
 export default function App() {
   const { user, loading, error } = useAuth();
@@ -155,6 +157,7 @@ export default function App() {
       {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
       {screen.name === "about" && <About onNavigate={navigate} />}
+      {screen.name === "settings" && <Settings onNavigate={navigate} />}
 
       <BottomNav current={screen.name === "feed" ? "feed" : screen.name} onNavigate={navigate} />
     </div>

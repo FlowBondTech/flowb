@@ -212,13 +212,14 @@ function getCatLabel(catId) {
 }
 
 // Optimize image URLs - resize oversized images via proxy/params
-function optimizeImageUrl(url) {
+function optimizeImageUrl(url, w, h) {
   if (!url) return url;
   // Eventbrite already resizes via their CDN params - leave as-is
   if (url.includes('evbuc.com')) return url;
-  // Luma images: use wsrv.nl image proxy to resize and convert to webp
-  // This turns 4 MB PNGs into ~30-80 KB webp thumbnails
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=450&h=250&fit=cover&output=webp&q=75`;
+  // wsrv.nl image proxy to resize and convert to webp
+  const width = w || 450;
+  const height = h || 250;
+  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${width}&h=${height}&fit=cover&output=webp&q=75`;
 }
 
 // Platform source colors and labels
@@ -340,8 +341,10 @@ function openEventModal(title, url, img, source, id, meta, shareOnly) {
 
   titleEl.textContent = title;
   metaEl.textContent = meta;
-  imgEl.src = img || '';
-  imgEl.style.display = img ? '' : 'none';
+  const optimizedModalImg = img ? optimizeImageUrl(img, 600, 300) : '';
+  imgEl.src = optimizedModalImg || '';
+  imgEl.style.display = optimizedModalImg ? '' : 'none';
+  imgEl.onerror = function() { this.style.display = 'none'; };
 
   const src = getSourceMeta(source);
   openLabel.textContent = source ? `Open on ${src.label}` : 'Open Event';
@@ -1243,10 +1246,24 @@ function scrollChatToBottom() {
 }
 
 function formatMarkdown(text) {
-  return escapeHtml(text)
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\n/g, '<br>')
-    .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
+  let html = escapeHtml(text);
+  html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
+  html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
+  html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
+  html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^### (.+)$/gm, '<strong style="font-size:14px">$1</strong>');
+  html = html.replace(/^## (.+)$/gm, '<strong style="font-size:16px">$1</strong>');
+  html = html.replace(/\n/g, '<br>');
+  html = html.replace(/<br><ul>/g, '<ul>');
+  html = html.replace(/<\/ul><br>/g, '</ul>');
+  html = html.replace(/<br><li>/g, '<li>');
+  html = html.replace(/<\/li><br>/g, '</li>');
+  return html;
 }
 
 function setStatus(status, text) {
@@ -1266,9 +1283,12 @@ async function sendToFlowB(userMessage) {
   const messages = chatHistory.slice(-20);
 
   try {
+    const chatHeaders = { 'Content-Type': 'application/json' };
+    const jwt = localStorage.getItem('flowb-jwt');
+    if (jwt) chatHeaders['Authorization'] = `Bearer ${jwt}`;
     const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: chatHeaders,
       body: JSON.stringify({
         messages,
         stream: false,
@@ -1532,6 +1552,32 @@ function handleEventUrlParam() {
   }
 }
 
+// ===== Luma API Health Check =====
+async function checkLumaHealth() {
+  const statusEl = document.getElementById('lumaStatus');
+  const labelEl = document.getElementById('lumaStatusLabel');
+  if (!statusEl) return;
+
+  try {
+    const res = await fetch(`${API}/api/v1/health/luma`, { signal: AbortSignal.timeout(6000) });
+    if (!res.ok) throw new Error('Health check failed');
+    const data = await res.json();
+
+    statusEl.className = 'luma-status ' + (data.status || 'unknown');
+    const discoverMs = data.discover?.latency ? `${data.discover.latency}ms` : '';
+    const officialMs = data.official?.latency ? `${data.official.latency}ms` : '';
+    const parts = [];
+    if (data.discover?.status) parts.push(`Discover: ${data.discover.status}${discoverMs ? ' (' + discoverMs + ')' : ''}`);
+    if (data.official?.status) parts.push(`Official: ${data.official.status}${officialMs ? ' (' + officialMs + ')' : ''}`);
+    statusEl.title = `Luma API: ${data.status}\n${parts.join('\n')}`;
+    labelEl.textContent = data.status === 'ok' ? 'Luma' : data.status === 'degraded' ? 'Luma (degraded)' : 'Luma (down)';
+  } catch {
+    statusEl.className = 'luma-status down';
+    statusEl.title = 'Luma API: unreachable';
+    labelEl.textContent = 'Luma (offline)';
+  }
+}
+
 // ===== Init =====
 (async () => {
   awardPoints(1, 'Daily visit', 'info');
@@ -1614,6 +1660,9 @@ function handleEventUrlParam() {
   } catch {
     setStatus('ok', 'local mode');
   }
+
+  // Check Luma API health
+  checkLumaHealth();
 
   // FlowB nudge popup - dismiss + auto-hide
   const nudge = document.getElementById('flowbNudge');
