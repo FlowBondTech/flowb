@@ -87,10 +87,7 @@ export class LumaAdapter implements EventSourceAdapter {
       if (params.limit) queryParams.set("limit", String(Math.min(params.limit, 50)));
 
       const res = await fetch(`${LUMA_DISCOVER_API}/discover/events?${queryParams}`, {
-        headers: {
-          "Content-Type": "application/json",
-          ...(this.hasOfficialKey ? { "x-luma-api-key": this.apiKey } : {}),
-        },
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!res.ok) {
