@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { getSponsorWallet, createSponsorship, getFeaturedEventBid } from "../api/client";
-import type { FeaturedEventBid } from "../api/types";
+import { useState, useEffect, useRef } from "react";
+import { getSponsorWallet, createSponsorship, getFeaturedEventBid, searchEvents } from "../api/client";
+import type { FeaturedEventBid, EventResult } from "../api/types";
 
 interface Props {
   onClose: () => void;
@@ -9,7 +9,6 @@ interface Props {
 
 export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
   const [walletAddress, setWalletAddress] = useState("");
-  const [eventUrl, setEventUrl] = useState("");
   const [amount, setAmount] = useState("");
   const [txHash, setTxHash] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -17,10 +16,34 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
   const [copied, setCopied] = useState(false);
   const [currentBid, setCurrentBid] = useState<FeaturedEventBid | null>(null);
 
+  // Event search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<EventResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<EventResult | null>(null);
+  const searchTimer = useRef<ReturnType<typeof setTimeout>>();
+
   useEffect(() => {
     getSponsorWallet().then(setWalletAddress).catch(console.error);
     getFeaturedEventBid().then(setCurrentBid).catch(console.error);
   }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!searchQuery.trim() || searchQuery.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    searchTimer.current = setTimeout(() => {
+      setSearching(true);
+      searchEvents(searchQuery.trim(), 8)
+        .then(setSearchResults)
+        .catch(console.error)
+        .finally(() => setSearching(false));
+    }, 300);
+    return () => { if (searchTimer.current) clearTimeout(searchTimer.current); };
+  }, [searchQuery]);
 
   const handleCopy = async () => {
     try {
@@ -31,15 +54,16 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
     } catch {}
   };
 
+  const handleSelectEvent = (ev: EventResult) => {
+    setSelectedEvent(ev);
+    setSearchQuery("");
+    setSearchResults([]);
+    (window as any).Telegram?.WebApp?.HapticFeedback?.selectionChanged();
+  };
+
   const handleSubmit = async () => {
-    if (!eventUrl.trim()) {
-      setResult({ ok: false, message: "Enter your event URL" });
-      return;
-    }
-    try {
-      new URL(eventUrl.trim());
-    } catch {
-      setResult({ ok: false, message: "Enter a valid URL (e.g. https://lu.ma/...)" });
+    if (!selectedEvent) {
+      setResult({ ok: false, message: "Search and select an event first" });
       return;
     }
 
@@ -56,7 +80,7 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
 
     setSubmitting(true);
     try {
-      await createSponsorship("featured_event", eventUrl.trim(), amountNum, txHash.trim());
+      await createSponsorship("featured_event", selectedEvent.id, amountNum, txHash.trim());
       setResult({ ok: true, message: "Bid submitted! +25 pts. Verifying on-chain..." });
       (window as any).Telegram?.WebApp?.HapticFeedback?.notificationOccurred("success");
       onSuccess?.();
@@ -65,6 +89,12 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const formatTime = (dt: string) => {
+    try {
+      return new Date(dt).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    } catch { return dt; }
   };
 
   return (
@@ -148,19 +178,99 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
             </div>
           ) : (
             <>
-              {/* Event URL input */}
-              <div style={{ marginBottom: 12 }}>
+              {/* Event search */}
+              <div style={{ marginBottom: 12, position: "relative" }}>
                 <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>
-                  Your Event Link
+                  Search for your event
                 </div>
-                <input
-                  className="input"
-                  type="url"
-                  placeholder="https://lu.ma/your-event"
-                  value={eventUrl}
-                  onChange={(e) => setEventUrl(e.target.value)}
-                  style={{ fontSize: 13 }}
-                />
+                {selectedEvent ? (
+                  <div style={{
+                    background: "var(--bg-surface)",
+                    border: "1px solid var(--accent)",
+                    borderRadius: "var(--radius-sm)",
+                    padding: "10px 12px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                  }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {selectedEvent.title}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                        {formatTime(selectedEvent.startTime)}
+                        {selectedEvent.locationName && ` \u00b7 ${selectedEvent.locationName}`}
+                      </div>
+                    </div>
+                    <button
+                      style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", padding: 4, fontSize: 16, lineHeight: 1 }}
+                      onClick={() => setSelectedEvent(null)}
+                      title="Change event"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      className="input"
+                      type="text"
+                      placeholder="Search events by name..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      style={{ fontSize: 13 }}
+                      autoFocus
+                    />
+                    {/* Search results dropdown */}
+                    {(searchResults.length > 0 || searching) && (
+                      <div style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 10,
+                        background: "var(--bg-card)",
+                        border: "1px solid var(--border)",
+                        borderRadius: "var(--radius-sm)",
+                        maxHeight: 200,
+                        overflowY: "auto",
+                        boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+                      }}>
+                        {searching && (
+                          <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-muted)" }}>
+                            Searching...
+                          </div>
+                        )}
+                        {searchResults.map((ev) => (
+                          <div
+                            key={ev.id}
+                            onClick={() => handleSelectEvent(ev)}
+                            style={{
+                              padding: "10px 12px",
+                              cursor: "pointer",
+                              borderBottom: "1px solid var(--border)",
+                              transition: "background 0.15s",
+                            }}
+                            onMouseEnter={(e) => { (e.target as HTMLElement).style.background = "var(--bg-surface)"; }}
+                            onMouseLeave={(e) => { (e.target as HTMLElement).style.background = "transparent"; }}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{ev.title}</div>
+                            <div style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                              {formatTime(ev.startTime)}
+                              {ev.locationName && ` \u00b7 ${ev.locationName}`}
+                            </div>
+                          </div>
+                        ))}
+                        {!searching && searchResults.length === 0 && searchQuery.length >= 2 && (
+                          <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-muted)" }}>
+                            No events found
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
 
               {/* Amount input */}
@@ -202,7 +312,7 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
                 <button
                   className="btn btn-primary btn-block"
                   onClick={handleSubmit}
-                  disabled={submitting}
+                  disabled={submitting || !selectedEvent}
                 >
                   {submitting ? "Submitting..." : "Submit Bid"}
                 </button>

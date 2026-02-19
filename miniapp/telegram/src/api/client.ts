@@ -105,6 +105,12 @@ export async function getEvents(city = "Denver", limit = 50, categories?: string
   return data.events;
 }
 
+export async function searchEvents(query: string, limit = 10): Promise<EventResult[]> {
+  const path = `/api/v1/events?q=${encodeURIComponent(query)}&limit=${limit}`;
+  const data = await get<{ events: EventResult[] }>(path);
+  return data.events;
+}
+
 export async function getEvent(id: string): Promise<{ event: EventResult; flow: { going: string[]; maybe: string[] } }> {
   return get(`/api/v1/events/${encodeURIComponent(id)}`);
 }

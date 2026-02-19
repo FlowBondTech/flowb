@@ -350,35 +350,66 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
           <div
             className="featured-card"
             style={{ cursor: "pointer" }}
-            onClick={() => featuredBid ? openUrl(featuredBid.target_id) : setShowFeaturedModal(true)}
+            onClick={() => {
+              if (featuredBid?.event_url) openUrl(featuredBid.event_url);
+              else if (featuredBid?.event_title) onNavigate({ name: "event", id: featuredBid.target_id });
+              else setShowFeaturedModal(true);
+            }}
           >
-            <div className="featured-img" />
+            {featuredBid?.event_image_url ? (
+              <img
+                className="featured-img"
+                src={featuredBid.event_image_url}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className="featured-img" />
+            )}
             <div className="featured-body">
               <span className="featured-badge">
                 {featuredBid ? "Sponsored" : "Featured Spot"}
               </span>
               <div className="featured-title">
-                {featuredBid ? featuredBid.target_id : "Feature Your Event Here"}
+                {featuredBid?.event_title || (featuredBid ? featuredBid.target_id : "Feature Your Event Here")}
               </div>
               <div className="featured-meta">
-                {featuredBid ? (
-                  <div className="featured-meta-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Current bid: ${featuredBid.amount_usdc.toFixed(2)} USDC
-                  </div>
+                {featuredBid?.event_start ? (
+                  <>
+                    <div className="featured-meta-row">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+                      </svg>
+                      {new Date(featuredBid.event_start).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                    </div>
+                    {featuredBid.event_location && (
+                      <div className="featured-meta-row">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" /><circle cx="12" cy="10" r="3" />
+                        </svg>
+                        {featuredBid.event_location}{featuredBid.event_city && `, ${featuredBid.event_city}`}
+                      </div>
+                    )}
+                  </>
                 ) : (
                   <div className="featured-meta-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    Submit your event link and bid with USDC
+                    Search for your event and bid with USDC
                   </div>
                 )}
               </div>
               <div className="featured-footer">
-                <span className="badge badge-purple">Sponsorship</span>
+                {featuredBid ? (
+                  <span className="badge badge-purple">
+                    ${featuredBid.amount_usdc.toFixed(2)} USDC
+                  </span>
+                ) : (
+                  <span className="badge badge-purple">Sponsorship</span>
+                )}
                 <button
                   className="btn btn-sm btn-primary"
                   style={{ fontSize: 11, padding: "4px 14px" }}
