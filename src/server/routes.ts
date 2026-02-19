@@ -3225,15 +3225,32 @@ RULES:
       if (!rows?.length) return { featured: null };
 
       const top = rows[0];
-      return {
-        featured: {
-          target_id: top.target_id,
-          amount_usdc: Number(top.amount_usdc),
-          sponsor_user_id: top.sponsor_user_id,
-          created_at: top.created_at,
-          expires_at: top.expires_at,
-        },
+      const result: any = {
+        target_id: top.target_id,
+        amount_usdc: Number(top.amount_usdc),
+        sponsor_user_id: top.sponsor_user_id,
+        created_at: top.created_at,
+        expires_at: top.expires_at,
       };
+
+      // Look up event details from flowb_events
+      const events = await sbFetch<any[]>(
+        cfg,
+        `flowb_events?id=eq.${top.target_id}&select=id,title,starts_at,ends_at,venue_name,city,is_free,image_url,url&limit=1`,
+      );
+      if (events?.length) {
+        const ev = events[0];
+        result.event_title = ev.title;
+        result.event_start = ev.starts_at;
+        result.event_end = ev.ends_at;
+        result.event_location = ev.venue_name;
+        result.event_city = ev.city;
+        result.event_is_free = ev.is_free;
+        result.event_image_url = ev.image_url;
+        result.event_url = ev.url;
+      }
+
+      return { featured: result };
     },
   );
 

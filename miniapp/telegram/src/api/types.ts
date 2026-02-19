@@ -196,6 +196,14 @@ export interface FeaturedEventBid {
   sponsor_user_id: string;
   created_at: string;
   expires_at: string;
+  event_title?: string;
+  event_start?: string;
+  event_end?: string;
+  event_location?: string;
+  event_city?: string;
+  event_is_free?: boolean;
+  event_image_url?: string;
+  event_url?: string;
 }
 
 export interface SponsorRanking {
