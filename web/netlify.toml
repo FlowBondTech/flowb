@@ -43,6 +43,26 @@
 
 # Clean URL routes for static pages
 [[redirects]]
+  from = "/leaderboard"
+  to = "/leaderboard.html"
+  status = 200
+
+[[redirects]]
+  from = "/flow"
+  to = "/flow.html"
+  status = 200
+
+[[redirects]]
+  from = "/about"
+  to = "/about.html"
+  status = 200
+
+[[redirects]]
+  from = "/settings"
+  to = "/settings.html"
+  status = 200
+
+[[redirects]]
   from = "/allevents"
   to = "/allevents.html"
   status = 200
