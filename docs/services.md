@@ -8,6 +8,7 @@ Backend services that power FlowB's cross-platform features.
 
 | Service | File | Exports |
 |---------|------|---------|
+| ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
@@ -19,6 +20,14 @@ Backend services that power FlowB's cross-platform features.
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
+
+### ai chat
+
+AI Chat Service — Tool-augmented chat using xAI Grok
+
+**Source**: `src/services/ai-chat.ts`
+
+**Exports**: `handleChat()`
 
 ### cdp
 
@@ -90,4 +99,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-19 23:07:35 UTC*
+*Auto-generated on 2026-02-19 23:44:02 UTC*
