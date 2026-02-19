@@ -41,6 +41,12 @@
   status = 200
   force = true
 
+# Clean URL routes for static pages
+[[redirects]]
+  from = "/allevents"
+  to = "/allevents.html"
+  status = 200
+
 [[headers]]
   for = "/*"
   [headers.values]
