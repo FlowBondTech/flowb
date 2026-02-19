@@ -685,6 +685,7 @@ async function handleRsvp(eventId, btnEl) {
   if (result) {
     awardPoints(3, 'RSVP bonus');
     awardFirstAction('first_rsvp', 5, 'First RSVP!');
+    showRsvpConfirmation(eventId, eventData);
   } else {
     // Revert on failure
     btnEl.classList.remove('rsvpd');
@@ -693,6 +694,120 @@ async function handleRsvp(eventId, btnEl) {
     btnEl.title = 'Add to my events';
   }
 }
+
+function showRsvpConfirmation(eventId, eventData) {
+  const modal = document.getElementById('eventModal');
+  const backdrop = document.getElementById('eventModalBackdrop');
+
+  // Build confirmation content
+  const title = eventData ? escapeHtml(eventData.title) : (currentModalEvent.title || 'Event');
+  const meta = currentModalEvent.meta || '';
+  const startTime = eventData?.startTime ? new Date(eventData.startTime) : null;
+
+  let calUrl = '';
+  if (startTime && eventData) {
+    const fmt = d => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const endTime = eventData.endTime ? new Date(eventData.endTime) : new Date(startTime.getTime() + 2 * 3600000);
+    calUrl = `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(eventData.title)}&dates=${fmt(startTime)}/${fmt(endTime)}&location=${encodeURIComponent(eventData.venue?.name || '')}&details=${encodeURIComponent('Added via FlowB')}`;
+  }
+
+  // Replace modal content with confirmation
+  const actionsEl = modal.querySelector('.event-modal-actions');
+  const headerEl = modal.querySelector('.event-modal-header');
+  const reminderPanel = document.getElementById('eventReminderPanel');
+  const sharePanel = document.getElementById('eventSharePanel');
+
+  if (reminderPanel) reminderPanel.classList.add('hidden');
+  if (sharePanel) sharePanel.classList.add('hidden');
+
+  if (headerEl) headerEl.style.display = 'none';
+
+  if (actionsEl) {
+    actionsEl.innerHTML = `
+      <div class="rsvp-confirm">
+        <div class="rsvp-confirm-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="32" height="32">
+            <path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="rsvp-confirm-title">You're going!</div>
+        <div class="rsvp-confirm-event">${title}</div>
+        ${meta ? `<div class="rsvp-confirm-meta">${escapeHtml(meta)}</div>` : ''}
+        <div class="rsvp-confirm-msg">Added to your Flow. You'll get reminders before it starts.</div>
+        <div class="rsvp-confirm-actions">
+          ${calUrl ? `<a href="${calUrl}" target="_blank" rel="noopener" class="event-modal-chip">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Add to Calendar
+          </a>` : ''}
+          <button class="event-modal-chip" onclick="closeEventModal()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            Done
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  // Show modal if not already visible (e.g. RSVP from card icon)
+  modal.classList.remove('hidden');
+  backdrop.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+// Reset modal content when closing after confirmation
+const _origCloseEventModal = closeEventModal;
+closeEventModal = function() {
+  _origCloseEventModal();
+  // Restore original modal structure after a tick
+  setTimeout(() => {
+    const headerEl = document.querySelector('.event-modal-header');
+    if (headerEl) headerEl.style.display = '';
+
+    const actionsEl = document.querySelector('.event-modal-actions');
+    if (actionsEl && actionsEl.querySelector('.rsvp-confirm')) {
+      actionsEl.innerHTML = `
+        <button class="event-modal-btn primary" id="eventModalRsvp">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+          Add to My Flow
+        </button>
+        <div class="event-modal-row">
+          <button class="event-modal-chip" id="eventModalCalendar">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            Calendar
+          </button>
+          <button class="event-modal-chip" id="eventModalReminder">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            Remind
+          </button>
+          <button class="event-modal-chip" id="eventModalShare">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+            Share
+          </button>
+        </div>
+        <a class="event-modal-external" id="eventModalOpen" href="#" target="_blank" rel="noopener">
+          <span id="eventModalOpenLabel">Open Event</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      `;
+      // Re-attach event listeners
+      document.getElementById('eventModalRsvp').addEventListener('click', () => {
+        if (!currentModalEvent.id) return;
+        if (!requireAuth('add events to your Flow')) return;
+        handleRsvp(currentModalEvent.id, document.getElementById('eventModalRsvp'));
+      });
+      document.getElementById('eventModalCalendar').addEventListener('click', () => {
+        if (currentModalEvent.id) handleAddToCalendar(currentModalEvent.id);
+      });
+      document.getElementById('eventModalReminder').addEventListener('click', () => {
+        document.getElementById('eventReminderPanel').classList.toggle('hidden');
+      });
+      document.getElementById('eventModalShare').addEventListener('click', () => {
+        document.getElementById('eventSharePanel').classList.toggle('hidden');
+      });
+      document.getElementById('eventModalOpen').addEventListener('click', closeEventModal);
+    }
+  }, 300);
+};
 
 // Make handleRsvp available globally for onclick
 window.handleRsvp = handleRsvp;

@@ -92,12 +92,15 @@ function getDefaultFeatured(): FeaturedEvent[] {
 }
 
 // ============================================================================
-// Date Filter - EthDenver Feb 15-27
+// Date Filter - EthDenver Feb 15-27 (only show today and future dates)
 // ============================================================================
 const ETHDENVER_DATES = (() => {
   const dates: { id: string; label: string; date: Date }[] = [];
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   for (let d = 15; d <= 27; d++) {
     const dt = new Date(2026, 1, d); // Feb = month 1
+    if (dt < today) continue;
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
     dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
   }
@@ -405,14 +408,21 @@ export default function FarcasterApp() {
     }
   }, [screen, eventId]);
 
+  const [rsvpStatus, setRsvpStatus] = useState<string | null>(null);
+  const [showRsvpConfirm, setShowRsvpConfirm] = useState(false);
+
   const openEvent = useCallback((id: string) => {
     setEventId(id);
     setScreen("event");
+    setRsvpStatus(null);
+    setShowRsvpConfirm(false);
   }, []);
 
   const handleRsvp = async (status: "going" | "maybe") => {
     if (!eventId) return;
     await rsvpEvent(eventId, status);
+    setRsvpStatus(status);
+    setShowRsvpConfirm(true);
   };
 
   const handleShareEventFarcaster = (event: EventResult) => {
@@ -992,14 +1002,56 @@ export default function FarcasterApp() {
             </div>
           )}
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button className="btn btn-primary btn-block" onClick={() => handleRsvp("going")}>
-              I'm Going
-            </button>
-            <button className="btn btn-secondary" onClick={() => handleRsvp("maybe")}>
-              Maybe
-            </button>
-          </div>
+          {showRsvpConfirm && (
+            <div className="card" style={{ marginBottom: 16, textAlign: "center", padding: 20 }}>
+              <div style={{
+                width: 52, height: 52, borderRadius: "50%", background: "var(--accent, #6366f1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 12px", animation: "rsvpPop 0.4s cubic-bezier(0.34,1.56,0.64,1)"
+              }}>
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" width="28" height="28">
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                {rsvpStatus === "going" ? "You're going!" : "Marked as maybe"}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
+                Added to your schedule. You'll get reminders before it starts.
+              </div>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowRsvpConfirm(false)} style={{ margin: "0 auto" }}>
+                Done
+              </button>
+              <style>{`@keyframes rsvpPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }`}</style>
+            </div>
+          )}
+
+          {!showRsvpConfirm && (
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              {rsvpStatus === "going" ? (
+                <>
+                  <button className="btn btn-primary btn-block" disabled style={{ opacity: 0.6 }}>
+                    You're Going!
+                  </button>
+                </>
+              ) : rsvpStatus === "maybe" ? (
+                <>
+                  <button className="btn btn-secondary btn-block" onClick={() => handleRsvp("going")}>
+                    Upgrade to Going
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-primary btn-block" onClick={() => handleRsvp("going")}>
+                    I'm Going
+                  </button>
+                  <button className="btn btn-secondary" onClick={() => handleRsvp("maybe")}>
+                    Maybe
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {/* Share Row: Farcaster | X | Copy Link */}
           <div className="share-row">

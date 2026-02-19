@@ -1641,6 +1641,77 @@ a:hover { text-decoration: underline; }
   color: var(--green);
 }
 
+/* ===== RSVP Confirmation ===== */
+.rsvp-confirm {
+  text-align: center;
+  padding: 8px 0 4px;
+}
+
+.rsvp-confirm-check {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+  color: #fff;
+  animation: rsvpPop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes rsvpPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.rsvp-confirm-check svg {
+  animation: rsvpStroke 0.5s ease-out 0.15s both;
+}
+
+@keyframes rsvpStroke {
+  0% { stroke-dasharray: 40; stroke-dashoffset: 40; }
+  100% { stroke-dasharray: 40; stroke-dashoffset: 0; }
+}
+
+.rsvp-confirm-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.rsvp-confirm-event {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+.rsvp-confirm-meta {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.rsvp-confirm-msg {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.rsvp-confirm-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.rsvp-confirm-actions .event-modal-chip {
+  text-decoration: none;
+}
+
 /* ===== Skeleton ===== */
 .skeleton-card {
   background: var(--bg-card);
