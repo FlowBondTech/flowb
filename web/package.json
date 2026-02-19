@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp auth.js app.js points.js styles.css about.html allevents.html flow.html leaderboard.html settings.html dist/",
+    "build": "vite build && cp auth.js app.js points.js styles.css about.html allevents.html flow.html leaderboard.html settings.html favicon.ico favicon-16.png favicon-32.png favicon-192.png apple-touch-icon.png dist/",
     "preview": "vite preview"
   },
   "dependencies": {
