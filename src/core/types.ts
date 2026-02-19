@@ -22,16 +22,8 @@ export interface DANZPluginConfig {
 }
 
 export interface EGatorPluginConfig {
-  apiBaseUrl?: string; // Legacy external API (optional fallback)
   sources?: {
     luma?: { apiKey: string };
-    eventbrite?: { apiKey: string };
-    brave?: { apiKey: string };
-    tavily?: { apiKey: string };
-    ra?: {};
-    googlePlaces?: { apiKey: string };
-    lemonade?: { spaceId: string };
-    sheeets?: { spreadsheetId: string; gid?: string };
   };
 }
 

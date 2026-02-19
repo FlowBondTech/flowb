@@ -10,6 +10,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
 import { PrivyClient } from "../services/privy.js";
+import { EGatorPlugin } from "../plugins/egator/index.js";
+import type { LumaEventDetail, LumaTicketType } from "../plugins/egator/index.js";
 import {
   initChatter,
   shouldAnalyze,
@@ -1765,6 +1767,110 @@ export function startTelegramBot(
         return;
       }
 
+      // --- Luma Event Details (full description + tickets + guest count) ---
+      if (action === "luma") {
+        if (!event) {
+          await ctx.answerCallbackQuery({ text: "Event not found." });
+          return;
+        }
+
+        const egator = core.getEGatorPlugin();
+        const luma = egator?.getLumaAdapter();
+        if (!luma) {
+          await ctx.answerCallbackQuery({ text: "Luma not configured." });
+          return;
+        }
+
+        await ctx.answerCallbackQuery({ text: "Loading Luma details..." });
+        await ctx.replyWithChatAction("typing");
+
+        const lumaId = (event.sourceEventId || event.id).replace(/^luma_/, "");
+        const [detail, tickets, guestsResult] = await Promise.all([
+          luma.getEventDetail(lumaId),
+          luma.getTicketTypes(lumaId),
+          luma.getGuests(lumaId, { status: "approved", limit: 5 }),
+        ]);
+
+        const lines: string[] = [];
+
+        // Title
+        lines.push(`<b>${escapeHtml(event.title)}</b>`);
+        lines.push("");
+
+        // Full description from Luma
+        if (detail?.descriptionMd) {
+          const desc = detail.descriptionMd.length > 800
+            ? detail.descriptionMd.slice(0, 797) + "..."
+            : detail.descriptionMd;
+          lines.push(escapeHtml(desc));
+          lines.push("");
+        }
+
+        // Location
+        if (detail?.geoAddress) {
+          lines.push(`<b>Location:</b> ${escapeHtml(detail.geoAddress)}`);
+        } else if (event.locationName) {
+          lines.push(`<b>Location:</b> ${escapeHtml(event.locationName)}`);
+        }
+
+        // Time
+        if (detail?.startAt) {
+          const start = new Date(detail.startAt);
+          const timeStr = start.toLocaleString("en-US", {
+            weekday: "short", month: "short", day: "numeric",
+            hour: "numeric", minute: "2-digit", timeZone: "America/Denver",
+          });
+          lines.push(`<b>When:</b> ${timeStr} MST`);
+        }
+
+        // Tickets
+        if (tickets.length > 0) {
+          lines.push("");
+          lines.push("<b>Tickets:</b>");
+          for (const t of tickets) {
+            if (t.isHidden) continue;
+            const price = t.type === "free" || !t.cents ? "Free" : `$${(t.cents / 100).toFixed(2)}`;
+            const cap = t.maxCapacity ? ` (${t.maxCapacity} spots)` : "";
+            const tokenGate = t.tokenRequirements ? " [Token Gated]" : "";
+            lines.push(`  ${escapeHtml(t.name)} - ${price}${cap}${tokenGate}`);
+          }
+        }
+
+        // Guests
+        if (guestsResult.total > 0) {
+          lines.push("");
+          lines.push(`<b>${guestsResult.total} attending</b>`);
+          if (guestsResult.guests.length > 0) {
+            const names = guestsResult.guests
+              .filter((g) => g.userName)
+              .map((g) => g.userName!)
+              .slice(0, 5);
+            if (names.length) {
+              lines.push(`Including: ${names.join(", ")}${guestsResult.total > 5 ? "..." : ""}`);
+            }
+          }
+        }
+
+        // Virtual link
+        if (detail?.meetingUrl) {
+          lines.push("");
+          lines.push(`<b>Virtual:</b> <a href="${escapeHtml(detail.meetingUrl)}">Join online</a>`);
+        }
+
+        const kb = new InlineKeyboard();
+        if (event.url) {
+          kb.url("Open on Luma", event.url);
+        }
+        kb.text("Back", `ec:back`);
+
+        await ctx.reply(lines.join("\n"), {
+          parse_mode: "HTML",
+          reply_markup: kb,
+          link_preview_options: { is_disabled: true },
+        });
+        return;
+      }
+
       // --- Noop (position indicator tap) ---
       if (action === "noop") {
         await ctx.answerCallbackQuery();
@@ -2192,19 +2298,59 @@ export function startTelegramBot(
           return;
         }
 
+        await ctx.answerCallbackQuery();
+        await ctx.replyWithChatAction("typing");
+
         const flowPlugin = core.getFlowPlugin();
         const flowCfg = core.getFlowConfig();
+
+        // Get FlowB attendance
+        let goingNames: string[] = [];
+        let maybeNames: string[] = [];
         if (flowPlugin && flowCfg) {
           const attendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, userId(tgId), event.id);
-          const goingNames = attendance.going.map((id) => id.replace("telegram_", "@"));
-          const maybeNames = attendance.maybe.map((id) => id.replace("telegram_", "@"));
-
-          await ctx.answerCallbackQuery();
-          await ctx.reply(
-            formatWhosGoingHtml(event.title, goingNames, maybeNames),
-            { parse_mode: "HTML" },
-          );
+          goingNames = attendance.going.map((id: string) => id.replace("telegram_", "@"));
+          maybeNames = attendance.maybe.map((id: string) => id.replace("telegram_", "@"));
         }
+
+        // Also pull from Luma guest list
+        const egator = core.getEGatorPlugin();
+        const luma = egator?.getLumaAdapter();
+        let lumaGuestCount = 0;
+        let lumaGuestNames: string[] = [];
+
+        if (luma) {
+          const lumaId = (event.sourceEventId || event.id).replace(/^luma_/, "");
+          const result = await luma.getGuests(lumaId, { status: "approved", limit: 10 });
+          lumaGuestCount = result.total;
+          lumaGuestNames = result.guests
+            .filter((g) => g.userName)
+            .map((g) => g.userName!)
+            .slice(0, 10);
+        }
+
+        // Build combined response
+        const lines: string[] = [];
+        lines.push(`<b>${escapeHtml(event.title)}</b>`);
+        lines.push("");
+
+        if (goingNames.length || maybeNames.length) {
+          lines.push("<b>From your flow:</b>");
+          if (goingNames.length) lines.push(`Going: ${goingNames.join(", ")}`);
+          if (maybeNames.length) lines.push(`Maybe: ${maybeNames.join(", ")}`);
+          lines.push("");
+        }
+
+        if (lumaGuestCount > 0) {
+          lines.push(`<b>On Luma: ${lumaGuestCount} registered</b>`);
+          if (lumaGuestNames.length) {
+            lines.push(lumaGuestNames.join(", ") + (lumaGuestCount > 10 ? "..." : ""));
+          }
+        } else if (!goingNames.length && !maybeNames.length) {
+          lines.push("No one yet - be the first!");
+        }
+
+        await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
         return;
       }
 
@@ -2688,8 +2834,8 @@ export function startTelegramBot(
     const text = ctx.message.text.trim();
     const lower = text.toLowerCase();
 
-    // ---- Event URL detection (lu.ma, eventbrite, etc.) ----
-    const EVENT_URL_REGEX = /https?:\/\/(?:lu\.ma|eventbrite\.com|partiful\.com|meetup\.com|dice\.fm|ra\.co|shotgun\.live|events\.xyz)\/[^\s]+/gi;
+    // ---- Event URL detection (Luma) ----
+    const EVENT_URL_REGEX = /https?:\/\/(?:lu\.ma|luma\.com)\/[^\s]+/gi;
     const eventUrlMatch = text.match(EVENT_URL_REGEX);
     if (eventUrlMatch && !isGroup) {
       const url = eventUrlMatch[0];

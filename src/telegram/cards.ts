@@ -238,8 +238,8 @@ export function formatEventCardHtml(
     lines.push(`\ud83c\udfab  $${event.price}`);
   }
 
-  if (event.danceStyles?.length) {
-    lines.push(`\ud83d\udc83  ${event.danceStyles.slice(0, 3).join(" \u00b7 ")}`);
+  if (event.rsvpCount) {
+    lines.push(`\ud83d\udc65  ${event.rsvpCount} attending`);
   }
 
   if (event.description) {
@@ -282,9 +282,7 @@ export function buildEventCardKeyboard(
   // Row 2: Actions
   kb.row();
   kb.text("\u2b50 Save", `ec:save:${short}`);
-  if (eventUrl) {
-    kb.url("\ud83d\udd17 Open", eventUrl);
-  }
+  kb.text("\ud83d\udcdd Details", `ec:luma:${short}`);
   kb.text("\ud83d\udce4 Share", `ec:share:${short}`);
 
   // Row 3: Navigation

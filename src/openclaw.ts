@@ -18,8 +18,8 @@ export default function register(api: any) {
         supabaseUrl: rawConfig.danzSupabaseUrl,
         supabaseKey: rawConfig.danzSupabaseKey,
       } : undefined,
-      egator: rawConfig.apiBaseUrl ? {
-        apiBaseUrl: rawConfig.apiBaseUrl,
+      egator: process.env.LUMA_API_KEY ? {
+        sources: { luma: { apiKey: process.env.LUMA_API_KEY } },
       } : undefined,
     },
   };

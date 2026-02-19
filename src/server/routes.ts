@@ -342,6 +342,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Ensure user exists in points table
       await core.awardPoints(userId, "web", "miniapp_open").catch(() => {});
 
+      // Auto-resolve cross-platform identity on web login
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        try {
+          const { resolveCanonicalId } = await import("../services/identity.js");
+          await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
+        } catch {}
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "web" as any,
@@ -2036,6 +2045,196 @@ RULES:
       }));
 
       return { accounts, canonical_id: canonicalId };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // SYNC LINKED ACCOUNTS: Re-resolve identity after Privy account linking
+  // Called from web after user links a new account via Privy UI
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/me/sync-linked-accounts",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // For web users, look up their full Privy profile and sync all linked accounts
+      const privyAppId = process.env.PRIVY_APP_ID;
+      const privyAppSecret = process.env.PRIVY_APP_SECRET;
+
+      if (!privyAppId || !privyAppSecret) {
+        return { ok: false, error: "Privy not configured" };
+      }
+
+      // Determine the Privy user ID
+      let privyDid: string | undefined;
+      if (jwt.sub.startsWith("web_")) {
+        privyDid = jwt.sub.replace("web_", "");
+      } else if (jwt.privyUserId) {
+        privyDid = jwt.privyUserId;
+      } else {
+        // For telegram/farcaster users, search Privy
+        const basicAuth = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+        let searchFilter: Record<string, any> | null = null;
+        if (jwt.sub.startsWith("telegram_")) {
+          searchFilter = { telegram: { subject: jwt.sub.replace("telegram_", "") } };
+        } else if (jwt.sub.startsWith("farcaster_")) {
+          searchFilter = { farcaster: { subject: jwt.sub.replace("farcaster_", "") } };
+        }
+
+        if (searchFilter) {
+          try {
+            const res = await fetch("https://auth.privy.io/api/v1/users/search", {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${basicAuth}`,
+                "privy-app-id": privyAppId,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ filter: searchFilter, limit: 1 }),
+            });
+            if (res.ok) {
+              const data = await res.json() as any;
+              privyDid = data?.data?.[0]?.id || data?.data?.[0]?.did;
+            }
+          } catch {}
+        }
+      }
+
+      if (!privyDid) {
+        return { ok: true, synced: 0, message: "No Privy account found" };
+      }
+
+      // Fetch the full Privy user with all linked accounts
+      const basicAuth = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+      let privyUser: any;
+      try {
+        const res = await fetch(`https://auth.privy.io/api/v2/users/${encodeURIComponent(privyDid)}`, {
+          headers: {
+            Authorization: `Basic ${basicAuth}`,
+            "privy-app-id": privyAppId,
+          },
+        });
+        if (!res.ok) {
+          return { ok: false, error: `Privy lookup failed: ${res.status}` };
+        }
+        privyUser = await res.json();
+      } catch (err: any) {
+        return { ok: false, error: `Privy error: ${err.message}` };
+      }
+
+      // Extract all platform user IDs from Privy linked accounts
+      const linkedPlatformIds: { platform: string; platformUserId: string; displayName?: string }[] = [];
+
+      // Always include the web/privy identity
+      linkedPlatformIds.push({
+        platform: "web",
+        platformUserId: `web_${privyDid}`,
+        displayName: undefined,
+      });
+
+      for (const account of privyUser.linked_accounts || []) {
+        if (account.type === "telegram" && (account.telegram_user_id || account.telegramUserId)) {
+          const tgId = account.telegram_user_id || account.telegramUserId;
+          linkedPlatformIds.push({
+            platform: "telegram",
+            platformUserId: `telegram_${tgId}`,
+            displayName: account.username || account.first_name || undefined,
+          });
+        }
+        if (account.type === "farcaster" && account.fid) {
+          linkedPlatformIds.push({
+            platform: "farcaster",
+            platformUserId: `farcaster_${account.fid}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "discord_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "discord",
+            platformUserId: `discord_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "twitter_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "twitter",
+            platformUserId: `twitter_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "github_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "github",
+            platformUserId: `github_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "apple_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "apple",
+            platformUserId: `apple_${account.subject}`,
+          });
+        }
+        if (account.type === "email" && account.address) {
+          linkedPlatformIds.push({
+            platform: "email",
+            platformUserId: `email_${account.address}`,
+            displayName: account.address,
+          });
+        }
+        if (account.type === "phone" && account.number) {
+          linkedPlatformIds.push({
+            platform: "phone",
+            platformUserId: `phone_${account.number}`,
+          });
+        }
+      }
+
+      // Determine canonical_id: check if any of these IDs already have one
+      let canonicalId: string | null = null;
+      for (const entry of linkedPlatformIds) {
+        const rows = await sbFetch<any[]>(
+          cfg,
+          `flowb_identities?platform_user_id=eq.${encodeURIComponent(entry.platformUserId)}&select=canonical_id&limit=1`,
+        );
+        if (rows?.length) {
+          canonicalId = rows[0].canonical_id;
+          break;
+        }
+      }
+
+      // If no existing canonical_id, use the current user's sub
+      if (!canonicalId) {
+        canonicalId = jwt.sub;
+      }
+
+      // Upsert identity rows for all linked accounts
+      let synced = 0;
+      for (const entry of linkedPlatformIds) {
+        try {
+          await sbPost(cfg, "flowb_identities?on_conflict=platform_user_id", {
+            canonical_id: canonicalId,
+            platform: entry.platform,
+            platform_user_id: entry.platformUserId,
+            privy_id: privyDid,
+            display_name: entry.displayName || null,
+          }, "return=minimal,resolution=merge-duplicates");
+          synced++;
+        } catch {}
+      }
+
+      // Also ensure points rows exist for key platforms (telegram, farcaster, web)
+      for (const entry of linkedPlatformIds) {
+        if (["telegram", "farcaster", "web"].includes(entry.platform)) {
+          await core.awardPoints(entry.platformUserId, entry.platform, "account_linked").catch(() => {});
+        }
+      }
+
+      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId})`);
+      return { ok: true, synced, canonical_id: canonicalId };
     },
   );
 

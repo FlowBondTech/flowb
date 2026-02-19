@@ -1,9 +1,9 @@
 /**
- * eGator Plugin for FlowB
+ * eGator Plugin for FlowB (Luma-Only)
  *
- * Unified event aggregator. Pulls from multiple source adapters
- * (Luma, Eventbrite, Brave Search, Tavily, RA, Google Places)
- * and merges results into a single deduplicated feed.
+ * Event discovery and management powered exclusively by Luma.
+ * Uses the discover API for public search and official API for
+ * rich features: event details, tickets, RSVP, guest lists.
  */
 
 import type {
@@ -14,67 +14,66 @@ import type {
   EGatorPluginConfig,
   EventQuery,
   EventResult,
-  EventSourceAdapter,
 } from "../../core/types.js";
 
 import { LumaAdapter } from "./sources/luma.js";
-import { EventbriteAdapter } from "./sources/eventbrite.js";
-import { BraveSearchAdapter } from "./sources/brave.js";
-import { TavilyAdapter, extractEventFromUrl } from "./sources/tavily.js";
-import { ResidentAdvisorAdapter } from "./sources/ra.js";
-import { GooglePlacesAdapter } from "./sources/google-places.js";
-import { LemonadeAdapter } from "./sources/lemonade.js";
-import { SheeetsAdapter } from "./sources/sheeets.js";
+import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
   id = "egator";
-  name = "eGator Events";
-  description = "Aggregated event discovery from multiple sources";
-  eventSource = "egator";
+  name = "Luma Events";
+  description = "Event discovery and RSVP powered by Luma";
+  eventSource = "luma";
 
-  actions = {
-    search: { description: "Search events across all sources" },
-    "event-link": { description: "Extract event details from a URL" },
+  actions: Record<string, { description: string }> = {
+    search: { description: "Search events in Denver" },
+    "event-detail": { description: "Get full event details from Luma" },
+    "event-tickets": { description: "Get ticket types and pricing for an event" },
+    "event-guests": { description: "See who's going to an event" },
+    "event-rsvp": { description: "RSVP to a Luma event" },
+    "event-link": { description: "Look up event details from a lu.ma URL" },
   };
 
   private config: EGatorPluginConfig | null = null;
-  private adapters: EventSourceAdapter[] = [];
+  private luma: LumaAdapter | null = null;
 
   configure(config: EGatorPluginConfig) {
     this.config = config;
-    this.adapters = [];
+    this.luma = null;
 
-    const sources = config.sources;
-    if (sources?.luma?.apiKey) this.adapters.push(new LumaAdapter(sources.luma.apiKey));
-    if (sources?.eventbrite?.apiKey) this.adapters.push(new EventbriteAdapter(sources.eventbrite.apiKey));
-    if (sources?.brave?.apiKey) this.adapters.push(new BraveSearchAdapter(sources.brave.apiKey));
-    if (sources?.tavily?.apiKey) this.adapters.push(new TavilyAdapter(sources.tavily.apiKey));
-    if (sources?.ra) this.adapters.push(new ResidentAdvisorAdapter());
-    if (sources?.googlePlaces?.apiKey) this.adapters.push(new GooglePlacesAdapter(sources.googlePlaces.apiKey));
-    if (sources?.lemonade?.spaceId) this.adapters.push(new LemonadeAdapter(sources.lemonade.spaceId));
-    if (sources?.sheeets?.spreadsheetId) this.adapters.push(new SheeetsAdapter(sources.sheeets.spreadsheetId, sources.sheeets.gid));
-
-    const names = this.adapters.map((a) => a.name);
-    if (names.length) {
-      console.log(`[egator] Sources: ${names.join(", ")}`);
+    if (config.sources?.luma?.apiKey) {
+      this.luma = new LumaAdapter(config.sources.luma.apiKey);
+      console.log("[egator] Source: Luma (official + discover)");
     }
   }
 
+  /** Expose LumaAdapter for direct use by bot/services */
+  getLumaAdapter(): LumaAdapter | null {
+    return this.luma;
+  }
+
   isConfigured(): boolean {
-    // Configured if we have at least one adapter OR the legacy API URL
-    return this.adapters.length > 0 || !!this.config?.apiBaseUrl;
+    return !!this.luma;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
-    if (!this.config) return "eGator plugin not configured.";
+    if (!this.luma) return "Luma not configured. Set LUMA_API_KEY.";
 
     switch (action) {
       case "search":
         return this.searchEvents(input);
+      case "event-detail":
+        return this.eventDetail(input);
+      case "event-tickets":
+        return this.eventTickets(input);
+      case "event-guests":
+        return this.eventGuests(input);
+      case "event-rsvp":
+        return this.eventRsvp(input);
       case "event-link":
-        return this.extractEventLink(input);
+        return this.eventLink(input);
       default:
-        return `Unknown eGator action: ${action}`;
+        return `Unknown action: ${action}`;
     }
   }
 
@@ -83,88 +82,24 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   // ========================================================================
 
   async getEvents(params: EventQuery): Promise<EventResult[]> {
-    if (!this.config) return [];
-
-    const allEvents: EventResult[] = [];
-
-    // Fetch from all adapters in parallel
-    if (this.adapters.length > 0) {
-      const results = await Promise.allSettled(
-        this.adapters.map((adapter) =>
-          adapter.fetchEvents(params).catch((err) => {
-            console.error(`[egator] ${adapter.name} failed:`, err.message || err);
-            return [] as EventResult[];
-          })
-        )
-      );
-
-      for (const result of results) {
-        if (result.status === "fulfilled" && result.value.length) {
-          allEvents.push(...result.value);
-        }
-      }
-    }
-
-    // Fallback: legacy external API
-    if (allEvents.length === 0 && this.config.apiBaseUrl) {
-      const legacyEvents = await this.fetchLegacyApi(params);
-      allEvents.push(...legacyEvents);
-    }
-
-    // Sort by start time
-    allEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-    // Deduplicate by title similarity
-    const seen = new Set<string>();
-    return allEvents.filter((e) => {
-      const key = e.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-  }
-
-  // ========================================================================
-  // Legacy API fallback
-  // ========================================================================
-
-  private async fetchLegacyApi(params: EventQuery): Promise<EventResult[]> {
-    if (!this.config?.apiBaseUrl) return [];
+    if (!this.luma) return [];
 
     try {
-      const res = await fetch(`${this.config.apiBaseUrl}/api/v1/discover`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          city: params.city,
-          limit: params.limit || 10,
-          ...(params.danceStyle ? { isDance: true } : {}),
-        }),
+      const events = await this.luma.fetchEvents(params);
+
+      // Sort by start time
+      events.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+      // Deduplicate by title
+      const seen = new Set<string>();
+      return events.filter((e) => {
+        const key = e.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
       });
-
-      if (!res.ok) return [];
-
-      const data = await res.json();
-      const events = data.events || [];
-
-      return events.map((e: any) => ({
-        id: e.id,
-        title: e.title,
-        description: e.description,
-        startTime: e.startTime,
-        endTime: e.endTime,
-        locationName: e.venue?.name,
-        locationCity: e.venue?.city || e.neighborhoodName,
-        price: e.price?.min,
-        isFree: !e.price?.min,
-        isVirtual: false,
-        danceStyles: e.vibe?.danceTags || [],
-        source: e.source || "egator",
-        url: e.url,
-        imageUrl: e.imageUrl || e.image_url || e.cover_url || undefined,
-      }));
-    } catch (err) {
-      console.error("[egator] Legacy API fetch failed:", err);
+    } catch (err: any) {
+      console.error("[egator] Luma fetch failed:", err.message);
       return [];
     }
   }
@@ -173,32 +108,97 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   // Actions
   // ========================================================================
 
-  private async extractEventLink(input: ToolInput): Promise<string> {
-    if (!input.url) return JSON.stringify({ error: "No URL provided" });
-
-    const tavilyKey = this.config?.sources?.tavily?.apiKey;
-    if (!tavilyKey) return JSON.stringify({ error: "Tavily not configured" });
-
-    const event = await extractEventFromUrl(tavilyKey, input.url, input.city);
-    if (!event) return JSON.stringify({ error: "Could not extract event details from this URL" });
-
-    return JSON.stringify(event);
-  }
-
   private async searchEvents(input: ToolInput): Promise<string> {
     const events = await this.getEvents({
-      city: input.city,
+      city: input.city || "Denver",
       category: input.category,
-      danceStyle: input.dance_style,
       limit: 10,
     });
 
     if (!events.length) {
-      const note = input.city ? ` in ${input.city}` : "";
-      return `No events found${note}. Check back soon!`;
+      return "No events found on Luma right now. Check back soon!";
     }
 
     return formatEventList(events, "Events");
+  }
+
+  private async eventDetail(input: ToolInput): Promise<string> {
+    if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+
+    // Strip luma_ prefix if present
+    const lumaId = input.event_id.replace(/^luma_/, "");
+    const detail = await this.luma!.getEventDetail(lumaId);
+    if (!detail) return JSON.stringify({ error: "Event not found on Luma" });
+
+    // Also fetch tickets
+    const tickets = await this.luma!.getTicketTypes(detail.id);
+
+    return JSON.stringify({ ...detail, ticketTypes: tickets });
+  }
+
+  private async eventTickets(input: ToolInput): Promise<string> {
+    if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+
+    const lumaId = input.event_id.replace(/^luma_/, "");
+    const tickets = await this.luma!.getTicketTypes(lumaId);
+
+    if (!tickets.length) {
+      return JSON.stringify({ tickets: [], message: "No ticket types found" });
+    }
+
+    return JSON.stringify({ tickets });
+  }
+
+  private async eventGuests(input: ToolInput): Promise<string> {
+    if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+
+    const lumaId = input.event_id.replace(/^luma_/, "");
+    const result = await this.luma!.getGuests(lumaId, { status: "approved", limit: 20 });
+
+    return JSON.stringify({
+      total: result.total,
+      guests: result.guests.map((g) => ({
+        name: g.userName,
+        ethAddress: g.ethAddress,
+        solanaAddress: g.solanaAddress,
+      })),
+    });
+  }
+
+  private async eventRsvp(input: ToolInput): Promise<string> {
+    if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+
+    // For RSVP we need an email - construct from user_id or use provided
+    const email = input.query; // Reuse query field for email
+    if (!email || !email.includes("@")) {
+      return JSON.stringify({
+        error: "Email required for RSVP",
+        message: "Please provide your email to RSVP via Luma",
+      });
+    }
+
+    const lumaId = input.event_id.replace(/^luma_/, "");
+    const result = await this.luma!.addGuest(lumaId, email, input.platform_username);
+    return JSON.stringify(result);
+  }
+
+  private async eventLink(input: ToolInput): Promise<string> {
+    if (!input.url) return JSON.stringify({ error: "No URL provided" });
+
+    // Check if it's a lu.ma URL
+    if (input.url.includes("lu.ma") || input.url.includes("luma.com")) {
+      const detail = await this.luma!.lookupEventByUrl(input.url);
+      if (detail) return JSON.stringify(detail);
+    }
+
+    // Try extracting slug from URL
+    const slugMatch = input.url.match(/lu\.ma\/([a-zA-Z0-9-]+)/);
+    if (slugMatch) {
+      const detail = await this.luma!.getEventDetail(slugMatch[1]);
+      if (detail) return JSON.stringify(detail);
+    }
+
+    return JSON.stringify({ error: "Could not find this event on Luma" });
   }
 }
 
@@ -228,18 +228,14 @@ export function formatEventList(events: EventResult[], title: string): string {
       lines.push(`${e.locationName}${e.locationCity ? `, ${e.locationCity}` : ""}`);
     }
 
-    if (e.danceStyles?.length) {
-      lines.push(`${e.danceStyles.slice(0, 3).join(", ")}`);
-    }
-
     if (e.isFree) {
       lines.push(`FREE`);
     } else if (e.price) {
       lines.push(`$${e.price}`);
     }
 
-    if (e.source !== "egator") {
-      lines.push(`_via ${e.source}_`);
+    if (e.rsvpCount) {
+      lines.push(`${e.rsvpCount} going`);
     }
 
     lines.push("");
@@ -247,3 +243,6 @@ export function formatEventList(events: EventResult[], title: string): string {
 
   return lines.join("\n");
 }
+
+// Re-export Luma types for use by bot
+export type { LumaEventDetail, LumaTicketType, LumaGuest };

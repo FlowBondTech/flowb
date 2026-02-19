@@ -12,6 +12,7 @@
     "docs:build": "cd docs && npx vitepress build"
   },
   "dependencies": {
+    "@coinbase/agentkit": "^0.10.4",
     "@farcaster/miniapp-node": "^0.1.13",
     "@farcaster/quick-auth": "^0.0.8",
     "@fastify/cors": "^11.0.0",

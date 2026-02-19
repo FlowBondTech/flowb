@@ -16,16 +16,18 @@ import type { FastifyRequest, FastifyReply } from "fastify";
 // ============================================================================
 
 export interface JWTPayload {
-  /** User identifier: "telegram_<id>" or "farcaster_<fid>" */
+  /** User identifier: "telegram_<id>" or "farcaster_<fid>" or "web_<privyId>" */
   sub: string;
   /** Platform origin */
-  platform: "telegram" | "farcaster" | "app";
+  platform: "telegram" | "farcaster" | "app" | "web";
   /** Telegram user ID (if telegram) */
   tg_id?: number;
   /** Farcaster FID (if farcaster) */
   fid?: number;
   /** Username if known */
   username?: string;
+  /** Privy DID (if linked via Privy) */
+  privyUserId?: string;
   /** Issued at (epoch seconds) */
   iat: number;
   /** Expires at (epoch seconds) */

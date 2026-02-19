@@ -15,6 +15,7 @@ import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
 import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
+import { AgentKitPlugin } from "../plugins/agentkit/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -73,6 +74,12 @@ export class FlowBCore {
       flow.configure(this.config.plugins.flow);
     }
     this.registerPlugin(flow);
+
+    const agentkit = new AgentKitPlugin();
+    if (this.config.plugins?.cdp) {
+      agentkit.configure(this.config.plugins.cdp);
+    }
+    this.registerPlugin(agentkit);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -313,6 +320,13 @@ export class FlowBCore {
   /** Get the Flow plugin config. */
   getFlowConfig(): import("../plugins/flow/index.js").FlowPluginConfig | null {
     return this.config.plugins?.flow || null;
+  }
+
+  /** Get the eGator plugin for direct Luma API access from the bot. */
+  getEGatorPlugin(): EGatorPlugin | null {
+    const egator = this.plugins.get("egator") as EGatorPlugin | undefined;
+    if (!egator?.isConfigured()) return null;
+    return egator;
   }
 
   /** Get the list of all action names (for schema generation) */
