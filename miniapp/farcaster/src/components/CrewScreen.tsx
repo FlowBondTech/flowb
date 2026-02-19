@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry, CrewMessage } from "../api/types";
 import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard, getCrewMessages, sendCrewMessage } from "../api/client";
+import { composeCast, copyToClipboard } from "../lib/farcaster";
 
 interface Props {
   authed: boolean;
@@ -25,7 +26,13 @@ function getMissions(memberCount: number, checkinCount: number): Mission[] {
   ];
 }
 
-function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number }) {
+/** Show display_name if available, otherwise clean up raw user_id */
+function displayName(userId: string, name?: string | null): string {
+  if (name) return name;
+  return userId.replace(/^(telegram_|farcaster_|web_)/, "@");
+}
+
+function LeaderboardRow({ entry, rank, memberMap }: { entry: LeaderboardEntry; rank: number; memberMap: Map<string, string> }) {
   const rankClass = rank <= 3 ? `leaderboard-rank-${rank}` : "";
   const crownIcons: Record<number, string> = { 1: "\uD83D\uDC51", 2: "\uD83E\uDD48", 3: "\uD83E\uDD49" };
 
@@ -36,7 +43,7 @@ function LeaderboardRow({ entry, rank }: { entry: LeaderboardEntry; rank: number
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="leaderboard-name">
-          {entry.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+          {displayName(entry.user_id, memberMap.get(entry.user_id))}
         </div>
         {entry.current_streak > 0 && (
           <div className="leaderboard-meta">
@@ -212,8 +219,8 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
           <div className="crew-chat-messages">
             {messages.map((msg) => {
               const isOwn = msg.user_id === currentUserId;
-              const displayName = msg.display_name || msg.user_id.replace(/^(telegram_|farcaster_)/, "@");
-              const initial = displayName.charAt(0).toUpperCase();
+              const name = displayName(msg.user_id, msg.display_name);
+              const initial = name.charAt(0).toUpperCase();
 
               return (
                 <div key={msg.id} style={{ display: "flex", flexDirection: "column", alignItems: isOwn ? "flex-end" : "flex-start" }}>
@@ -236,7 +243,7 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
                       >
                         {initial}
                       </div>
-                      <span className="crew-chat-sender">{displayName}</span>
+                      <span className="crew-chat-sender">{name}</span>
                     </div>
                   )}
                   <div className={`crew-chat-bubble ${isOwn ? "crew-chat-bubble-own" : "crew-chat-bubble-other"}`}>
@@ -416,6 +423,7 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   }
 
   const missions = getMissions(members.length, checkins.length);
+  const memberMap = new Map(members.map((m) => [m.user_id, m.display_name || ""]));
 
   return (
     <div className="screen">
@@ -447,8 +455,26 @@ export function CrewScreen({ authed, currentUserId }: Props) {
               </div>
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <button className="btn btn-sm btn-secondary" onClick={() => setShowJoin(true)}>
-                Join
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={() => {
+                  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                  composeCast(
+                    `Join my crew "${selectedCrew.name}" on FlowB! Code: ${selectedCrew.join_code}`,
+                    [appUrl],
+                  );
+                }}
+              >
+                Share
+              </button>
+              <button
+                className="btn btn-sm btn-secondary"
+                onClick={async () => {
+                  const ok = await copyToClipboard(selectedCrew.join_code);
+                  if (ok) alert(`Invite code copied: ${selectedCrew.join_code}`);
+                }}
+              >
+                Copy Code
               </button>
             </div>
           </div>
@@ -461,7 +487,7 @@ export function CrewScreen({ authed, currentUserId }: Props) {
                 <div key={i} className="member-row">
                   <span className={`status-dot status-${c.status}`} />
                   <div style={{ flex: 1 }}>
-                    <div className="member-name">{c.user_id.replace(/^(telegram_|farcaster_)/, "@")}</div>
+                    <div className="member-name">{displayName(c.user_id, c.display_name)}</div>
                     <div className="member-status">
                       {c.status === "here" ? "At" : c.status === "heading" ? "Heading to" : "Leaving"}{" "}
                       {c.venue_name}
@@ -479,7 +505,7 @@ export function CrewScreen({ authed, currentUserId }: Props) {
               <div className="section-title">Crew Leaderboard</div>
               <div className="card">
                 {leaderboard.map((entry, i) => (
-                  <LeaderboardRow key={entry.user_id} entry={entry} rank={i + 1} />
+                  <LeaderboardRow key={entry.user_id} entry={entry} rank={i + 1} memberMap={memberMap} />
                 ))}
               </div>
             </>
@@ -506,7 +532,7 @@ export function CrewScreen({ authed, currentUserId }: Props) {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div className="member-name">
-                        {m.user_id.replace(/^(telegram_|farcaster_)/, "@")}
+                        {displayName(m.user_id, m.display_name)}
                         {m.role === "admin" && (
                           <span style={{ color: "var(--accent)", fontSize: 11, marginLeft: 4 }}>admin</span>
                         )}

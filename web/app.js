@@ -1,4 +1,4 @@
-const API = 'https://egator-api.fly.dev';
+const API = 'https://flowb.fly.dev';
 const FLOWB_API = 'https://flowb.fly.dev';
 
 // FlowB Chat API (proxied through flowb.fly.dev → xAI Grok)
@@ -53,11 +53,31 @@ const chatStatusText = document.getElementById('flowbStatusText');
 
 // ===== API =====
 
+// Map category icon names to emoji
+const CATEGORY_ICONS = {
+  coins: '\uD83E\uDE99', defi: '\uD83E\uDE99',
+  brain: '\uD83E\uDDE0', ai: '\uD83E\uDDE0',
+  server: '\uD83D\uDD27', infrastructure: '\uD83D\uDD27',
+  hammer: '\uD83D\uDD28', build: '\uD83D\uDD28',
+  briefcase: '\uD83D\uDCBC', capital: '\uD83D\uDCBC',
+  'party-popper': '\uD83C\uDF89', social: '\uD83C\uDF89',
+  sparkles: '\u2728', wellness: '\uD83E\uDDD8',
+  shield: '\uD83D\uDD12', privacy: '\uD83D\uDD12',
+  palette: '\uD83C\uDFA8', art: '\uD83C\uDFA8',
+  globe: '\uD83C\uDF10', gaming: '\uD83C\uDFAE',
+};
+
 async function fetchCategories() {
   try {
     const res = await fetch(`${API}/api/v1/categories`);
     const data = await res.json();
-    categories = data.categories || [];
+    // Normalize to expected shape: { id, emoji, label, count }
+    categories = (data.categories || []).map(c => ({
+      id: c.slug || c.id,
+      emoji: CATEGORY_ICONS[c.icon] || CATEGORY_ICONS[c.slug] || '',
+      label: c.name || c.slug,
+      count: c.count || '',
+    }));
     renderCategories();
   } catch (err) {
     console.error('Failed to fetch categories:', err);
@@ -66,13 +86,19 @@ async function fetchCategories() {
 
 async function fetchEvents(params = {}) {
   try {
-    const res = await fetch(`${API}/api/v1/discover`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ limit: 50, ...params }),
-    });
+    // Map old POST params to new GET query params
+    const qp = new URLSearchParams();
+    qp.set('limit', String(params.limit || 50));
+    if (params.mainCategory) qp.set('categories', params.mainCategory);
+    if (params.query) qp.set('q', params.query);
+    if (params.startDate) qp.set('from', params.startDate + 'T00:00:00');
+    if (params.endDate) qp.set('to', params.endDate + 'T23:59:59');
+    if (params.freeOnly) qp.set('free', 'true');
+    if (params.city) qp.set('city', params.city);
+
+    const res = await fetch(`${API}/api/v1/events?${qp}`);
     const data = await res.json();
-    return data.events || [];
+    return (data.events || []).map(normalizeEvent);
   } catch (err) {
     console.error('Failed to fetch events:', err);
     return [];
@@ -80,9 +106,29 @@ async function fetchEvents(params = {}) {
 }
 
 async function fetchTonight() {
-  const res = await fetch(`${API}/api/v1/discover/tonight`);
-  const data = await res.json();
-  return data.events || [];
+  try {
+    const now = new Date();
+    const today = now.toISOString().slice(0, 10);
+    return await fetchEvents({ startDate: today, endDate: today, limit: 50 });
+  } catch (err) {
+    console.error('Failed to fetch tonight events:', err);
+    return [];
+  }
+}
+
+// Normalize new API shape to the format createEventCard expects
+function normalizeEvent(e) {
+  return {
+    ...e,
+    venue: e.venue || (e.locationName ? { name: e.locationName } : null),
+    organizer: e.organizer || (e.organizerName ? { name: e.organizerName } : null),
+    isOnline: e.isVirtual || false,
+    attendeeCount: e.attendeeCount || e.rsvpCount || 0,
+    mainCategoryEmoji: e.mainCategoryEmoji || '',
+    mainCategoryLabel: e.mainCategoryLabel || (e.categories && e.categories[0]) || '',
+    price: typeof e.price === 'number' ? { min: e.price, max: e.price } : e.price || null,
+    imageUrl: e.imageUrl || e.coverUrl || null,
+  };
 }
 
 // ===== Public API: Leaderboard =====
@@ -132,7 +178,7 @@ function renderCategories() {
     const btn = document.createElement('button');
     btn.className = 'cat-chip';
     btn.dataset.cat = cat.id;
-    btn.innerHTML = `${cat.emoji} ${cat.label} <span class="cat-count">${cat.count}</span>`;
+    btn.innerHTML = `${cat.emoji} ${cat.label}${cat.count ? ` <span class="cat-count">${cat.count}</span>` : ''}`;
     btn.addEventListener('click', () => selectCategory(cat.id));
     catRow.appendChild(btn);
   }
@@ -976,9 +1022,7 @@ async function handleWhosGoingAction() {
 
   // Try to get tonight's events first
   try {
-    const res = await fetch(`${API}/api/v1/discover/tonight`);
-    const data = await res.json();
-    const events = data.events || [];
+    const events = await fetchTonight();
 
     removeTypingIndicator();
 
@@ -988,7 +1032,7 @@ async function handleWhosGoingAction() {
       let text = `**Tonight's Events** (${events.length})\n\n`;
       for (const e of events.slice(0, 6)) {
         const time = new Date(e.startTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-        const venue = e.venue?.name ? ` at ${e.venue.name}` : '';
+        const venue = e.venue?.name || e.locationName ? ` at ${e.venue?.name || e.locationName}` : '';
         const price = e.isFree ? ' [Free]' : '';
         text += `${e.mainCategoryEmoji || ''} **${e.title}**\n${time}${venue}${price}\n\n`;
       }
@@ -1212,17 +1256,17 @@ async function processSingleCommand(lower) {
     const data = await res.json();
     let text = '**Event Categories**\n\n';
     for (const cat of data.categories) {
-      text += `${cat.emoji} **${cat.label}** — ${cat.count} events\n`;
+      const emoji = CATEGORY_ICONS[cat.icon] || CATEGORY_ICONS[cat.slug] || '';
+      text += `${emoji} **${cat.name || cat.slug}** \n`;
     }
     text += '\nSay "browse defi" or "browse ai" to see events.';
     return text;
   }
 
   if (lower === 'tonight' || /tonight/i.test(lower)) {
-    const res = await fetch(`${API}/api/v1/discover/tonight`);
-    const data = await res.json();
-    if (!data.events?.length) return 'No events tonight. Try "week" or "categories".';
-    return formatChatEvents(data.events, "Tonight's Events");
+    const events = await fetchTonight();
+    if (!events.length) return 'No events tonight. Try "week" or "categories".';
+    return formatChatEvents(events, "Tonight's Events");
   }
 
   if (lower === 'week' || lower === 'this week') {

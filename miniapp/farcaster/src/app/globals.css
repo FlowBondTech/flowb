@@ -48,7 +48,7 @@ body {
 }
 
 /* ===== Layout ===== */
-.app { min-height: 100vh; padding-bottom: 80px; }
+.app { min-height: 100vh; padding-bottom: 100px; }
 .screen { padding: 16px; animation: fadeIn 0.25s ease; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
@@ -356,8 +356,8 @@ div.featured-img {
   -webkit-backdrop-filter: blur(16px);
   border-top: 1px solid var(--border);
   display: flex;
-  padding: 6px 0;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  padding: 8px 0;
+  padding-bottom: max(20px, calc(env(safe-area-inset-bottom) + 8px));
   z-index: 100;
 }
 .nav-item {

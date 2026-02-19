@@ -183,10 +183,9 @@ export async function quickAuth(): Promise<string | null> {
 
 export async function composeCast(text: string, embeds?: string[]): Promise<void> {
   try {
-    // Use SDK-native composeCast — works across Warpcast, Base, and any Farcaster client
-    await (sdk.actions as any).composeCast({
+    await sdk.actions.composeCast({
       text,
-      embeds: embeds?.map((url) => ({ url })),
+      embeds: embeds as [] | [string] | [string, string] | undefined,
     });
   } catch {
     // Fallback: open compose URL in the correct client
@@ -199,6 +198,72 @@ export async function composeCast(text: string, embeds?: string[]): Promise<void
     } catch (err) {
       console.error("[farcaster] composeCast failed:", err);
     }
+  }
+}
+
+/**
+ * Reply to a cast — opens the native composer with the parent set.
+ */
+export async function replyCast(parentHash: string, text?: string): Promise<void> {
+  try {
+    await sdk.actions.composeCast({
+      text: text || "",
+      parent: { type: "cast", hash: parentHash },
+    });
+  } catch {
+    // Fallback: open the cast in client (user can reply from there)
+    try {
+      await sdk.actions.viewCast({ hash: parentHash });
+    } catch (err) {
+      console.error("[farcaster] replyCast failed:", err);
+    }
+  }
+}
+
+/**
+ * Quote-cast — opens the composer with the original cast URL embedded.
+ */
+export async function quoteCast(castUrl: string, text?: string): Promise<void> {
+  try {
+    await sdk.actions.composeCast({
+      text: text || "",
+      embeds: [castUrl],
+    });
+  } catch {
+    try {
+      const client = getClientType();
+      const base = client === "base" ? "https://farcaster.xyz" : "https://warpcast.com";
+      await sdk.actions.openUrl(
+        `${base}/~/compose?embeds[]=${encodeURIComponent(castUrl)}`,
+      );
+    } catch (err) {
+      console.error("[farcaster] quoteCast failed:", err);
+    }
+  }
+}
+
+/**
+ * Open a cast in the native client (for liking, viewing thread, etc).
+ */
+export async function viewCast(hash: string, authorUsername?: string): Promise<void> {
+  try {
+    await sdk.actions.viewCast({ hash, authorUsername });
+  } catch {
+    const url = authorUsername
+      ? getCastUrl(authorUsername, hash)
+      : `https://warpcast.com/~/conversations/${hash}`;
+    openUrl(url);
+  }
+}
+
+/**
+ * Open a profile in the native client.
+ */
+export async function viewProfile(fid: number): Promise<void> {
+  try {
+    await sdk.actions.viewProfile({ fid });
+  } catch (err) {
+    console.error("[farcaster] viewProfile failed:", err);
   }
 }
 

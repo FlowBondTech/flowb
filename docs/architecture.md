@@ -15,12 +15,10 @@ title: Architecture
          (static)        /docs/             /f/ /g/ /gi/
               |                              -> t.me deep links
               |
-     +--------+--------+
-     |                  |
-egator-api.fly.dev   flowb.fly.dev
-(Event Discovery)    (User/Social/Auth)
-     |                  |
-     +--------+---------+
+              +
+              |
+        flowb.fly.dev
+   (All API: Events/Auth/Social)
               |
          Supabase (DB)
               |
@@ -36,12 +34,13 @@ egator-api.fly.dev   flowb.fly.dev
    neynar | danz
 ```
 
-## Backend Servers
+## Backend Server
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **eGator API** | `egator-api.fly.dev` | Event discovery, categories, search, tonight |
-| **FlowB API** | `flowb.fly.dev` | Auth, user profiles, crews, RSVP, points, calendar |
+| **FlowB API** | `flowb.fly.dev` | All routes: events, categories, auth, user profiles, crews, RSVP, points, calendar |
+
+> `egator-api.fly.dev` is deprecated. All routes consolidated into `flowb.fly.dev`.
 
 ## Frontend Apps
 

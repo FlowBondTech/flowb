@@ -4,12 +4,13 @@ title: API Reference
 
 # API Reference
 
-FlowB exposes two backend servers:
+FlowB runs on a single consolidated backend server:
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **eGator API** | `egator-api.fly.dev` | Event discovery (categories, discover, tonight) |
-| **FlowB API** | `flowb.fly.dev` | User auth, social, crews, points, RSVP, calendar |
+| **FlowB API** | `flowb.fly.dev` | All routes: events, categories, auth, social, crews, points, RSVP, calendar |
+
+> **Note:** `egator-api.fly.dev` is deprecated (returns 404). All event discovery routes have been consolidated into `flowb.fly.dev`.
 
 ---
 
@@ -33,7 +34,7 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/events` | No | DB-first discovery |
+| `GET` | `/api/v1/events` | No | DB-first discovery (`?city=&categories=&zone=&type=&date=&from=&to=&featured=&free=&q=&limit=&offset=`) |
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |

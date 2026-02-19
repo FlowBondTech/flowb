@@ -495,13 +495,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // EVENTS: DB-first discovery
   // Accepts: ?city=&categories=&zone=&type=&date=&from=&to=&featured=&q=&limit=&offset=
   // ------------------------------------------------------------------
-  app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; q?: string; limit?: string; offset?: string } }>(
+  app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; free?: string; q?: string; limit?: string; offset?: string } }>(
     "/api/v1/events",
     async (request) => {
       const cfg = getSupabaseConfig();
       if (!cfg) return { events: [], total: 0 };
 
-      const { city, categories, zone, type, date, from, to, featured, q, limit, offset } = request.query;
+      const { city, categories, zone, type, date, from, to, featured, free: freeOnly, q, limit, offset } = request.query;
       const maxResults = Math.min(parseInt(limit || "50", 10), 200);
       const skip = parseInt(offset || "0", 10);
 
@@ -512,6 +512,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (zone) query += `&zone_id=eq.${encodeURIComponent(zone)}`;
       if (type) query += `&event_type=eq.${encodeURIComponent(type)}`;
       if (featured === "true") query += `&featured=eq.true`;
+      if (freeOnly === "true") query += `&is_free=eq.true`;
       if (date) {
         const dayStart = `${date}T00:00:00`;
         const dayEnd = `${date}T23:59:59`;
