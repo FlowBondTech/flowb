@@ -16,6 +16,7 @@ import type {
   CrewMission,
   FeedCast,
   GlobalCrewRanking,
+  GlobalUserRanking,
 } from "./types";
 
 let authToken: string | null = null;
@@ -262,6 +263,10 @@ export async function getPoints(): Promise<PointsInfo> {
 
 export async function getGlobalLeaderboard() {
   return get<{ crews: any[] }>("/api/v1/flow/leaderboard");
+}
+
+export async function getGlobalUserLeaderboard() {
+  return get<{ users: GlobalUserRanking[] }>("/api/v1/flow/leaderboard/users");
 }
 
 // ── Feed ─────────────────────────────────────────────────────────

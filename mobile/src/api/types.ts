@@ -118,6 +118,14 @@ export interface LeaderboardEntry {
   current_streak: number;
 }
 
+export interface GlobalUserRanking {
+  user_id: string;
+  display_name: string | null;
+  total_points: number;
+  current_streak: number;
+  level: number;
+}
+
 export interface EventSocial {
   goingCount: number;
   maybeCount: number;
