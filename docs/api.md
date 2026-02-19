@@ -28,6 +28,7 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/api/v1/feed/ethdenver` | No | EthDenver Farcaster Feed (aggregates posts with keywords) |
+| `GET` | `/api/v1/feed/activity` | Yes | Global activity feed — check-ins, hot venues, trending events |
 
 ## EVENTS
 
@@ -88,7 +89,13 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/v1/chat/completions` | No | AI Chat Completions (xAI Grok proxy) |
+| `POST` | `/v1/chat/completions` | No | AI Chat with tool calling (xAI Grok + FlowB tools) |
+
+## LOCATION
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/me/location` | Yes | Update personal location (requires auth) |
 
 ## FARCASTER
 
@@ -208,6 +215,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/health` | No |  |
 
+## Luma API health check (cached 5 min)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/health/luma` | No |  |
+
 ## Generic action endpoint - preserves the agent/plugin router pattern
 
 | Method | Path | Auth | Description |
@@ -252,4 +265,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 23:44:02 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-19 23:46:28 UTC*
