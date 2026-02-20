@@ -111,6 +111,7 @@ interface TgSession {
   checkinEventId?: string;
   awaitingProofPhoto?: boolean;
   danceMoveForProof?: string;
+  awaitingCrewName?: boolean;
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -264,6 +265,10 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     danzUsername: partial.danzUsername ?? existing?.danzUsername,
     verified: partial.verified ?? existing?.verified ?? false,
     chatHistory: partial.chatHistory ?? existing?.chatHistory ?? [],
+    checkinEventId: partial.checkinEventId ?? existing?.checkinEventId,
+    awaitingProofPhoto: partial.awaitingProofPhoto ?? existing?.awaitingProofPhoto,
+    danceMoveForProof: partial.danceMoveForProof ?? existing?.danceMoveForProof,
+    awaitingCrewName: partial.awaitingCrewName ?? existing?.awaitingCrewName,
   };
   sessions.set(userId, session);
 
@@ -957,11 +962,21 @@ export function startTelegramBot(
 
     const args = ctx.match?.trim();
 
-    // /crew create Salsa Wolves
-    if (args?.startsWith("create ")) {
-      const name = args.slice(7).trim();
+    // /crew create Salsa Wolves  (or just /crew create)
+    if (args === "create" || args?.startsWith("create ")) {
+      const name = args === "create" ? "" : args.slice(7).trim();
       if (!name) {
-        await ctx.reply("Usage: <code>/crew create Crew Name</code>", { parse_mode: "HTML" });
+        setSession(tgId, { awaitingCrewName: true });
+        await ctx.reply(
+          [
+            "\ud83d\ude80 <b>Create a Crew</b>",
+            "",
+            "What would you like to name your crew?",
+            "",
+            "Tip: start with an emoji for flair! e.g. <b>\ud83d\udc3a Salsa Wolves</b>",
+          ].join("\n"),
+          { parse_mode: "HTML" },
+        );
         return;
       }
       const result = await core.execute("crew-create", {
@@ -1517,10 +1532,16 @@ export function startTelegramBot(
                   { parse_mode: "HTML", reply_markup: buildCrewBrowseKeyboard(crews) },
                 );
               } else {
-                await ctx.reply("No public crews yet. Be the first to create one with /crew create!");
+                await ctx.reply("No public crews yet. Be the first to create one!", {
+                  parse_mode: "HTML",
+                  reply_markup: new InlineKeyboard().text("\ud83d\ude80 Create Crew", "fl:crew-create"),
+                });
               }
             } catch {
-              await ctx.reply("No public crews found. Try /crew create to start one!");
+              await ctx.reply("No public crews found.", {
+                parse_mode: "HTML",
+                reply_markup: new InlineKeyboard().text("\ud83d\ude80 Create Crew", "fl:crew-create"),
+              });
             }
           }
           return;
@@ -1528,13 +1549,14 @@ export function startTelegramBot(
 
         if (value === "create") {
           await completeOnboarding(ctx, tgId, core, miniAppUrl);
+          setSession(tgId, { awaitingCrewName: true });
           await ctx.reply(
             [
-              "<b>Create a Crew</b>",
+              "\ud83d\ude80 <b>Create a Crew</b>",
               "",
-              "Send the command with your crew name:",
+              "What would you like to name your crew?",
               "",
-              "<code>/crew create Salsa Wolves</code>",
+              "Tip: start with an emoji for flair! e.g. <b>\ud83d\udc3a Salsa Wolves</b>",
             ].join("\n"),
             { parse_mode: "HTML" },
           );
@@ -2167,16 +2189,14 @@ export function startTelegramBot(
 
       if (action === "crew-create") {
         await ctx.answerCallbackQuery();
+        setSession(tgId, { awaitingCrewName: true });
         await ctx.reply(
           [
             "\ud83d\ude80 <b>Create a Crew</b>",
             "",
-            "Send the command with your crew name:",
+            "What would you like to name your crew?",
             "",
-            "<code>/crew create Salsa Wolves</code>",
-            "",
-            "Tip: start with an emoji for flair!",
-            "<code>/crew create \ud83d\udc3a Salsa Wolves</code>",
+            "Tip: start with an emoji for flair! e.g. <b>\ud83d\udc3a Salsa Wolves</b>",
           ].join("\n"),
           { parse_mode: "HTML" },
         );
@@ -2901,6 +2921,29 @@ export function startTelegramBot(
     if (lower === "points") {
       await sendCoreAction(ctx, core, "my-points");
       return;
+    }
+
+    // ---- Awaiting crew name (conversational crew creation) ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingCrewName) {
+        setSession(tgId, { awaitingCrewName: false });
+        const name = text.trim();
+        if (!name) {
+          await ctx.reply("Please send a crew name.");
+          return;
+        }
+        await ctx.replyWithChatAction("typing");
+        const result = await core.execute("crew-create", {
+          action: "crew-create",
+          user_id: userId(tgId),
+          platform: "telegram",
+          query: name,
+        });
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        core.awardPoints(userId(tgId), "telegram", "crew_created").catch(() => {});
+        return;
+      }
     }
 
     // ---- LLM Chat (everything else) ----
