@@ -768,8 +768,7 @@ export function formatCrewMenuHtml(): string {
     "",
     "Crews are group flows \u2014 your dance squad, festival friends, class cohort.",
     "",
-    "<b>/crew create Name</b> \u2014 start a new crew",
-    "Or join one via an invite link!",
+    "Tap <b>Create Crew</b> to start a new crew, or join one via an invite link!",
   ].join("\n");
 }
 

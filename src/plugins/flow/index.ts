@@ -509,7 +509,7 @@ export class FlowPlugin implements FlowBPlugin {
     if (!uid) return "User ID required.";
 
     const name = input?.query;
-    if (!name) return "Crew name required. Example: /crew create Salsa Wolves";
+    if (!name) return "Crew name required.";
 
     // Parse emoji from name if present (first char if emoji)
     const emojiMatch = name.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
