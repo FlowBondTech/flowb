@@ -233,9 +233,125 @@ const SOURCE_META = {
   egator: { color: '#3b82f6', label: 'eGator' },
 };
 
+// Scout lore — flavor text for each event source agent
+const SCOUT_LORE = {
+  luma: {
+    name: 'Luma Scout',
+    emoji: '\uD83D\uDD25',
+    title: 'The Insider',
+    description: 'Directly tapped into Luma\'s event network. This scout has VIP access to RSVPs, guest lists, and ticket drops before anyone else knows about them.',
+    activity: 'Monitoring Luma\'s discover feed and official API for new Denver events in real-time.',
+    trait: 'Always first to know',
+  },
+  eventbrite: {
+    name: 'Eventbrite Scout',
+    emoji: '\uD83C\uDFAB',
+    title: 'The Ticket Master',
+    description: 'Crawls Eventbrite\'s massive event database, filtering through thousands of listings to surface the ones that matter for ETHDenver attendees.',
+    activity: 'Scanning Eventbrite API v3 for Denver-area crypto, tech, and community events.',
+    trait: 'Never misses a ticket drop',
+  },
+  ra: {
+    name: 'RA Scout',
+    emoji: '\uD83C\uDFB6',
+    title: 'The Nightlife Oracle',
+    description: 'Tapped into Resident Advisor\'s underground music and nightlife network. If there\'s a party worth going to, this scout already has the details.',
+    activity: 'Querying RA\'s GraphQL API for club nights, DJ sets, and afterparties near Denver.',
+    trait: 'Knows every afterparty',
+  },
+  brave: {
+    name: 'Brave Scout',
+    emoji: '\uD83E\uDD81',
+    title: 'The Web Crawler',
+    description: 'Roams the open web using Brave Search, finding events that slip through the cracks of traditional platforms. No event page escapes its gaze.',
+    activity: 'Running deep web searches across blogs, community boards, and indie event pages.',
+    trait: 'Finds the hidden gems',
+  },
+  'google-places': {
+    name: 'Google Scout',
+    emoji: '\uD83D\uDCCD',
+    title: 'The Venue Hunter',
+    description: 'Maps every venue in Denver and cross-references them with event activity. If a venue is buzzing, this scout knows why.',
+    activity: 'Scanning Google Places API for venue-based event signals and new pop-up locations.',
+    trait: 'Knows every corner of Denver',
+  },
+  tavily: {
+    name: 'Tavily Scout',
+    emoji: '\uD83D\uDD2E',
+    title: 'The Deep Scraper',
+    description: 'A two-phase intelligence agent. First it searches, then it extracts. Turns any event page on the internet into structured data FlowB can use.',
+    activity: 'Running search-and-extract missions across lu.ma, dice.fm, ra.co, and more.',
+    trait: 'Extracts signal from noise',
+  },
+  egator: {
+    name: 'eGator',
+    emoji: '\uD83D\uDC0A',
+    title: 'The Aggregator',
+    description: 'The mastermind coordinating all scouts. eGator deduplicates, categorizes, and ranks events from every source into one unified feed.',
+    activity: 'Merging intelligence from all scouts and maintaining the master event index.',
+    trait: 'The brain behind the operation',
+  },
+};
+
 function getSourceMeta(source) {
   return SOURCE_META[source] || { color: '#888', label: source || 'Event' };
 }
+
+// ===== Scout Lore Popup =====
+
+function showScoutLore(sourceId, badgeEl) {
+  const lore = SCOUT_LORE[sourceId];
+  if (!lore) return;
+
+  const popup = document.getElementById('scoutLorePopup');
+  document.getElementById('scoutLoreEmoji').textContent = lore.emoji;
+  document.getElementById('scoutLoreName').textContent = lore.name;
+  document.getElementById('scoutLoreTitle').textContent = lore.title;
+  document.getElementById('scoutLoreDesc').textContent = lore.description;
+  document.getElementById('scoutLoreActivity').textContent = lore.activity;
+  document.getElementById('scoutLoreTrait').textContent = `"${lore.trait}"`;
+
+  // Position near the badge
+  const rect = badgeEl.getBoundingClientRect();
+  popup.classList.remove('hidden');
+
+  const popupW = popup.offsetWidth;
+  const popupH = popup.offsetHeight;
+
+  // Default: below and left-aligned to badge
+  let top = rect.bottom + 8;
+  let left = rect.right - popupW;
+
+  // Clamp to viewport
+  if (left < 16) left = 16;
+  if (left + popupW > window.innerWidth - 16) left = window.innerWidth - popupW - 16;
+  if (top + popupH > window.innerHeight - 16) {
+    // Place above the badge instead
+    top = rect.top - popupH - 8;
+  }
+  if (top < 16) top = 16;
+
+  popup.style.top = top + 'px';
+  popup.style.left = left + 'px';
+
+  awardPoints(1, 'Scout inspected');
+}
+
+function hideScoutLore() {
+  document.getElementById('scoutLorePopup').classList.add('hidden');
+}
+
+window.showScoutLore = showScoutLore;
+
+document.getElementById('scoutLoreClose').addEventListener('click', hideScoutLore);
+
+// Close scout lore when clicking outside
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('scoutLorePopup');
+  if (!popup.classList.contains('hidden') && !popup.contains(e.target) && !e.target.closest('.event-card-source')) {
+    hideScoutLore();
+  }
+});
 
 function createEventCard(e) {
   const date = new Date(e.startTime);
@@ -259,10 +375,10 @@ function createEventCard(e) {
     ? `<span class="event-attendees"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>${e.attendeeCount}</span>`
     : '';
 
-  // Source badge
+  // Source badge (clickable — shows scout lore)
   const src = getSourceMeta(e.source);
   const sourceBadge = e.source
-    ? `<span class="event-card-source"><span class="source-dot" style="background:${src.color}"></span>${src.label}</span>`
+    ? `<span class="event-card-source" data-source="${e.source}" onclick="event.stopPropagation(); showScoutLore('${e.source}', this)"><span class="source-dot" style="background:${src.color}"></span>${src.label}</span>`
     : '';
 
   const thumbUrl = optimizeImageUrl(e.imageUrl);
