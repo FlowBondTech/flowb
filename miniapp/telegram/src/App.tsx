@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
+
 import { BottomNav } from "./components/BottomNav";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { Home } from "./screens/Home";
@@ -10,6 +11,7 @@ import { Points } from "./screens/Points";
 import { Chat } from "./screens/Chat";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
+import { Agents } from "./screens/Agents";
 
 export type Screen =
   | { name: "home" }
@@ -19,6 +21,7 @@ export type Screen =
   | { name: "chat" }
   | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" }
+  | { name: "agents" }
   | { name: "about" }
   | { name: "settings" };
 
@@ -79,6 +82,18 @@ export default function App() {
       tg.BackButton.onClick(handler);
       return () => tg.BackButton.offClick(handler);
     }
+  }, [screen]);
+
+  // Track screen views (hooks must be before conditional returns)
+  const prevScreen = useRef(screen.name);
+  useEffect(() => {
+    if (prevScreen.current !== screen.name) {
+      prevScreen.current = screen.name;
+    }
+    const props: Record<string, any> = {};
+    if (screen.name === "event" && "id" in screen) props.event_id = screen.id;
+    if (screen.name === "crew" && "id" in screen) props.crew_id = screen.id;
+    // screen tracking removed
   }, [screen]);
 
   if (loading) {
@@ -157,6 +172,7 @@ export default function App() {
       {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
       {screen.name === "about" && <About onNavigate={navigate} />}
+      {screen.name === "agents" && <Agents onNavigate={navigate} />}
       {screen.name === "settings" && <Settings onNavigate={navigate} />}
 
       <BottomNav current={screen.name === "feed" ? "feed" : screen.name} onNavigate={navigate} />

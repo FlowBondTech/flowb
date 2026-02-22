@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl, hapticImpact, hapticNotification, hapticSelection, sendToken, swapToken, viewToken, BASE_USDC, BASE_ETH } from "../lib/farcaster";
+import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl, hapticImpact, hapticNotification, hapticSelection, sendToken, swapToken, viewToken, getClientType, BASE_USDC, BASE_ETH } from "../lib/farcaster";
 import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints, sendChat, getCrews, getCrewMembers } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
+
 import type { EventResult, ScheduleEntry, FeedItem, CrewInfo, CrewMember, CrewCheckin as CrewCheckinType } from "../api/types";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { BottomNav } from "../components/BottomNav";
@@ -15,8 +16,9 @@ import { WebLanding } from "../components/WebLanding";
 import { FlowBChat } from "../components/FlowBChat";
 import { EthDenverFeed } from "../components/EthDenverFeed";
 import { AboutScreen } from "../components/AboutScreen";
+import { AgentsScreen } from "../components/AgentsScreen";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents";
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
@@ -270,7 +272,7 @@ export default function FarcasterApp() {
         if (deepEvent) {
           setEventId(deepEvent);
           setScreen("event");
-        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat"].includes(deepScreen)) {
+        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat", "agents"].includes(deepScreen)) {
           setScreen(deepScreen as Screen);
         }
       } catch {}
@@ -493,6 +495,8 @@ export default function FarcasterApp() {
     }
   };
 
+  const [justCheckedIn, setJustCheckedIn] = useState<string | null>(null);
+
   const handleScheduleCheckin = async (entry: ScheduleEntry) => {
     try {
       hapticImpact("heavy");
@@ -501,13 +505,16 @@ export default function FarcasterApp() {
         prev.map((e) => (e.id === entry.id ? { ...e, checked_in: true } : e)),
       );
       hapticNotification("success");
+      setJustCheckedIn(entry.id);
     } catch (err) {
       console.error("Checkin failed:", err);
       hapticNotification("error");
     }
   };
 
-  const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat") => {
+  const prevScreen = useRef(screen);
+
+  const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat" | "agents") => {
     hapticSelection();
     setScreen(tab);
   }, []);
@@ -1067,9 +1074,28 @@ export default function FarcasterApp() {
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
                 Added to your schedule. You'll get reminders before it starts.
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowRsvpConfirm(false)} style={{ margin: "0 auto" }}>
-                Done
-              </button>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    hapticImpact("light");
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                    composeCast(
+                      `I just RSVP'd to ${selectedEvent.title} on FlowB! Who's joining?`,
+                      [`${appUrl}?event=${eventId}`],
+                    );
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style={{ width: 14, height: 14 }}>
+                    <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                  </svg>
+                  Share on Farcaster
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowRsvpConfirm(false)}>
+                  Done
+                </button>
+              </div>
               <style>{`@keyframes rsvpPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }`}</style>
             </div>
           )}
@@ -1099,6 +1125,14 @@ export default function FarcasterApp() {
                 </>
               )}
             </div>
+          )}
+          {!showRsvpConfirm && !rsvpStatus && (
+            <p style={{ fontSize: 11, color: "var(--text-muted, #888)", margin: "-4px 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              This does not register you on Luma
+            </p>
           )}
 
           {/* Share Row: Farcaster | X | Copy Link */}
@@ -1132,10 +1166,10 @@ export default function FarcasterApp() {
             </button>
           </div>
 
-          {/* Wallet Actions */}
+          {/* Boost this Event */}
           <div className="card" style={{ marginTop: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-muted)" }}>
-              Wallet
+              Boost this Event
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -1227,9 +1261,28 @@ export default function FarcasterApp() {
                     {s.rsvp_status}
                   </span>
                   {s.checked_in ? (
-                    <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 600 }}>
-                      Checked In
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 600 }}>
+                        Checked In
+                      </span>
+                      <button
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(99, 102, 241, 0.12)", color: "var(--accent, #6366f1)", border: "none", display: "flex", alignItems: "center", gap: 4 }}
+                        onClick={() => {
+                          hapticImpact("light");
+                          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                          composeCast(
+                            `Just checked in to ${s.event_title}! ${s.venue_name ? `@ ${s.venue_name}` : ""}`,
+                            [s.event_source_id ? `${appUrl}?event=${s.event_source_id}` : appUrl],
+                          );
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11" style={{ width: 11, height: 11 }}>
+                          <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                        </svg>
+                        Share
+                      </button>
+                    </div>
                   ) : (
                     <button
                       className="btn btn-sm btn-success"
@@ -1239,6 +1292,36 @@ export default function FarcasterApp() {
                     </button>
                   )}
                 </div>
+                {justCheckedIn === s.id && (
+                  <div style={{ marginTop: 10, padding: 12, background: "rgba(99, 102, 241, 0.08)", borderRadius: 10, textAlign: "center" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                      Let your crew know you're here!
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          hapticImpact("light");
+                          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                          composeCast(
+                            `Just checked in to ${s.event_title}! ${s.venue_name ? `@ ${s.venue_name} ` : ""}Who else is here?`,
+                            [s.event_source_id ? `${appUrl}?event=${s.event_source_id}` : appUrl],
+                          );
+                          setJustCheckedIn(null);
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 5 }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style={{ width: 13, height: 13 }}>
+                          <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                        </svg>
+                        Share on Farcaster
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setJustCheckedIn(null)}>
+                        Skip
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -1259,6 +1342,9 @@ export default function FarcasterApp() {
 
       {/* About Screen */}
       {screen === "about" && <AboutScreen onBack={() => setScreen("home")} />}
+
+      {/* Agents Screen */}
+      {screen === "agents" && <AgentsScreen authed={authed} currentUserId={userId} />}
 
       {/* Bottom Navigation */}
       <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />

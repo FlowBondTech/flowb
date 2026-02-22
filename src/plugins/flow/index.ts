@@ -17,6 +17,7 @@ import type {
   FlowBContext,
   ToolInput,
 } from "../../core/types.js";
+import { sbQuery, sbInsert, sbUpsert, sbPatch, sbDelete, type SbConfig } from "../../utils/supabase.js";
 
 // ============================================================================
 // Config
@@ -92,88 +93,6 @@ export interface EventAttendance {
   status: string;
   visibility: string;
   created_at: string;
-}
-
-// ============================================================================
-// Supabase Helpers
-// ============================================================================
-
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
-
-async function sbQuery<T>(cfg: SbConfig, table: string, params: Record<string, string>): Promise<T | null> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
-}
-
-async function sbInsert<T = any>(cfg: SbConfig, table: string, data: Record<string, any>): Promise<T | null> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-    method: "POST",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
-}
-
-async function sbUpsert<T = any>(cfg: SbConfig, table: string, data: Record<string, any>, onConflict: string): Promise<T | null> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}?on_conflict=${onConflict}`, {
-    method: "POST",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation,resolution=merge-duplicates",
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
-}
-
-async function sbPatch(cfg: SbConfig, table: string, filter: Record<string, string>, data: Record<string, any>): Promise<boolean> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    method: "PATCH",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(data),
-  });
-  return res.ok;
-}
-
-async function sbDelete(cfg: SbConfig, table: string, filter: Record<string, string>): Promise<boolean> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    method: "DELETE",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  return res.ok;
 }
 
 // ============================================================================
@@ -892,7 +811,7 @@ export class FlowPlugin implements FlowBPlugin {
    */
   async crewBrowse(cfg: FlowPluginConfig): Promise<string> {
     const crews = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
-      select: "id,name,emoji,description,join_mode,created_at",
+      select: "id,name,emoji,description,join_code,join_mode,created_at",
       is_public: "eq.true",
       order: "created_at.desc",
       limit: "20",

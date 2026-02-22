@@ -26,58 +26,17 @@ import {
   notifyCrewJoin,
   notifyCrewCheckin,
   notifyCrewLocate,
+  notifyCrewMessage,
 } from "../services/notifications.js";
 import { handleChat, type UserContext } from "../services/ai-chat.js";
 import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
-// Identity resolution imported dynamically where needed (../services/identity.js)
+import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
+import { sbFetch, sbPost, type SbConfig } from "../utils/supabase.js";
+import { log, fireAndForget } from "../utils/logger.js";
 
-// ============================================================================
-// Supabase helper (reused from flow plugin pattern)
-// ============================================================================
-
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
-
-async function sbFetch<T>(cfg: SbConfig, path: string, init?: RequestInit): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      ...init,
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        ...(init?.headers || {}),
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch {
-    return null;
-  }
-}
-
-async function sbPost(cfg: SbConfig, path: string, body: any, prefer = "return=representation"): Promise<any> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: prefer,
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    if (prefer === "return=minimal") return true;
-    const result = await res.json();
-    return Array.isArray(result) ? result[0] : result;
-  } catch {
-    return null;
-  }
-}
 
 // ============================================================================
 // Route Registration
@@ -92,6 +51,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { initData: string } }>(
     "/api/v1/auth/telegram",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: { type: "object", required: ["initData"], properties: { initData: { type: "string" } } },
+      },
+    },
     async (request, reply) => {
       const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
       if (!botToken) {
@@ -112,16 +77,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const userId = `telegram_${user.id}`;
 
       // Ensure user exists in points table
-      await core.awardPoints(userId, "telegram", "miniapp_open").catch(() => {});
+      fireAndForget(core.awardPoints(userId, "telegram", "miniapp_open"), "award points");
 
       // Store display name in sessions for leaderboard/member resolution
       const displayName = user.first_name || user.username || `User ${user.id}`;
       const cfg = getSupabaseConfig();
       if (cfg) {
-        await sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
           user_id: userId,
           danz_username: displayName,
-        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+        }, "return=minimal,resolution=merge-duplicates"), "upsert session");
       }
 
       const token = signJwt({
@@ -151,6 +116,19 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { quickAuthToken?: string; message?: string; signature?: string } }>(
     "/api/v1/auth/farcaster",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            quickAuthToken: { type: "string" },
+            message: { type: "string" },
+            signature: { type: "string" },
+          },
+        },
+      },
+    },
     async (request, reply) => {
       const { quickAuthToken, message, signature } = request.body || {};
 
@@ -161,7 +139,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           const qaClient = createClient();
           const payload = await qaClient.verifyJwt({
             token: quickAuthToken,
-            domain: new URL(process.env.FARCASTER_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb").hostname,
+            domain: process.env.FARCASTER_APP_DOMAIN || "flowb-farcaster.netlify.app",
           });
 
           const fid = typeof payload.sub === "string" ? parseInt(payload.sub, 10) : payload.sub;
@@ -170,7 +148,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           }
 
           const userId = `farcaster_${fid}`;
-          await core.awardPoints(userId, "farcaster", "miniapp_open").catch(() => {});
+          fireAndForget(core.awardPoints(userId, "farcaster", "miniapp_open"), "award points");
 
           // Look up username from Neynar if available
           let username: string | undefined;
@@ -255,7 +233,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const { user } = result;
       const userId = `farcaster_${user.fid}`;
 
-      await core.awardPoints(userId, "farcaster", "miniapp_open").catch(() => {});
+      fireAndForget(core.awardPoints(userId, "farcaster", "miniapp_open"), "award points");
 
       const token = signJwt({
         sub: userId,
@@ -283,24 +261,40 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { username: string; password: string } }>(
     "/api/v1/auth/app",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["username", "password"],
+          properties: { username: { type: "string" }, password: { type: "string" } },
+        },
+      },
+    },
     async (request, reply) => {
       const { username, password } = request.body || {};
       if (!username || !password) {
         return reply.status(400).send({ error: "Missing username or password" });
       }
 
-      const hardcodedUsers: Record<string, { password: string; role: "admin" | "user"; userId: string }> = {
-        admin: { password: "admin", role: "admin", userId: "app_admin" },
-        user: { password: "user", role: "user", userId: "app_user" },
-        user1: { password: "user1", role: "user", userId: "app_user1" },
-      };
+      // Demo users: read from env or use defaults in non-production
+      const appUsers: Record<string, { password: string; role: "admin" | "user"; userId: string }> =
+        process.env.FLOWB_APP_USERS
+          ? JSON.parse(process.env.FLOWB_APP_USERS)
+          : process.env.NODE_ENV === "production"
+            ? {}
+            : {
+                admin: { password: "admin", role: "admin", userId: "app_admin" },
+                user: { password: "user", role: "user", userId: "app_user" },
+                user1: { password: "user1", role: "user", userId: "app_user1" },
+              };
 
-      const entry = hardcodedUsers[username];
+      const entry = appUsers[username];
       if (!entry || entry.password !== password) {
         return reply.status(401).send({ error: "Invalid credentials" });
       }
 
-      await core.awardPoints(entry.userId, "app", "miniapp_open").catch(() => {});
+      fireAndForget(core.awardPoints(entry.userId, "app", "miniapp_open"), "award points");
 
       const token = signJwt({
         sub: entry.userId,
@@ -318,11 +312,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         },
       };
 
-      // Include admin key for admin users
-      if (entry.role === "admin") {
-        result.adminKey = process.env.FLOWB_ADMIN_KEY || "flowb-admin-2026";
-      }
-
       return result;
     },
   );
@@ -332,6 +321,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { privyUserId: string; displayName?: string } }>(
     "/api/v1/auth/web",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["privyUserId"],
+          properties: { privyUserId: { type: "string" }, displayName: { type: "string" } },
+        },
+      },
+    },
     async (request, reply) => {
       const { privyUserId, displayName } = request.body || {};
       if (!privyUserId) {
@@ -341,7 +340,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const userId = `web_${privyUserId}`;
 
       // Ensure user exists in points table
-      await core.awardPoints(userId, "web", "miniapp_open").catch(() => {});
+      fireAndForget(core.awardPoints(userId, "web", "miniapp_open"), "award points");
 
       // Auto-resolve cross-platform identity on web login
       const cfg = getSupabaseConfig();
@@ -502,7 +501,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // FEED: Global activity feed — check-ins, hot venues, trending events
+  // FEED: Global activity feed — check-ins, crew messages, hot venues, trending events
   // Optional auth: logged-in users can filter to friends/crew scope
   // ------------------------------------------------------------------
   app.get<{ Querystring: { scope?: string; venue?: string; hours?: string } }>(
@@ -512,48 +511,71 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (!cfg) return { venues: [], timeline: [], trending: [], stats: {} };
 
       const scope = request.query.scope || "global";
-      const hours = Math.min(parseInt(request.query.hours || "4", 10), 24);
+      const hours = Math.min(parseInt(request.query.hours || "4", 10), 168);
       const cutoff = new Date(Date.now() - hours * 3600_000).toISOString();
       const jwt = extractJwt(request);
 
       let checkins: any[] = [];
+      let crewMessages: any[] = [];
+      let crewIds: string[] = [];
 
       if (scope === "friends" && jwt?.sub) {
         const conns = await sbFetch<any[]>(cfg, `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
         const friendIds = (conns || []).map((c: any) => c.friend_id);
         if (friendIds.length) {
           checkins = await sbFetch<any[]>(cfg,
-            `flowb_checkins?user_id=in.(${friendIds.join(",")})&created_at=gte.${cutoff}&crew_id=neq.__personal__&order=created_at.desc&limit=40`,
+            `flowb_checkins?user_id=in.(${friendIds.join(",")})&created_at=gte.${cutoff}&order=created_at.desc&limit=40`,
+          ) || [];
+          crewMessages = await sbFetch<any[]>(cfg,
+            `flowb_crew_messages?user_id=in.(${friendIds.join(",")})&created_at=gte.${cutoff}&order=created_at.desc&limit=30`,
           ) || [];
         }
       } else if (scope === "crew" && jwt?.sub) {
         const memberships = await sbFetch<any[]>(cfg, `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
-        const crewIds = (memberships || []).map((m: any) => m.group_id);
+        crewIds = (memberships || []).map((m: any) => m.group_id);
         if (crewIds.length) {
           checkins = await sbFetch<any[]>(cfg,
             `flowb_checkins?crew_id=in.(${crewIds.join(",")})&created_at=gte.${cutoff}&order=created_at.desc&limit=50`,
           ) || [];
+          crewMessages = await sbFetch<any[]>(cfg,
+            `flowb_crew_messages?crew_id=in.(${crewIds.join(",")})&created_at=gte.${cutoff}&order=created_at.desc&limit=40`,
+          ) || [];
         }
       } else {
+        // Global: all checkins (crew_id is UUID so no need to filter out strings)
         checkins = await sbFetch<any[]>(cfg,
-          `flowb_checkins?created_at=gte.${cutoff}&crew_id=not.like.__*&order=created_at.desc&limit=60`,
+          `flowb_checkins?created_at=gte.${cutoff}&order=created_at.desc&limit=60`,
+        ) || [];
+        // Global: recent crew messages from all crews
+        crewMessages = await sbFetch<any[]>(cfg,
+          `flowb_crew_messages?created_at=gte.${cutoff}&order=created_at.desc&limit=40`,
         ) || [];
       }
 
-      // Venue filter
+      // Venue filter (applies to checkins only)
       if (request.query.venue) {
         const v = request.query.venue.toLowerCase();
         checkins = checkins.filter((c: any) => c.venue_name?.toLowerCase().includes(v));
       }
 
-      // Resolve display names
-      const userIds = [...new Set(checkins.map((c: any) => c.user_id))] as string[];
-      const sessions = userIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name,danz_username`)
+      // Resolve display names for all users (checkins + messages)
+      const allUserIds = [...new Set([
+        ...checkins.map((c: any) => c.user_id),
+        ...crewMessages.map((m: any) => m.user_id),
+      ])] as string[];
+      const sessions = allUserIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,display_name,danz_username`)
         : [];
       const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || "Someone"]));
 
-      // Aggregate by venue
+      // Resolve crew names for messages
+      const msgCrewIds = [...new Set(crewMessages.map((m: any) => m.crew_id))] as string[];
+      const crewRows = msgCrewIds.length
+        ? await sbFetch<any[]>(cfg, `flowb_groups?id=in.(${msgCrewIds.join(",")})&select=id,name,emoji`)
+        : [];
+      const crewNameMap = new Map((crewRows || []).map((c: any) => [c.id, { name: c.name, emoji: c.emoji || "" }]));
+
+      // Aggregate by venue (checkins only)
       const venueMap = new Map<string, { count: number; people: string[]; latest: string }>();
       const seenPerVenue = new Set<string>();
       for (const c of checkins) {
@@ -572,14 +594,37 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         .sort((a, b) => b[1].count - a[1].count)
         .map(([name, data]) => ({ name, ...data }));
 
-      // Timeline (recent individual check-ins)
-      const timeline = checkins.slice(0, 15).map((c: any) => ({
-        user: nameMap.get(c.user_id) || "Someone",
-        venue: c.venue_name,
-        message: c.message || null,
-        ago: timeSince(c.created_at),
-        created_at: c.created_at,
-      }));
+      // Unified timeline: merge checkins + crew messages, sorted by time
+      const timelineItems: any[] = [];
+
+      for (const c of checkins) {
+        timelineItems.push({
+          type: "checkin",
+          user: nameMap.get(c.user_id) || "Someone",
+          venue: c.venue_name,
+          message: c.message || null,
+          status: c.status || "here",
+          ago: timeSince(c.created_at),
+          created_at: c.created_at,
+        });
+      }
+
+      for (const m of crewMessages) {
+        const crew = crewNameMap.get(m.crew_id);
+        timelineItems.push({
+          type: "crew_message",
+          user: m.display_name || nameMap.get(m.user_id) || "Someone",
+          crew_name: crew?.name || "a crew",
+          crew_emoji: crew?.emoji || "",
+          message: m.message,
+          ago: timeSince(m.created_at),
+          created_at: m.created_at,
+        });
+      }
+
+      // Sort by time descending and take top 25
+      timelineItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      const timeline = timelineItems.slice(0, 25);
 
       // Trending events
       const dayAgo = new Date(Date.now() - 24 * 3600_000).toISOString();
@@ -601,7 +646,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         venues,
         timeline,
         trending,
-        stats: { active_people: userIds.length, active_venues: venues.length, scope, hours },
+        stats: {
+          active_people: allUserIds.length,
+          active_venues: venues.length,
+          total_messages: crewMessages.length,
+          scope,
+          hours,
+        },
       };
     },
   );
@@ -633,7 +684,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const dayEnd = `${date}T23:59:59`;
         query += `&starts_at=gte.${dayStart}&starts_at=lte.${dayEnd}`;
       }
-      if (from) query += `&starts_at=gte.${encodeURIComponent(from)}`;
+      if (from) {
+        query += `&starts_at=gte.${encodeURIComponent(from)}`;
+      } else if (!date) {
+        // Default: only show today and future events
+        query += `&starts_at=gte.${new Date().toISOString().slice(0, 10)}T00:00:00`;
+      }
       if (to) query += `&starts_at=lte.${encodeURIComponent(to)}`;
 
       // Full-text search
@@ -735,7 +791,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     };
   }>(
     "/api/v1/events/:id/rsvp",
-    { preHandler: authMiddleware },
+    {
+      preHandler: authMiddleware,
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["going", "maybe"] },
+            eventTitle: { type: "string" },
+            eventSource: { type: "string" },
+            eventUrl: { type: "string" },
+            venueName: { type: "string" },
+            startTime: { type: "string" },
+            endTime: { type: "string" },
+          },
+        },
+      },
+    },
     async (request) => {
       const jwt = request.jwtPayload!;
       const { id } = request.params;
@@ -780,7 +852,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           },
         ).catch(() => {
           // Fallback: direct patch if RPC not available
-          fetch(
+          fireAndForget(fetch(
             `${sbCfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${dbEvent.id}`,
             {
               method: "PATCH",
@@ -792,7 +864,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               },
               body: JSON.stringify({ rsvp_count: (dbEvent.rsvp_count || 0) + 1 }),
             },
-          ).catch(() => {});
+          ), "increment rsvp count");
         });
       }
 
@@ -830,23 +902,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           );
           const defaults: number[] = prefs?.[0]?.reminder_defaults || [30];
           for (const mins of defaults) {
-            await sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
+            fireAndForget(sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
               user_id: jwt.sub,
               event_source_id: id,
               remind_minutes_before: mins,
-            }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+            }, "return=minimal,resolution=merge-duplicates"), "upsert reminder");
           }
         }
       }
 
       // Award points
-      await core.awardPoints(jwt.sub, jwt.platform, "event_rsvp").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_rsvp"), "award points");
 
       // Fire notifications in background
       const notifyCtx = getNotifyContext();
       if (notifyCtx && eventTitle !== id) {
-        notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle).catch(() => {});
-        notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle).catch(() => {});
+        fireAndForget(notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle), "notify friend rsvp");
+        fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle), "notify crew member rsvp");
       }
 
       return { ok: true, status, attendance };
@@ -872,7 +944,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Also remove from schedules
       const cfg = getSupabaseConfig();
       if (cfg) {
-        await fetch(
+        fireAndForget(fetch(
           `${cfg.supabaseUrl}/rest/v1/flowb_schedules?user_id=eq.${jwt.sub}&event_source_id=eq.${id}`,
           {
             method: "DELETE",
@@ -881,7 +953,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               Authorization: `Bearer ${cfg.supabaseKey}`,
             },
           },
-        ).catch(() => {});
+        ), "delete schedule");
       }
 
       return { ok: true };
@@ -921,7 +993,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { ok: false };
 
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_schedules?id=eq.${id}&user_id=eq.${jwt.sub}`,
         {
           method: "PATCH",
@@ -936,9 +1008,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             checked_in_at: new Date().toISOString(),
           }),
         },
-      ).catch(() => {});
+      ), "update schedule checkin");
 
-      await core.awardPoints(jwt.sub, jwt.platform, "event_checkin").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_checkin"), "award points");
 
       return { ok: true };
     },
@@ -977,7 +1049,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { name: string; emoji?: string; description?: string; eventContext?: string } }>(
     "/api/v1/flow/crews",
-    { preHandler: authMiddleware },
+    {
+      preHandler: authMiddleware,
+      schema: {
+        body: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            name: { type: "string" },
+            emoji: { type: "string" },
+            description: { type: "string" },
+            eventContext: { type: "string" },
+          },
+        },
+      },
+    },
     async (request) => {
       const jwt = request.jwtPayload!;
       if (!flowPlugin || !flowCfg) {
@@ -990,7 +1076,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         query: `${request.body.emoji || ""} ${request.body.name}`.trim(),
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
 
-      await core.awardPoints(jwt.sub, jwt.platform, "crew_created").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "crew_created"), "award points");
 
       return { ok: true, message: result };
     },
@@ -1016,7 +1102,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         referral_code: code,
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
 
-      await core.awardPoints(jwt.sub, jwt.platform, "crew_joined").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "crew_joined"), "award points");
 
       // Notify crew members about the new join (background)
       const joinNotifyCtx = getNotifyContext();
@@ -1025,7 +1111,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const crewMatch = result.match(/Welcome to (.+?) (.+?)!/);
         const emoji = crewMatch?.[1] || "";
         const name = crewMatch?.[2] || "crew";
-        notifyCrewJoin(joinNotifyCtx, jwt.sub, request.params.id, name, emoji).catch(() => {});
+        fireAndForget(notifyCrewJoin(joinNotifyCtx, jwt.sub, request.params.id, name, emoji), "notify crew join");
       }
 
       return { ok: true, message: result };
@@ -1147,7 +1233,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       });
 
       // Award points
-      await core.awardPoints(jwt.sub, jwt.platform, "event_checkin").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_checkin"), "award points");
 
       // Notify crew members (background)
       const checkinNotifyCtx = getNotifyContext();
@@ -1156,7 +1242,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${id}&select=name,emoji&limit=1`);
         const crewName = crewRow?.[0]?.name || "crew";
         const crewEmoji = crewRow?.[0]?.emoji || "";
-        notifyCrewCheckin(checkinNotifyCtx, jwt.sub, id, crewName, crewEmoji, venueName).catch(() => {});
+        fireAndForget(notifyCrewCheckin(checkinNotifyCtx, jwt.sub, id, crewName, crewEmoji, venueName), "notify crew checkin");
       }
 
       return { ok: true, checkin };
@@ -1204,7 +1290,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         referral_code: code,
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
 
-      await core.awardPoints(jwt.sub, jwt.platform, "flow_accepted").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "flow_accepted"), "award points");
 
       return { ok: true, message: result };
     },
@@ -1238,17 +1324,57 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { points: 0, streak: 0 };
 
-      const rows = await sbFetch<any[]>(
+      // Resolve canonical ID and get all linked platform user IDs
+      const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+      const linkedIds = await getLinkedIds(cfg, canonicalId);
+
+      // Fast path: single identity (no linked accounts)
+      if (linkedIds.length <= 1) {
+        const rows = await sbFetch<any[]>(
+          cfg,
+          `flowb_user_points?user_id=eq.${encodeURIComponent(jwt.sub)}&select=total_points,current_streak,longest_streak,milestone_level&limit=1`,
+        );
+        const row = rows?.[0];
+        return {
+          points: row?.total_points || 0,
+          streak: row?.current_streak || 0,
+          longestStreak: row?.longest_streak || 0,
+          level: row?.milestone_level || 0,
+        };
+      }
+
+      // Multi-platform: aggregate points across all linked accounts
+      const inList = linkedIds.map(id => encodeURIComponent(id)).join(",");
+      const allRows = await sbFetch<any[]>(
         cfg,
-        `flowb_user_points?user_id=eq.${jwt.sub}&select=total_points,current_streak,longest_streak,milestone_level&limit=1`,
+        `flowb_user_points?user_id=in.(${inList})&select=user_id,total_points,current_streak,longest_streak,milestone_level`,
       );
 
-      const row = rows?.[0];
+      if (!allRows?.length) {
+        return { points: 0, streak: 0, longestStreak: 0, level: 0 };
+      }
+
+      let totalPoints = 0;
+      let maxStreak = 0;
+      let maxLongest = 0;
+      let maxLevel = 0;
+      const breakdown: { platform: string; user_id: string; points: number }[] = [];
+
+      for (const row of allRows) {
+        totalPoints += row.total_points || 0;
+        maxStreak = Math.max(maxStreak, row.current_streak || 0);
+        maxLongest = Math.max(maxLongest, row.longest_streak || 0);
+        maxLevel = Math.max(maxLevel, row.milestone_level || 0);
+        const platform = row.user_id.split("_")[0] || "unknown";
+        breakdown.push({ platform, user_id: row.user_id, points: row.total_points || 0 });
+      }
+
       return {
-        points: row?.total_points || 0,
-        streak: row?.current_streak || 0,
-        longestStreak: row?.longest_streak || 0,
-        level: row?.milestone_level || 0,
+        points: totalPoints,
+        streak: maxStreak,
+        longestStreak: maxLongest,
+        level: maxLevel,
+        breakdown,
       };
     },
   );
@@ -1617,12 +1743,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${cid}&select=name,emoji&limit=1`);
           const cName = crewRow?.[0]?.name || "crew";
           const cEmoji = crewRow?.[0]?.emoji || "";
-          notifyCrewCheckin(notCtx, jwt.sub, cid, cName, cEmoji, loc.name).catch(() => {});
+          fireAndForget(notifyCrewCheckin(notCtx, jwt.sub, cid, cName, cEmoji, loc.name), "notify crew checkin");
         }
       }
 
       // Award QR checkin points (10 pts, higher than manual)
-      await core.awardPoints(jwt.sub, jwt.platform, "qr_checkin").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "qr_checkin"), "award points");
 
       return {
         ok: true,
@@ -1728,7 +1854,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${id}&select=name,emoji&limit=1`);
         const cName = crewRow?.[0]?.name || "crew";
         const cEmoji = crewRow?.[0]?.emoji || "";
-        notifyCrewLocate(notCtx, jwt.sub, id, cName, cEmoji, missingMembers).catch(() => {});
+        fireAndForget(notifyCrewLocate(notCtx, jwt.sub, id, cName, cEmoji, missingMembers), "notify crew locate");
       }
 
       return { pinged: missingMembers.length };
@@ -1844,7 +1970,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       // Award points
-      await core.awardPoints(jwt.sub, jwt.platform, "crew_message").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "crew_message"), "award points");
+
+      // Notify crew members (background, don't block response)
+      const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${crewId}&select=name,emoji&limit=1`);
+      if (crewRow?.[0]) {
+        const notifyCtx = { supabase: cfg, botToken: process.env.FLOWB_TELEGRAM_BOT_TOKEN };
+        fireAndForget(notifyCrewMessage(notifyCtx, jwt.sub, crewId, crewRow[0].name || "Crew", crewRow[0].emoji || "", trimmed), "notify crew message");
+      }
 
       return {
         message: {
@@ -1872,7 +2005,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       const cfg = getSupabaseConfig();
-      const { messages = [], model } = request.body || {};
+      const { messages = [] } = request.body || {};
+      const model = "grok-3-mini-fast"; // always use valid xAI model
       if (!messages.length) {
         return reply.status(400).send({ error: "Missing messages" });
       }
@@ -1983,7 +2117,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           const crewRow = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${m.group_id}&select=name,emoji&limit=1`);
           const cName = crewRow?.[0]?.name || "crew";
           const cEmoji = crewRow?.[0]?.emoji || "";
-          notifyCrewCheckin(notCtx, jwt.sub, m.group_id, cName, cEmoji, venue).catch(() => {});
+          fireAndForget(notifyCrewCheckin(notCtx, jwt.sub, m.group_id, cName, cEmoji, venue), "notify crew checkin");
         }
       }
 
@@ -2092,7 +2226,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -2107,6 +2241,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           notify_crew_checkins: pref.notify_crew_checkins ?? true,
           notify_friend_rsvps: pref.notify_friend_rsvps ?? true,
           notify_crew_rsvps: pref.notify_crew_rsvps ?? true,
+          notify_crew_messages: pref.notify_crew_messages ?? true,
           notify_event_reminders: pref.notify_event_reminders ?? true,
           notify_daily_digest: pref.notify_daily_digest ?? true,
           daily_notification_limit: pref.daily_notification_limit ?? 10,
@@ -2128,6 +2263,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       notify_crew_checkins?: boolean;
       notify_friend_rsvps?: boolean;
       notify_crew_rsvps?: boolean;
+      notify_crew_messages?: boolean;
       notify_event_reminders?: boolean;
       notify_daily_digest?: boolean;
       daily_notification_limit?: number;
@@ -2154,6 +2290,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.notify_crew_checkins !== undefined) updates.notify_crew_checkins = body.notify_crew_checkins;
       if (body.notify_friend_rsvps !== undefined) updates.notify_friend_rsvps = body.notify_friend_rsvps;
       if (body.notify_crew_rsvps !== undefined) updates.notify_crew_rsvps = body.notify_crew_rsvps;
+      if (body.notify_crew_messages !== undefined) updates.notify_crew_messages = body.notify_crew_messages;
       if (body.notify_event_reminders !== undefined) updates.notify_event_reminders = body.notify_event_reminders;
       if (body.notify_daily_digest !== undefined) updates.notify_daily_digest = body.notify_daily_digest;
       if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
@@ -2161,7 +2298,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.quiet_hours_end !== undefined) updates.quiet_hours_end = Math.max(0, Math.min(23, body.quiet_hours_end));
 
       // Upsert: create session row if it doesn't exist yet
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_sessions`,
         {
           method: "POST",
@@ -2176,11 +2313,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             ...updates,
           }),
         },
-      ).catch(() => {});
+      ), "upsert session");
 
       // Award onboarding_complete points (10 pts via daily_login action)
       if (body.onboarding_complete) {
-        await core.awardPoints(jwt.sub, jwt.platform, "daily_login").catch(() => {});
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "daily_login"), "award points");
       }
 
       return { ok: true };
@@ -2217,6 +2354,47 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }));
 
       return { accounts, canonical_id: canonicalId };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // LINK STATUS: Lightweight check for frontend linking prompt
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/link-status",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { has_telegram: false, has_farcaster: false, has_web: false, total_linked: 0, merged_points: 0 };
+
+      const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+      const linkedIds = await getLinkedIds(cfg, canonicalId);
+
+      const has_telegram = linkedIds.some(id => id.startsWith("telegram_"));
+      const has_farcaster = linkedIds.some(id => id.startsWith("farcaster_"));
+      const has_web = linkedIds.some(id => id.startsWith("web_"));
+
+      // Sum points across all linked accounts
+      let merged_points = 0;
+      if (linkedIds.length > 0) {
+        const inList = linkedIds.map(id => encodeURIComponent(id)).join(",");
+        const rows = await sbFetch<any[]>(
+          cfg,
+          `flowb_user_points?user_id=in.(${inList})&select=total_points`,
+        );
+        for (const row of rows || []) {
+          merged_points += row.total_points || 0;
+        }
+      }
+
+      return {
+        has_telegram,
+        has_farcaster,
+        has_web,
+        total_linked: linkedIds.length,
+        merged_points,
+      };
     },
   );
 
@@ -2401,12 +2579,31 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Also ensure points rows exist for key platforms (telegram, farcaster, web)
       for (const entry of linkedPlatformIds) {
         if (["telegram", "farcaster", "web"].includes(entry.platform)) {
-          await core.awardPoints(entry.platformUserId, entry.platform, "account_linked").catch(() => {});
+          fireAndForget(core.awardPoints(entry.platformUserId, entry.platform, "account_linked"), "award points");
         }
       }
 
-      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId})`);
-      return { ok: true, synced, canonical_id: canonicalId };
+      // Aggregate merged points across all linked accounts
+      let mergedPoints = 0;
+      const platformsLinked: string[] = [];
+      if (linkedPlatformIds.length > 0) {
+        const inList = linkedPlatformIds.map(e => encodeURIComponent(e.platformUserId)).join(",");
+        const pointRows = await sbFetch<any[]>(
+          cfg,
+          `flowb_user_points?user_id=in.(${inList})&select=total_points`,
+        );
+        for (const row of pointRows || []) {
+          mergedPoints += row.total_points || 0;
+        }
+        for (const entry of linkedPlatformIds) {
+          if (!platformsLinked.includes(entry.platform)) {
+            platformsLinked.push(entry.platform);
+          }
+        }
+      }
+
+      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts)`);
+      return { ok: true, synced, canonical_id: canonicalId, merged_points: mergedPoints, platforms_linked: platformsLinked };
     },
   );
 
@@ -2471,7 +2668,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.share_with_crews !== undefined) updates.privacy_share_with_crews = body.share_with_crews;
       if (body.share_cross_platform !== undefined) updates.privacy_share_cross_platform = body.share_cross_platform;
 
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_sessions`,
         {
           method: "POST",
@@ -2486,7 +2683,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             ...updates,
           }),
         },
-      ).catch(() => {});
+      ), "upsert session");
 
       return { ok: true };
     },
@@ -2592,7 +2789,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       // Delete existing reminders for this event not in the new list
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_event_reminders?user_id=eq.${jwt.sub}&event_source_id=eq.${id}&remind_minutes_before=not.in.(${valid.join(",")})`,
         {
           method: "DELETE",
@@ -2601,16 +2798,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             Authorization: `Bearer ${cfg.supabaseKey}`,
           },
         },
-      ).catch(() => {});
+      ), "delete reminders");
 
       // Upsert each reminder
       for (const mins of valid) {
-        await sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
+        fireAndForget(sbPost(cfg, "flowb_event_reminders?on_conflict=user_id,event_source_id,remind_minutes_before", {
           user_id: jwt.sub,
           event_source_id: id,
           remind_minutes_before: mins,
           sent: false,
-        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+        }, "return=minimal,resolution=merge-duplicates"), "upsert reminder");
       }
 
       return { ok: true, reminders: valid };
@@ -2650,7 +2847,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { ok: false };
 
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_event_reminders?user_id=eq.${jwt.sub}&event_source_id=eq.${id}`,
         {
           method: "DELETE",
@@ -2659,7 +2856,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             Authorization: `Bearer ${cfg.supabaseKey}`,
           },
         },
-      ).catch(() => {});
+      ), "delete reminders");
 
       return { ok: true };
     },
@@ -2750,7 +2947,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   function requireAdmin(request: any, reply: any): boolean {
     const adminKey = request.headers["x-admin-key"];
-    if (!adminKey || adminKey !== (process.env.FLOWB_ADMIN_KEY || "flowb-admin-2026")) {
+    const expectedKey = process.env.FLOWB_ADMIN_KEY;
+    if (!expectedKey || !adminKey || adminKey !== expectedKey) {
       reply.status(403).send({ error: "Admin access required" });
       return false;
     }
@@ -2762,7 +2960,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/admin/stats",
-    { preHandler: authMiddleware },
+    { preHandler: authMiddleware, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (request, reply) => {
       if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
@@ -2844,7 +3042,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${request.params.id}`,
         {
           method: "PATCH",
@@ -2856,7 +3054,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           },
           body: JSON.stringify({ featured: request.body?.featured ?? true }),
         },
-      ).catch(() => {});
+      ), "feature event");
 
       return { ok: true };
     },
@@ -2873,7 +3071,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_events?id=eq.${request.params.id}`,
         {
           method: "PATCH",
@@ -2885,7 +3083,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           },
           body: JSON.stringify({ hidden: request.body?.hidden ?? true }),
         },
-      ).catch(() => {});
+      ), "hide event");
 
       return { ok: true };
     },
@@ -3195,7 +3393,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
       const updates: Record<string, any> = { ...(request.body || {}), updated_at: new Date().toISOString() };
-      await fetch(
+      fireAndForget(fetch(
         `${cfg.supabaseUrl}/rest/v1/flowb_booths?id=eq.${request.params.id}`,
         {
           method: "PATCH",
@@ -3207,7 +3405,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           },
           body: JSON.stringify(updates),
         },
-      ).catch(() => {});
+      ), "update booth");
       return { ok: true };
     },
   );
@@ -3230,12 +3428,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (!catRows?.length) return reply.status(400).send({ error: "No valid categories" });
 
       for (const cat of catRows) {
-        await sbPost(cfg, "flowb_event_category_map?on_conflict=event_id,category_id", {
+        fireAndForget(sbPost(cfg, "flowb_event_category_map?on_conflict=event_id,category_id", {
           event_id: request.params.id,
           category_id: cat.id,
           confidence: 1.0,
           source: "admin",
-        }, "return=minimal,resolution=merge-duplicates").catch(() => {});
+        }, "return=minimal,resolution=merge-duplicates"), "upsert category map");
       }
 
       return { ok: true, assigned: catRows.map(c => c.slug) };
@@ -3400,7 +3598,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       // Award sponsor_created points
-      await core.awardPoints(jwt.sub, jwt.platform, "sponsor_created").catch(() => {});
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "sponsor_created"), "award points");
 
       // Kick off async verification
       const sponsorId = row.id;
@@ -3443,7 +3641,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             }
 
             // Award sponsor_verified points
-            await core.awardPoints(jwt.sub, jwt.platform, "sponsor_verified").catch(() => {});
+            fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "sponsor_verified"), "award points");
           } else {
             await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_sponsorships?id=eq.${sponsorId}`, {
               method: "PATCH",
@@ -3522,7 +3720,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         });
       }
 
-      await core.awardPoints(sp.sponsor_user_id, "telegram", "sponsor_verified").catch(() => {});
+      fireAndForget(core.awardPoints(sp.sponsor_user_id, "telegram", "sponsor_verified"), "award points");
       return { ok: true, amount: result.amount };
     },
   );
@@ -3580,7 +3778,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ==================================================================
-  // SPONSOR: Featured event bid (highest verified bid for featured spot)
+  // SPONSOR: Featured event boost (highest verified boost for featured spot)
   // ==================================================================
   app.get(
     "/api/v1/sponsor/featured-event",
@@ -3684,7 +3882,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         // Award points: sponsored_checkin if sponsored, proximity_checkin otherwise
         const isSponsored = Number(loc.sponsor_amount) > 0;
         const action = isSponsored ? "sponsored_checkin" : "proximity_checkin";
-        await core.awardPoints(jwt.sub, jwt.platform, action).catch(() => {});
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, action), "award points");
       }
 
       return {
@@ -3699,7 +3897,871 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       };
     },
   );
-}
+
+  // ============================================================================
+  // AGENTS: Personal AI Agents + x402 Micropayments
+  // ============================================================================
+
+  // ------------------------------------------------------------------
+  // AGENTS: List all agent slots (public)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/agents",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { agents: [], skills: [] };
+
+      const agents = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?select=slot_number,user_id,agent_name,status,reserved_for,skills,usdc_balance,total_earned,total_spent,claimed_at&order=slot_number.asc`,
+      );
+
+      const skills = await sbFetch<any[]>(
+        cfg,
+        `flowb_agent_skills?active=eq.true&select=slug,name,description,price_usdc,category,capabilities&order=price_usdc.asc`,
+      );
+
+      // Resolve display names for claimed agents
+      const claimedIds = (agents || []).filter((a) => a.user_id).map((a) => a.user_id);
+      let nameMap = new Map<string, string>();
+      if (claimedIds.length) {
+        const sessions = await sbFetch<any[]>(
+          cfg,
+          `flowb_sessions?user_id=in.(${claimedIds.join(",")})&select=user_id,danz_username`,
+        );
+        nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      }
+
+      return {
+        agents: (agents || []).map((a) => ({
+          slot: a.slot_number,
+          userId: a.user_id || null,
+          displayName: a.user_id ? nameMap.get(a.user_id) || null : null,
+          agentName: a.agent_name || null,
+          status: a.status,
+          reservedFor: a.reserved_for || null,
+          skills: a.skills || [],
+          balance: Number(a.usdc_balance) || 0,
+          totalEarned: Number(a.total_earned) || 0,
+          totalSpent: Number(a.total_spent) || 0,
+          claimedAt: a.claimed_at || null,
+        })),
+        skills: skills || [],
+        stats: {
+          total: 10,
+          claimed: (agents || []).filter((a) => a.status === "claimed" || a.status === "active").length,
+          open: (agents || []).filter((a) => a.status === "open").length,
+          reserved: (agents || []).filter((a) => a.status === "reserved").length,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Get my agent (requires auth)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/agents/me",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { agent: null };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${jwt.sub}&select=*&limit=1`,
+      );
+
+      const agent = rows?.[0];
+      if (!agent) return { agent: null };
+
+      // Get transaction history
+      const txs = await sbFetch<any[]>(
+        cfg,
+        `flowb_agent_transactions?or=(from_agent_id.eq.${agent.id},to_agent_id.eq.${agent.id})&select=*&order=created_at.desc&limit=20`,
+      );
+
+      return {
+        agent: {
+          id: agent.id,
+          slot: agent.slot_number,
+          name: agent.agent_name,
+          walletAddress: agent.wallet_address,
+          status: agent.status,
+          skills: agent.skills || [],
+          balance: Number(agent.usdc_balance) || 0,
+          totalEarned: Number(agent.total_earned) || 0,
+          totalSpent: Number(agent.total_spent) || 0,
+          metadata: agent.metadata || {},
+          claimedAt: agent.claimed_at,
+        },
+        transactions: (txs || []).map((tx) => ({
+          id: tx.id,
+          type: tx.tx_type,
+          amount: Number(tx.amount_usdc),
+          skillSlug: tx.skill_slug,
+          eventId: tx.event_id,
+          txHash: tx.tx_hash,
+          status: tx.status,
+          direction: tx.from_agent_id === agent.id ? "out" : "in",
+          createdAt: tx.created_at,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Claim an open agent slot (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { agentName?: string } }>(
+    "/api/v1/agents/claim",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      // Check if user already has an agent
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${jwt.sub}&select=id,slot_number&limit=1`,
+      );
+      if (existing?.length) {
+        return reply.status(409).send({ error: "You already have an agent", slot: existing[0].slot_number });
+      }
+
+      // Find first open slot
+      const openSlots = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?status=eq.open&select=id,slot_number&order=slot_number.asc&limit=1`,
+      );
+      if (!openSlots?.length) {
+        return reply.status(410).send({ error: "No agent slots available" });
+      }
+
+      const slot = openSlots[0];
+      const agentName = (request.body?.agentName || `${jwt.sub.replace(/^(telegram_|farcaster_)/, "")}'s Agent`).slice(0, 50);
+
+      // Claim the slot
+      const res = await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${slot.id}&status=eq.open`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            user_id: jwt.sub,
+            agent_name: agentName,
+            status: "claimed",
+            claimed_at: new Date().toISOString(),
+            usdc_balance: 0.50, // seed balance
+            skills: ["basic-search"], // starter skill
+            metadata: { platform: jwt.platform, claimedFrom: "app" },
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+
+      if (!res.ok) {
+        return reply.status(500).send({ error: "Failed to claim agent" });
+      }
+
+      const claimed = await res.json();
+      const agent = Array.isArray(claimed) ? claimed[0] : claimed;
+
+      // Log the seed transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        to_agent_id: agent.id,
+        to_user_id: jwt.sub,
+        amount_usdc: 0.50,
+        tx_type: "seed",
+        status: "completed",
+        metadata: { reason: "EthDenver launch seed" },
+      }, "return=minimal");
+
+      // Award points for claiming
+      try {
+        await core.awardPoints(jwt.sub, jwt.platform, "agent_claimed");
+      } catch {}
+
+      console.log(`[agents] ${jwt.sub} claimed slot #${slot.slot_number} as "${agentName}"`);
+
+      return {
+        ok: true,
+        agent: {
+          id: agent.id,
+          slot: agent.slot_number,
+          name: agent.agent_name,
+          status: "claimed",
+          balance: 0.50,
+          skills: ["basic-search"],
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Purchase a skill (x402-style flow)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { skillSlug: string } }>(
+    "/api/v1/agents/skills/purchase",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { skillSlug } = request.body || {};
+      if (!skillSlug) return reply.status(400).send({ error: "skillSlug required" });
+
+      // Get user's agent
+      const agents = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${jwt.sub}&select=*&limit=1`,
+      );
+      const agent = agents?.[0];
+      if (!agent) return reply.status(404).send({ error: "No agent found. Claim one first." });
+
+      // Check if already has this skill
+      const currentSkills: string[] = agent.skills || [];
+      if (currentSkills.includes(skillSlug)) {
+        return reply.status(409).send({ error: "Agent already has this skill" });
+      }
+
+      // Get skill details
+      const skills = await sbFetch<any[]>(
+        cfg,
+        `flowb_agent_skills?slug=eq.${skillSlug}&active=eq.true&select=*&limit=1`,
+      );
+      const skill = skills?.[0];
+      if (!skill) return reply.status(404).send({ error: "Skill not found" });
+
+      const price = Number(skill.price_usdc);
+      const balance = Number(agent.usdc_balance);
+
+      // x402-style: if no payment header, return 402 with price info
+      const paymentHeader = request.headers["x-402-payment"] || request.headers["payment"];
+      if (!paymentHeader && balance < price) {
+        return reply
+          .status(402)
+          .header("X-402-Price", price.toString())
+          .header("X-402-Currency", "USDC")
+          .header("X-402-Network", "base")
+          .header("X-402-PayTo", process.env.CDP_ACCOUNT_ADDRESS || "")
+          .send({
+            error: "Payment required",
+            price: price,
+            currency: "USDC",
+            network: "base",
+            payTo: process.env.CDP_ACCOUNT_ADDRESS || "",
+            skill: { slug: skill.slug, name: skill.name, description: skill.description },
+          });
+      }
+
+      // Deduct from agent balance (or accept x402 payment)
+      const newBalance = balance - price;
+      const updatedSkills = [...currentSkills, skillSlug];
+
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${agent.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            skills: updatedSkills,
+            usdc_balance: newBalance,
+            total_spent: (Number(agent.total_spent) || 0) + price,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+
+      // Log transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        from_agent_id: agent.id,
+        from_user_id: jwt.sub,
+        amount_usdc: price,
+        tx_type: "skill_purchase",
+        skill_slug: skillSlug,
+        status: "completed",
+        metadata: { skillName: skill.name },
+      }, "return=minimal");
+
+      // Award points
+      try {
+        await core.awardPoints(jwt.sub, jwt.platform, "skill_purchased");
+      } catch {}
+
+      console.log(`[agents] ${jwt.sub} purchased skill "${skillSlug}" for $${price}`);
+
+      return {
+        ok: true,
+        skill: { slug: skill.slug, name: skill.name, capabilities: skill.capabilities },
+        agent: {
+          balance: newBalance,
+          skills: updatedSkills,
+          totalSpent: (Number(agent.total_spent) || 0) + price,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Boost an event (x402 micropayment)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { eventId: string; durationHours?: number } }>(
+    "/api/v1/agents/boost-event",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { eventId, durationHours } = request.body || {};
+      if (!eventId) return reply.status(400).send({ error: "eventId required" });
+
+      const agents = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${jwt.sub}&select=*&limit=1`,
+      );
+      const agent = agents?.[0];
+      if (!agent) return reply.status(404).send({ error: "No agent found" });
+
+      const price = 0.50;
+      const balance = Number(agent.usdc_balance);
+      const hours = durationHours || 24;
+
+      // x402-style 402 response if insufficient balance
+      if (balance < price) {
+        return reply
+          .status(402)
+          .header("X-402-Price", price.toString())
+          .header("X-402-Currency", "USDC")
+          .send({
+            error: "Payment required",
+            price,
+            currency: "USDC",
+            network: "base",
+            eventId,
+          });
+      }
+
+      const expiresAt = new Date(Date.now() + hours * 3600_000).toISOString();
+
+      // Create boost
+      await sbPost(cfg, "flowb_event_boosts", {
+        event_id: eventId,
+        agent_id: agent.id,
+        user_id: jwt.sub,
+        amount_usdc: price,
+        agent_name: agent.agent_name,
+        expires_at: expiresAt,
+        active: true,
+      }, "return=minimal");
+
+      // Deduct balance
+      await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${agent.id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            usdc_balance: balance - price,
+            total_spent: (Number(agent.total_spent) || 0) + price,
+            updated_at: new Date().toISOString(),
+          }),
+        },
+      );
+
+      // Log transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        from_agent_id: agent.id,
+        from_user_id: jwt.sub,
+        amount_usdc: price,
+        tx_type: "event_boost",
+        event_id: eventId,
+        status: "completed",
+        metadata: { durationHours: hours },
+      }, "return=minimal");
+
+      try {
+        await core.awardPoints(jwt.sub, jwt.platform, "event_boosted");
+      } catch {}
+
+      console.log(`[agents] ${jwt.sub} boosted event "${eventId}" for $${price}`);
+
+      return {
+        ok: true,
+        boost: { eventId, expiresAt, price, agentName: agent.agent_name },
+        agent: { balance: balance - price },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Agent-to-agent recommendation (x402)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { targetUserId: string; context?: string; preferences?: string[] } }>(
+    "/api/v1/agents/recommend",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { targetUserId, context, preferences } = request.body || {};
+      if (!targetUserId) return reply.status(400).send({ error: "targetUserId required" });
+
+      // Get requester's agent
+      const myAgents = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${jwt.sub}&select=*&limit=1`,
+      );
+      const myAgent = myAgents?.[0];
+      if (!myAgent) return reply.status(404).send({ error: "You need an agent to request recommendations" });
+
+      // Get target's agent
+      const targetAgents = await sbFetch<any[]>(
+        cfg,
+        `flowb_agents?user_id=eq.${targetUserId}&select=*&limit=1`,
+      );
+      const targetAgent = targetAgents?.[0];
+      if (!targetAgent) return reply.status(404).send({ error: "Target user has no agent" });
+
+      const price = 0.02;
+      const balance = Number(myAgent.usdc_balance);
+
+      if (balance < price) {
+        return reply
+          .status(402)
+          .header("X-402-Price", price.toString())
+          .send({ error: "Payment required", price, currency: "USDC" });
+      }
+
+      // Get target user's recent activity for recommendations
+      const targetSchedule = await sbFetch<any[]>(
+        cfg,
+        `flowb_schedules?user_id=eq.${targetUserId}&rsvp_status=eq.going&select=event_title,event_source_id,venue_name,starts_at&order=starts_at.asc&limit=5`,
+      );
+
+      const targetCheckins = await sbFetch<any[]>(
+        cfg,
+        `flowb_checkins?user_id=eq.${targetUserId}&select=venue_name,status,created_at&order=created_at.desc&limit=3`,
+      );
+
+      // Build recommendations from target's social graph
+      const recommendations = (targetSchedule || []).map((s) => ({
+        event: s.event_title,
+        eventId: s.event_source_id,
+        venue: s.venue_name,
+        startsAt: s.starts_at,
+        reason: `${targetAgent.agent_name} is going`,
+      }));
+
+      if (targetCheckins?.length) {
+        recommendations.unshift({
+          event: `${targetAgent.agent_name} is at ${targetCheckins[0].venue_name}`,
+          eventId: null as any,
+          venue: targetCheckins[0].venue_name,
+          startsAt: targetCheckins[0].created_at,
+          reason: "Currently checked in",
+        });
+      }
+
+      // Deduct from requester, credit to target
+      await Promise.all([
+        fetch(`${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${myAgent.id}`, {
+          method: "PATCH",
+          headers: { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({ usdc_balance: balance - price, total_spent: (Number(myAgent.total_spent) || 0) + price, updated_at: new Date().toISOString() }),
+        }),
+        fetch(`${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${targetAgent.id}`, {
+          method: "PATCH",
+          headers: { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({ usdc_balance: Number(targetAgent.usdc_balance) + price, total_earned: (Number(targetAgent.total_earned) || 0) + price, updated_at: new Date().toISOString() }),
+        }),
+      ]);
+
+      // Log transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        from_agent_id: myAgent.id,
+        to_agent_id: targetAgent.id,
+        from_user_id: jwt.sub,
+        to_user_id: targetUserId,
+        amount_usdc: price,
+        tx_type: "recommendation",
+        status: "completed",
+        metadata: { context, preferences },
+      }, "return=minimal");
+
+      console.log(`[agents] ${jwt.sub} got recommendations from ${targetUserId}'s agent for $${price}`);
+
+      return {
+        ok: true,
+        from: { agentName: targetAgent.agent_name, userId: targetUserId },
+        recommendations,
+        price,
+        myBalance: balance - price,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Send a tip to another user/agent
+  // ------------------------------------------------------------------
+  app.post<{ Body: { recipientUserId: string; amount: number; eventId?: string; message?: string } }>(
+    "/api/v1/agents/tip",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { recipientUserId, amount, eventId, message } = request.body || {};
+      if (!recipientUserId || !amount || amount <= 0) {
+        return reply.status(400).send({ error: "recipientUserId and positive amount required" });
+      }
+      if (amount > 10) return reply.status(400).send({ error: "Max tip is $10" });
+
+      const myAgents = await sbFetch<any[]>(cfg, `flowb_agents?user_id=eq.${jwt.sub}&select=*&limit=1`);
+      const myAgent = myAgents?.[0];
+      if (!myAgent) return reply.status(404).send({ error: "You need an agent" });
+
+      const balance = Number(myAgent.usdc_balance);
+      if (balance < amount) {
+        return reply.status(402).send({ error: "Insufficient balance", balance, required: amount });
+      }
+
+      // Get or create recipient context
+      const recipientAgents = await sbFetch<any[]>(cfg, `flowb_agents?user_id=eq.${recipientUserId}&select=*&limit=1`);
+      const recipientAgent = recipientAgents?.[0];
+
+      // Deduct from sender
+      await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${myAgent.id}`, {
+        method: "PATCH",
+        headers: { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+        body: JSON.stringify({ usdc_balance: balance - amount, total_spent: (Number(myAgent.total_spent) || 0) + amount, updated_at: new Date().toISOString() }),
+      });
+
+      // Credit recipient agent (if they have one)
+      if (recipientAgent) {
+        await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${recipientAgent.id}`, {
+          method: "PATCH",
+          headers: { apikey: cfg.supabaseKey, Authorization: `Bearer ${cfg.supabaseKey}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+          body: JSON.stringify({ usdc_balance: Number(recipientAgent.usdc_balance) + amount, total_earned: (Number(recipientAgent.total_earned) || 0) + amount, updated_at: new Date().toISOString() }),
+        });
+      }
+
+      // Log transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        from_agent_id: myAgent.id,
+        to_agent_id: recipientAgent?.id || null,
+        from_user_id: jwt.sub,
+        to_user_id: recipientUserId,
+        amount_usdc: amount,
+        tx_type: "tip",
+        event_id: eventId || null,
+        status: "completed",
+        metadata: { message: message || null },
+      }, "return=minimal");
+
+      try {
+        await core.awardPoints(jwt.sub, jwt.platform, "tip_sent");
+      } catch {}
+
+      console.log(`[agents] ${jwt.sub} tipped ${recipientUserId} $${amount}`);
+
+      return {
+        ok: true,
+        tip: { recipient: recipientUserId, amount, eventId },
+        myBalance: balance - amount,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Get active event boosts (for feed ranking)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/agents/boosts",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { boosts: [] };
+
+      const now = new Date().toISOString();
+      const boosts = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_boosts?active=eq.true&expires_at=gt.${now}&select=event_id,agent_name,user_id,amount_usdc,expires_at&order=created_at.desc`,
+      );
+
+      return { boosts: boosts || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Transaction history (public, for demo)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/agents/transactions",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { transactions: [] };
+
+      const query = request.query as any;
+      const limit = Math.min(parseInt(query.limit) || 20, 50);
+
+      const txs = await sbFetch<any[]>(
+        cfg,
+        `flowb_agent_transactions?select=id,from_user_id,to_user_id,amount_usdc,tx_type,skill_slug,event_id,status,created_at&order=created_at.desc&limit=${limit}`,
+      );
+
+      return { transactions: txs || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Award top points user (admin endpoint)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { adminKey: string } }>(
+    "/api/v1/agents/award-top-scorer",
+    async (request, reply) => {
+      const { adminKey } = request.body || {};
+      if (adminKey !== process.env.FLOWB_ADMIN_KEY) {
+        return reply.status(401).send({ error: "Unauthorized" });
+      }
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      // Get top scorer from points table
+      const topUsers = await sbFetch<any[]>(
+        cfg,
+        `flowb_user_points?select=user_id,platform,total_points&order=total_points.desc&limit=1`,
+      );
+
+      if (!topUsers?.length) return reply.status(404).send({ error: "No users with points" });
+
+      const topUser = topUsers[0];
+
+      // Assign reserved slots 9 and 10 to top scorer
+      for (const slot of [9, 10]) {
+        await fetch(
+          `${cfg.supabaseUrl}/rest/v1/flowb_agents?slot_number=eq.${slot}&status=eq.reserved`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: cfg.supabaseKey,
+              Authorization: `Bearer ${cfg.supabaseKey}`,
+              "Content-Type": "application/json",
+              Prefer: "return=minimal",
+            },
+            body: JSON.stringify({
+              user_id: topUser.user_id,
+              agent_name: slot === 9 ? `${topUser.user_id.replace(/^(telegram_|farcaster_)/, "")}'s Champion` : `${topUser.user_id.replace(/^(telegram_|farcaster_)/, "")}'s Gift`,
+              status: "active",
+              claimed_at: new Date().toISOString(),
+              usdc_balance: slot === 9 ? 25 : 0.50, // $25 USDC prize for slot 9
+              skills: ["basic-search", "event-discovery", "social-connector"],
+              metadata: { awardedFor: "top_points", points: topUser.total_points },
+              updated_at: new Date().toISOString(),
+            }),
+          },
+        );
+      }
+
+      // Log prize transaction
+      await sbPost(cfg, "flowb_agent_transactions", {
+        to_user_id: topUser.user_id,
+        amount_usdc: 25,
+        tx_type: "prize",
+        status: "completed",
+        metadata: { reason: "Top points scorer - 2 agents + $25 USDC", points: topUser.total_points },
+      }, "return=minimal");
+
+      console.log(`[agents] Awarded slots 9+10 to top scorer: ${topUser.user_id} (${topUser.total_points} pts)`);
+
+      return {
+        ok: true,
+        winner: { userId: topUser.user_id, points: topUser.total_points },
+        awarded: { slots: [9, 10], usdcPrize: 25 },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AGENTS: Notification blast to all users (admin)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { adminKey: string; message?: string } }>(
+    "/api/v1/agents/blast",
+    async (request, reply) => {
+      const { adminKey, message } = request.body || {};
+      if (adminKey !== process.env.FLOWB_ADMIN_KEY) {
+        return reply.status(401).send({ error: "Unauthorized" });
+      }
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const blastMessage = message || `First Flow, First Bond
+
+FlowB is giving away 8 personal AI agents at EthDenver!
+
+Your agent gets a wallet, discovers events, earns USDC, and trades skills with other agents.
+
+Top points scorer gets 2 agents + $25 USDC!
+
+Claim yours in the app now. Only 8 slots available.`;
+
+      // Get all users from sessions and points tables
+      const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?select=user_id`);
+      const points = await sbFetch<any[]>(cfg, `flowb_user_points?select=user_id`);
+
+      const allUserIds = new Set<string>();
+      for (const s of sessions || []) allUserIds.add(s.user_id);
+      for (const p of points || []) allUserIds.add(p.user_id);
+
+      const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+      let tgSent = 0;
+      let fcSent = 0;
+      let errors = 0;
+
+      for (const userId of allUserIds) {
+        try {
+          if (userId.startsWith("telegram_") && botToken) {
+            const chatId = parseInt(userId.replace("telegram_", ""), 10);
+            if (!isNaN(chatId)) {
+              const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ chat_id: chatId, text: blastMessage, parse_mode: "HTML" }),
+              });
+              if (res.ok) tgSent++;
+              else errors++;
+            }
+          }
+
+          if (userId.startsWith("farcaster_")) {
+            const fid = parseInt(userId.replace("farcaster_", ""), 10);
+            if (!isNaN(fid)) {
+              const { sendFarcasterNotification: sendFcNotif } = await import("../services/farcaster-notify.js");
+              const appUrl = process.env.FLOWB_FC_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
+              const ok = await sendFcNotif(cfg, fid, "FlowB Agents — Claim Yours", blastMessage.slice(0, 120), appUrl);
+              if (ok) fcSent++;
+              else errors++;
+            }
+          }
+        } catch {
+          errors++;
+        }
+      }
+
+      console.log(`[agents] Blast sent: TG=${tgSent}, FC=${fcSent}, errors=${errors}, total_users=${allUserIds.size}`);
+
+      return {
+        ok: true,
+        sent: { telegram: tgSent, farcaster: fcSent, total: tgSent + fcSent },
+        errors,
+        totalUsers: allUserIds.size,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FEEDBACK: Submit bug reports, feature requests, feedback
+  // ------------------------------------------------------------------
+  app.post<{
+    Body: { type?: string; message: string; contact?: string; screen?: string };
+  }>(
+    "/api/v1/feedback",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["message"],
+          properties: {
+            type: { type: "string", enum: ["bug", "feature", "feedback"] },
+            message: { type: "string", minLength: 1, maxLength: 2000 },
+            contact: { type: "string", maxLength: 200 },
+            screen: { type: "string", maxLength: 100 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { type = "feedback", message, contact, screen } = request.body;
+
+      // Optional auth -- feedback works for logged-in and anonymous users
+      const jwt = extractJwt(request);
+      const userId = jwt?.userId || null;
+      const platform = jwt?.platform || "web";
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Database not configured" });
+
+      // 1. Save to DB
+      const { sbInsert } = await import("../utils/supabase.js");
+      const row = await sbInsert(cfg, "flowb_feedback", {
+        user_id: userId,
+        platform,
+        type,
+        message,
+        contact: contact || null,
+        screen: screen || null,
+        user_agent: request.headers["user-agent"] || null,
+      });
+
+      // 2. Forward to Telegram feedback channel
+      const channelId = process.env.FLOWB_FEEDBACK_CHANNEL_ID;
+      const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+      if (channelId && botToken) {
+        const typeEmoji = type === "bug" ? "\u{1F41B}" : type === "feature" ? "\u{1F4A1}" : "\u{1F4AC}";
+        const label = type === "bug" ? "Bug Report" : type === "feature" ? "Feature Request" : "Feedback";
+        const who = userId || "anonymous";
+        const contactLine = contact ? `\nContact: ${contact}` : "";
+        const screenLine = screen ? `\nScreen: ${screen}` : "";
+
+        const text = `${typeEmoji} <b>${label}</b>\n\n${message}\n\n<i>From: ${who} (${platform})${contactLine}${screenLine}</i>`;
+
+        fireAndForget(
+          fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: channelId,
+              text,
+              parse_mode: "HTML",
+            }),
+          }).catch((err) => log.warn("[feedback]", "TG channel send failed", { error: String(err) })),
+          "feedback-channel",
+        );
+      }
+
+      // 3. Award points for giving feedback
+      if (userId) {
+        fireAndForget(core.awardPoints(userId, platform, "feedback_submitted"), "award feedback points");
+      }
+
+      return { ok: true, id: row?.id || null };
+    },
+  );
+
+} // end registerMiniAppRoutes
 
 // ============================================================================
 // Helpers

@@ -80,6 +80,8 @@ import {
   formatEventLinkCardHtml,
   buildEventLinkKeyboard,
 } from "./cards.js";
+import { sbQuery } from "../utils/supabase.js";
+import { log, fireAndForget } from "../utils/logger.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -410,7 +412,7 @@ async function completeOnboarding(
   saveOnboardingPrefs(tgId, state.data);
 
   // Award onboarding_complete points (10 pts)
-  await core.awardPoints(userId(tgId), "telegram", "daily_login").catch(() => {});
+  fireAndForget(core.awardPoints(userId(tgId), "telegram", "daily_login"), "award points");
 
   // Clean up onboarding state
   onboardingStates.delete(tgId);
@@ -443,7 +445,7 @@ export function startTelegramBot(
     `http://localhost:${process.env.PORT || "8080"}/connect`;
 
   // Check persistent session table on startup
-  ensureSessionTable().catch(() => {});
+  ensureSessionTable().catch(err => log.error("[bot]", "session table init", { error: err instanceof Error ? err.message : String(err) }));
 
   // Initialize chatter capture system
   initChatter();
@@ -546,7 +548,7 @@ export function startTelegramBot(
           parse_mode: "HTML",
           reply_markup: buildFlowMenuKeyboard(botUsername),
         });
-        core.awardPoints(userId(tgId), "telegram", "flow_accepted").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_accepted"), "award points");
       }
       return;
     }
@@ -567,7 +569,7 @@ export function startTelegramBot(
             reply_markup: buildFlowMenuKeyboard(botUsername),
           });
         }
-        core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_joined"), "award points");
       }
       return;
     }
@@ -589,7 +591,7 @@ export function startTelegramBot(
           });
 
           // Award points for joining + invite conversion
-          core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_joined"), "award points");
 
           // Track invite attribution
           const attr = flowPlugin._lastInviteAttribution;
@@ -600,7 +602,7 @@ export function startTelegramBot(
             const convertAction = inviterRole === "admin" || inviterRole === "creator"
               ? "crew_invite_converted_admin"
               : "crew_invite_converted";
-            core.awardPoints(attr.inviterId, "telegram", convertAction).catch(() => {});
+            fireAndForget(core.awardPoints(attr.inviterId, "telegram", convertAction), "award points");
           }
         }
       }
@@ -629,7 +631,7 @@ export function startTelegramBot(
             const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
 
             for (const m of memberships) {
-              await fetch(`${sbUrl}/rest/v1/flowb_checkins`, {
+              fireAndForget(fetch(`${sbUrl}/rest/v1/flowb_checkins`, {
                 method: "POST",
                 headers: {
                   apikey: sbKey, Authorization: `Bearer ${sbKey}`,
@@ -646,10 +648,10 @@ export function startTelegramBot(
                   location_id: loc.id,
                   expires_at: expiresAt,
                 }),
-              }).catch(() => {});
+              }), "checkin upsert");
             }
 
-            core.awardPoints(userId(tgId), "telegram", "qr_checkin").catch(() => {});
+            fireAndForget(core.awardPoints(userId(tgId), "telegram", "qr_checkin"), "award points");
 
             const crewCount = memberships.length;
             await ctx.reply(
@@ -676,7 +678,7 @@ export function startTelegramBot(
 
     if (args?.startsWith("ref_")) {
       const refCode = args.slice(4);
-      core.awardPoints(userId(tgId), "telegram", "referral_signup", { referral_code: refCode }).catch(() => {});
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "referral_signup", { referral_code: refCode }), "award points");
     }
     if (args === "points") {
       // Deep link from group "Check Points" button -> show points directly
@@ -776,7 +778,7 @@ export function startTelegramBot(
       style: intent.style,
       query: intent.query,
     });
-    core.awardPoints(userId(tgId), "telegram", "search").catch(() => {});
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "search"), "award points");
   });
 
   bot.command("mylist", async (ctx) => {
@@ -941,7 +943,7 @@ export function startTelegramBot(
       parse_mode: "HTML",
       reply_markup: buildFlowShareKeyboard(link),
     });
-    core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_invite_sent"), "award points");
   });
 
   bot.command("crew", async (ctx) => {
@@ -971,7 +973,7 @@ export function startTelegramBot(
         query: name,
       });
       await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
-      core.awardPoints(userId(tgId), "telegram", "crew_created").catch(() => {});
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_created"), "award points");
       return;
     }
 
@@ -1069,10 +1071,10 @@ export function startTelegramBot(
             `<b>You're going!</b> ${currentEvent.title}\n\nYour flow will see this.`,
             { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) },
           );
-          core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
           // Fire notifications in background
-          notifyFlowAboutRsvp(core, userId(tgId), currentEvent.id, currentEvent.title, bot).catch(() => {});
+          fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), currentEvent.id, currentEvent.title, bot), "notify flow about rsvp");
           return;
         }
       }
@@ -1279,7 +1281,7 @@ export function startTelegramBot(
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Fetch user's sponsorships
-    const rows = await sbQueryBot(
+    const rows = await sbQuery<any[]>(
       { supabaseUrl: sbUrl, supabaseKey: sbKey },
       "flowb_sponsorships",
       {
@@ -1326,7 +1328,7 @@ export function startTelegramBot(
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Get top sponsored locations (booths)
-    const locations = await sbQueryBot(
+    const locations = await sbQuery<any[]>(
       { supabaseUrl: sbUrl, supabaseKey: sbKey },
       "flowb_locations",
       {
@@ -1396,7 +1398,7 @@ export function startTelegramBot(
       const firstName = member.first_name || "there";
 
       // Award group_joined points (fire-and-forget, works even if not connected)
-      core.awardPoints(userId(member.id), "telegram", "group_joined").catch(() => {});
+      fireAndForget(core.awardPoints(userId(member.id), "telegram", "group_joined"), "award points");
 
       await ctx.reply(
         formatGroupWelcomeHtml(firstName, groupName),
@@ -1436,7 +1438,7 @@ export function startTelegramBot(
     const tgId = ctx.messageReaction.user?.id;
     if (!tgId) return;
 
-    core.awardPoints(userId(tgId), "telegram", "channel_reaction").catch(() => {});
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "channel_reaction"), "award points");
   });
 
   // ========================================================================
@@ -1906,11 +1908,11 @@ export function startTelegramBot(
             event.startTime, event.locationName || null, "going",
           );
         }
-        core.awardPoints(userId(tgId), "telegram", "event_link_shared").catch(() => {});
-        core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_link_shared"), "award points");
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
         // Notify flow in background
-        notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
 
         await ctx.answerCallbackQuery({ text: "Shared with your flow!" });
         await ctx.reply(
@@ -1928,10 +1930,10 @@ export function startTelegramBot(
             event.startTime, event.locationName || null, "going",
           );
         }
-        core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
         // Notify flow in background
-        notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
 
         await ctx.answerCallbackQuery({ text: `\u2705 ${event.title}` });
         await ctx.reply(
@@ -2097,7 +2099,7 @@ export function startTelegramBot(
             reply_markup: buildFlowShareKeyboard(link),
           });
         }
-        core.awardPoints(userId(tgId), "telegram", "flow_invite_sent").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_invite_sent"), "award points");
         return;
       }
 
@@ -2215,7 +2217,7 @@ export function startTelegramBot(
           const pointAction = role === "admin" || role === "creator"
             ? "crew_invite_sent_admin"
             : "crew_invite_sent_member";
-          core.awardPoints(userId(tgId), "telegram", pointAction).catch(() => {});
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", pointAction), "award points");
         }
         return;
       }
@@ -2277,11 +2279,11 @@ export function startTelegramBot(
             { parse_mode: "HTML" },
           );
 
-          core.awardPoints(userId(tgId), "telegram", "event_rsvp").catch(() => {});
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
           // Notify flow in background
           if (action === "going") {
-            notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot).catch(() => {});
+            fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
           }
         }
         return;
@@ -2403,8 +2405,8 @@ export function startTelegramBot(
             }
 
             // Award points
-            core.awardPoints(parsed.userId, "telegram", "crew_joined").catch(() => {});
-            core.awardPoints(parsed.userId, "telegram", "crew_request_approved").catch(() => {});
+            fireAndForget(core.awardPoints(parsed.userId, "telegram", "crew_joined"), "award points");
+            fireAndForget(core.awardPoints(parsed.userId, "telegram", "crew_request_approved"), "award points");
 
             // Update the admin's message
             await ctx.editMessageText(
@@ -2477,7 +2479,7 @@ export function startTelegramBot(
         try {
           const settings = JSON.parse(result);
           // Count members
-          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+          const members = await sbQuery<any[]>(flowCfg, "flowb_group_members", {
             select: "user_id",
             group_id: `eq.${settings.id}`,
           });
@@ -2518,7 +2520,7 @@ export function startTelegramBot(
           });
 
           const newPublic = !current.is_public;
-          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+          const members = await sbQuery<any[]>(flowCfg, "flowb_group_members", {
             select: "user_id",
             group_id: `eq.${current.id}`,
           });
@@ -2557,7 +2559,7 @@ export function startTelegramBot(
             query: newMode,
           });
 
-          const members = await sbQueryBot(flowCfg, "flowb_group_members", {
+          const members = await sbQuery<any[]>(flowCfg, "flowb_group_members", {
             select: "user_id",
             group_id: `eq.${current.id}`,
           });
@@ -2652,7 +2654,7 @@ export function startTelegramBot(
           });
           // If it's a direct join (open mode), award points
           if (result.includes("Welcome to")) {
-            core.awardPoints(userId(tgId), "telegram", "crew_joined").catch(() => {});
+            fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_joined"), "award points");
           }
         }
         return;
@@ -2726,7 +2728,7 @@ export function startTelegramBot(
           parse_mode: "HTML",
           reply_markup: buildFarcasterMenuKeyboard(),
         });
-        core.awardPoints(userId(tgId), "telegram", "farcaster_viewed").catch(() => {});
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "farcaster_viewed"), "award points");
         return;
       }
 
@@ -2792,7 +2794,7 @@ export function startTelegramBot(
     if (isGroup) {
       const isReply = !!ctx.message.reply_to_message;
       const action = isReply ? "group_reply" : "group_message";
-      core.awardPoints(userId(tgId), "telegram", action).catch(() => {});
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", action), "award points");
 
       // Chatter capture (fire-and-forget, never blocks response)
       if (shouldAnalyze(ctx.message.text)) {
@@ -2809,7 +2811,7 @@ export function startTelegramBot(
                 signal,
                 ctx.message.text,
               );
-              core.awardPoints(userId(tgId), "telegram", "chatter_signal").catch(() => {});
+              fireAndForget(core.awardPoints(userId(tgId), "telegram", "chatter_signal"), "award points");
               console.log(`[flowb-chatter] Signal stored: "${signal.event_title}" (${signal.confidence})`);
             }
           } catch (err: any) {
@@ -2828,7 +2830,7 @@ export function startTelegramBot(
 
     await ensureVerified(tgId);
     if (!isGroup) {
-      core.awardPoints(userId(tgId), "telegram", "message_sent").catch(() => {});
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "message_sent"), "award points");
     }
 
     const text = ctx.message.text.trim();
@@ -2873,8 +2875,12 @@ export function startTelegramBot(
       }
     }
 
-    // "menu" keyword -> show compact inline menu
-    if (lower === "menu" || lower === "/menu") {
+    // ---- Natural text command router ----
+    // Matches plain words, phrases, and conversational triggers so users
+    // never need slash commands. Order matters: more specific first.
+
+    // Menu
+    if (/^(menu|home|start|hi|hey|hello|yo|sup)$/i.test(lower)) {
       await ctx.reply(formatMenuHtml(), {
         parse_mode: "HTML",
         reply_markup: buildCompactMenuKeyboard(miniAppUrl || undefined),
@@ -2882,14 +2888,24 @@ export function startTelegramBot(
       return;
     }
 
-    // "events" keyword -> launch card browser directly
-    if (lower === "events") {
+    // Events / browse
+    if (/^(events|browse|whats on|what's on|show events|browse events|find events)$/i.test(lower)) {
       await sendEventCards(ctx, core, {});
       return;
     }
 
-    // "flow" keyword -> flow menu
-    if (lower === "flow") {
+    // Search events (freeform: "search X", "find X events", "looking for X")
+    const searchMatch = lower.match(/^(?:search|find|looking for|show me)\s+(.+)/i);
+    if (searchMatch) {
+      await ensureVerified(tgId);
+      const intent = parseSearchIntent(searchMatch[1]);
+      await sendEventCards(ctx, core, { city: intent.city, style: intent.style, query: intent.query });
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "search"), "award points");
+      return;
+    }
+
+    // Flow menu
+    if (/^(flow|my flow)$/i.test(lower)) {
       await ctx.reply(formatFlowMenuHtml(), {
         parse_mode: "HTML",
         reply_markup: buildFlowMenuKeyboard(botUsername),
@@ -2897,9 +2913,149 @@ export function startTelegramBot(
       return;
     }
 
-    // "points" keyword -> show points
-    if (lower === "points") {
+    // Points / score
+    if (/^(points|my points|score|my score|how many points|xp)$/i.test(lower)) {
+      await ensureVerified(tgId);
       await sendCoreAction(ctx, core, "my-points");
+      return;
+    }
+
+    // Share / invite
+    if (/^(share|invite|invite link|share link|referral|my link|get link)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      if (!flowPlugin || !flowCfg) { await ctx.reply("Flow not configured."); return; }
+      const link = await flowPlugin.getInviteLink(flowCfg, userId(tgId));
+      await ctx.reply(formatFlowShareHtml(link), {
+        parse_mode: "HTML",
+        reply_markup: buildFlowShareKeyboard(link),
+      });
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_invite_sent"), "award points");
+      return;
+    }
+
+    // Crew (with sub-commands via natural text)
+    if (/^(crew|my crew|crews|team|squad)$/i.test(lower)) {
+      const session = await ensureVerified(tgId);
+      if (!session.verified) {
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        return;
+      }
+      const result = await core.execute("crew-list", { action: "crew-list", user_id: userId(tgId), platform: "telegram" });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML", reply_markup: buildCrewMenuKeyboard(botUsername) });
+      return;
+    }
+
+    // Create crew: "create crew X", "new crew X", "make crew X"
+    const crewCreateMatch = lower.match(/^(?:create|new|make)\s+(?:crew|team|squad)\s+(.+)/i);
+    if (crewCreateMatch) {
+      const session = await ensureVerified(tgId);
+      if (!session.verified) {
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        return;
+      }
+      const name = crewCreateMatch[1].trim();
+      const result = await core.execute("crew-create", { action: "crew-create", user_id: userId(tgId), platform: "telegram", query: name });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_created"), "award points");
+      return;
+    }
+
+    // Join crew: "join XXXX"
+    const joinMatch = lower.match(/^join\s+([a-z0-9_-]+)/i);
+    if (joinMatch) {
+      await ensureVerified(tgId);
+      const result = await core.execute("crew-join", { action: "crew-join", user_id: userId(tgId), platform: "telegram", query: joinMatch[1] });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
+    // Check in: "check in", "checkin", "check in at X", "im at X", "i'm at X"
+    const checkinMatch = lower.match(/^(?:check\s*in|checkin)(?:\s+(?:at\s+)?(.+))?$/i)
+      || lower.match(/^(?:i'?m at|im at|at)\s+(.+)/i);
+    if (checkinMatch) {
+      const session = await ensureVerified(tgId);
+      if (!session.verified) {
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        return;
+      }
+      const venue = checkinMatch[1]?.trim();
+      if (venue) {
+        // Direct check-in to a venue via chat API
+        await ctx.replyWithChatAction("typing");
+        const chatSession = getSession(tgId) || setSession(tgId, {});
+        const response = await sendFlowBChat(chatSession.chatHistory, `I'm at ${venue}`, userId(tgId));
+        setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: `I'm at ${venue}` }, { role: "assistant" as const, content: response }].slice(-20) });
+        await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        return;
+      }
+      // No venue specified — show checkin UI
+      const result = await core.execute("checkin", { action: "checkin", user_id: userId(tgId), platform: "telegram" });
+      const rawEvents = await core.discoverEventsRaw({ action: "events", user_id: userId(tgId), platform: "telegram" });
+      const now = new Date();
+      const todayEvents = rawEvents.filter((e) => Math.abs(new Date(e.startTime).getTime() - now.getTime()) < 24 * 60 * 60 * 1000);
+      if (todayEvents.length > 0) {
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML", reply_markup: buildCheckinKeyboard(todayEvents.slice(0, 5).map((e) => ({ id: e.id, title: e.title }))) });
+      } else {
+        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // Schedule / my schedule
+    if (/^(schedule|my schedule|my events|my list|saved|saved events)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      const result = await core.execute("my-schedule", { action: "my-schedule", user_id: userId(tgId), platform: "telegram" });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) });
+      return;
+    }
+
+    // Where's my crew
+    if (/^(where.?s? my crew|where.?s? (?:the )?crew|where is (?:my )?crew|find (?:my )?crew|locate crew)$/i.test(lower)) {
+      // Reuse the /wheremycrew logic by dispatching to command handler
+      await ctx.replyWithChatAction("typing");
+      const chatSession = getSession(tgId) || setSession(tgId, {});
+      const response = await sendFlowBChat(chatSession.chatHistory, "where's my crew?", userId(tgId));
+      setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: "where's my crew?" }, { role: "assistant" as const, content: response }].slice(-20) });
+      await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+      return;
+    }
+
+    // Who's going
+    if (/^(who.?s going|whos going|who is going|who.?s? attending)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      const result = await core.execute("whos-going", { action: "whos-going", user_id: userId(tgId), platform: "telegram" });
+      await ctx.reply(markdownToHtml(result), { parse_mode: "HTML", reply_markup: buildFlowMenuKeyboard(botUsername) });
+      return;
+    }
+
+    // Rewards / challenges
+    if (/^(rewards|my rewards|challenges|quests|missions)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await sendCoreAction(ctx, core, "my-rewards");
+      return;
+    }
+
+    // Help
+    if (/^(help|commands|what can you do|how does this work)$/i.test(lower)) {
+      await ctx.reply(
+        `<b>FlowB</b> — your ETHDenver crew coordinator\n\n` +
+        `Just type naturally! Here's what I can do:\n\n` +
+        `<b>Events</b> — browse events\n` +
+        `<b>Search defi</b> — find specific events\n` +
+        `<b>Schedule</b> — your saved events\n` +
+        `<b>Crew</b> — see your crews\n` +
+        `<b>Create crew Wolfpack</b> — start a crew\n` +
+        `<b>Join ABC123</b> — join with a code\n` +
+        `<b>Check in at Venue</b> — check in somewhere\n` +
+        `<b>Where's my crew</b> — locate crew members\n` +
+        `<b>Share</b> — get your invite link\n` +
+        `<b>Points</b> — see your score\n` +
+        `<b>Rewards</b> — view challenges\n\n` +
+        `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
+        { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
+      );
       return;
     }
 
@@ -2922,7 +3078,7 @@ export function startTelegramBot(
       parse_mode: "HTML",
       reply_markup: PERSISTENT_KEYBOARD,
     });
-    core.awardPoints(userId(tgId), "telegram", "chat").catch(() => {});
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "chat"), "award points");
   });
 
   // ========================================================================
@@ -3110,7 +3266,7 @@ async function sendEventCards(
   setSession(tgId, { cardMessageId: msg.message_id });
 
   // Award points
-  core.awardPoints(userId(tgId), "telegram", "events_viewed").catch(() => {});
+  fireAndForget(core.awardPoints(userId(tgId), "telegram", "events_viewed"), "award points");
 }
 
 async function sendCoreAction(ctx: any, core: FlowBCore, action: string): Promise<void> {
@@ -3247,7 +3403,7 @@ async function resolveRequestId(
   cfg: { supabaseUrl: string; supabaseKey: string },
   shortId: string,
 ): Promise<string | null> {
-  const rows = await sbQueryBot(cfg, "flowb_crew_join_requests", {
+  const rows = await sbQuery<any[]>(cfg, "flowb_crew_join_requests", {
     select: "id",
     status: "eq.pending",
     limit: "10",
@@ -3256,25 +3412,6 @@ async function resolveRequestId(
   if (!rows?.length) return null;
   const match = rows.find((r: any) => r.id.startsWith(shortId));
   return match?.id || null;
-}
-
-/** Simple Supabase query helper for bot-level queries */
-async function sbQueryBot(
-  cfg: { supabaseUrl: string; supabaseKey: string },
-  table: string,
-  params: Record<string, string>,
-): Promise<any[] | null> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json();
 }
 
 /**

@@ -388,7 +388,9 @@
       <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
         <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
         <a href="/flow" class="header-nav-link">My Flow</a>
+        <a href="/agents" class="header-nav-link">Agents</a>
         <a href="/about" class="header-nav-link">About</a>
       </nav>
       <div class="header-meta">
@@ -646,6 +648,13 @@
             </div>
             <div class="settings-toggle">
               <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Crew messages</div>
+                <div class="settings-toggle-hint">When someone sends a message in your crew chat</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifCrewMessages" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
                 <div class="settings-toggle-label">Friend RSVPs</div>
                 <div class="settings-toggle-hint">When friends RSVP to events</div>
               </div>
@@ -738,6 +747,7 @@
 
   <!-- Privy Auth Mount -->
   <div id="privy-root"></div>
+
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
@@ -1121,6 +1131,7 @@
       });
 
       document.getElementById('notifCrewCheckins').checked = p.notify_crew_checkins ?? true;
+      document.getElementById('notifCrewMessages').checked = p.notify_crew_messages ?? true;
       document.getElementById('notifFriendRsvps').checked = p.notify_friend_rsvps ?? true;
       document.getElementById('notifCrewRsvps').checked = p.notify_crew_rsvps ?? true;
       document.getElementById('notifEventReminders').checked = p.notify_event_reminders ?? true;
@@ -1162,6 +1173,7 @@
         body: JSON.stringify({
           reminder_defaults: reminder_defaults.length ? reminder_defaults : [30],
           notify_crew_checkins: document.getElementById('notifCrewCheckins').checked,
+          notify_crew_messages: document.getElementById('notifCrewMessages').checked,
           notify_friend_rsvps: document.getElementById('notifFriendRsvps').checked,
           notify_crew_rsvps: document.getElementById('notifCrewRsvps').checked,
           notify_event_reminders: document.getElementById('notifEventReminders').checked,

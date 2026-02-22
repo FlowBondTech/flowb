@@ -14,15 +14,19 @@
     :root {
       --bg: #050508;
       --bg-card: rgba(255,255,255,0.04);
+      --bg-card-alt: rgba(255,255,255,0.06);
       --border: rgba(255,255,255,0.08);
       --text: #e8e8f0;
       --text-muted: #7a7a90;
+      --text-dim: #555568;
       --accent: #2563eb;
       --accent-light: #60a5fa;
       --green: #22c55e;
-      --green-glow: rgba(34, 197, 94, 0.15);
+      --green-dim: rgba(34, 197, 94, 0.12);
       --purple: #a855f7;
       --orange: #f97316;
+      --yellow: #eab308;
+      --pink: #ec4899;
       --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
@@ -36,689 +40,295 @@
     }
 
     /* ===== Slide System ===== */
-    .deck {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-    }
+    .deck { width: 100vw; height: 100vh; position: relative; }
 
     .slide {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 60px 80px;
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
-                  transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-      pointer-events: none;
-      z-index: 0;
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 48px 80px;
+      opacity: 0; transform: translateY(30px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none; z-index: 0;
+      overflow-y: auto;
     }
+    .slide.active { opacity: 1; transform: translateY(0); pointer-events: auto; z-index: 1; }
+    .slide.exit-up { opacity: 0; transform: translateY(-30px); }
 
-    .slide.active {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-      z-index: 1;
-    }
-
-    .slide.exit-up {
-      opacity: 0;
-      transform: translateY(-30px);
-    }
-
-    /* ===== Background Effects ===== */
-    .bg-glow {
-      position: fixed;
-      width: 600px;
-      height: 600px;
-      border-radius: 50%;
-      filter: blur(120px);
-      opacity: 0.12;
-      pointer-events: none;
-      z-index: -1;
-    }
+    /* ===== Background ===== */
+    .bg-glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; filter: blur(120px); opacity: 0.12; pointer-events: none; z-index: -1; }
     .bg-glow-1 { background: var(--accent); top: -200px; right: -100px; }
     .bg-glow-2 { background: var(--green); bottom: -200px; left: -100px; opacity: 0.08; }
     .bg-glow-3 { background: var(--purple); top: 50%; left: 50%; transform: translate(-50%, -50%); opacity: 0.05; }
-
-    /* Subtle grid */
-    .bg-grid {
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-      background-size: 60px 60px;
-      pointer-events: none;
-      z-index: -1;
-    }
+    .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: -1; }
 
     /* ===== Typography ===== */
     .slide-tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent-light);
-      background: rgba(37, 99, 235, 0.1);
-      border: 1px solid rgba(37, 99, 235, 0.2);
-      padding: 6px 14px;
-      border-radius: 100px;
-      margin-bottom: 24px;
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent-light); background: rgba(37, 99, 235, 0.1); border: 1px solid rgba(37, 99, 235, 0.2);
+      padding: 5px 14px; border-radius: 100px; margin-bottom: 20px;
     }
+    .slide-tag.green { color: var(--green); background: rgba(34, 197, 94, 0.1); border-color: rgba(34, 197, 94, 0.2); }
+    .slide-tag.purple { color: var(--purple); background: rgba(168, 85, 247, 0.1); border-color: rgba(168, 85, 247, 0.2); }
+    .slide-tag.orange { color: var(--orange); background: rgba(249, 115, 22, 0.1); border-color: rgba(249, 115, 22, 0.2); }
+    .slide-tag.pink { color: var(--pink); background: rgba(236, 72, 153, 0.1); border-color: rgba(236, 72, 153, 0.2); }
+    .slide-tag.yellow { color: var(--yellow); background: rgba(234, 179, 8, 0.1); border-color: rgba(234, 179, 8, 0.2); }
 
-    .slide-tag.green {
-      color: var(--green);
-      background: rgba(34, 197, 94, 0.1);
-      border-color: rgba(34, 197, 94, 0.2);
-    }
+    h1 { font-size: 4rem; font-weight: 900; line-height: 1.05; text-align: center; letter-spacing: -0.03em; max-width: 900px; }
+    h2 { font-size: 2.6rem; font-weight: 800; line-height: 1.1; text-align: center; letter-spacing: -0.025em; max-width: 820px; }
+    h3 { font-size: 1.6rem; font-weight: 700; line-height: 1.2; letter-spacing: -0.02em; }
+    .subtitle { font-size: 1.2rem; color: var(--text-muted); text-align: center; max-width: 640px; line-height: 1.6; margin-top: 16px; font-weight: 400; }
 
-    .slide-tag.purple {
-      color: var(--purple);
-      background: rgba(168, 85, 247, 0.1);
-      border-color: rgba(168, 85, 247, 0.2);
-    }
+    .gradient-text { background: linear-gradient(135deg, var(--accent-light), var(--green), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-green { background: linear-gradient(135deg, var(--green), #86efac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-purple { background: linear-gradient(135deg, var(--purple), #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-orange { background: linear-gradient(135deg, var(--orange), #fb923c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .gradient-pink { background: linear-gradient(135deg, var(--pink), #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
 
-    .slide-tag.orange {
-      color: var(--orange);
-      background: rgba(249, 115, 22, 0.1);
-      border-color: rgba(249, 115, 22, 0.2);
-    }
+    /* ===== Cards ===== */
+    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 960px; width: 100%; margin-top: 32px; }
+    .cards-grid.two-col { grid-template-columns: repeat(2, 1fr); max-width: 700px; }
+    .cards-grid.four-col { grid-template-columns: repeat(4, 1fr); max-width: 1100px; }
 
-    h1 {
-      font-size: 4rem;
-      font-weight: 900;
-      line-height: 1.05;
-      text-align: center;
-      letter-spacing: -0.03em;
-      max-width: 900px;
-    }
-
-    h2 {
-      font-size: 2.8rem;
-      font-weight: 800;
-      line-height: 1.1;
-      text-align: center;
-      letter-spacing: -0.025em;
-      max-width: 800px;
-    }
-
-    h3 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      line-height: 1.2;
-      letter-spacing: -0.02em;
-    }
-
-    .subtitle {
-      font-size: 1.3rem;
-      color: var(--text-muted);
-      text-align: center;
-      max-width: 620px;
-      line-height: 1.6;
-      margin-top: 20px;
-      font-weight: 400;
-    }
-
-    .gradient-text {
-      background: linear-gradient(135deg, var(--accent-light), var(--green), var(--purple));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .gradient-green {
-      background: linear-gradient(135deg, var(--green), #86efac);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .gradient-purple {
-      background: linear-gradient(135deg, var(--purple), #c084fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    /* ===== Cards Grid ===== */
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 20px;
-      max-width: 960px;
-      width: 100%;
-      margin-top: 40px;
-    }
-
-    .cards-grid.two-col {
-      grid-template-columns: repeat(2, 1fr);
-      max-width: 700px;
-    }
-
-    .cards-grid.four-col {
-      grid-template-columns: repeat(4, 1fr);
-      max-width: 1100px;
-    }
-
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 28px 24px;
-      text-align: center;
-      transition: border-color 0.3s, transform 0.3s;
-    }
-
-    .card:hover {
-      border-color: rgba(255,255,255,0.12);
-      transform: translateY(-2px);
-    }
-
-    .card-icon {
-      font-size: 2.4rem;
-      margin-bottom: 14px;
-      display: block;
-    }
-
-    .card h4 {
-      font-size: 1.05rem;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .card p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px; text-align: center; transition: border-color 0.3s, transform 0.3s; }
+    .card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+    .card-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .card h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 6px; }
+    .card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
 
     /* ===== Problem Bullets ===== */
-    .problem-list {
-      list-style: none;
-      max-width: 640px;
-      margin-top: 36px;
-      width: 100%;
-    }
-
-    .problem-list li {
-      display: flex;
-      align-items: flex-start;
-      gap: 16px;
-      padding: 16px 0;
-      border-bottom: 1px solid var(--border);
-      font-size: 1.15rem;
-      line-height: 1.5;
-    }
-
+    .problem-list { list-style: none; max-width: 640px; margin-top: 28px; width: 100%; }
+    .problem-list li { display: flex; align-items: flex-start; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--border); font-size: 1.1rem; line-height: 1.5; }
     .problem-list li:last-child { border-bottom: none; }
+    .problem-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(249,115,22,0.08); }
 
-    .problem-icon {
-      font-size: 1.4rem;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    /* ===== Stats Row ===== */
-    .stats-row {
-      display: flex;
-      gap: 48px;
-      margin-top: 40px;
-      text-align: center;
-    }
-
-    .stat-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .stat-val {
-      font-size: 3rem;
-      font-weight: 900;
-      letter-spacing: -0.03em;
-      line-height: 1;
-    }
-
+    /* ===== Stats ===== */
+    .stats-row { display: flex; gap: 40px; margin-top: 32px; text-align: center; flex-wrap: wrap; justify-content: center; }
+    .stat-item { display: flex; flex-direction: column; gap: 4px; }
+    .stat-val { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
     .stat-val.blue { color: var(--accent-light); }
     .stat-val.green { color: var(--green); }
     .stat-val.purple { color: var(--purple); }
     .stat-val.orange { color: var(--orange); }
+    .stat-val.pink { color: var(--pink); }
+    .stat-label { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; }
 
-    .stat-label {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
+    /* ===== Feature Grid ===== */
+    .feature-showcase { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 900px; width: 100%; margin-top: 28px; }
+    .feature-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; display: flex; gap: 14px; align-items: flex-start; }
+    .feature-item .fi-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+    .feature-item h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+    .feature-item p { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
 
-    /* ===== Platform Cards ===== */
-    .platform-row {
-      display: flex;
-      gap: 24px;
-      margin-top: 40px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    /* ===== Coordination Flow ===== */
+    .coord-visual { display: flex; align-items: center; gap: 16px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .coord-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 18px 24px; text-align: center; min-width: 120px; transition: all 0.3s; }
+    .coord-node:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-2px); }
+    .coord-node .node-icon { font-size: 1.6rem; margin-bottom: 6px; }
+    .coord-node .node-label { font-weight: 600; font-size: 0.85rem; }
+    .coord-arrow { font-size: 1.2rem; color: var(--accent-light); opacity: 0.35; }
 
-    .platform-pill {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 60px;
-      padding: 14px 28px 14px 20px;
-      font-size: 1rem;
-      font-weight: 600;
-      transition: border-color 0.3s, background 0.3s;
-    }
+    /* ===== Milestone Ladder ===== */
+    .milestone-ladder { position: relative; display: flex; flex-direction: column; gap: 0; max-width: 300px; width: 100%; margin-top: 28px; padding-left: 28px; }
+    /* Vertical line connecting nodes */
+    .milestone-ladder::before { content: ''; position: absolute; left: 13px; top: 18px; bottom: 18px; width: 2px; background: linear-gradient(to bottom, rgba(234,179,8,0.5), rgba(168,85,247,0.4), rgba(96,165,250,0.4), rgba(34,197,94,0.3), rgba(255,255,255,0.08)); border-radius: 2px; }
 
-    .platform-pill:hover {
-      border-color: rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.06);
-    }
+    .milestone-step { display: flex; align-items: center; gap: 14px; padding: 10px 16px 10px 20px; position: relative; transition: all 0.3s; }
 
-    .platform-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
+    /* Glowing node on the line */
+    .milestone-step::before { content: ''; position: absolute; left: -22px; width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.15); transition: all 0.3s; z-index: 1; }
+    .milestone-step:hover::before { transform: scale(1.3); }
 
-    .platform-pill .p-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.2rem;
-      flex-shrink: 0;
-    }
+    /* Per-tier node colors */
+    .milestone-step.tier-1::before { background: rgba(34,197,94,0.2); border-color: rgba(34,197,94,0.4); }
+    .milestone-step.tier-2::before { background: rgba(96,165,250,0.2); border-color: rgba(96,165,250,0.4); }
+    .milestone-step.tier-3::before { background: rgba(96,165,250,0.3); border-color: rgba(96,165,250,0.5); }
+    .milestone-step.tier-4::before { background: rgba(168,85,247,0.25); border-color: rgba(168,85,247,0.5); }
+    .milestone-step.tier-5::before { background: rgba(168,85,247,0.35); border-color: rgba(168,85,247,0.6); box-shadow: 0 0 8px rgba(168,85,247,0.3); }
+    .milestone-step.legendary::before { background: rgba(234,179,8,0.4); border-color: rgba(234,179,8,0.7); box-shadow: 0 0 12px rgba(234,179,8,0.4); width: 14px; height: 14px; left: -23px; }
 
-    .platform-sub {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
+    .milestone-emoji { font-size: 1.15rem; min-width: 24px; text-align: center; }
+    .milestone-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+    .milestone-name { font-weight: 700; font-size: 0.95rem; line-height: 1.2; }
+    .milestone-pts { font-size: 0.72rem; color: var(--text-dim); font-weight: 500; font-variant-numeric: tabular-nums; }
+
+    /* Tier color accents on name */
+    .milestone-step.tier-1 .milestone-name { color: rgba(255,255,255,0.5); }
+    .milestone-step.tier-2 .milestone-name { color: rgba(255,255,255,0.6); }
+    .milestone-step.tier-3 .milestone-name { color: var(--accent-light); }
+    .milestone-step.tier-4 .milestone-name { color: var(--purple); }
+    .milestone-step.tier-5 .milestone-name { color: #c084fc; }
+    .milestone-step.legendary .milestone-name { color: var(--yellow); font-size: 1.05rem; }
+    .milestone-step.legendary .milestone-pts { color: rgba(234,179,8,0.6); }
+
+    /* Hover glow card */
+    .milestone-step:hover { background: rgba(255,255,255,0.02); border-radius: 10px; }
+
+    /* ===== Point Actions Table ===== */
+    .points-table { max-width: 800px; width: 100%; margin-top: 24px; }
+    .pt-row { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); gap: 12px; }
+    .pt-action { flex: 1; font-size: 0.88rem; }
+    .pt-val { font-size: 0.88rem; font-weight: 700; color: var(--accent-light); min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+    .pt-bonus { color: var(--yellow); }
+    .pt-cat { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 12px 0 6px; margin-top: 4px; }
+
+    /* ===== Platform Row ===== */
+    .platform-row { display: flex; gap: 20px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .platform-pill { display: flex; align-items: center; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 60px; padding: 12px 24px 12px 18px; font-size: 0.95rem; font-weight: 600; transition: border-color 0.3s; }
+    .platform-pill:hover { border-color: rgba(255,255,255,0.15); }
+    .platform-pill .p-icon { width: 26px; height: 26px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+    .platform-sub { font-size: 0.75rem; color: var(--text-muted); font-weight: 400; }
 
     /* ===== Team ===== */
-    .team-grid {
-      display: flex;
-      gap: 48px;
-      margin-top: 48px;
-      justify-content: center;
-    }
+    .team-grid { display: flex; gap: 56px; margin-top: 40px; justify-content: center; }
+    .team-member { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; max-width: 240px; }
+    .team-avatar { width: 130px; height: 130px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--purple)); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 800; color: white; border: 3px solid rgba(255,255,255,0.1); box-shadow: 0 0 40px rgba(37, 99, 235, 0.2); overflow: hidden; }
+    .team-avatar.steph { background: linear-gradient(135deg, var(--green), #059669); box-shadow: 0 0 40px rgba(34, 197, 94, 0.2); }
+    .team-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .team-name { font-size: 1.3rem; font-weight: 700; }
+    .team-role { font-size: 0.85rem; color: var(--text-muted); margin-top: -6px; }
+    .team-bio { font-size: 0.78rem; color: var(--text-dim); line-height: 1.5; margin-top: -4px; }
+    .team-links { display: flex; gap: 6px; font-size: 0.78rem; flex-wrap: wrap; justify-content: center; }
+    .team-links a { color: var(--accent-light); text-decoration: none; padding: 3px 9px; border-radius: 100px; border: 1px solid rgba(37, 99, 235, 0.2); transition: all 0.2s; }
+    .team-links a:hover { background: rgba(37, 99, 235, 0.1); }
+    .team-links a.green { color: var(--green); border-color: rgba(34, 197, 94, 0.2); }
+    .team-links a.green:hover { background: rgba(34, 197, 94, 0.1); }
 
-    .team-member {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 16px;
-      text-align: center;
-    }
+    /* ===== Title Logo ===== */
+    .title-logo { width: 120px; height: 120px; border-radius: 28px; margin-bottom: 24px; box-shadow: 0 0 60px rgba(37, 99, 235, 0.25); }
 
-    .team-avatar {
-      width: 140px;
-      height: 140px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent), var(--purple));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3.2rem;
-      font-weight: 800;
-      color: white;
-      border: 3px solid rgba(255,255,255,0.1);
-      box-shadow: 0 0 40px rgba(37, 99, 235, 0.2);
-    }
+    /* ===== 3D Hero Canvas ===== */
+    .hero-3d-wrap { position: relative; width: 420px; height: 420px; margin-bottom: 4px; }
+    .hero-3d-wrap canvas { width: 100% !important; height: 100% !important; border-radius: 50%; }
+    .hero-3d-glow { position: absolute; inset: -40px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,0.18) 0%, rgba(168,85,247,0.08) 40%, transparent 70%); pointer-events: none; animation: hero-breathe 4s ease-in-out infinite; }
+    @keyframes hero-breathe { 0%,100% { opacity: 0.7; transform: scale(1); } 50% { opacity: 1; transform: scale(1.06); } }
+    @media (max-width: 768px) { .hero-3d-wrap { width: 300px; height: 300px; } }
+    .event-context { display: inline-flex; align-items: center; gap: 8px; margin-top: 28px; padding: 10px 20px; border-radius: 100px; border: 1px solid var(--border); background: var(--bg-card); font-size: 0.82rem; color: var(--text-muted); flex-wrap: wrap; justify-content: center; }
+    .event-context strong { color: var(--green); font-weight: 600; }
 
-    .team-avatar.steph {
-      background: linear-gradient(135deg, var(--green), #059669);
-      box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
-    }
+    /* ===== Quote ===== */
+    .quote-block { max-width: 680px; text-align: center; margin-top: 24px; position: relative; padding: 28px 32px; }
+    .quote-block::before { content: '\201C'; position: absolute; top: -8px; left: 8px; font-size: 5rem; color: rgba(34,197,94,0.15); font-family: Georgia, serif; line-height: 1; }
+    .quote-text { font-size: 1.35rem; font-weight: 500; line-height: 1.6; color: var(--text); font-style: italic; }
+    .quote-attr { font-size: 0.82rem; color: var(--text-muted); margin-top: 12px; }
 
-    .team-name {
-      font-size: 1.4rem;
-      font-weight: 700;
-    }
+    /* ===== AI Tools Visual ===== */
+    .tool-grid { display: flex; flex-wrap: wrap; gap: 10px; max-width: 700px; margin-top: 28px; justify-content: center; }
+    .tool-chip { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 16px; font-size: 0.82rem; font-weight: 500; display: flex; align-items: center; gap: 8px; transition: all 0.3s; }
+    .tool-chip:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-1px); }
+    .tool-chip .tc-icon { font-size: 1rem; }
 
-    .team-role {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-top: -8px;
-    }
+    /* ===== Notification Visual ===== */
+    .notif-examples { max-width: 520px; width: 100%; margin-top: 28px; display: flex; flex-direction: column; gap: 10px; }
+    .notif-msg { display: flex; align-items: flex-start; gap: 12px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 18px; font-size: 0.88rem; line-height: 1.5; }
+    .notif-msg .nm-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .notif-msg .nm-text { flex: 1; }
+    .notif-msg .nm-text strong { color: var(--accent-light); }
+    .notif-msg .nm-time { font-size: 0.7rem; color: var(--text-dim); white-space: nowrap; margin-top: 2px; }
 
-    .team-links {
-      display: flex;
-      gap: 8px;
-      font-size: 0.82rem;
-      color: var(--accent-light);
-    }
+    /* ===== Identity Visual ===== */
+    .identity-flow { display: flex; align-items: center; gap: 12px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
+    .id-node { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px 20px; text-align: center; font-size: 0.85rem; font-weight: 600; }
+    .id-node .id-icon { font-size: 1.3rem; margin-bottom: 4px; display: block; }
+    .id-node .id-sub { font-size: 0.7rem; color: var(--text-dim); font-weight: 400; margin-top: 2px; }
+    .id-center { background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(168,85,247,0.15)); border-color: rgba(96, 165, 250, 0.3); padding: 18px 24px; }
+    .id-arrow { color: var(--text-dim); font-size: 1.2rem; }
 
-    .team-links a {
-      color: var(--accent-light);
-      text-decoration: none;
-      padding: 4px 10px;
-      border-radius: 100px;
-      border: 1px solid rgba(37, 99, 235, 0.2);
-      transition: all 0.2s;
-    }
-
-    .team-links a:hover {
-      background: rgba(37, 99, 235, 0.1);
-    }
-
-    /* ===== Title Slide Logo ===== */
-    .title-logo {
-      width: 120px;
-      height: 120px;
-      border-radius: 28px;
-      margin-bottom: 28px;
-      box-shadow: 0 0 60px rgba(37, 99, 235, 0.25);
-    }
-
-    .event-context {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 32px;
-      padding: 10px 20px;
-      border-radius: 100px;
-      border: 1px solid var(--border);
-      background: var(--bg-card);
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .event-context strong {
-      color: var(--green);
-      font-weight: 600;
-    }
-
-    /* ===== Coordination Diagram ===== */
-    .coord-visual {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin-top: 40px;
-    }
-
-    .coord-node {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 28px;
-      text-align: center;
-      min-width: 140px;
-    }
-
-    .coord-node .node-icon { font-size: 1.6rem; margin-bottom: 6px; }
-    .coord-node .node-label { font-weight: 600; font-size: 0.9rem; }
-
-    .coord-arrow {
-      font-size: 1.6rem;
-      color: var(--text-muted);
-      opacity: 0.5;
-    }
-
-    /* ===== Feature Highlights ===== */
-    .feature-showcase {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      max-width: 900px;
-      width: 100%;
-      margin-top: 36px;
-    }
-
-    .feature-item {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 24px;
-      display: flex;
-      gap: 16px;
-      align-items: flex-start;
-    }
-
-    .feature-item .fi-icon {
-      font-size: 1.6rem;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    .feature-item h4 {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 4px;
-    }
-
-    .feature-item p {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
+    /* ===== QR Code ===== */
+    .qr-section { display: flex; align-items: center; gap: 20px; margin-top: 28px; padding: 16px 24px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px; }
+    .qr-canvas-wrap { width: 110px; height: 110px; background: white; border-radius: 10px; padding: 6px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .qr-canvas-wrap canvas { width: 100%; height: 100%; image-rendering: pixelated; }
+    .qr-info { text-align: left; }
+    .qr-info h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+    .qr-info p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+    .qr-info .qr-url { font-size: 0.72rem; color: var(--purple); font-weight: 600; margin-top: 4px; display: block; }
 
     /* ===== CTA ===== */
-    .cta-links {
-      display: flex;
-      gap: 16px;
-      margin-top: 36px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
+    .cta-links { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 26px; border-radius: 100px; font-size: 0.95rem; font-weight: 600; text-decoration: none; transition: all 0.3s; border: none; cursor: pointer; }
+    .cta-btn.primary { background: linear-gradient(135deg, var(--accent), #7c3aed); color: white; box-shadow: 0 4px 24px rgba(37, 99, 235, 0.35); animation: cta-pulse 2.5s ease-in-out infinite; }
+    .cta-btn.primary:hover { box-shadow: 0 4px 32px rgba(37, 99, 235, 0.5); transform: translateY(-1px); }
+    @keyframes cta-pulse { 0%, 100% { box-shadow: 0 4px 24px rgba(37, 99, 235, 0.35); } 50% { box-shadow: 0 4px 36px rgba(124, 58, 237, 0.45); } }
+    .cta-btn.secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+    .cta-btn.secondary:hover { border-color: rgba(255,255,255,0.15); transform: translateY(-1px); }
 
-    .cta-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 14px 28px;
-      border-radius: 100px;
-      font-size: 1rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: all 0.3s;
-      border: none;
-      cursor: pointer;
-    }
+    /* ===== Nav ===== */
+    .nav-bar { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 8px; z-index: 100; background: rgba(10, 10, 15, 0.9); backdrop-filter: blur(16px); border: 1px solid var(--border); border-radius: 100px; padding: 6px 14px; }
+    .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,0.15); cursor: pointer; transition: all 0.3s; border: none; }
+    .nav-dot.active { background: var(--accent-light); width: 20px; border-radius: 4px; }
+    .nav-dot:hover:not(.active) { background: rgba(255,255,255,0.3); }
+    .nav-counter { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; margin-left: 6px; font-variant-numeric: tabular-nums; }
+    .nav-hint { position: fixed; bottom: 58px; left: 50%; transform: translateX(-50%); font-size: 0.7rem; color: var(--text-muted); opacity: 0.4; pointer-events: none; z-index: 100; transition: opacity 1s; }
 
-    .cta-btn.primary {
-      background: var(--accent);
-      color: white;
-      box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
-    }
-
-    .cta-btn.primary:hover {
-      background: var(--accent-light);
-      box-shadow: 0 4px 24px rgba(37, 99, 235, 0.4);
-    }
-
-    .cta-btn.secondary {
-      background: var(--bg-card);
-      color: var(--text);
-      border: 1px solid var(--border);
-    }
-
-    .cta-btn.secondary:hover {
-      border-color: rgba(255,255,255,0.15);
-      background: rgba(255,255,255,0.06);
-    }
-
-    /* ===== Governance Quote ===== */
-    .quote-block {
-      max-width: 700px;
-      text-align: center;
-      margin-top: 32px;
-    }
-
-    .quote-text {
-      font-size: 1.5rem;
-      font-weight: 500;
-      line-height: 1.6;
-      color: var(--text);
-      font-style: italic;
-    }
-
-    .quote-author {
-      font-size: 0.9rem;
-      color: var(--text-muted);
-      margin-top: 16px;
-    }
-
-    /* ===== Navigation ===== */
-    .nav-bar {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      z-index: 100;
-      background: rgba(10, 10, 15, 0.85);
-      backdrop-filter: blur(16px);
-      border: 1px solid var(--border);
-      border-radius: 100px;
-      padding: 8px 16px;
-    }
-
-    .nav-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.15);
-      cursor: pointer;
-      transition: all 0.3s;
-      border: none;
-    }
-
-    .nav-dot.active {
-      background: var(--accent-light);
-      width: 24px;
-      border-radius: 4px;
-    }
-
-    .nav-dot:hover:not(.active) {
-      background: rgba(255,255,255,0.3);
-    }
-
-    .nav-counter {
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      font-weight: 500;
-      margin-left: 8px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .nav-hint {
-      position: fixed;
-      bottom: 70px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.72rem;
-      color: var(--text-muted);
-      opacity: 0.4;
-      pointer-events: none;
-      z-index: 100;
-      transition: opacity 1s;
-    }
+    /* ===== Back Link ===== */
+    .back-link { position: fixed; top: 20px; left: 24px; z-index: 200; display: flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 500; color: var(--text-muted); text-decoration: none; padding: 6px 14px; border-radius: 100px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); backdrop-filter: blur(12px); transition: all 0.3s; }
+    .back-link:hover { color: var(--text); border-color: rgba(255,255,255,0.15); }
 
     /* ===== Animations ===== */
-    @keyframes float {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-6px); }
-    }
-
-    @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 40px rgba(37, 99, 235, 0.2); }
-      50% { box-shadow: 0 0 60px rgba(37, 99, 235, 0.35); }
-    }
-
+    @keyframes pulse-glow { 0%, 100% { box-shadow: 0 0 40px rgba(37, 99, 235, 0.2); } 50% { box-shadow: 0 0 60px rgba(37, 99, 235, 0.35); } }
     .title-logo { animation: pulse-glow 3s ease-in-out infinite; }
 
-    .slide.active .card,
-    .slide.active .feature-item,
-    .slide.active .platform-pill,
-    .slide.active .team-member,
-    .slide.active .stat-item,
-    .slide.active .coord-node {
-      animation: fadeUp 0.5s ease-out both;
-    }
+    .slide.active .card, .slide.active .feature-item, .slide.active .platform-pill,
+    .slide.active .team-member, .slide.active .stat-item, .slide.active .coord-node,
+    .slide.active .milestone-step, .slide.active .tool-chip, .slide.active .notif-msg,
+    .slide.active .id-node, .slide.active .pt-row { animation: fadeUp 0.5s ease-out both; }
 
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-    .slide.active .card:nth-child(1),
-    .slide.active .feature-item:nth-child(1),
-    .slide.active .platform-pill:nth-child(1),
-    .slide.active .stat-item:nth-child(1) { animation-delay: 0.1s; }
-
-    .slide.active .card:nth-child(2),
-    .slide.active .feature-item:nth-child(2),
-    .slide.active .platform-pill:nth-child(2),
-    .slide.active .stat-item:nth-child(2) { animation-delay: 0.2s; }
-
-    .slide.active .card:nth-child(3),
-    .slide.active .feature-item:nth-child(3),
-    .slide.active .platform-pill:nth-child(3),
-    .slide.active .stat-item:nth-child(3) { animation-delay: 0.3s; }
-
-    .slide.active .card:nth-child(4),
-    .slide.active .feature-item:nth-child(4),
-    .slide.active .platform-pill:nth-child(4),
-    .slide.active .stat-item:nth-child(4) { animation-delay: 0.4s; }
+    .slide.active *:nth-child(1) { animation-delay: 0.05s; }
+    .slide.active *:nth-child(2) { animation-delay: 0.1s; }
+    .slide.active *:nth-child(3) { animation-delay: 0.15s; }
+    .slide.active *:nth-child(4) { animation-delay: 0.2s; }
+    .slide.active *:nth-child(5) { animation-delay: 0.25s; }
+    .slide.active *:nth-child(6) { animation-delay: 0.3s; }
 
     .slide.active .team-member:nth-child(1) { animation-delay: 0.15s; }
     .slide.active .team-member:nth-child(2) { animation-delay: 0.3s; }
 
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
-      .slide { padding: 40px 24px; }
-      h1 { font-size: 2.4rem; }
-      h2 { font-size: 1.8rem; }
-      .cards-grid { grid-template-columns: 1fr; }
+      .slide { padding: 32px 20px; }
+      h1 { font-size: 2.2rem; }
+      h2 { font-size: 1.6rem; }
+      .cards-grid, .feature-showcase { grid-template-columns: 1fr; }
       .cards-grid.four-col { grid-template-columns: repeat(2, 1fr); }
-      .feature-showcase { grid-template-columns: 1fr; }
-      .stats-row { gap: 24px; flex-wrap: wrap; }
-      .stat-val { font-size: 2rem; }
-      .team-grid { flex-direction: column; gap: 32px; }
-      .coord-visual { flex-wrap: wrap; justify-content: center; }
+      .stats-row { gap: 20px; }
+      .stat-val { font-size: 1.8rem; }
+      .team-grid { flex-direction: column; gap: 24px; }
       .title-logo { width: 80px; height: 80px; border-radius: 20px; }
     }
   </style>
 </head>
 <body>
-  <!-- Background Effects -->
   <div class="bg-grid"></div>
   <div class="bg-glow bg-glow-1"></div>
   <div class="bg-glow bg-glow-2"></div>
   <div class="bg-glow bg-glow-3"></div>
 
+  <a href="/" class="back-link">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    flowb.me
+  </a>
+
   <div class="deck" id="deck">
 
-    <!-- ==================== SLIDE 1: Title ==================== -->
+    <!-- ========== SLIDE 1: Title ========== -->
     <div class="slide active" data-slide="0">
-      <img src="flowb.png" alt="FlowB" class="title-logo">
+      <div class="hero-3d-wrap">
+        <div class="hero-3d-glow"></div>
+        <canvas id="hero3d"></canvas>
+      </div>
       <h1><span class="gradient-text">FlowB</span></h1>
       <p class="subtitle">Coordination infrastructure for the humans of ETHDenver</p>
       <div class="event-context">
         <span>Presented at</span>
         <strong>GoverNinit Summit 2026</strong>
-        <span>&middot; Golden, CO</span>
+        <span>&middot;</span>
+        <span>Golden Kava Lounge, Golden CO</span>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 2: The Problem ==================== -->
+    <!-- ========== SLIDE 2: The Problem ========== -->
     <div class="slide" data-slide="1">
       <span class="slide-tag orange">The Problem</span>
       <h2>ETHDenver is <span class="gradient-text">massive</span>. Coordination is <em>hard</em>.</h2>
@@ -729,7 +339,7 @@
         </li>
         <li>
           <span class="problem-icon">&#x1F465;</span>
-          <span><strong>Fragmented coordination.</strong> Your crew is split across group chats, Luma invites, Google Sheets, and DMs. Who's going where?</span>
+          <span><strong>Fragmented coordination.</strong> Your crew is split across group chats, Luma, Eventbrite, Google Sheets, and DMs. Who's going where?</span>
         </li>
         <li>
           <span class="problem-icon">&#x1F6AB;</span>
@@ -742,11 +352,11 @@
       </ul>
     </div>
 
-    <!-- ==================== SLIDE 3: The Solution ==================== -->
+    <!-- ========== SLIDE 3: Solution Overview ========== -->
     <div class="slide" data-slide="2">
       <span class="slide-tag green">The Solution</span>
       <h2>One place to <span class="gradient-green">discover, coordinate,</span> and <span class="gradient-green">go together</span></h2>
-      <p class="subtitle">FlowB aggregates every side event into one feed, lets you form crews, and rewards exploration. Your ETHDenver companion -- free and open.</p>
+      <p class="subtitle">FlowB aggregates every side event, lets you form crews, and rewards exploration. Your ETHDenver companion -- free, open, community-built.</p>
 
       <div class="coord-visual">
         <div class="coord-node">
@@ -765,112 +375,490 @@
         </div>
         <span class="coord-arrow">&#x2192;</span>
         <div class="coord-node">
+          <div class="node-icon">&#x1F4CD;</div>
+          <div class="node-label">Check In</div>
+        </div>
+        <span class="coord-arrow">&#x2192;</span>
+        <div class="coord-node">
           <div class="node-icon">&#x1F525;</div>
-          <div class="node-label">Earn & Share</div>
+          <div class="node-label">Earn</div>
+        </div>
+      </div>
+
+      <div class="stats-row" style="margin-top: 36px;">
+        <div class="stat-item">
+          <span class="stat-val blue">5</span>
+          <span class="stat-label">Event Sources</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val green">25+</span>
+          <span class="stat-label">Categories</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val purple">4</span>
+          <span class="stat-label">Platforms</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val orange">12</span>
+          <span class="stat-label">AI Tools</span>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 4: Features ==================== -->
+    <!-- ========== SLIDE 4: Event Discovery Deep Dive ========== -->
     <div class="slide" data-slide="3">
-      <span class="slide-tag">Core Features</span>
-      <h2>Built for <span class="gradient-text">real coordination</span></h2>
+      <span class="slide-tag">Event Discovery</span>
+      <h2>Every event. <span class="gradient-text">One feed.</span></h2>
+      <p class="subtitle">We aggregate from 5 sources so you never miss what matters -- DeFi summits, AI workshops, governance talks, afterparties, yoga sessions.</p>
 
       <div class="feature-showcase">
         <div class="feature-item">
-          <span class="fi-icon">&#x1F30D;</span>
+          <span class="fi-icon">&#x1F7E0;</span>
           <div>
-            <h4>Event Aggregation</h4>
-            <p>100+ events from Luma, Eventbrite, RA, and more. Filter by category, date, or vibe. Search anything.</p>
+            <h4>Luma</h4>
+            <p>Official API + discover crawl. Rich event details, ticket types, guest lists, and RSVP integration.</p>
           </div>
         </div>
         <div class="feature-item">
-          <span class="fi-icon">&#x1F46B;</span>
+          <span class="fi-icon">&#x1F7E2;</span>
           <div>
-            <h4>Crews</h4>
-            <p>Form squads, share schedules, check in together. Crew-based coordination for the week. No group chat chaos.</p>
+            <h4>Eventbrite</h4>
+            <p>Community-organized events, workshops, and meetups. Full pricing and venue data.</p>
           </div>
         </div>
         <div class="feature-item">
-          <span class="fi-icon">&#x1F525;</span>
+          <span class="fi-icon">&#x1F7E3;</span>
           <div>
-            <h4>Points & Milestones</h4>
-            <p>RSVP, check in, invite friends, complete quests. Climb the leaderboard. Gamified exploration rewards showing up.</p>
+            <h4>Resident Advisor</h4>
+            <p>Music events, DJ sets, and nightlife. The afterparties you'd otherwise miss.</p>
           </div>
         </div>
         <div class="feature-item">
-          <span class="fi-icon">&#x1F916;</span>
+          <span class="fi-icon">&#x1F535;</span>
           <div>
-            <h4>AI Event Guide</h4>
-            <p>"What's happening tonight?" Ask FlowB and get instant, context-aware answers about events across Denver.</p>
+            <h4>Google Places + Brave</h4>
+            <p>Venue discovery, local context, and web-wide event search. Nothing slips through.</p>
           </div>
         </div>
       </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 20px; text-align: center;">
+        25 categories: DeFi, AI, Infrastructure, Social, Party, Workshop, Hackathon, Governance, Music, Art, Gaming, and more
+      </p>
     </div>
 
-    <!-- ==================== SLIDE 5: Multi-Platform ==================== -->
+    <!-- ========== SLIDE 5: Crews Deep Dive ========== -->
     <div class="slide" data-slide="4">
-      <span class="slide-tag purple">Meet People Where They Are</span>
-      <h2><span class="gradient-purple">Every platform</span>, one experience</h2>
-      <p class="subtitle">Telegram, Farcaster, Web, and soon mobile. Your account, your crews, your schedule -- everywhere.</p>
+      <span class="slide-tag green">Crews</span>
+      <h2>Small group <span class="gradient-green">coordination</span>, not group chat chaos</h2>
+      <p class="subtitle">Crews are your squad for the week. Up to 50 members. Shared schedules, check-ins, and collective goals.</p>
 
-      <div class="platform-row">
-        <div class="platform-pill">
-          <div class="p-icon">&#x1F310;</div>
+      <div class="feature-showcase">
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F511;</span>
           <div>
-            <div>Web App</div>
-            <div class="platform-sub">flowb.me</div>
+            <h4>Flexible Join Modes</h4>
+            <p><strong>Open</strong> (anyone joins), <strong>Approval</strong> (admin reviews), or <strong>Closed</strong>. Public or private visibility. Shareable links: flowb.me/g/{code}</p>
           </div>
         </div>
-        <div class="platform-pill">
-          <div class="p-icon">&#x2708;&#xFE0F;</div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4CD;</span>
           <div>
-            <div>Telegram Bot</div>
-            <div class="platform-sub">@Flow_b_bot</div>
+            <h4>"Where Are You?" Ping</h4>
+            <p>Locate your crew in real-time. Members share check-ins with venue, status (here / heading / leaving), and 4-hour expiry.</p>
           </div>
         </div>
-        <div class="platform-pill">
-          <div class="p-icon">&#x1F7E3;</div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4C5;</span>
           <div>
-            <div>Farcaster MiniApp</div>
-            <div class="platform-sub">In Warpcast</div>
+            <h4>Shared Schedule</h4>
+            <p>See who's going where. RSVP visibility across the crew. "Who's going tonight?" answered instantly.</p>
           </div>
         </div>
-        <div class="platform-pill">
-          <div class="p-icon">&#x1F4F1;</div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F3AF;</span>
           <div>
-            <div>Mobile App</div>
-            <div class="platform-sub">iOS & Android (soon)</div>
+            <h4>Crew Missions</h4>
+            <p>Collective goals: attend 5 events together, invite 10 friends, check in as a group. Bonus points for the whole crew.</p>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 6: Ethereum Localism ==================== -->
+    <!-- ========== SLIDE 6: Points & Gamification ========== -->
     <div class="slide" data-slide="5">
+      <span class="slide-tag yellow">Gamification</span>
+      <h2>Rewarding <span class="gradient-orange">participation</span>, not speculation</h2>
+
+      <div style="display: flex; gap: 40px; margin-top: 28px; flex-wrap: wrap; justify-content: center; align-items: flex-start;">
+        <!-- Point Actions -->
+        <div class="points-table" style="max-width: 400px;">
+          <div class="pt-cat">Social & Onboarding</div>
+          <div class="pt-row"><span class="pt-action">Daily login</span><span class="pt-val">+5</span></div>
+          <div class="pt-row"><span class="pt-action">Onboarding complete</span><span class="pt-val pt-bonus">+10</span></div>
+          <div class="pt-row"><span class="pt-action">Verification</span><span class="pt-val pt-bonus">+25</span></div>
+          <div class="pt-cat">Events</div>
+          <div class="pt-row"><span class="pt-action">RSVP to event</span><span class="pt-val">+5</span></div>
+          <div class="pt-row"><span class="pt-action">Check in at venue</span><span class="pt-val">+5</span></div>
+          <div class="pt-row"><span class="pt-action">Share event link</span><span class="pt-val">+8</span></div>
+          <div class="pt-cat">Crews</div>
+          <div class="pt-row"><span class="pt-action">Create a crew</span><span class="pt-val pt-bonus">+20</span></div>
+          <div class="pt-row"><span class="pt-action">Crew meetup</span><span class="pt-val">+15</span></div>
+          <div class="pt-row"><span class="pt-action">Friend meetup</span><span class="pt-val">+10</span></div>
+          <div class="pt-row"><span class="pt-action">Referral signup</span><span class="pt-val pt-bonus">+10</span></div>
+          <div class="pt-cat">Streaks</div>
+          <div class="pt-row"><span class="pt-action">3-day streak bonus</span><span class="pt-val pt-bonus">+10</span></div>
+          <div class="pt-row"><span class="pt-action">7-day streak bonus</span><span class="pt-val pt-bonus">+25</span></div>
+          <div class="pt-row"><span class="pt-action">30-day streak bonus</span><span class="pt-val pt-bonus">+100</span></div>
+        </div>
+
+        <!-- Milestone Ladder -->
+        <div style="min-width: 280px;">
+          <h3 style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px; text-align: center; letter-spacing: 0.05em; text-transform: uppercase;">Climb the Ladder</h3>
+          <div class="milestone-ladder">
+            <div class="milestone-step legendary">
+              <span class="milestone-emoji">&#x1F451;</span>
+              <div class="milestone-info"><span class="milestone-name">Legend</span><span class="milestone-pts">2,500 pts</span></div>
+            </div>
+            <div class="milestone-step tier-5">
+              <span class="milestone-emoji">&#x2B50;</span>
+              <div class="milestone-info"><span class="milestone-name">Star</span><span class="milestone-pts">1,000 pts</span></div>
+            </div>
+            <div class="milestone-step tier-4">
+              <span class="milestone-emoji">&#x1F483;</span>
+              <div class="milestone-info"><span class="milestone-name">Dancer</span><span class="milestone-pts">500 pts</span></div>
+            </div>
+            <div class="milestone-step tier-3">
+              <span class="milestone-emoji">&#x1F3B6;</span>
+              <div class="milestone-info"><span class="milestone-name">Groover</span><span class="milestone-pts">150 pts</span></div>
+            </div>
+            <div class="milestone-step tier-2">
+              <span class="milestone-emoji">&#x1F3C3;</span>
+              <div class="milestone-info"><span class="milestone-name">Mover</span><span class="milestone-pts">50 pts</span></div>
+            </div>
+            <div class="milestone-step tier-1">
+              <span class="milestone-emoji">&#x1F9ED;</span>
+              <div class="milestone-info"><span class="milestone-name">Explorer</span><span class="milestone-pts">0 pts</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE 7: AI Event Guide ========== -->
+    <div class="slide" data-slide="6">
+      <span class="slide-tag pink">AI-Powered</span>
+      <h2>Ask FlowB <span class="gradient-pink">anything</span></h2>
+      <p class="subtitle">Powered by Grok with 12 integrated tools. Natural language access to events, crew coordination, and real-time activity.</p>
+
+      <div class="tool-grid">
+        <div class="tool-chip"><span class="tc-icon">&#x1F50D;</span> Search Events</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F4C5;</span> My Schedule</div>
+        <div class="tool-chip"><span class="tc-icon">&#x2705;</span> RSVP Events</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F465;</span> Who's Going</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F4CD;</span> Find Person</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F5FA;&#xFE0F;</span> Locate Crew</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F4E1;</span> Share Location</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F510;</span> Location Codes</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F525;</span> My Points</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F46B;</span> My Crews</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F4F0;</span> Activity Feed</div>
+        <div class="tool-chip"><span class="tc-icon">&#x1F3AF;</span> Hot Venues</div>
+      </div>
+
+      <div class="notif-examples" style="margin-top: 28px;">
+        <div class="notif-msg">
+          <span class="nm-icon">&#x1F9D1;&#x200D;&#x1F4BB;</span>
+          <div class="nm-text"><em>"What's happening tonight that's free and DeFi-related?"</em></div>
+        </div>
+        <div class="notif-msg">
+          <span class="nm-icon">&#x1F916;</span>
+          <div class="nm-text">Found <strong>3 free DeFi events</strong> tonight: DeFi Happy Hour at 6pm (Wynkoop Brewing), Liquidity Builders at 7pm (Spork Castle), Open Finance Night at 8pm...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE 8: Smart Notifications ========== -->
+    <div class="slide" data-slide="7">
+      <span class="slide-tag purple">Notifications</span>
+      <h2><span class="gradient-purple">Smart alerts</span>, not spam</h2>
+      <p class="subtitle">Cross-platform delivery with quiet hours, daily limits, and per-type controls. We respect your attention -- and your privacy.</p>
+
+      <div class="notif-examples">
+        <div class="notif-msg">
+          <span class="nm-icon">&#x1F525;</span>
+          <div class="nm-text"><strong>@alice</strong> checked in at Main Stage (+5 pts)</div>
+          <span class="nm-time">crew &middot; 2m ago</span>
+        </div>
+        <div class="notif-msg">
+          <span class="nm-icon">&#x1F389;</span>
+          <div class="nm-text"><strong>@bob</strong> is going to DeFi Summit!</div>
+          <span class="nm-time">friend &middot; 15m ago</span>
+        </div>
+        <div class="notif-msg">
+          <span class="nm-icon">&#x23F0;</span>
+          <div class="nm-text"><strong>Governance Happy Hour</strong> starts in 30 min at Golden Kava Lounge</div>
+          <span class="nm-time">reminder &middot; now</span>
+        </div>
+        <div class="notif-msg">
+          <span class="nm-icon">&#x1F44B;</span>
+          <div class="nm-text"><strong>@charlie</strong> just joined your crew Regen Builders! (+10 pts)</div>
+          <span class="nm-time">crew &middot; 1h ago</span>
+        </div>
+      </div>
+
+      <div class="cards-grid four-col" style="margin-top: 24px; max-width: 900px;">
+        <div class="card">
+          <span class="card-icon">&#x1F319;</span>
+          <h4>Quiet Hours</h4>
+          <p>Timezone-aware quiet hours. Default 10pm-8am. You choose.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F4F2;</span>
+          <h4>SMS (Soon)</h4>
+          <p>Mobile SMS notifications coming soon. No app download required. Meet people where they already are.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F512;</span>
+          <h4>Signal (Soon)</h4>
+          <p>Private, encrypted notifications via Signal. For communities that prioritize privacy above all.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F39B;&#xFE0F;</span>
+          <h4>Your Preferences</h4>
+          <p>Per-type toggles, daily limits, channel choice. You control exactly what you hear and how.</p>
+        </div>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 16px; text-align: center;">
+        Delivery priority: Telegram DM &#x2192; Farcaster push &#x2192; SMS &#x2192; Signal &middot; You pick your channel
+      </p>
+    </div>
+
+    <!-- ========== SLIDE 9: Cross-Platform Identity ========== -->
+    <div class="slide" data-slide="8">
+      <span class="slide-tag">Meet People Where They Are</span>
+      <h2><span class="gradient-text">One identity</span>, every platform</h2>
+      <p class="subtitle">Sign in with Telegram, Farcaster, or Privy wallet. Your points, crews, and schedule sync everywhere. Cross-platform identity linking built in.</p>
+
+      <div class="identity-flow">
+        <div class="id-node">
+          <span class="id-icon">&#x2708;&#xFE0F;</span>
+          Telegram
+          <span class="id-sub">bot + mini app</span>
+        </div>
+        <span class="id-arrow">&#x2194;&#xFE0F;</span>
+        <div class="id-node id-center">
+          <span class="id-icon">&#x1F464;</span>
+          <strong>You</strong>
+          <span class="id-sub">canonical identity</span>
+        </div>
+        <span class="id-arrow">&#x2194;&#xFE0F;</span>
+        <div class="id-node">
+          <span class="id-icon">&#x1F7E3;</span>
+          Farcaster
+          <span class="id-sub">mini app in Warpcast</span>
+        </div>
+      </div>
+      <div class="identity-flow" style="margin-top: 0;">
+        <span class="id-arrow" style="visibility: hidden;">.</span>
+        <span class="id-arrow">&#x2195;&#xFE0F;</span>
+        <span class="id-arrow" style="visibility: hidden;">.</span>
+      </div>
+      <div class="identity-flow" style="margin-top: 0;">
+        <div class="id-node">
+          <span class="id-icon">&#x1F310;</span>
+          Web (Privy)
+          <span class="id-sub">wallet or email</span>
+        </div>
+        <span class="id-arrow">&#x2194;&#xFE0F;</span>
+        <div class="id-node" style="border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.04);">
+          <span class="id-icon">&#x1F4F1;</span>
+          <strong>Mobile App</strong>
+          <span class="id-sub" style="color: var(--green);">Beta launching soon</span>
+        </div>
+      </div>
+      <div class="identity-flow" style="margin-top: 0;">
+        <span class="id-arrow" style="visibility: hidden;">.</span>
+        <span class="id-arrow">&#x2195;&#xFE0F;</span>
+        <span class="id-arrow" style="visibility: hidden;">.</span>
+      </div>
+      <div class="identity-flow" style="margin-top: 0;">
+        <div class="id-node" style="opacity: 0.7;">
+          <span class="id-icon">&#x1F4AC;</span>
+          SMS
+          <span class="id-sub">coming soon</span>
+        </div>
+        <span class="id-arrow">&#x2194;&#xFE0F;</span>
+        <div class="id-node" style="opacity: 0.7;">
+          <span class="id-icon">&#x1F512;</span>
+          Signal
+          <span class="id-sub">privacy-first</span>
+        </div>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 16px; text-align: center;">
+        One account. Every platform. Your data, your preferences, your choice of channel.
+      </p>
+    </div>
+
+    <!-- ========== SLIDE 10: Check-In & Location ========== -->
+    <div class="slide" data-slide="9">
+      <span class="slide-tag orange">Real-Time Coordination</span>
+      <h2>Check in. <span class="gradient-orange">Find your people.</span></h2>
+      <p class="subtitle">Live location sharing with 4-hour expiry. No permanent tracking -- just coordination when you need it.</p>
+
+      <div class="feature-showcase">
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4CD;</span>
+          <div>
+            <h4>Venue Check-Ins</h4>
+            <p>Share where you are with your crew. Status: <em>here</em>, <em>heading</em>, or <em>leaving</em>. Custom status messages. Auto-expires in 4 hours.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F510;</span>
+          <div>
+            <h4>Location Codes</h4>
+            <p>Generate a 4-character shareable code. Friends look it up to find you. Ephemeral by design -- privacy first.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4E1;</span>
+          <div>
+            <h4>Crew Locate Ping</h4>
+            <p>"Where are you?" button pings crew members who haven't checked in. Gentle nudge, not surveillance.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4CA;</span>
+          <div>
+            <h4>Activity Feed</h4>
+            <p>Live feed of check-ins, RSVPs, and trending events. See hot venues and where the energy is right now.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE 11: Architecture ========== -->
+    <div class="slide" data-slide="10">
+      <span class="slide-tag">Under the Hood</span>
+      <h2>Built to <span class="gradient-text">ship fast</span>, scale later</h2>
+
+      <div class="cards-grid four-col" style="margin-top: 28px;">
+        <div class="card">
+          <span class="card-icon">&#x26A1;</span>
+          <h4>Fastify</h4>
+          <p>High-performance API server on Fly.io. Single consolidated backend.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F5C4;&#xFE0F;</span>
+          <h4>Supabase</h4>
+          <p>15+ tables. Events, points, crews, check-ins, notifications, identity linking.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F916;</span>
+          <h4>Grammy Bot</h4>
+          <p>Telegram bot framework. Persistent keyboards, inline menus, group features.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F9E0;</span>
+          <h4>Grok AI</h4>
+          <p>xAI grok-3-mini-fast. 12 function-calling tools for event search and coordination.</p>
+        </div>
+      </div>
+
+      <div class="cards-grid four-col" style="margin-top: 12px;">
+        <div class="card">
+          <span class="card-icon">&#x1F310;</span>
+          <h4>Web App</h4>
+          <p>Vanilla JS + Privy auth. No framework overhead. Fast on any device.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x269B;&#xFE0F;</span>
+          <h4>Farcaster Mini</h4>
+          <p>Next.js static export. Frame SDK for Warpcast integration.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x26A1;</span>
+          <h4>Telegram Mini</h4>
+          <p>Vite + React. Maps, crew views, real-time check-ins.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F4F1;</span>
+          <h4>Mobile</h4>
+          <p>Expo / React Native. EAS builds. iOS & Android. Coming soon.</p>
+        </div>
+      </div>
+
+      <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 20px; text-align: center;">
+        Open API at flowb.fly.dev/api/v1 &middot; Short links at flowb.me/f/, /g/, /gi/ &middot; JWT auth &middot; Deduped notifications
+      </p>
+    </div>
+
+    <!-- ========== SLIDE 12: Ethereum Localism ========== -->
+    <div class="slide" data-slide="11">
       <span class="slide-tag green">Ethereum Localism</span>
       <h2>Governance starts with <span class="gradient-green">showing up</span></h2>
 
       <div class="quote-block">
-        <p class="quote-text">"The best governance happens when people coordinate in physical space. FlowB makes it easier to find each other, form groups, and act together -- not just online, but on the ground."</p>
+        <p class="quote-text">"The best governance doesn't happen in Snapshot votes or forum posts. It happens when people find each other in physical space, form groups, and coordinate action on the ground."</p>
       </div>
 
-      <div class="cards-grid two-col" style="margin-top: 36px;">
+      <div class="cards-grid two-col" style="margin-top: 28px;">
         <div class="card">
           <span class="card-icon">&#x1F3D8;&#xFE0F;</span>
-          <h4>Local-First</h4>
-          <p>Built for Denver, designed for any city. Coordination tooling that starts with geography, not tokens.</p>
+          <h4>Local-First Coordination</h4>
+          <p>Built for Denver, designed for any city. Geography as the coordination primitive, not tokens or governance power.</p>
         </div>
         <div class="card">
           <span class="card-icon">&#x1F331;</span>
-          <h4>Regenerative</h4>
-          <p>Rewarding exploration, not extraction. Points incentivize showing up, connecting, and supporting local builders.</p>
+          <h4>Regenerative Incentives</h4>
+          <p>Points reward showing up, connecting, and exploring -- not extracting. The more you participate, the more visible you become.</p>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 7: Traction ==================== -->
-    <div class="slide" data-slide="6">
+    <!-- ========== SLIDE 13: Coordination as Governance ========== -->
+    <div class="slide" data-slide="12">
+      <span class="slide-tag green">Why This Matters</span>
+      <h2>Coordination <em>is</em> <span class="gradient-green">governance</span></h2>
+      <p class="subtitle">Every crew formed, every check-in shared, every friend connected is a governance act. Small-group coordination at the local level is how communities actually work.</p>
+
+      <div class="feature-showcase" style="margin-top: 28px;">
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F3DB;&#xFE0F;</span>
+          <div>
+            <h4>Proof of Showing Up</h4>
+            <p>On-chain reputation from real-world participation. Check-ins, RSVPs, and crew activity create a verifiable coordination history.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F310;</span>
+          <div>
+            <h4>Open Data for DAOs</h4>
+            <p>Public API lets any DAO or community tool build on FlowB's event and coordination data. Composable infrastructure.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F91D;</span>
+          <div>
+            <h4>Bottom-Up Formation</h4>
+            <p>Crews aren't top-down committees. They're organic, temporary, flexible. Join, leave, form new ones. Like real communities.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F30F;</span>
+          <div>
+            <h4>Portable Across Cities</h4>
+            <p>What works at ETHDenver works at Devconnect, EthCC, local meetups. Coordination patterns are universal.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== SLIDE 14: Traction ========== -->
+    <div class="slide" data-slide="13">
       <span class="slide-tag">Live at ETHDenver 2026</span>
       <h2>Already in the <span class="gradient-text">wild</span></h2>
 
@@ -880,115 +868,192 @@
           <span class="stat-label">Events Indexed</span>
         </div>
         <div class="stat-item">
-          <span class="stat-val green">4</span>
-          <span class="stat-label">Platforms Live</span>
+          <span class="stat-val green">5</span>
+          <span class="stat-label">Data Sources</span>
         </div>
         <div class="stat-item">
-          <span class="stat-val purple">15+</span>
+          <span class="stat-val purple">25+</span>
           <span class="stat-label">Categories</span>
         </div>
         <div class="stat-item">
-          <span class="stat-val orange">Free</span>
-          <span class="stat-label">Always</span>
+          <span class="stat-val orange">15+</span>
+          <span class="stat-label">Database Tables</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-val pink">6</span>
+          <span class="stat-label">Milestone Levels</span>
         </div>
       </div>
 
-      <div class="cards-grid" style="margin-top: 40px;">
+      <div class="cards-grid" style="margin-top: 32px;">
         <div class="card">
-          <span class="card-icon">&#x1F50D;</span>
-          <h4>Multi-Source Discovery</h4>
-          <p>Luma, Eventbrite, Resident Advisor, Google Places, and Brave Search</p>
-        </div>
-        <div class="card">
-          <span class="card-icon">&#x1F514;</span>
-          <h4>Smart Reminders</h4>
-          <p>Cross-platform notifications via Telegram DM and Farcaster push</p>
+          <span class="card-icon">&#x1F6E0;&#xFE0F;</span>
+          <h4>Full-Stack Shipped</h4>
+          <p>Backend API, Telegram bot, Farcaster mini app, web app, AI chat, points system, crew system, notifications -- all live.</p>
         </div>
         <div class="card">
           <span class="card-icon">&#x1F517;</span>
           <h4>Open API</h4>
-          <p>Public API at flowb.fly.dev -- anyone can build on top of our event data</p>
+          <p>REST API at flowb.fly.dev. Events, categories, auth, flow, leaderboard. Anyone can build on it.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F4B0;</span>
+          <h4>Always Free</h4>
+          <p>No paywall, no token gate, no premium tier. Community coordination should be a public good.</p>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 8: Team ==================== -->
-    <div class="slide" data-slide="7">
+    <!-- ========== SLIDE 15: What's Next ========== -->
+    <div class="slide" data-slide="14">
+      <span class="slide-tag purple">What's Next</span>
+      <h2>The <span class="gradient-purple">roadmap</span></h2>
+      <p class="subtitle">FlowB is live today. Here's what's coming next to make coordination even more accessible.</p>
+
+      <div class="cards-grid two-col" style="margin-top: 28px;">
+        <div class="card" style="border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.04);">
+          <span class="card-icon">&#x1F4F1;</span>
+          <h4 style="color: var(--green);">Native Mobile App (Beta)</h4>
+          <p>iOS & Android launching in beta soon. Push notifications, crew maps, offline sync. Real native experience -- FlowB in your pocket.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F4AC;</span>
+          <h4>SMS Notifications</h4>
+          <p>Not everyone has Telegram. SMS notifications mean anyone with a phone number can get event reminders and crew alerts. No app download needed.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F512;</span>
+          <h4>Signal Integration</h4>
+          <p>For privacy-first communities. End-to-end encrypted notifications via Signal. Because coordination shouldn't require surveillance.</p>
+        </div>
+        <div class="card">
+          <span class="card-icon">&#x1F30F;</span>
+          <h4>Multi-City Expansion</h4>
+          <p>After ETHDenver: Devconnect, EthCC, local meetups, DAO retreats. Same coordination tools, any city, any community.</p>
+        </div>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-top: 24px; text-align: center; max-width: 600px; line-height: 1.6;">
+        Our north star: <strong style="color: var(--text);">meet people where they are</strong>. Telegram, Farcaster, web, mobile, SMS, Signal -- your choice. One identity, every channel.
+      </p>
+    </div>
+
+    <!-- ========== SLIDE 16: Communities ========== -->
+    <div class="slide" data-slide="15">
+      <span class="slide-tag green">Open Invitation</span>
+      <h2>Bring FlowB to <span class="gradient-green">your community</span></h2>
+      <p class="subtitle">We're not building FlowB just for ETHDenver. We want to work with communities who want better coordination tooling for their own people.</p>
+
+      <div class="feature-showcase" style="margin-top: 28px;">
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F3D8;&#xFE0F;</span>
+          <div>
+            <h4>Your City, Your Events</h4>
+            <p>Run a local Ethereum meetup? A DAO with IRL gatherings? A co-working space? FlowB can be your coordination layer. Same tools, your community.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F91D;</span>
+          <div>
+            <h4>Community-Branded Crews</h4>
+            <p>Create crews for your DAO, your neighborhood, your hackathon team. Share join links, track participation, build coordination culture.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F4CA;</span>
+          <div>
+            <h4>Open API for Builders</h4>
+            <p>Build your own dashboards, governance tools, or community analytics on top of FlowB's event and coordination data. Free and open.</p>
+          </div>
+        </div>
+        <div class="feature-item">
+          <span class="fi-icon">&#x1F30F;</span>
+          <div>
+            <h4>Flow Into Your Community</h4>
+            <p>We want to partner with local organizers, DAOs, and community builders who believe coordination is a public good. Let's build together.</p>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size: 0.95rem; color: var(--text); margin-top: 24px; text-align: center; font-weight: 500;">
+        If your community needs better coordination, talk to us tonight.
+      </p>
+    </div>
+
+    <!-- ========== SLIDE 17: Team ========== -->
+    <div class="slide" data-slide="16">
       <span class="slide-tag green">The Builders</span>
       <h2>Team <span class="gradient-green">FlowB</span></h2>
-      <p class="subtitle">Two ETHDenver regulars who got tired of missing great events and losing track of friends.</p>
+      <p class="subtitle">Two ETHDenver regulars who got tired of missing great events and losing track of friends. Built in the trenches, for the trenches.</p>
 
       <div class="team-grid">
         <div class="team-member">
-          <div class="team-avatar">K</div>
+          <div class="team-avatar"><img src="koh.jpg" alt="Koh"></div>
           <span class="team-name">Koh</span>
-          <span class="team-role">Engineering & Product</span>
+          <span class="team-role">The Dev (who also does community)</span>
+          <span class="team-bio">Full-stack builder, AI + Web3 native. Built the entire FlowB stack in the trenches. Also somehow ends up in every governance conversation.</span>
           <div class="team-links">
-            <a href="#">Builder</a>
-            <a href="#">Full-stack</a>
+            <a href="#">Engineering</a>
             <a href="#">AI + Web3</a>
+            <a href="#" class="green">Governance nerd</a>
           </div>
         </div>
         <div class="team-member">
-          <div class="team-avatar steph">S</div>
+          <div class="team-avatar steph"><img src="steph.jpg" alt="Steph"></div>
           <span class="team-name">Steph</span>
-          <span class="team-role">Strategy & Community</span>
+          <span class="team-role">The Community Builder (who also ships code)</span>
+          <span class="team-bio">Community architect, governance advocate, and secret designer. Connects the dots between builders, DAOs, and local coordination -- then builds the UI for it.</span>
           <div class="team-links">
-            <a href="#">Community</a>
-            <a href="#">Governance</a>
-            <a href="#">Coordination</a>
+            <a href="#" class="green">Community</a>
+            <a href="#" class="green">Design</a>
+            <a href="#">Builder too</a>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- ==================== SLIDE 9: Vision ==================== -->
-    <div class="slide" data-slide="8">
-      <span class="slide-tag purple">Vision</span>
-      <h2>Beyond <span class="gradient-purple">ETHDenver</span></h2>
-      <p class="subtitle">FlowB is a coordination layer for any conference ecosystem. What works in Denver can work everywhere builders gather.</p>
-
-      <div class="cards-grid">
-        <div class="card">
-          <span class="card-icon">&#x1F5FA;&#xFE0F;</span>
-          <h4>Any City, Any Event</h4>
-          <p>Devconnect, EthCC, Solana Breakpoint -- wherever the community gathers</p>
-        </div>
-        <div class="card">
-          <span class="card-icon">&#x1F3DB;&#xFE0F;</span>
-          <h4>Governance Integration</h4>
-          <p>On-chain reputation from real-world participation. Proof of showing up.</p>
-        </div>
-        <div class="card">
-          <span class="card-icon">&#x1F91D;</span>
-          <h4>Coordination Protocol</h4>
-          <p>Open infrastructure for community coordination. APIs for builders, data for DAOs.</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ==================== SLIDE 10: CTA ==================== -->
-    <div class="slide" data-slide="9">
+    <!-- ========== SLIDE 18: CTA ========== -->
+    <div class="slide" data-slide="17">
       <img src="flowb.png" alt="FlowB" class="title-logo" style="width:80px;height:80px;border-radius:20px;">
       <h1 style="font-size:3rem;">Let's <span class="gradient-text">flow</span> together</h1>
-      <p class="subtitle">Open, free, community-built. Try FlowB tonight and find the best after-party.</p>
+      <p class="subtitle">Open, free, community-built. Try FlowB right now and find out what's happening after this talk.</p>
 
       <div class="cta-links">
         <a href="https://flowb.me" class="cta-btn primary" target="_blank">
           &#x1F310; flowb.me
         </a>
         <a href="https://t.me/Flow_b_bot" class="cta-btn secondary" target="_blank">
-          Telegram Bot
+          &#x2708;&#xFE0F; Telegram Bot
         </a>
         <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" class="cta-btn secondary" target="_blank">
-          Farcaster MiniApp
+          &#x1F7E3; Farcaster MiniApp
+        </a>
+        <a href="pitch-beta.html" class="cta-btn secondary">
+          &#x1F916; Agent Economy (Beta)
+        </a>
+        <a href="follow-up.html" class="cta-btn secondary">
+          &#x1F91D; Stay in the Flow
         </a>
       </div>
 
-      <div class="event-context" style="margin-top: 40px;">
+      <div style="margin-top: 28px; text-align: center;">
+        <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 8px;">Ask FlowB: <em>"What's happening at the GoverNinit afterparty?"</em></p>
+        <p style="font-size: 0.82rem; color: var(--text-dim);">Form a crew tonight. Check in with your squad. Earn your first points.</p>
+      </div>
+
+      <div class="qr-section">
+        <div class="qr-canvas-wrap"><canvas id="qrCanvas"></canvas></div>
+        <div class="qr-info">
+          <h4>Scan to explore the full ecosystem</h4>
+          <p>FlowBond Tech &middot; DANZ &middot; FlowB &middot; Wearables &middot; Proof-of-Presence</p>
+          <span class="qr-url">flowb.me/ecosystem</span>
+        </div>
+      </div>
+
+      <div class="event-context" style="margin-top: 20px;">
         <span>&#x1F33F; GoverNinit Summit</span>
         <span>&middot;</span>
-        <span>Golden Kava Lounge</span>
+        <span>Golden Kava Lounge, Golden CO</span>
         <span>&middot;</span>
         <strong>ETHDenver 2026</strong>
       </div>
@@ -998,7 +1063,7 @@
 
   <!-- Navigation -->
   <div class="nav-bar" id="navBar"></div>
-  <div class="nav-hint" id="navHint">Arrow keys or click to navigate</div>
+  <div class="nav-hint" id="navHint">Arrow keys or click to navigate &middot; 18 slides</div>
 
   <script>
     const slides = document.querySelectorAll('.slide');
@@ -1007,7 +1072,6 @@
     let current = 0;
     const total = slides.length;
 
-    // Build nav dots
     for (let i = 0; i < total; i++) {
       const dot = document.createElement('button');
       dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
@@ -1023,73 +1087,225 @@
 
     function goTo(idx) {
       if (idx < 0 || idx >= total || idx === current) return;
-
-      // Exit current
-      slides[current].classList.remove('active');
-      slides[current].classList.add(idx > current ? 'exit-up' : '');
-      setTimeout(() => slides[current === idx ? current : current].classList.remove('exit-up'), 600);
-
       const prev = current;
-      current = idx;
+      slides[current].classList.remove('active');
+      slides[current].classList.add(idx > prev ? 'exit-up' : '');
+      setTimeout(() => { slides[prev].classList.remove('exit-up'); }, 600);
 
-      // Activate new
+      current = idx;
       slides[current].classList.add('active');
 
-      // Update nav
-      document.querySelectorAll('.nav-dot').forEach((d, i) => {
-        d.classList.toggle('active', i === current);
-      });
+      document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === current));
       counter.textContent = `${current + 1} / ${total}`;
-
-      // Hide hint after first nav
       navHint.style.opacity = '0';
     }
 
     function next() { goTo(current + 1); }
     function prev() { goTo(current - 1); }
 
-    // Keyboard
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
-        e.preventDefault();
-        next();
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        prev();
-      } else if (e.key === 'Home') {
-        e.preventDefault();
-        goTo(0);
-      } else if (e.key === 'End') {
-        e.preventDefault();
-        goTo(total - 1);
-      }
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); next(); }
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+      else if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+      else if (e.key === 'End') { e.preventDefault(); goTo(total - 1); }
+      else if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); if (current === 0) window.location.href = '/'; else goTo(current - 1); }
     });
 
-    // Touch swipe
-    let touchStartX = 0;
-    let touchStartY = 0;
-    document.addEventListener('touchstart', (e) => {
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    });
+    let touchStartX = 0, touchStartY = 0;
+    document.addEventListener('touchstart', (e) => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; });
     document.addEventListener('touchend', (e) => {
       const dx = e.changedTouches[0].clientX - touchStartX;
       const dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
-        dx < 0 ? next() : prev();
-      }
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) { dx < 0 ? next() : prev(); }
     });
 
-    // Click sides to navigate
     document.addEventListener('click', (e) => {
       if (e.target.closest('.nav-bar') || e.target.closest('a') || e.target.closest('button')) return;
       const x = e.clientX / window.innerWidth;
-      if (x > 0.65) next();
-      else if (x < 0.35) prev();
+      if (x > 0.65) next(); else if (x < 0.35) prev();
     });
 
-    // Auto-hide hint
-    setTimeout(() => { navHint.style.opacity = '0'; }, 5000);
+    setTimeout(() => { navHint.style.opacity = '0'; }, 6000);
   </script>
+
+  <!-- QR Code Generator (minimal inline) -->
+  <script>
+  (function(){
+    // Minimal QR Code generator for alphanumeric URLs
+    // Uses an SVG-based approach via Google Charts API rendered to canvas
+    const qrCanvas = document.getElementById('qrCanvas');
+    if (!qrCanvas) return;
+    const ctx = qrCanvas.getContext('2d');
+    const url = 'https://flowb.me/ecosystem';
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      qrCanvas.width = 200;
+      qrCanvas.height = 200;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 200, 200);
+      ctx.drawImage(img, 0, 0, 200, 200);
+    };
+    // Use QR Server API (free, no key needed, reliable)
+    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(url) + '&bgcolor=ffffff&color=000000&margin=8';
+
+    // Fallback: if image doesn't load in 3s, draw text
+    setTimeout(() => {
+      if (!img.complete || img.naturalWidth === 0) {
+        qrCanvas.width = 200;
+        qrCanvas.height = 200;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 200, 200);
+        ctx.fillStyle = '#7c3aed';
+        ctx.font = 'bold 14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('flowb.me', 100, 90);
+        ctx.fillText('/ecosystem', 100, 110);
+      }
+    }, 3000);
+  })();
+  </script>
+
+  <!-- Ethereal Particle Hero -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('hero3d');
+    const ctx = canvas.getContext('2d');
+    const size = 420;
+    const dpr = Math.min(window.devicePixelRatio, 2);
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    ctx.scale(dpr, dpr);
+
+    const cx = size / 2, cy = size / 2;
+    const colors = [
+      [96, 165, 250],   // blue
+      [168, 85, 247],   // purple
+      [34, 197, 94],    // green
+      [244, 114, 182],  // pink
+      [234, 179, 8],    // gold
+    ];
+
+    // Logo image
+    const logo = new Image();
+    logo.src = 'flowb.png';
+
+    // Particles
+    const N = 180;
+    const particles = [];
+    for (let i = 0; i < N; i++) {
+      const c = colors[Math.floor(Math.random() * colors.length)];
+      particles.push({
+        r: 60 + Math.random() * 150,     // orbit radius (wider spread)
+        angle: Math.random() * Math.PI * 2,
+        speed: 0.0015 + Math.random() * 0.005,
+        yAmp: 20 + Math.random() * 50,
+        yFreq: 0.25 + Math.random() * 0.45,
+        yPhase: Math.random() * Math.PI * 2,
+        size: 1.5 + Math.random() * 3.5,  // larger particles
+        color: c,
+        alpha: 0.3 + Math.random() * 0.5,
+        trail: 0.15 + Math.random() * 0.2,
+      });
+    }
+
+    // Connection lines between nearby particles
+    function drawConnections(t) {
+      for (let i = 0; i < N; i++) {
+        const p = particles[i];
+        const px = cx + p.r * Math.cos(p.angle) ;
+        const py = cy + Math.sin(t * p.yFreq + p.yPhase) * p.yAmp;
+        for (let j = i + 1; j < N; j++) {
+          const q = particles[j];
+          const qx = cx + q.r * Math.cos(q.angle);
+          const qy = cy + Math.sin(t * q.yFreq + q.yPhase) * q.yAmp;
+          const dx = px - qx, dy = py - qy;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 60) {
+            const a = (1 - dist / 60) * 0.12;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(qx, qy);
+            ctx.strokeStyle = `rgba(168,85,247,${a})`;
+            ctx.lineWidth = 0.5;
+            ctx.stroke();
+          }
+        }
+      }
+    }
+
+    let t = 0;
+    function draw() {
+      requestAnimationFrame(draw);
+      t += 0.016;
+
+      // Fade trail
+      ctx.fillStyle = 'rgba(5,5,8,0.15)';
+      ctx.fillRect(0, 0, size, size);
+
+      // Central glow
+      const glowR = 60 + Math.sin(t * 0.8) * 8;
+      const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      grd.addColorStop(0, 'rgba(37,99,235,0.12)');
+      grd.addColorStop(0.5, 'rgba(168,85,247,0.06)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, size, size);
+
+      drawConnections(t);
+
+      // Draw particles
+      for (const p of particles) {
+        p.angle += p.speed;
+        const px = cx + p.r * Math.cos(p.angle);
+        const py = cy + Math.sin(t * p.yFreq + p.yPhase) * p.yAmp;
+        const pulse = 0.7 + Math.sin(t * 2 + p.angle) * 0.3;
+        const a = p.alpha * pulse;
+
+        // Glow
+        const glow = ctx.createRadialGradient(px, py, 0, px, py, p.size * 4);
+        glow.addColorStop(0, `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${a * 0.5})`);
+        glow.addColorStop(1, `rgba(${p.color[0]},${p.color[1]},${p.color[2]},0)`);
+        ctx.fillStyle = glow;
+        ctx.fillRect(px - p.size * 4, py - p.size * 4, p.size * 8, p.size * 8);
+
+        // Core dot
+        ctx.beginPath();
+        ctx.arc(px, py, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${a})`;
+        ctx.fill();
+      }
+
+      // Draw logo in center
+      if (logo.complete && logo.naturalWidth > 0) {
+        const logoSize = 72 + Math.sin(t * 0.6) * 3;
+        const lx = cx - logoSize / 2;
+        const ly = cy - logoSize / 2;
+
+        // Wave in and out of transparency
+        ctx.globalAlpha = 0.55 + Math.sin(t * 0.5) * 0.4;
+
+        // Logo glow
+        ctx.shadowColor = 'rgba(37,99,235,0.5)';
+        ctx.shadowBlur = 20 + Math.sin(t) * 8;
+
+        // Rounded clip
+        const cr = 16;
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(lx, ly, logoSize, logoSize, cr);
+        ctx.clip();
+        ctx.drawImage(logo, lx, ly, logoSize, logoSize);
+        ctx.restore();
+
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    draw();
+  })();
+  </script>
+
 </body>
 </html>

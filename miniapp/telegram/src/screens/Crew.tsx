@@ -454,22 +454,25 @@ export function Crew({ crewId, checkinCode }: Props) {
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
       tg?.HapticFeedback?.notificationOccurred("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      tg?.showAlert?.(err.message?.includes("Invalid") ? "Invalid invite code. Check with your crew admin." : "Failed to join crew. Try again.");
     }
   };
 
   const handleJoinDiscovered = async (crew: DiscoveredCrew) => {
     try {
-      await joinCrew(crew.id);
+      // Use join_code (not id) - the backend matches against join_code
+      await joinCrew(crew.join_code || crew.id);
       setShowDiscover(false);
       const c = await getCrews();
       setCrews(c);
       const joined = c.find((cr) => cr.id === crew.id);
       if (joined) setSelectedCrew(joined);
       tg?.HapticFeedback?.notificationOccurred("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      tg?.showAlert?.("Failed to join crew. Try again or ask for an invite code.");
     }
   };
 

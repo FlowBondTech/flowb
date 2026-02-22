@@ -15,6 +15,8 @@ import type {
   EventSocial,
   PreferencesData,
   FeedCast,
+  AgentsResponse,
+  MyAgentResponse,
 } from "./types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "";
@@ -92,11 +94,15 @@ export async function getEventSocial(id: string): Promise<EventSocial> {
 }
 
 export async function rsvpEvent(id: string, status: "going" | "maybe" = "going"): Promise<any> {
-  return post(`/api/v1/events/${encodeURIComponent(id)}/rsvp`, { status });
+  const result = await post(`/api/v1/events/${encodeURIComponent(id)}/rsvp`, { status });
+
+  return result;
 }
 
 export async function cancelRsvp(id: string): Promise<any> {
-  return del(`/api/v1/events/${encodeURIComponent(id)}/rsvp`);
+  const result = await del(`/api/v1/events/${encodeURIComponent(id)}/rsvp`);
+
+  return result;
 }
 
 export async function getSchedule(): Promise<ScheduleEntry[]> {
@@ -114,11 +120,15 @@ export async function getCrews(): Promise<CrewInfo[]> {
 }
 
 export async function createCrew(name: string, emoji?: string): Promise<any> {
-  return post("/api/v1/flow/crews", { name, emoji });
+  const result = await post("/api/v1/flow/crews", { name, emoji });
+
+  return result;
 }
 
 export async function joinCrew(joinCode: string): Promise<any> {
-  return post(`/api/v1/flow/crews/${encodeURIComponent(joinCode)}/join`, { joinCode });
+  const result = await post(`/api/v1/flow/crews/${encodeURIComponent(joinCode)}/join`, { joinCode });
+
+  return result;
 }
 
 export async function getCrewMembers(crewId: string): Promise<{ members: CrewMember[]; checkins: CrewCheckin[] }> {
@@ -126,7 +136,9 @@ export async function getCrewMembers(crewId: string): Promise<{ members: CrewMem
 }
 
 export async function crewCheckin(crewId: string, venueName: string, opts?: { eventId?: string; status?: string; message?: string }): Promise<any> {
-  return post(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/checkin`, { venueName, ...opts });
+  const result = await post(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/checkin`, { venueName, ...opts });
+
+  return result;
 }
 
 export async function getCrewLeaderboard(crewId: string): Promise<LeaderboardEntry[]> {
@@ -143,6 +155,7 @@ export async function getCrewMessages(crewId: string, limit = 50, before?: strin
 
 export async function sendCrewMessage(crewId: string, message: string, replyTo?: string): Promise<CrewMessage> {
   const data = await post<{ message: CrewMessage }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/messages`, { message, replyTo });
+
   return data.message;
 }
 
@@ -152,7 +165,9 @@ export async function getFriends(): Promise<any[]> {
 }
 
 export async function connectFriend(code: string): Promise<any> {
-  return post("/api/v1/flow/connect", { code });
+  const result = await post("/api/v1/flow/connect", { code });
+
+  return result;
 }
 
 export async function getInviteLink(): Promise<string> {
@@ -184,6 +199,7 @@ export async function sendChat(
   messages: Array<{ role: string; content: string }>,
   userId?: string,
 ): Promise<string> {
+
   const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
     method: "POST",
     headers: headers(),
@@ -201,6 +217,21 @@ export async function sendChat(
   return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
 }
 
+// ============================================================================
+// Feedback
+// ============================================================================
+
+export async function submitFeedback(data: {
+  type: "bug" | "feature" | "feedback";
+  message: string;
+  contact?: string;
+  screen?: string;
+}): Promise<{ ok: boolean; id: string | null }> {
+  const result = await post<{ ok: boolean; id: string | null }>("/api/v1/feedback", data);
+
+  return result;
+}
+
 // EthDenver Feed
 export async function getEthDenverFeed(cursor?: string): Promise<{ casts: FeedCast[]; nextCursor?: string }> {
   let url = "/api/v1/feed/ethdenver";
@@ -216,4 +247,40 @@ export async function getPreferences(): Promise<PreferencesData> {
 
 export async function updatePreferences(data: PreferencesData): Promise<any> {
   return patch("/api/v1/me/preferences", data);
+}
+
+// ============================================================================
+// Agents
+// ============================================================================
+
+export async function getAgents(): Promise<AgentsResponse> {
+  return get("/api/v1/agents");
+}
+
+export async function getMyAgent(): Promise<MyAgentResponse> {
+  return get("/api/v1/agents/me");
+}
+
+export async function claimAgent(agentName?: string): Promise<any> {
+  const result = await post("/api/v1/agents/claim", { agentName });
+
+  return result;
+}
+
+export async function purchaseSkill(skillSlug: string): Promise<any> {
+  const result = await post("/api/v1/agents/skills/purchase", { skillSlug });
+
+  return result;
+}
+
+export async function boostEvent(eventId: string): Promise<any> {
+  const result = await post("/api/v1/agents/boost-event", { eventId });
+
+  return result;
+}
+
+export async function tipAgent(recipientUserId: string, amount: number, message?: string): Promise<any> {
+  const result = await post("/api/v1/agents/tip", { recipientUserId, amount, message });
+
+  return result;
 }

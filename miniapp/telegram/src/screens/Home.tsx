@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Screen } from "../App";
-import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBid } from "../api/types";
-import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBid } from "../api/client";
+import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBoost } from "../api/types";
+import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBoost } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { FeaturedSponsorModal } from "../components/FeaturedSponsorModal";
 
@@ -166,13 +166,13 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const [rankedLocations, setRankedLocations] = useState<RankedLocation[]>([]);
 
   // Featured event sponsorship state
-  const [featuredBid, setFeaturedBid] = useState<FeaturedEventBid | null>(null);
+  const [featuredBoost, setFeaturedBid] = useState<FeaturedEventBoost | null>(null);
   const [showFeaturedModal, setShowFeaturedModal] = useState(false);
 
-  // Load ranked locations and featured bid on mount
+  // Load ranked locations and featured boost on mount
   useEffect(() => {
     getRankedLocations().then(setRankedLocations).catch(console.error);
-    getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
+    getFeaturedEventBoost().then(setFeaturedBid).catch(console.error);
   }, []);
 
   // Load events with category filter support
@@ -423,35 +423,35 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
           <div
             className="featured-card"
             style={{ cursor: "pointer" }}
-            onClick={() => featuredBid ? openUrl(featuredBid.target_id) : setShowFeaturedModal(true)}
+            onClick={() => featuredBoost ? openUrl(featuredBoost.target_id) : setShowFeaturedModal(true)}
           >
             <div className="featured-img" />
             <div className="featured-body">
               <span className="featured-badge">
-                {featuredBid ? "Sponsored" : "Featured Spot"}
+                {featuredBoost ? "Boosted" : "Boost Spot"}
               </span>
               <div className="featured-title">
-                {featuredBid ? featuredBid.target_id : "Feature Your Event Here"}
+                {featuredBoost ? featuredBoost.target_id : "Boost Your Event Here"}
               </div>
               <div className="featured-meta">
-                {featuredBid ? (
+                {featuredBoost ? (
                   <div className="featured-meta-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    Current bid: ${featuredBid.amount_usdc.toFixed(2)} USDC
+                    Boosted: ${featuredBoost.amount_usdc.toFixed(2)} USDC
                   </div>
                 ) : (
                   <div className="featured-meta-row">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                     </svg>
-                    Submit your event link and bid with USDC
+                    Boost your event to the top with USDC
                   </div>
                 )}
               </div>
               <div className="featured-footer">
-                <span className="badge badge-purple">Sponsorship</span>
+                <span className="badge badge-purple">Boost</span>
                 <button
                   className="btn btn-sm btn-primary"
                   style={{ fontSize: 11, padding: "4px 14px" }}
@@ -460,7 +460,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
                     setShowFeaturedModal(true);
                   }}
                 >
-                  {featuredBid ? "Outbid" : "Bid Now"}
+                  {featuredBoost ? "Boost More" : "Boost"}
                 </button>
               </div>
             </div>
@@ -470,7 +470,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             <FeaturedSponsorModal
               onClose={() => setShowFeaturedModal(false)}
               onSuccess={() => {
-                getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
+                getFeaturedEventBoost().then(setFeaturedBid).catch(console.error);
               }}
             />
           )}

@@ -85,13 +85,25 @@ async function syncLinkedAccountsToBackend() {
   const jwt = localStorage.getItem('flowb-jwt');
   if (!jwt) return;
   try {
-    await fetch(`${FLOWB_API_BASE}/api/v1/me/sync-linked-accounts`, {
+    const res = await fetch(`${FLOWB_API_BASE}/api/v1/me/sync-linked-accounts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${jwt}`,
       },
     });
+    if (res.ok) {
+      const data = await res.json();
+      // Dispatch event so vanilla JS (auth.js) can update points display + show toast
+      window.dispatchEvent(
+        new CustomEvent('flowb-accounts-linked', {
+          detail: {
+            mergedPoints: data.merged_points ?? 0,
+            platformsLinked: data.platforms_linked ?? [],
+          },
+        }),
+      );
+    }
   } catch (err) {
     console.warn('[privy] Failed to sync linked accounts:', err);
   }

@@ -260,6 +260,14 @@ export function EventDetail({ eventId }: Props) {
           )}
         </div>
       )}
+      {!showConfirm && !rsvpStatus && (
+        <p style={{ fontSize: 11, color: "var(--hint, #888)", margin: "-4px 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          This does not register you on Luma
+        </p>
+      )}
 
       {/* Share Row: Telegram | X | Copy Link */}
       <div className="share-row">
@@ -283,13 +291,13 @@ export function EventDetail({ eventId }: Props) {
         </button>
       </div>
 
-      {/* Sponsor button */}
+      {/* Boost button */}
       <button
         className="btn btn-secondary btn-block"
         onClick={() => setShowSponsor(true)}
         style={{ marginBottom: 16 }}
       >
-        Sponsor This Event
+        Boost this Event
       </button>
 
       {showSponsor && (

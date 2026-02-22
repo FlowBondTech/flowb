@@ -1,11 +1,11 @@
+import { sbFetch, type SbConfig } from "../utils/supabase.js";
+
 /**
  * Cross-Platform Identity Resolution Service
  *
  * Links users across Telegram, Farcaster, and Web (Privy) so that
  * a user who RSVPs on one platform is visible to friends on another.
  */
-
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
 
 interface IdentityRow {
   id: string;
@@ -32,7 +32,7 @@ export async function resolveCanonicalId(
   opts?: { displayName?: string; avatarUrl?: string },
 ): Promise<string> {
   // 1. Check existing mapping
-  const existing = await sbQuery<IdentityRow[]>(
+  const existing = await sbFetch<IdentityRow[]>(
     cfg,
     `flowb_identities?platform_user_id=eq.${encodeURIComponent(platformUserId)}&select=canonical_id&limit=1`,
   );
@@ -51,7 +51,7 @@ export async function resolveCanonicalId(
     // Check if any linked ID already has a canonical_id
     const allIds = [platformUserId, ...privyLinks.linkedIds];
     for (const lid of allIds) {
-      const match = await sbQuery<IdentityRow[]>(
+      const match = await sbFetch<IdentityRow[]>(
         cfg,
         `flowb_identities?platform_user_id=eq.${encodeURIComponent(lid)}&select=canonical_id&limit=1`,
       );
@@ -86,7 +86,7 @@ export async function resolveCanonicalId(
  * Get all platform user IDs for a canonical user (for cross-platform queries).
  */
 export async function getLinkedIds(cfg: SbConfig, canonicalId: string): Promise<string[]> {
-  const rows = await sbQuery<IdentityRow[]>(
+  const rows = await sbFetch<IdentityRow[]>(
     cfg,
     `flowb_identities?canonical_id=eq.${encodeURIComponent(canonicalId)}&select=platform_user_id`,
   );
@@ -240,19 +240,4 @@ function extractLinkedIds(privyUser: any, excludeUserId: string): PrivyLinkResul
 
   if (!linkedIds.length) return null;
   return { privyId, linkedIds };
-}
-
-async function sbQuery<T>(cfg: SbConfig, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch {
-    return null;
-  }
 }

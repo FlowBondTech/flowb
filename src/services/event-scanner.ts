@@ -6,8 +6,7 @@
 
 import type { EventResult } from "../core/types.js";
 import { createHash } from "crypto";
-
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
+import { sbFetch, sbPatchRaw, sbInsert, type SbConfig } from "../utils/supabase.js";
 
 interface CategoryRow { id: string; slug: string; name: string }
 interface VenueRow { id: string; name: string; slug: string }
@@ -117,8 +116,8 @@ export async function scanForNewEvents(
   try {
     // Load categories and venues for matching
     const [categories, venues] = await Promise.all([
-      sbQuery<CategoryRow[]>(cfg, "flowb_event_categories?select=id,slug,name&active=eq.true"),
-      sbQuery<VenueRow[]>(cfg, "flowb_venues?select=id,name,slug&active=eq.true"),
+      sbFetch<CategoryRow[]>(cfg, "flowb_event_categories?select=id,slug,name&active=eq.true"),
+      sbFetch<VenueRow[]>(cfg, "flowb_venues?select=id,name,slug&active=eq.true"),
     ]);
     const categoryMap = new Map((categories || []).map(c => [c.slug, c.id]));
 
@@ -134,7 +133,7 @@ export async function scanForNewEvents(
       const venueId = fuzzyMatchVenue(event.locationName, venues || []);
 
       // Check if already exists
-      const existing = await sbQuery<any[]>(
+      const existing = await sbFetch<any[]>(
         cfg,
         `flowb_events?source=eq.${encodeURIComponent(source)}&title_slug=eq.${encodeURIComponent(titleSlug)}&select=id,sync_hash&limit=1`,
       );
@@ -143,7 +142,7 @@ export async function scanForNewEvents(
         // Skip if nothing changed
         if (existing[0].sync_hash === syncHash) {
           // Just update last_seen
-          await sbPatch(cfg, `flowb_events?id=eq.${existing[0].id}`, {
+          await sbPatchRaw(cfg, `flowb_events?id=eq.${existing[0].id}`, {
             last_seen: new Date().toISOString(),
             stale: false,
           });
@@ -152,7 +151,7 @@ export async function scanForNewEvents(
         }
 
         // Update with full data
-        await sbPatch(cfg, `flowb_events?id=eq.${existing[0].id}`, {
+        await sbPatchRaw(cfg, `flowb_events?id=eq.${existing[0].id}`, {
           description: event.description || null,
           starts_at: event.startTime || null,
           ends_at: event.endTime || null,
@@ -226,7 +225,7 @@ export async function scanForNewEvents(
 
     // Mark events not seen in 24h as stale
     const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    await sbPatch(cfg, `flowb_events?last_seen=lt.${staleThreshold}&stale=eq.false`, {
+    await sbPatchRaw(cfg, `flowb_events?last_seen=lt.${staleThreshold}&stale=eq.false`, {
       stale: true,
     });
   } catch (err) {
@@ -265,54 +264,4 @@ async function updateCategories(
       });
     } catch { /* non-critical */ }
   }
-}
-
-// ============================================================================
-// Supabase helpers
-// ============================================================================
-
-async function sbQuery<T>(cfg: SbConfig, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch { return null; }
-}
-
-async function sbPatch(cfg: SbConfig, path: string, body: any): Promise<void> {
-  try {
-    await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      method: "PATCH",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch { /* non-critical */ }
-}
-
-async function sbInsert<T>(cfg: SbConfig, table: string, body: any): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-      method: "POST",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data[0] : data;
-  } catch { return null; }
 }

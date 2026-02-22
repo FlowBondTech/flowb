@@ -123,6 +123,7 @@ export interface DiscoveredCrew {
   name: string;
   emoji: string;
   description?: string;
+  join_code?: string;
   join_mode: string;
   member_count: number;
   created_at: string;
@@ -190,7 +191,7 @@ export interface Sponsorship {
   created_at: string;
 }
 
-export interface FeaturedEventBid {
+export interface FeaturedEventBoost {
   target_id: string;
   amount_usdc: number;
   sponsor_user_id: string;
@@ -252,6 +253,70 @@ export interface EventCategory {
   color?: string;
   parentId?: string;
   sortOrder: number;
+}
+
+// ============================================================================
+// Agents
+// ============================================================================
+
+export interface AgentSlot {
+  slot: number;
+  userId: string | null;
+  displayName: string | null;
+  agentName: string | null;
+  status: "open" | "claimed" | "reserved" | "active";
+  reservedFor: string | null;
+  skills: string[];
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+  claimedAt: string | null;
+}
+
+export interface AgentSkill {
+  slug: string;
+  name: string;
+  description: string;
+  price_usdc: number;
+  category: string;
+  capabilities: string[];
+}
+
+export interface AgentDetail {
+  id: string;
+  slot: number;
+  name: string;
+  walletAddress: string | null;
+  status: string;
+  skills: string[];
+  balance: number;
+  totalEarned: number;
+  totalSpent: number;
+  metadata: Record<string, any>;
+  claimedAt: string;
+}
+
+export interface AgentTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  skillSlug: string | null;
+  eventId: string | null;
+  txHash: string | null;
+  status: string;
+  direction: "in" | "out";
+  createdAt: string;
+}
+
+export interface AgentsResponse {
+  agents: AgentSlot[];
+  skills: AgentSkill[];
+  stats: { total: number; claimed: number; open: number; reserved: number };
+}
+
+export interface MyAgentResponse {
+  agent: AgentDetail | null;
+  transactions: AgentTransaction[];
 }
 
 export interface Booth {

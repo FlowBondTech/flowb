@@ -1502,7 +1502,6 @@ async function sendChatMessage(msg) {
   addChatMessage(msg, 'user');
   addTypingIndicator();
   awardPoints(1, 'Chat message');
-
   // Clean the message for processing (strip "flowb" prefix, keep original for display)
   const cleanMsg = stripFlowbMention(msg);
 
@@ -1664,25 +1663,12 @@ async function checkLumaHealth() {
   // Check Luma API health
   checkLumaHealth();
 
-  // FlowB nudge popup - dismiss + auto-hide
+  // FlowB nudge popup - stays visible until user closes it
   const nudge = document.getElementById('flowbNudge');
   const nudgeClose = document.getElementById('flowbNudgeClose');
-  const nudgeDismissed = localStorage.getItem('flowb_nudge_dismissed');
 
-  if (nudgeDismissed) {
-    nudge.style.display = 'none';
-  } else {
-    nudgeClose.addEventListener('click', () => {
-      nudge.classList.add('dismissed');
-      setTimeout(() => { nudge.style.display = 'none'; }, 300);
-      localStorage.setItem('flowb_nudge_dismissed', '1');
-    });
-    // Auto-dismiss after 15 seconds
-    setTimeout(() => {
-      if (!nudge.classList.contains('dismissed')) {
-        nudge.classList.add('dismissed');
-        setTimeout(() => { nudge.style.display = 'none'; }, 300);
-      }
-    }, 18000);
-  }
+  nudgeClose.addEventListener('click', () => {
+    nudge.classList.add('dismissed');
+    setTimeout(() => { nudge.style.display = 'none'; }, 300);
+  });
 })();

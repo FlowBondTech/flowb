@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowBond Ecosystem -- Presence Infrastructure for the Real-World Internet</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #06000f;
+      --bg-card: rgba(168,85,247,0.05);
+      --bg-card-hover: rgba(168,85,247,0.1);
+      --border: rgba(168,85,247,0.12);
+      --border-hover: rgba(168,85,247,0.3);
+      --text: #f0e8ff;
+      --text-muted: #9a8ab8;
+      --text-dim: #6a5a80;
+      --purple: #a855f7;
+      --purple-light: #c084fc;
+      --pink: #ec4899;
+      --blue: #60a5fa;
+      --green: #22c55e;
+      --gold: #eab308;
+      --font: 'Inter', -apple-system, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+
+    /* ===== Animated Background Canvas ===== */
+    #bgCanvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+
+    /* ===== Back Button ===== */
+    .back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 200;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 100px;
+      background: rgba(10,0,20,0.7); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.82rem; font-weight: 600; font-family: var(--font);
+      text-decoration: none; cursor: pointer;
+      transition: all 0.3s;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--border-hover); background: rgba(10,0,20,0.9); }
+    .back-btn svg { width: 14px; height: 14px; }
+
+    /* ===== Content Layer ===== */
+    .content { position: relative; z-index: 1; }
+
+    /* Layout */
+    .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 100px 0; position: relative; }
+    section + section { border-top: 1px solid rgba(168,85,247,0.06); }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+
+    /* Typography */
+    h1 { font-size: 3.6rem; font-weight: 900; line-height: 1.02; letter-spacing: -0.035em; }
+    h2 { font-size: 2.4rem; font-weight: 800; line-height: 1.08; letter-spacing: -0.025em; margin-bottom: 16px; }
+    h3 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+    p { line-height: 1.65; }
+    .lead { font-size: 1.15rem; color: var(--text-muted); max-width: 600px; margin-top: 16px; }
+    .grad-purple { background: linear-gradient(135deg, var(--purple), var(--pink)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-blue { background: linear-gradient(135deg, var(--blue), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-pink { background: linear-gradient(135deg, var(--pink), var(--purple-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-gold { background: linear-gradient(135deg, var(--gold), #fbbf24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Hero */
+    .hero { padding: 140px 0 80px; text-align: center; }
+    .hero-logo { height: 54px; margin-bottom: 36px; opacity: 0.9; filter: drop-shadow(0 0 30px rgba(168,85,247,0.3)); }
+    .hero h1 { max-width: 750px; margin: 0 auto; }
+    .hero .lead { margin: 20px auto 0; text-align: center; }
+    .hero-tagline { display: inline-flex; align-items: center; gap: 8px; margin-top: 32px; padding: 8px 20px; border-radius: 100px; border: 1px solid var(--border); background: rgba(168,85,247,0.04); font-size: 0.82rem; color: var(--text-muted); backdrop-filter: blur(8px); }
+
+    /* Section divider glow */
+    section::before { content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 200px; height: 1px; background: radial-gradient(ellipse, rgba(168,85,247,0.4) 0%, transparent 70%); }
+
+    /* Cards grid */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-top: 32px; }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px;
+      padding: 28px 24px; transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      position: relative; overflow: hidden;
+    }
+    .card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.08) 0%, transparent 70%); opacity: 0; transition: opacity 0.4s; }
+    .card:hover { border-color: var(--border-hover); transform: translateY(-4px); }
+    .card:hover::before { opacity: 1; }
+    .card-icon { font-size: 2.2rem; margin-bottom: 14px; display: block; position: relative; }
+    .card h3 { font-size: 1.1rem; position: relative; }
+    .card p { font-size: 0.88rem; color: var(--text-muted); margin-top: 6px; position: relative; }
+
+    /* Product header */
+    .product-header { display: flex; align-items: center; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+    .product-logo { height: 56px; border-radius: 14px; filter: drop-shadow(0 0 20px rgba(168,85,247,0.2)); }
+    .product-tag { display: inline-flex; padding: 4px 12px; border-radius: 100px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+    .tag-live { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .tag-soon { background: rgba(234,179,8,0.12); color: var(--gold); border: 1px solid rgba(234,179,8,0.2); }
+    .tag-building { background: rgba(168,85,247,0.12); color: var(--purple-light); border: 1px solid rgba(168,85,247,0.2); }
+
+    /* Feature list */
+    .features { list-style: none; margin-top: 20px; }
+    .features li { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; border-bottom: 1px solid rgba(168,85,247,0.06); font-size: 0.95rem; }
+    .features li:last-child { border: none; }
+    .feat-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: rgba(168,85,247,0.08); }
+
+    /* Wearable specs */
+    .wearable-visual { display: flex; align-items: flex-start; gap: 32px; margin-top: 28px; flex-wrap: wrap; }
+    .wearable-specs { flex: 1; min-width: 280px; }
+    .spec-row { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid rgba(168,85,247,0.06); font-size: 0.9rem; }
+    .spec-label { color: var(--text-muted); }
+    .spec-val { font-weight: 600; color: var(--purple-light); }
+
+    /* Pipeline */
+    .pipeline { display: flex; align-items: center; gap: 8px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .pipe-node {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 18px 22px; text-align: center; min-width: 100px;
+      transition: all 0.4s cubic-bezier(0.16,1,0.3,1); position: relative;
+    }
+    .pipe-node::after { content: ''; position: absolute; inset: -1px; border-radius: 16px; background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(236,72,153,0.2)); opacity: 0; transition: opacity 0.3s; z-index: -1; }
+    .pipe-node:hover { transform: translateY(-4px) scale(1.03); }
+    .pipe-node:hover::after { opacity: 1; }
+    .pipe-icon { font-size: 1.5rem; margin-bottom: 6px; display: block; }
+    .pipe-label { font-weight: 600; font-size: 0.85rem; }
+    .pipe-arrow { color: var(--purple-light); opacity: 0.25; font-size: 1.1rem; }
+
+    /* Links */
+    .links-grid { display: flex; gap: 14px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .link-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 24px; border-radius: 100px; font-size: 0.95rem; font-weight: 600;
+      text-decoration: none; transition: all 0.3s; position: relative;
+    }
+    .link-btn.primary {
+      background: linear-gradient(135deg, var(--purple), var(--pink)); color: white;
+      box-shadow: 0 4px 28px rgba(168,85,247,0.3);
+    }
+    .link-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 36px rgba(168,85,247,0.45); }
+    .link-btn.secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); backdrop-filter: blur(4px); }
+    .link-btn.secondary:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+
+    /* Footer */
+    .footer { text-align: center; padding: 48px 0; color: var(--text-dim); font-size: 0.82rem; position: relative; z-index: 1; }
+    .footer a { color: var(--purple-light); text-decoration: none; }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 2.2rem; }
+      h2 { font-size: 1.6rem; }
+      section { padding: 60px 0; }
+      .hero { padding: 80px 0 48px; }
+      .cards { grid-template-columns: 1fr; }
+      .back-btn { top: 12px; left: 12px; padding: 8px 14px; font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated connection background -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Back to pitch -->
+  <a href="pitch.html" class="back-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Back to Pitch
+  </a>
+
+  <div class="content">
+
+    <!-- ===== HERO ===== -->
+    <div class="hero container">
+      <div class="reveal">
+        <img src="flowbond-logo.png" alt="FlowBond" class="hero-logo">
+      </div>
+      <h1 class="reveal reveal-delay-1"><span class="grad-purple">Presence Infrastructure</span> for the Real-World Internet</h1>
+      <p class="lead reveal reveal-delay-2">The identity + bonding layer that turns IRL participation into on-chain utility. One backbone. Infinite communities. Chain-agnostic, privacy-first.</p>
+      <div class="hero-tagline reveal reveal-delay-3">
+        <span>FlowBond Tech</span>
+        <span style="opacity:0.3;">&middot;</span>
+        <span>ETHDenver 2026</span>
+      </div>
+    </div>
+
+    <!-- ===== THE PIPELINE ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal" style="text-align:center;">Presence &rarr; Attestation &rarr; <span class="grad-purple">Reward</span></h2>
+        <p class="lead reveal reveal-delay-1" style="text-align:center;margin:8px auto 0;">From showing up to earning value -- verified, private, composable.</p>
+
+        <div class="pipeline reveal reveal-delay-2">
+          <div class="pipe-node"><span class="pipe-icon">&#x1F4F1;</span><span class="pipe-label">Sense</span></div>
+          <span class="pipe-arrow">&rarr;</span>
+          <div class="pipe-node"><span class="pipe-icon">&#x1F510;</span><span class="pipe-label">Sign</span></div>
+          <span class="pipe-arrow">&rarr;</span>
+          <div class="pipe-node"><span class="pipe-icon">&#x1F4DC;</span><span class="pipe-label">Attest</span></div>
+          <span class="pipe-arrow">&rarr;</span>
+          <div class="pipe-node"><span class="pipe-icon">&#x1FA99;</span><span class="pipe-label">Reward</span></div>
+          <span class="pipe-arrow">&rarr;</span>
+          <div class="pipe-node"><span class="pipe-icon">&#x1F9E9;</span><span class="pipe-label">Compose</span></div>
+        </div>
+
+        <ul class="features reveal reveal-delay-3" style="max-width:700px;margin:32px auto 0;">
+          <li><span class="feat-icon">&#x1F4F1;</span><span><strong>Sense</strong> -- FlowBond device or mobile verifies movement, proximity, touch with on-device ML.</span></li>
+          <li><span class="feat-icon">&#x1F510;</span><span><strong>Sign</strong> -- Data signed + encrypted at the edge. No raw biometrics leave the device.</span></li>
+          <li><span class="feat-icon">&#x1F4DC;</span><span><strong>Attest</strong> -- ZK-friendly attestations anchored on Substrate & Ethereum Attestation Service.</span></li>
+          <li><span class="feat-icon">&#x1FA99;</span><span><strong>Reward</strong> -- Smart contracts trigger token flows. $DANZ, partner tokens, cross-chain.</span></li>
+          <li><span class="feat-icon">&#x1F9E9;</span><span><strong>Compose</strong> -- SDK lets any app, DAO, or brand plug into a single proof-of-presence layer.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ===== PRODUCT: FlowB ===== -->
+    <section>
+      <div class="container">
+        <div class="product-header reveal">
+          <img src="flowb.png" alt="FlowB" class="product-logo">
+          <div>
+            <h2 style="margin-bottom:4px;"><span class="grad-blue">FlowB</span></h2>
+            <span class="product-tag tag-live">Live at ETHDenver</span>
+          </div>
+        </div>
+        <p class="reveal reveal-delay-1" style="color:var(--text-muted);max-width:600px;">Your ETHDenver coordination companion. Discover every side event, form crews, check in, and earn points -- across Telegram, Farcaster, web, and mobile.</p>
+
+        <div class="cards reveal reveal-delay-2">
+          <div class="card">
+            <span class="card-icon">&#x1F50D;</span>
+            <h3>Event Discovery</h3>
+            <p>5 sources aggregated: Luma, Eventbrite, Resident Advisor, Google Places, Brave Search. 25+ categories.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F465;</span>
+            <h3>Crews</h3>
+            <p>Small group coordination. Shared schedules, check-ins, crew missions, and location sharing with 4hr expiry.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F916;</span>
+            <h3>AI Guide</h3>
+            <p>Powered by Grok with 12 tools. "What's free and DeFi tonight?" -- natural language coordination.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F525;</span>
+            <h3>Points & Levels</h3>
+            <p>6 milestone tiers from Explorer to Legend. Streak bonuses, crew missions, and referral rewards.</p>
+          </div>
+        </div>
+
+        <div class="links-grid reveal reveal-delay-3" style="margin-top:28px;">
+          <a href="https://flowb.me" class="link-btn secondary" target="_blank">&#x1F310; flowb.me</a>
+          <a href="https://t.me/Flow_b_bot" class="link-btn secondary" target="_blank">&#x2708;&#xFE0F; Telegram Bot</a>
+          <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" class="link-btn secondary" target="_blank">&#x1F7E3; Farcaster Mini</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PRODUCT: DANZ ===== -->
+    <section>
+      <div class="container">
+        <div class="product-header reveal">
+          <img src="danz-logo.png" alt="DANZ" class="product-logo" style="border-radius:0;">
+          <div>
+            <h2 style="margin-bottom:4px;"><span class="grad-pink">DANZ</span></h2>
+            <span class="product-tag tag-building">Beachhead Product</span>
+          </div>
+        </div>
+        <p class="reveal reveal-delay-1" style="color:var(--text-muted);max-width:600px;">Dance. Connect. Earn. The first vertical on FlowBond -- a dance & wellness community where organizers get real tools and participants earn $DANZ tokens by verified dancing at events.</p>
+
+        <div class="cards reveal reveal-delay-2">
+          <div class="card">
+            <span class="card-icon">&#x1F3B6;</span>
+            <h3>Organizer Dashboard</h3>
+            <p>SaaS platform for event organizers. Ticketing, quests, rewards, analytics, and sponsorship proof -- real reach, not fake clicks.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1FA99;</span>
+            <h3>$DANZ Token</h3>
+            <p>Earn tokens by verified dancing at events. Movement verified by wearable or phone sensors. Cross-chain compatible.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F91D;</span>
+            <h3>Proof of Bond SDK</h3>
+            <p>Attestation primitives for any app or chain. Brands plug into a single proof-of-presence layer.</p>
+          </div>
+        </div>
+
+        <div class="links-grid reveal reveal-delay-3" style="margin-top:28px;">
+          <a href="https://danz.now" class="link-btn secondary" target="_blank">&#x1F483; danz.now</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== WEARABLE ===== -->
+    <section>
+      <div class="container">
+        <div class="product-header reveal">
+          <div>
+            <h2 style="margin-bottom:4px;"><span class="grad-gold">Wearable Gen-1</span></h2>
+            <span class="product-tag tag-soon">Hardware Kit</span>
+          </div>
+        </div>
+        <p class="reveal reveal-delay-1" style="color:var(--text-muted);max-width:600px;">A BLE 5.0 bracelet that proves you were there -- without giving up your data. Biometric sensing, proximity detection, and on-device signing. Your presence, your proof, your privacy.</p>
+
+        <div class="wearable-visual reveal reveal-delay-2">
+          <div class="wearable-specs" style="flex:1;min-width:280px;">
+            <div class="spec-row"><span class="spec-label">Connectivity</span><span class="spec-val">BLE 5.0</span></div>
+            <div class="spec-row"><span class="spec-label">Sensors</span><span class="spec-val">EDA / PPG Heart Rate</span></div>
+            <div class="spec-row"><span class="spec-label">Motion</span><span class="spec-val">IMU Accelerometer</span></div>
+            <div class="spec-row"><span class="spec-label">Proximity</span><span class="spec-val">BLE Ranging</span></div>
+            <div class="spec-row"><span class="spec-label">Battery</span><span class="spec-val">48 hours</span></div>
+            <div class="spec-row"><span class="spec-label">Security</span><span class="spec-val">On-device signing</span></div>
+            <div class="spec-row"><span class="spec-label">Privacy</span><span class="spec-val">No raw biometrics leave device</span></div>
+          </div>
+          <div class="cards" style="flex:1;min-width:280px;margin-top:0;">
+            <div class="card">
+              <span class="card-icon">&#x1F3CB;&#xFE0F;</span>
+              <h3>Movement Verification</h3>
+              <p>On-device ML confirms authentic dancing, walking, or activity. Not spoofable.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F510;</span>
+              <h3>Privacy by Design</h3>
+              <p>Data signed and encrypted at the edge. ZK proofs of presence without location leakage.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== TECH ARCHITECTURE ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal" style="text-align:center;">Tech & Privacy <span class="grad-purple">Architecture</span></h2>
+        <p class="lead reveal reveal-delay-1" style="text-align:center;margin:8px auto 0;">Layer-1 + Hardware + AI + Bridges</p>
+
+        <div class="cards reveal reveal-delay-2" style="margin-top:28px;">
+          <div class="card">
+            <span class="card-icon">&#x26D3;&#xFE0F;</span>
+            <h3>Substrate Pallets</h3>
+            <p>Proof-of-Bond attestation, reputation weights, reward hooks. Purpose-built chain modules.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F510;</span>
+            <h3>ZK Roadmap</h3>
+            <p>Groth16/Plonk-compatible proofs of presence without location leakage.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F9E0;</span>
+            <h3>AI Filter</h3>
+            <p>Reduces noise, confirms authentic bonding events. On-device and server-side ML.</p>
+          </div>
+          <div class="card">
+            <span class="card-icon">&#x1F309;</span>
+            <h3>EVM + Solana Bridges</h3>
+            <p>Token flows and reputation portability across chains. Event webhooks for composability.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== LINKS & CTA ===== -->
+    <section style="text-align:center;">
+      <div class="container">
+        <h2 class="reveal">Explore the <span class="grad-purple">Ecosystem</span></h2>
+        <p class="lead reveal reveal-delay-1" style="margin:8px auto 0;text-align:center;">FlowBond is building the presence layer for the real-world internet. Start here.</p>
+
+        <div class="links-grid reveal reveal-delay-2" style="margin-top:32px;">
+          <a href="https://flowb.me" class="link-btn primary" target="_blank">&#x1F310; FlowB -- flowb.me</a>
+          <a href="https://danz.now" class="link-btn primary" target="_blank">&#x1F483; DANZ -- danz.now</a>
+        </div>
+        <div class="links-grid reveal reveal-delay-3" style="margin-top:12px;">
+          <a href="https://t.me/Flow_b_bot" class="link-btn secondary" target="_blank">&#x2708;&#xFE0F; Telegram Bot</a>
+          <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" class="link-btn secondary" target="_blank">&#x1F7E3; Farcaster Mini</a>
+          <a href="https://flowbond.tech" class="link-btn secondary" target="_blank">&#x1F4BB; flowbond.tech</a>
+          <a href="pitch-beta.html" class="link-btn secondary" style="border-color:rgba(6,182,212,0.25);">&#x1F916; Agent Economy (Beta)</a>
+          <a href="follow-up.html" class="link-btn secondary" style="border-color:rgba(34,197,94,0.25);">&#x1F91D; Stay in the Flow</a>
+        </div>
+
+        <div class="reveal" style="margin-top:32px;">
+          <a href="pitch.html" class="link-btn secondary" style="border-color:rgba(168,85,247,0.25);">
+            <svg style="width:14px;height:14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            Back to Pitch Deck
+          </a>
+        </div>
+
+        <p style="font-size:0.88rem;color:var(--text-dim);margin-top:28px;">Built by Koh & Steph &middot; ETHDenver 2026 &middot; GoverNinit Summit</p>
+      </div>
+    </section>
+
+    <div class="footer">
+      <p>FlowBond Tech &middot; Presence Infrastructure &middot; <a href="https://flowbond.tech">flowbond.tech</a></p>
+    </div>
+
+  </div>
+
+  <!-- ===== Spatial Connection Network ===== -->
+  <script>
+  (function() {
+    const canvas = document.getElementById('bgCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // Color palette
+    const palette = [
+      [168, 85, 247],  // purple
+      [236, 72, 153],  // pink
+      [96, 165, 250],  // blue
+      [34, 197, 94],   // green
+      [192, 132, 252], // light purple
+    ];
+
+    // --- Nodes: large anchor points that drift slowly ---
+    const nodeCount = 18;
+    const nodes = [];
+    for (let i = 0; i < nodeCount; i++) {
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      nodes.push({
+        x: Math.random() * 1.4 - 0.2,  // normalized 0-1 with overshoot
+        y: Math.random() * 1.4 - 0.2,
+        vx: (Math.random() - 0.5) * 0.00015,
+        vy: (Math.random() - 0.5) * 0.00015,
+        r: 2 + Math.random() * 2.5,
+        color: c,
+        pulsePhase: Math.random() * Math.PI * 2,
+        pulseSpeed: 0.5 + Math.random() * 1,
+      });
+    }
+
+    // --- Particles: small flowing dots ---
+    const particleCount = 120;
+    const particles = [];
+    for (let i = 0; i < particleCount; i++) {
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      particles.push({
+        x: Math.random(),
+        y: Math.random(),
+        vx: (Math.random() - 0.5) * 0.0003,
+        vy: -0.0001 - Math.random() * 0.0003, // gentle upward drift
+        size: 0.5 + Math.random() * 1.5,
+        color: c,
+        alpha: 0.15 + Math.random() * 0.35,
+        life: Math.random(),
+      });
+    }
+
+    // --- Sacred geometry rings ---
+    const rings = [
+      { cx: 0.2, cy: 0.3, r: 120, speed: 0.0003, phase: 0, color: [168, 85, 247] },
+      { cx: 0.8, cy: 0.15, r: 90, speed: -0.0004, phase: 1, color: [236, 72, 153] },
+      { cx: 0.5, cy: 0.7, r: 150, speed: 0.0002, phase: 2, color: [96, 165, 250] },
+      { cx: 0.15, cy: 0.8, r: 70, speed: -0.0003, phase: 3, color: [34, 197, 94] },
+      { cx: 0.85, cy: 0.6, r: 100, speed: 0.00035, phase: 4, color: [192, 132, 252] },
+    ];
+
+    // Scroll offset for parallax
+    let scrollY = 0;
+    window.addEventListener('scroll', () => { scrollY = window.pageYOffset; });
+
+    let t = 0;
+
+    function draw() {
+      requestAnimationFrame(draw);
+      t += 1;
+
+      // Clear with subtle trail
+      ctx.fillStyle = 'rgba(6,0,15,0.12)';
+      ctx.fillRect(0, 0, W, H);
+
+      const scrollFactor = scrollY * 0.15;
+
+      // --- Draw sacred geometry rings ---
+      for (const ring of rings) {
+        const rx = ring.cx * W;
+        const ry = ring.cy * H - scrollFactor * 0.3;
+        const angle = t * ring.speed + ring.phase;
+        const breathe = 1 + Math.sin(t * 0.008 + ring.phase) * 0.12;
+        const rr = ring.r * breathe;
+
+        ctx.beginPath();
+        ctx.arc(rx, ry, rr, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${ring.color[0]},${ring.color[1]},${ring.color[2]},0.04)`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Rotating dots on ring
+        for (let i = 0; i < 6; i++) {
+          const a = angle + (i / 6) * Math.PI * 2;
+          const dx = rx + Math.cos(a) * rr;
+          const dy = ry + Math.sin(a) * rr;
+          const dotAlpha = 0.15 + Math.sin(t * 0.02 + i) * 0.1;
+          ctx.beginPath();
+          ctx.arc(dx, dy, 1.5, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(${ring.color[0]},${ring.color[1]},${ring.color[2]},${dotAlpha})`;
+          ctx.fill();
+        }
+      }
+
+      // --- Draw connections between nearby nodes ---
+      for (let i = 0; i < nodeCount; i++) {
+        const a = nodes[i];
+        const ax = a.x * W;
+        const ay = a.y * H - scrollFactor;
+        for (let j = i + 1; j < nodeCount; j++) {
+          const b = nodes[j];
+          const bx = b.x * W;
+          const by = b.y * H - scrollFactor;
+          const dx = ax - bx, dy = ay - by;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const maxDist = 280;
+          if (dist < maxDist) {
+            const alpha = (1 - dist / maxDist) * 0.08;
+            const grad = ctx.createLinearGradient(ax, ay, bx, by);
+            grad.addColorStop(0, `rgba(${a.color[0]},${a.color[1]},${a.color[2]},${alpha})`);
+            grad.addColorStop(1, `rgba(${b.color[0]},${b.color[1]},${b.color[2]},${alpha})`);
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+
+            // Curved connection for organic feel
+            const mx = (ax + bx) / 2 + Math.sin(t * 0.005 + i + j) * 20;
+            const my = (ay + by) / 2 + Math.cos(t * 0.007 + i) * 15;
+            ctx.quadraticCurveTo(mx, my, bx, by);
+
+            ctx.strokeStyle = grad;
+            ctx.lineWidth = 0.7;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // --- Draw and update nodes ---
+      for (const node of nodes) {
+        node.x += node.vx;
+        node.y += node.vy;
+
+        // Soft boundary bounce
+        if (node.x < -0.1 || node.x > 1.1) node.vx *= -1;
+        if (node.y < -0.1 || node.y > 1.1) node.vy *= -1;
+
+        const nx = node.x * W;
+        const ny = node.y * H - scrollFactor;
+        const pulse = 0.6 + Math.sin(t * 0.015 * node.pulseSpeed + node.pulsePhase) * 0.4;
+
+        // Glow
+        const glow = ctx.createRadialGradient(nx, ny, 0, nx, ny, node.r * 8);
+        glow.addColorStop(0, `rgba(${node.color[0]},${node.color[1]},${node.color[2]},${0.12 * pulse})`);
+        glow.addColorStop(1, `rgba(${node.color[0]},${node.color[1]},${node.color[2]},0)`);
+        ctx.fillStyle = glow;
+        ctx.fillRect(nx - node.r * 8, ny - node.r * 8, node.r * 16, node.r * 16);
+
+        // Core
+        ctx.beginPath();
+        ctx.arc(nx, ny, node.r * pulse, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${node.color[0]},${node.color[1]},${node.color[2]},${0.5 * pulse})`;
+        ctx.fill();
+      }
+
+      // --- Draw and update particles ---
+      for (const p of particles) {
+        p.x += p.vx + Math.sin(t * 0.003 + p.life * 10) * 0.00008;
+        p.y += p.vy;
+        p.life += 0.001;
+
+        // Respawn at bottom if off screen
+        if (p.y < -0.05) { p.y = 1.05; p.x = Math.random(); }
+        if (p.x < -0.05 || p.x > 1.05) { p.x = Math.random(); p.y = 1.05; }
+
+        const px = p.x * W;
+        const py = p.y * H - scrollFactor * 0.5;
+        const flicker = p.alpha * (0.6 + Math.sin(t * 0.02 + p.life * 20) * 0.4);
+
+        ctx.beginPath();
+        ctx.arc(px, py, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${p.color[0]},${p.color[1]},${p.color[2]},${flicker})`;
+        ctx.fill();
+      }
+    }
+
+    draw();
+
+    // --- Scroll reveal ---
+    const reveals = document.querySelectorAll('.reveal');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+    reveals.forEach(el => observer.observe(el));
+  })();
+  </script>
+
+</body>
+</html>

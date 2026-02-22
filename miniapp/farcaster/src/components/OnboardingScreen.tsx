@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { updatePreferences } from "../api/client";
 import { composeCast, shareToX, copyToClipboard, hapticImpact, hapticSelection } from "../lib/farcaster";
 
+
 const ARRIVAL_OPTIONS = [
   { value: "already-here", label: "I'm already here", emoji: "\uD83C\uDFD4\uFE0F" },
   { value: "feb-17", label: "Feb 17 (Opening Day)", emoji: "\uD83C\uDF89" },
@@ -115,34 +116,38 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             <div className="onboarding-tagline">Your EthDenver companion</div>
           </div>
 
-          <div className="onboarding-features">
-            <div className="onboarding-feature">
-              <span className="onboarding-feature-icon">{"\u26A1"}</span>
-              <div>
-                <div className="onboarding-feature-title">Live Events</div>
-                <div className="onboarding-feature-desc">See what's happening now and next</div>
-              </div>
+          <div className="onboarding-highlights">
+            <div className="onboarding-highlight">
+              <span className="onboarding-highlight-icon">{"\u26A1"}</span>
+              <span className="onboarding-highlight-text">Discover live events & side events</span>
             </div>
-            <div className="onboarding-feature">
-              <span className="onboarding-feature-icon">{"\uD83D\uDC65"}</span>
-              <div>
-                <div className="onboarding-feature-title">Squad Up</div>
-                <div className="onboarding-feature-desc">Create or join a crew, coordinate IRL</div>
-              </div>
+            <div className="onboarding-highlight">
+              <span className="onboarding-highlight-icon">{"\uD83D\uDC65"}</span>
+              <span className="onboarding-highlight-text">Build your crew & coordinate IRL</span>
             </div>
-            <div className="onboarding-feature">
-              <span className="onboarding-feature-icon">{"\u2B50"}</span>
-              <div>
-                <div className="onboarding-feature-title">Earn Points</div>
-                <div className="onboarding-feature-desc">Check in, explore, climb the leaderboard</div>
-              </div>
+            <div className="onboarding-highlight">
+              <span className="onboarding-highlight-icon">{"\u2B50"}</span>
+              <span className="onboarding-highlight-text">Earn points across all platforms</span>
             </div>
+          </div>
+
+          <div className="onboarding-portal-hint">
+            Also on Telegram or the web? Log into{" "}
+            <a
+              href="https://flowb.me/settings"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent-light, #3b82f6)", fontWeight: 600 }}
+            >
+              flowb.me
+            </a>{" "}
+            to sync your points across all platforms.
           </div>
 
           <button
             className="btn btn-primary btn-block"
             onClick={() => setStep(1)}
-            style={{ marginTop: 24 }}
+            style={{ marginTop: 16 }}
           >
             Get Started
           </button>

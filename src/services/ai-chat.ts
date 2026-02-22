@@ -5,13 +5,9 @@
  * locations, points, and the full platform via function calling.
  * Each tool maps to existing Supabase tables.
  */
+import { sbFetch, sbPost, type SbConfig } from "../utils/supabase.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
-
-interface SbConfig {
-  supabaseUrl: string;
-  supabaseKey: string;
-}
 
 export interface UserContext {
   userId: string | null;
@@ -33,44 +29,6 @@ export interface ChatMessage {
   tool_call_id?: string;
 }
 
-// ─── Supabase helpers (matches routes.ts patterns) ───────────────────
-
-async function sbFetch<T>(cfg: SbConfig, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch {
-    return null;
-  }
-}
-
-async function sbPost(cfg: SbConfig, path: string, body: any): Promise<any> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      method: "POST",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const result = await res.json();
-    return Array.isArray(result) ? result[0] : result;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Tool definitions (OpenAI function-calling format) ───────────────
 
 const TOOLS = [
@@ -79,7 +37,7 @@ const TOOLS = [
     function: {
       name: "search_events",
       description:
-        "Search ETHDenver 2026 events by keyword, category, date, or venue. Use when user asks about events, parties, meetups, hackathons, or what's happening.",
+        "Search live ETHDenver 2026 events from Luma by keyword, date, or venue. Use when user asks about events, parties, meetups, hackathons, or what's happening. Returns real-time data from lu.ma.",
       parameters: {
         type: "object",
         properties: {
@@ -245,31 +203,72 @@ const TOOLS = [
 
 // ─── Tool executors ──────────────────────────────────────────────────
 
-async function searchEvents(args: any, cfg: SbConfig): Promise<string> {
-  const limit = Math.min(args.limit || 5, 10);
-  let path = `flowb_events?hidden=eq.false&order=starts_at.asc&limit=${limit}`;
-  path += "&select=id,title,description,venue_name,starts_at,ends_at,is_free,url,source";
+async function searchEvents(args: any, _cfg: SbConfig): Promise<string> {
+  const limit = Math.min(args.limit || 8, 15);
 
-  if (args.query) {
-    const q = encodeURIComponent(args.query);
-    path += `&or=(title.ilike.*${q}*,description.ilike.*${q}*)`;
+  // Query Luma discover API directly for fresh Denver events
+  try {
+    const params = new URLSearchParams();
+    params.set("geo_latitude", "39.7392");
+    params.set("geo_longitude", "-104.9903");
+    params.set("pagination_limit", String(limit));
+
+    const res = await fetch(`https://api.lu.ma/discover/get-paginated-events?${params}`);
+    if (!res.ok) return "Couldn't reach Luma right now. Try again in a moment.";
+
+    const data = await res.json();
+    const entries = data.entries || [];
+    if (!entries.length) return "No events found on Luma right now.";
+
+    // Filter by query/date/free if specified
+    let filtered = entries.map((entry: any) => {
+      const e = entry.event || entry;
+      const geo = e.geo_address_info || {};
+      const cal = entry.calendar || {};
+      return {
+        title: e.name || "Untitled",
+        startTime: e.start_at,
+        endTime: e.end_at,
+        venue: geo.short_address || geo.address || geo.city_state || "TBD",
+        city: geo.city || "Denver",
+        isFree: e.location_type !== "offline" ? undefined : true,
+        url: e.url ? `https://lu.ma/${e.url}` : "",
+        organizer: cal.name || "",
+        rsvpCount: entry.guest_count || 0,
+        id: e.api_id || e.id,
+      };
+    });
+
+    if (args.query) {
+      const q = args.query.toLowerCase();
+      filtered = filtered.filter((e: any) =>
+        e.title.toLowerCase().includes(q) ||
+        e.organizer.toLowerCase().includes(q) ||
+        e.venue.toLowerCase().includes(q),
+      );
+    }
+    if (args.date) {
+      filtered = filtered.filter((e: any) => e.startTime?.startsWith(args.date));
+    }
+    if (args.free_only) {
+      filtered = filtered.filter((e: any) => e.isFree);
+    }
+
+    if (!filtered.length) return "No events matching that search on Luma.";
+
+    return filtered
+      .slice(0, limit)
+      .map((e: any) => {
+        const t = fmtTime(e.startTime);
+        const org = e.organizer ? ` by ${e.organizer}` : "";
+        const rsvp = e.rsvpCount ? ` (${e.rsvpCount} going)` : "";
+        return `- **${e.title}**${org} | ${t} | ${e.venue}${rsvp}\n  ${e.url}`;
+      })
+      .join("\n");
+  } catch (err: any) {
+    console.error("[ai-chat] Luma search error:", err.message);
+    return "Couldn't search events right now. Try again in a moment.";
   }
-  if (args.date) {
-    path += `&starts_at=gte.${args.date}T00:00:00&starts_at=lte.${args.date}T23:59:59`;
-  } else {
-    path += `&starts_at=gte.${new Date().toISOString()}`;
-  }
-  if (args.free_only) path += "&is_free=eq.true";
-
-  const events = await sbFetch<any[]>(cfg, path);
-  if (!events?.length) return "No events found matching that search.";
-
-  return events
-    .map((e: any) => {
-      const t = fmtTime(e.starts_at);
-      return `- ${e.title} | ${t} | ${e.venue_name || "TBD"} ${e.is_free ? "(FREE)" : ""} [id:${e.id}]`;
-    })
-    .join("\n");
 }
 
 async function getMySchedule(user: UserContext, cfg: SbConfig): Promise<string> {

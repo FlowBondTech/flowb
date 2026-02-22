@@ -172,6 +172,24 @@ export function PointsScreen({ authed }: Props) {
         )}
       </div>
 
+      {/* Cross-platform sync */}
+      <a
+        href="https://flowb.me/settings"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="cross-platform-card"
+        style={{ textDecoration: "none", color: "inherit" }}
+      >
+        <div className="cross-platform-icon">{"\uD83D\uDD17"}</div>
+        <div className="cross-platform-info">
+          <div className="cross-platform-title">Sync Points Across Platforms</div>
+          <div className="cross-platform-desc">
+            Log into flowb.me to link your Farcaster, Telegram &amp; Web accounts and combine your points.
+          </div>
+        </div>
+        <span className="cross-platform-arrow">{"\u203A"}</span>
+      </a>
+
       {/* Milestones */}
       <div className="section-title">Milestones</div>
       <div className="card">

@@ -9,11 +9,19 @@ import {
 import { registerMiniAppRoutes } from "./routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
+import rateLimit from "@fastify/rate-limit";
+import { fireAndForget } from "../utils/logger.js";
 
-export function buildApp(core: FlowBCore) {
+export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
 
   app.register(cors);
+
+  // Global rate limit: 100 requests per minute per IP
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: "1 minute",
+  });
 
   // Register mini app API routes (auth, events, flow, notifications)
   registerMiniAppRoutes(app, core);
@@ -365,10 +373,7 @@ export function buildApp(core: FlowBCore) {
         `[auth/telegram] Linked: telegram_${authData.id} -> ${authData.username || authData.first_name}`,
       );
 
-      // Award verification points
-      core
-        .awardPoints(`telegram_${authData.id}`, "telegram", "verification_complete")
-        .catch(() => {});
+      fireAndForget(core.awardPoints(`telegram_${authData.id}`, "telegram", "verification_complete"), "award points");
 
       return reply.type("text/html").send(authSuccessPage(authData.first_name, botUsername));
     },

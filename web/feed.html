@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Feed -- FlowB</title>
+  <meta name="description" content="See what's happening at ETHDenver 2026. Live checkins, hot venues, and trending events.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/feed" class="header-nav-link active">Feed</a>
+        <a href="/flow" class="header-nav-link">My Flow</a>
+        <a href="/agents" class="header-nav-link">Agents</a>
+        <a href="/about" class="header-nav-link">About</a>
+      </nav>
+      <div class="header-meta">
+        <span class="event-badge">ETHDenver 2026</span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Feed Content -->
+  <main class="page-content">
+    <div class="container">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1 class="page-title">Activity Feed</h1>
+          <p class="page-subtitle">See what's happening at ETHDenver right now</p>
+        </div>
+      </div>
+
+      <!-- Scope Tabs + Time Filter -->
+      <div class="feed-controls">
+        <div class="feed-tabs">
+          <button class="feed-tab active" data-scope="global">Global</button>
+          <button class="feed-tab" data-scope="friends">Friends</button>
+          <button class="feed-tab" data-scope="crew">Crew</button>
+        </div>
+        <div class="feed-time-filters">
+          <button class="feed-time-btn" data-hours="4">4h</button>
+          <button class="feed-time-btn" data-hours="24">24h</button>
+          <button class="feed-time-btn active" data-hours="72">3d</button>
+          <button class="feed-time-btn" data-hours="168">7d</button>
+        </div>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="feed-stats-row" id="feedStats"></div>
+
+      <!-- Auth gate for friends/crew -->
+      <div class="feed-auth-gate hidden" id="feedAuthGate">
+        <p>Sign in to see activity from your friends and crews.</p>
+        <button class="feed-auth-btn" id="feedSigninBtn">Sign In</button>
+      </div>
+
+      <!-- Hot Spots -->
+      <section id="feedVenues"></section>
+
+      <!-- Timeline -->
+      <section id="feedTimeline"></section>
+
+      <!-- Trending Events -->
+      <section id="feedTrending"></section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by eGator</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
+        <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const FLOWB_API = 'https://flowb.fly.dev';
+    let currentScope = 'global';
+    let currentHours = 72;
+    let refreshTimer = null;
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAuthToken() {
+      return (window.Auth && Auth.jwt) || localStorage.getItem('flowb-jwt') || null;
+    }
+
+    // Scope tabs
+    document.querySelectorAll('.feed-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const scope = tab.dataset.scope;
+        if ((scope === 'friends' || scope === 'crew') && !getAuthToken()) {
+          document.getElementById('feedAuthGate')?.classList.remove('hidden');
+          return;
+        }
+        document.getElementById('feedAuthGate')?.classList.add('hidden');
+        document.querySelectorAll('.feed-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentScope = scope;
+        loadFeed();
+      });
+    });
+
+    // Time filters
+    document.querySelectorAll('.feed-time-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.feed-time-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentHours = parseInt(btn.dataset.hours, 10);
+        loadFeed();
+      });
+    });
+
+    // Sign-in button
+    document.getElementById('feedSigninBtn')?.addEventListener('click', () => {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn')?.click();
+      }
+    });
+
+    async function loadFeed() {
+      const token = getAuthToken();
+      const headers = {};
+      if (token && (currentScope === 'friends' || currentScope === 'crew')) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      try {
+        const res = await fetch(
+          `${FLOWB_API}/api/v1/feed/activity?scope=${currentScope}&hours=${currentHours}`,
+          { headers },
+        );
+        if (!res.ok) throw new Error('Feed failed');
+        const data = await res.json();
+        renderStats(data.stats);
+        renderVenues(data.venues || []);
+        renderTimeline(data.timeline || []);
+        renderTrending(data.trending || []);
+      } catch {
+        document.getElementById('feedTimeline').innerHTML =
+          '<div class="feed-empty">Could not load feed. Try again later.</div>';
+      }
+    }
+
+    function renderStats(stats) {
+      const el = document.getElementById('feedStats');
+      if (!stats) { el.innerHTML = ''; return; }
+      const parts = [];
+      if (stats.active_people) parts.push(`${stats.active_people} people active`);
+      if (stats.active_venues) parts.push(`${stats.active_venues} venues`);
+      if (stats.total_messages) parts.push(`${stats.total_messages} messages`);
+      parts.push(`Last ${stats.hours || 4}h`);
+      el.innerHTML = parts.map(p => `<span class="feed-stat">${p}</span>`).join('<span class="feed-stat-dot"></span>');
+    }
+
+    function renderVenues(venues) {
+      const el = document.getElementById('feedVenues');
+      if (!venues.length) { el.innerHTML = ''; return; }
+      const cards = venues.slice(0, 6).map(v => `
+        <div class="feed-venue-card">
+          <div class="feed-venue-count">${v.count}</div>
+          <div class="feed-venue-info">
+            <div class="feed-venue-name">${escapeHtml(v.name)}</div>
+            <div class="feed-venue-people">${(v.people || []).slice(0, 3).map(escapeHtml).join(', ')}${v.people?.length > 3 ? ` +${v.people.length - 3}` : ''}</div>
+          </div>
+        </div>
+      `).join('');
+      el.innerHTML = `
+        <h2 class="feed-section-title">Hot Spots</h2>
+        <div class="feed-venue-grid">${cards}</div>
+      `;
+    }
+
+    function renderTimeline(timeline) {
+      const el = document.getElementById('feedTimeline');
+      if (!timeline.length) {
+        el.innerHTML = '<div class="feed-empty">No activity yet. Check back soon!</div>';
+        return;
+      }
+      const items = timeline.map(item => {
+        const initial = (item.user || '?')[0].toUpperCase();
+        if (item.type === 'crew_message') {
+          const crewLabel = item.crew_emoji ? `${item.crew_emoji} ${escapeHtml(item.crew_name)}` : escapeHtml(item.crew_name);
+          return `
+            <div class="feed-item feed-item--message">
+              <div class="feed-item-avatar feed-item-avatar--msg">${escapeHtml(initial)}</div>
+              <div class="feed-item-body">
+                <div class="feed-item-text">
+                  <strong>${escapeHtml(item.user)}</strong> in <strong>${crewLabel}</strong>
+                </div>
+                <div class="feed-item-message">${escapeHtml(item.message)}</div>
+                <div class="feed-item-time">${escapeHtml(item.ago)}</div>
+              </div>
+            </div>
+          `;
+        }
+        // Default: checkin
+        return `
+          <div class="feed-item">
+            <div class="feed-item-avatar">${escapeHtml(initial)}</div>
+            <div class="feed-item-body">
+              <div class="feed-item-text">
+                <strong>${escapeHtml(item.user)}</strong> checked in at <strong>${escapeHtml(item.venue)}</strong>
+              </div>
+              ${item.message ? `<div class="feed-item-message">${escapeHtml(item.message)}</div>` : ''}
+              <div class="feed-item-time">${escapeHtml(item.ago)}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+      el.innerHTML = `
+        <h2 class="feed-section-title">Timeline</h2>
+        ${items}
+      `;
+    }
+
+    function renderTrending(trending) {
+      const el = document.getElementById('feedTrending');
+      if (!trending.length) { el.innerHTML = ''; return; }
+      const items = trending.map((e, i) => `
+        <div class="feed-trending-item">
+          <span class="feed-trending-rank">${i + 1}</span>
+          <span class="feed-trending-name">${escapeHtml(e.name)}</span>
+          <span class="feed-trending-rsvps">${e.rsvps} RSVPs</span>
+        </div>
+      `).join('');
+      el.innerHTML = `
+        <h2 class="feed-section-title">Trending Events</h2>
+        ${items}
+      `;
+    }
+
+    // Auto-refresh every 60s
+    function startAutoRefresh() {
+      if (refreshTimer) clearInterval(refreshTimer);
+      refreshTimer = setInterval(loadFeed, 60000);
+    }
+
+    // Init
+    loadFeed();
+    startAutoRefresh();
+
+    // Reload on auth state change
+    window.addEventListener('flowb-auth-ready', () => loadFeed());
+    window.addEventListener('privy-auth-change', () => setTimeout(loadFeed, 500));
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>

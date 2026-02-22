@@ -3950,6 +3950,12 @@ a:hover { text-decoration: underline; }
   background: var(--bg-surface); border-radius: var(--radius-sm); font-style: italic;
 }
 .feed-item-time { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
+.feed-item--message .feed-item-avatar--msg {
+  background: var(--accent-glow); border-color: var(--accent);
+}
+.feed-item--message .feed-item-message {
+  font-style: normal; background: var(--accent-glow); border-left: 2px solid var(--accent);
+}
 .feed-trending-item {
   display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border);
 }
@@ -3977,4 +3983,238 @@ a:hover { text-decoration: underline; }
   .feed-tabs { justify-content: center; }
   .feed-time-filters { justify-content: center; }
   .feed-venue-grid { grid-template-columns: 1fr; }
+}
+
+/* ===== Agents Page ===== */
+.agents-section { margin-bottom: 32px; }
+.agents-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.agents-section-desc {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+.agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.agent-slot-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.agent-slot-card:hover {
+  border-color: var(--border-hover);
+}
+.agent-slot-open {
+  border-style: dashed;
+  opacity: 0.75;
+}
+.agent-slot-open:hover {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+.agent-slot-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.agent-slot-num {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.agent-status-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.agent-status-open {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.agent-status-claimed {
+  background: var(--accent-glow);
+  color: var(--accent-light);
+}
+.agent-status-reserved {
+  background: rgba(249, 115, 22, 0.12);
+  color: var(--orange);
+}
+
+.agent-slot-body {}
+.agent-slot-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-slot-empty {
+  color: var(--text-dim);
+  font-style: italic;
+  font-weight: 400;
+}
+.agent-slot-owner {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.agent-slot-skills {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+.agent-slot-skills svg { opacity: 0.5; }
+
+/* My Agent section */
+.agents-my-section {
+  margin-top: 32px;
+}
+.agents-signin-gate {}
+
+/* Skills */
+.agent-skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agent-skill-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+}
+.agent-skill-name {
+  font-weight: 500;
+  color: var(--text);
+}
+.agent-skill-level {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--accent-light);
+}
+
+/* Skills Marketplace Items */
+.agent-skill-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.agent-skill-item:last-child { border-bottom: none; }
+.agent-skill-owned {
+  opacity: 0.6;
+}
+.agent-skill-info {
+  flex: 1;
+  min-width: 0;
+}
+.agent-skill-item-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.agent-skill-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.agent-skill-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.agent-skill-price {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+.agent-skill-buy-btn {
+  padding: 5px 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.agent-skill-buy-btn:hover { background: var(--accent-light); }
+.agent-skill-buy-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.agent-skill-owned-badge {
+  padding: 5px 12px;
+  background: var(--green-dim);
+  color: var(--green);
+  border: none;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Transaction History */
+.agent-tx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.agent-tx-item:last-child { border-bottom: none; }
+.agent-tx-info { flex: 1; min-width: 0; }
+.agent-tx-desc {
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-tx-meta {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.agent-tx-amount {
+  font-size: 0.88rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.agent-tx-positive { color: var(--green); }
+.agent-tx-negative { color: #ef4444; }
+
+@media (max-width: 600px) {
+  .agents-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .agent-slot-card { padding: 12px; }
+  .agent-slot-name { font-size: 0.85rem; }
+}
+
+@media (max-width: 400px) {
+  .agents-grid { grid-template-columns: 1fr; }
 }

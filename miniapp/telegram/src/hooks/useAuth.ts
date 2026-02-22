@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { authTelegram, getToken, claimPendingPoints } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
+
 import type { UserProfile } from "../api/types";
 
 interface AuthState {

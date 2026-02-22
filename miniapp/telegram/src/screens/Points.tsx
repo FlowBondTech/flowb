@@ -71,6 +71,7 @@ function PointsSkeleton() {
 }
 
 export function Points({ onNavigate }: Props) {
+  const tg = (window as any).Telegram?.WebApp;
   const [points, setPoints] = useState<PointsInfo | null>(null);
   const [crews, setCrews] = useState<CrewInfo[]>([]);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -161,6 +162,18 @@ export function Points({ onNavigate }: Props) {
             Best: {points.longestStreak} days
           </div>
         )}
+      </div>
+
+      {/* Cross-platform sync */}
+      <div className="cross-platform-card" onClick={() => tg?.openLink?.("https://flowb.me/settings")}>
+        <div className="cross-platform-icon">{"\uD83D\uDD17"}</div>
+        <div className="cross-platform-info">
+          <div className="cross-platform-title">Sync Points Across Platforms</div>
+          <div className="cross-platform-desc">
+            Log into flowb.me to link your Telegram, Farcaster &amp; Web accounts and combine your points.
+          </div>
+        </div>
+        <span className="cross-platform-arrow">{"\u203A"}</span>
       </div>
 
       {/* Milestone progress */}

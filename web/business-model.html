@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB Business Model -- Coordination Infrastructure Monetized via x402</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #050508;
+      --bg-card: rgba(255,255,255,0.035);
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.15);
+      --text: #e8e8f0;
+      --text-muted: #7a7a90;
+      --text-dim: #555568;
+      --accent: #2563eb;
+      --accent-light: #60a5fa;
+      --green: #22c55e;
+      --purple: #a855f7;
+      --orange: #f97316;
+      --yellow: #eab308;
+      --pink: #ec4899;
+      --cyan: #06b6d4;
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+
+    /* Background */
+    .bg-grid { position: fixed; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 0; }
+    .bg-glow { position: fixed; width: 600px; height: 600px; border-radius: 50%; filter: blur(140px); opacity: 0.1; pointer-events: none; z-index: 0; }
+    .bg-glow-1 { background: var(--accent); top: -200px; right: -100px; }
+    .bg-glow-2 { background: var(--green); bottom: -200px; left: -100px; opacity: 0.06; }
+
+    /* Back button */
+    .back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 200;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 100px;
+      background: rgba(5,5,8,0.8); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: all 0.3s;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--border-hover); }
+    .back-btn svg { width: 14px; height: 14px; }
+
+    /* Content */
+    .content { position: relative; z-index: 1; }
+    .container { max-width: 900px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; }
+    section + section { border-top: 1px solid rgba(255,255,255,0.04); }
+    section::before { content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 180px; height: 1px; background: radial-gradient(ellipse, rgba(37,99,235,0.3) 0%, transparent 70%); }
+
+    /* Reveal */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-d1 { transition-delay: 0.1s; }
+    .reveal-d2 { transition-delay: 0.2s; }
+    .reveal-d3 { transition-delay: 0.3s; }
+
+    /* Typography */
+    h1 { font-size: 3.2rem; font-weight: 900; line-height: 1.05; letter-spacing: -0.035em; }
+    h2 { font-size: 2.2rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 12px; }
+    h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 6px; }
+    .lead { font-size: 1.1rem; color: var(--text-muted); max-width: 620px; line-height: 1.65; margin-top: 14px; }
+    .grad-blue { background: linear-gradient(135deg, var(--accent-light), var(--cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-green { background: linear-gradient(135deg, var(--green), #86efac); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-purple { background: linear-gradient(135deg, var(--purple), #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-cyan { background: linear-gradient(135deg, var(--cyan), #67e8f9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Hero */
+    .hero { padding: 120px 0 60px; text-align: center; }
+    .hero h1 { max-width: 800px; margin: 0 auto; }
+    .hero .lead { margin: 16px auto 0; text-align: center; }
+    .hero-tag { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; padding: 5px 14px; border-radius: 100px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--green); background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.15); }
+
+    /* Revenue Table */
+    .rev-table { width: 100%; margin-top: 28px; border-collapse: separate; border-spacing: 0; }
+    .rev-table th { text-align: left; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); padding: 0 12px 10px; }
+    .rev-table th:last-child { text-align: right; }
+    .rev-table td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.88rem; vertical-align: middle; }
+    .rev-table td:first-child { font-weight: 600; }
+    .rev-table td:nth-child(2) { font-family: var(--mono); font-size: 0.82rem; color: var(--text-muted); }
+    .rev-table td:nth-child(3) { font-family: var(--mono); font-size: 0.82rem; color: var(--text-muted); }
+    .rev-table td:last-child { text-align: right; font-family: var(--mono); font-weight: 700; color: var(--green); }
+    .rev-table .total-row td { border-bottom: none; border-top: 2px solid rgba(34,197,94,0.15); padding-top: 14px; }
+    .rev-table .total-row td:first-child { font-size: 1rem; }
+    .rev-table .total-row td:last-child { font-size: 1.1rem; color: var(--green); }
+
+    /* Cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 28px; }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px 20px; transition: all 0.3s; position: relative; overflow: hidden;
+    }
+    .card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.06) 0%, transparent 70%); opacity: 0; transition: opacity 0.3s; }
+    .card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+    .card:hover::before { opacity: 1; }
+    .card-icon { font-size: 1.8rem; margin-bottom: 10px; display: block; position: relative; }
+    .card h3 { position: relative; }
+    .card p { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; margin-top: 4px; position: relative; }
+
+    /* Flywheel */
+    .flywheel { display: flex; align-items: center; gap: 10px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .fw-node {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 14px 18px; text-align: center; min-width: 100px; transition: all 0.3s;
+    }
+    .fw-node:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+    .fw-icon { font-size: 1.3rem; margin-bottom: 4px; display: block; }
+    .fw-label { font-weight: 600; font-size: 0.78rem; }
+    .fw-arrow { color: var(--accent-light); opacity: 0.3; font-size: 1.1rem; }
+
+    /* Metric boxes */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; }
+    .metric {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      padding: 20px 16px; text-align: center; transition: all 0.3s;
+    }
+    .metric:hover { border-color: var(--border-hover); }
+    .metric-val { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1; }
+    .metric-val.green { color: var(--green); }
+    .metric-val.blue { color: var(--accent-light); }
+    .metric-val.purple { color: var(--purple); }
+    .metric-val.cyan { color: var(--cyan); }
+    .metric-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; font-weight: 500; }
+
+    /* Unit economics */
+    .unit-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .unit-row:last-child { border-bottom: none; }
+    .unit-label { font-size: 0.9rem; color: var(--text-muted); }
+    .unit-val { font-size: 0.9rem; font-weight: 700; font-family: var(--mono); }
+    .unit-val.green { color: var(--green); }
+    .unit-val.muted { color: var(--text-muted); }
+
+    /* Phases */
+    .phases { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+    .phase {
+      display: flex; align-items: flex-start; gap: 16px; padding: 18px 20px;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px;
+      transition: all 0.3s;
+    }
+    .phase:hover { border-color: var(--border-hover); }
+    .phase-num { font-size: 0.68rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.08em; flex-shrink: 0; min-width: 64px; padding-top: 2px; }
+    .phase-body { flex: 1; }
+    .phase-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+    .phase-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+    .phase-tag { display: inline-block; font-size: 0.65rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; margin-top: 6px; }
+    .phase-tag.live { background: rgba(34,197,94,0.1); color: var(--green); }
+    .phase-tag.building { background: rgba(168,85,247,0.1); color: var(--purple); }
+    .phase-tag.next { background: rgba(6,182,212,0.1); color: var(--cyan); }
+
+    /* Links */
+    .links { display: flex; gap: 12px; margin-top: 32px; flex-wrap: wrap; justify-content: center; }
+    .link-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 22px; border-radius: 100px; font-size: 0.9rem; font-weight: 600;
+      text-decoration: none; transition: all 0.3s;
+    }
+    .link-btn.primary { background: linear-gradient(135deg, var(--accent), var(--purple)); color: white; box-shadow: 0 4px 24px rgba(37,99,235,0.3); }
+    .link-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 6px 32px rgba(37,99,235,0.4); }
+    .link-btn.secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+    .link-btn.secondary:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+
+    /* Footer */
+    .footer { text-align: center; padding: 48px 0; color: var(--text-dim); font-size: 0.78rem; }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.5rem; }
+      section { padding: 48px 0; }
+      .hero { padding: 80px 0 40px; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .cards { grid-template-columns: 1fr; }
+      .flywheel .fw-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+
+  <a href="pitch.html" class="back-btn">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+    Pitch Deck
+  </a>
+
+  <div class="content">
+
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="container" style="display: flex; flex-direction: column; align-items: center;">
+        <div class="hero-tag reveal">Business Model</div>
+        <h1 class="reveal reveal-d1">Coordination <span class="grad-green">Monetized</span></h1>
+        <p class="lead reveal reveal-d2">FlowB is free for users. Revenue comes from x402 micropayments -- agent skills, event boosts, tips, and premium data. Every API call is a transaction. Every interaction generates value.</p>
+      </div>
+    </section>
+
+    <!-- ===== THE MODEL ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal">How FlowB <span class="grad-blue">Makes Money</span></h2>
+        <p class="lead reveal reveal-d1">Six revenue streams, all powered by x402 micropayments on Base. No subscriptions. No ads. Pure usage-based revenue.</p>
+
+        <div class="cards reveal reveal-d2">
+          <div class="card">
+            <div class="card-icon">&#x1F4A1;</div>
+            <h3>Skill Purchases</h3>
+            <p>Agents buy capabilities -- event discovery, social connections, vibe checks. $0.02 - $0.50 per skill via x402.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">&#x26A1;</div>
+            <h3>Event Boosts</h3>
+            <p>Organizers pay $0.50 to pin their event at the top of every user's feed for 24 hours. No account needed.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">&#x1F4B0;</div>
+            <h3>Tips & Micro-Gratitude</h3>
+            <p>Attendees tip organizers, venues, and creators. Tips chain through the ecosystem. Every tip earns points.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">&#x1F310;</div>
+            <h3>Premium Data API</h3>
+            <p>External AI agents pay $0.005/query for FlowB's aggregated event intelligence. FlowB as an event oracle.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">&#x1F916;</div>
+            <h3>Agent Minting</h3>
+            <p>After the free launch batch, new agents cost $5 to mint. Includes Base wallet, starter USDC, and default skills.</p>
+          </div>
+          <div class="card">
+            <div class="card-icon">&#x1F514;</div>
+            <h3>Sponsored Notifications</h3>
+            <p>Brands and organizers pay $0.05/push to reach targeted crews. Opt-in, relevant, and x402-gated.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REVENUE PROJECTIONS ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal">Revenue <span class="grad-green">Projections</span></h2>
+        <p class="lead reveal reveal-d1">Conservative estimates at EthDenver scale. The micropayment flywheel compounds as more agents enter the economy.</p>
+
+        <div class="reveal reveal-d2" style="overflow-x: auto;">
+          <table class="rev-table">
+            <thead>
+              <tr>
+                <th>Revenue Stream</th>
+                <th>Unit Price</th>
+                <th>Daily Volume</th>
+                <th>Daily Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Skill Purchases</td>
+                <td>$0.02 - $0.50</td>
+                <td>200 purchases</td>
+                <td>$20</td>
+              </tr>
+              <tr>
+                <td>Event Boosts</td>
+                <td>$0.50</td>
+                <td>20 boosts</td>
+                <td>$10</td>
+              </tr>
+              <tr>
+                <td>Tips</td>
+                <td>$0.02 - $1.00</td>
+                <td>500 tips</td>
+                <td>$50</td>
+              </tr>
+              <tr>
+                <td>Premium Data API</td>
+                <td>$0.005</td>
+                <td>10,000 queries</td>
+                <td>$50</td>
+              </tr>
+              <tr>
+                <td>Agent Minting</td>
+                <td>$5.00</td>
+                <td>10 mints</td>
+                <td>$50</td>
+              </tr>
+              <tr>
+                <td>Sponsored Notifications</td>
+                <td>$0.05</td>
+                <td>1,000 pushes</td>
+                <td>$50</td>
+              </tr>
+              <tr class="total-row">
+                <td>EthDenver Total</td>
+                <td></td>
+                <td></td>
+                <td>$230/day</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="metrics reveal reveal-d3">
+          <div class="metric">
+            <div class="metric-val green">$230</div>
+            <div class="metric-label">Daily (Launch)</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val blue">$1.6K</div>
+            <div class="metric-label">Weekly</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val purple">$1.8K</div>
+            <div class="metric-label">Daily (10K agents)</div>
+          </div>
+          <div class="metric">
+            <div class="metric-val cyan">$54K</div>
+            <div class="metric-label">Monthly (Scale)</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== UNIT ECONOMICS ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal">Unit <span class="grad-cyan">Economics</span></h2>
+        <p class="lead reveal reveal-d1">Near-zero marginal costs. Payments settle on Base ($0.001/tx). Infrastructure runs on Fly.io + Netlify. Revenue scales linearly with agent activity.</p>
+
+        <div class="cards reveal reveal-d2" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="card" style="padding: 20px;">
+            <h3 style="margin-bottom: 14px; font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em;">Costs Per Agent</h3>
+            <div class="unit-row">
+              <span class="unit-label">CDP Facilitator (free tier)</span>
+              <span class="unit-val muted">$0.00</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">CDP Facilitator (paid)</span>
+              <span class="unit-val muted">$0.001/tx</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">Base gas per settlement</span>
+              <span class="unit-val muted">~$0.001</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">Seed USDC per agent</span>
+              <span class="unit-val muted">$0.50</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">Server cost (Fly.io)</span>
+              <span class="unit-val muted">~$0.002/day</span>
+            </div>
+          </div>
+          <div class="card" style="padding: 20px;">
+            <h3 style="margin-bottom: 14px; font-size: 0.85rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em;">Revenue Per Agent</h3>
+            <div class="unit-row">
+              <span class="unit-label">Avg skill purchases/day</span>
+              <span class="unit-val green">$0.15</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">Avg tips sent/day</span>
+              <span class="unit-val green">$0.10</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">Avg boosts/week</span>
+              <span class="unit-val green">$0.07</span>
+            </div>
+            <div class="unit-row">
+              <span class="unit-label">API queries attracted</span>
+              <span class="unit-val green">$0.05</span>
+            </div>
+            <div class="unit-row" style="border-bottom: none; padding-top: 14px; border-top: 1px solid rgba(34,197,94,0.15);">
+              <span class="unit-label" style="font-weight: 700; color: var(--text);">LTV per agent (30d)</span>
+              <span class="unit-val green" style="font-size: 1.05rem;">$11.10</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== FLYWHEEL ===== -->
+    <section>
+      <div class="container" style="text-align: center;">
+        <h2 class="reveal">The <span class="grad-purple">Flywheel</span></h2>
+        <p class="lead reveal reveal-d1" style="margin: 14px auto 0;">More users earn points. Points unlock agents. Agents buy skills and boost events. Activity attracts external agents. External agents pay for data. Revenue funds more agent slots.</p>
+
+        <div class="flywheel reveal reveal-d2">
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F464;</div>
+            <div class="fw-label">Users Earn Points</div>
+          </div>
+          <span class="fw-arrow">&#x2192;</span>
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F916;</div>
+            <div class="fw-label">Claim Agents</div>
+          </div>
+          <span class="fw-arrow">&#x2192;</span>
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F4A1;</div>
+            <div class="fw-label">Buy Skills</div>
+          </div>
+          <span class="fw-arrow">&#x2192;</span>
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F4B3;</div>
+            <div class="fw-label">x402 Payments</div>
+          </div>
+          <span class="fw-arrow">&#x2192;</span>
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F310;</div>
+            <div class="fw-label">Attract Agents</div>
+          </div>
+          <span class="fw-arrow">&#x2192;</span>
+          <div class="fw-node">
+            <div class="fw-icon">&#x1F4C8;</div>
+            <div class="fw-label">Revenue Grows</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== GROWTH PHASES ===== -->
+    <section>
+      <div class="container">
+        <h2 class="reveal">Growth <span class="grad-blue">Trajectory</span></h2>
+        <p class="lead reveal reveal-d1">From 10 agents at EthDenver to an open agent economy. Each phase unlocks new revenue.</p>
+
+        <div class="phases reveal reveal-d2">
+          <div class="phase">
+            <div class="phase-num">Phase 1</div>
+            <div class="phase-body">
+              <div class="phase-title">EthDenver Launch -- 10 Agents</div>
+              <div class="phase-desc">Free coordination app with 10 exclusive agent slots. Points gamification drives engagement. Agent economy demonstrates x402 in production. Target: $230/day revenue.</div>
+              <span class="phase-tag live">Live</span>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">Phase 2</div>
+            <div class="phase-body">
+              <div class="phase-title">Open Agent Economy -- 100 Agents</div>
+              <div class="phase-desc">Paid agent minting ($5). Agent-to-agent skill reselling. Premium data API for external consumers. Cross-platform agent sync (Telegram, Farcaster, Web). Target: $500/day.</div>
+              <span class="phase-tag building">Building</span>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">Phase 3</div>
+            <div class="phase-body">
+              <div class="phase-title">Multi-City Expansion -- 1K Agents</div>
+              <div class="phase-desc">Expand beyond ETHDenver to conferences and city scenes. Each city gets its own agent economy. Event organizer self-serve tools. API partnerships with event platforms. Target: $1,800/day.</div>
+              <span class="phase-tag next">Next</span>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-num">Phase 4</div>
+            <div class="phase-body">
+              <div class="phase-title">Agent Platform -- 10K+ Agents</div>
+              <div class="phase-desc">Third-party skill developers. Agent marketplace with revenue splits. FlowBond wearable integration for presence verification. Enterprise event coordination. Target: $54K/month.</div>
+              <span class="phase-tag next">Next</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== WHY x402 ===== -->
+    <section>
+      <div class="container" style="text-align: center;">
+        <h2 class="reveal">Why <span class="grad-cyan">x402</span></h2>
+        <p class="lead reveal reveal-d1" style="margin: 14px auto 0;">The payment protocol matters. x402 eliminates the overhead that kills micropayment businesses.</p>
+
+        <div class="cards reveal reveal-d2" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="card" style="text-align: center;">
+            <div class="card-icon">&#x1F6AB;</div>
+            <h3>No Accounts</h3>
+            <p>No user signups, no API keys, no OAuth tokens. Just a wallet. Every agent is a customer from the first request.</p>
+          </div>
+          <div class="card" style="text-align: center;">
+            <div class="card-icon">&#x1FA99;</div>
+            <h3>Sub-Cent Viable</h3>
+            <p>Payments as low as $0.001 are economically viable. Base gas costs ~$0.001/tx. No minimum threshold kills the model.</p>
+          </div>
+          <div class="card" style="text-align: center;">
+            <div class="card-icon">&#x1F504;</div>
+            <h3>Machine-Native</h3>
+            <p>AI agents discover prices, pay automatically, and retry. No UX friction. No checkout flows. Pure HTTP.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CTA ===== -->
+    <section style="text-align: center;">
+      <div class="container">
+        <h2 class="reveal"><span class="grad-green">Explore</span> FlowB</h2>
+        <div class="links reveal reveal-d1">
+          <a href="https://flowb.me" class="link-btn primary" target="_blank">&#x1F310; flowb.me</a>
+          <a href="pitch.html" class="link-btn secondary">&#x1F3AC; Pitch Deck</a>
+          <a href="pitch-beta.html" class="link-btn secondary">&#x1F916; Agent Economy</a>
+          <a href="ecosystem.html" class="link-btn secondary">&#x1F4A0; FlowBond Ecosystem</a>
+          <a href="follow-up.html" class="link-btn secondary">&#x1F91D; Stay in the Flow</a>
+        </div>
+      </div>
+    </section>
+
+    <div class="footer">FlowB &middot; Coordination infrastructure monetized via x402 &middot; Built for EthDenver 2026</div>
+  </div>
+
+  <script>
+  // Scroll reveal
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+  </script>
+</body>
+</html>

@@ -345,8 +345,11 @@ export function CrewScreen({ authed, currentUserId }: Props) {
     }
   };
 
+  const [joinError, setJoinError] = useState<string | null>(null);
+
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
+    setJoinError(null);
     hapticImpact("medium");
     try {
       await joinCrew(joinCode.trim());
@@ -356,9 +359,10 @@ export function CrewScreen({ authed, currentUserId }: Props) {
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
       hapticNotification("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       hapticNotification("error");
+      setJoinError(err.message?.includes("Invalid") ? "Invalid invite code. Check with your crew admin." : "Failed to join. Try again.");
     }
   };
 
@@ -390,13 +394,20 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   if (!authed) {
     return (
       <div className="screen">
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
         <div className="card">
           <div className="empty-state">
-            <div className="empty-state-emoji">{"\uD83D\uDD12"}</div>
-            <div className="empty-state-title">Sign in required</div>
-            <div className="empty-state-text">
-              Sign in to create or join a crew.
+            <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
+            <div className="empty-state-title">Authentication needed</div>
+            <div className="empty-state-text" style={{ marginBottom: 12 }}>
+              Open FlowB inside Warpcast to automatically connect your Farcaster account, then come back to create or join a crew.
             </div>
+            <button
+              className="btn btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Retry Connection
+            </button>
           </div>
         </div>
       </div>
@@ -638,13 +649,16 @@ export function CrewScreen({ authed, currentUserId }: Props) {
               type="text"
               placeholder="Enter crew invite code"
               value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              style={{ marginBottom: 12 }}
+              onChange={(e) => { setJoinCode(e.target.value); setJoinError(null); }}
+              style={{ marginBottom: joinError ? 4 : 12 }}
               autoFocus
             />
+            {joinError && (
+              <div style={{ fontSize: 12, color: "var(--red, #ef4444)", marginBottom: 8 }}>{joinError}</div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-primary btn-block" onClick={handleJoin}>Join</button>
-              <button className="btn btn-secondary" onClick={() => setShowJoin(false)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => { setShowJoin(false); setJoinError(null); }}>Cancel</button>
             </div>
           </div>
         </div>

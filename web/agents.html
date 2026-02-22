@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agents -- FlowB</title>
+  <meta name="description" content="Claim your AI agent slot, purchase skills, and compete on the FlowB agent leaderboard at ETHDenver 2026.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link">My Flow</a>
+        <a href="/agents" class="header-nav-link active">Agents</a>
+        <a href="/about" class="header-nav-link">About</a>
+      </nav>
+      <div class="header-meta">
+        <span class="event-badge">ETHDenver 2026</span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" onclick="window.location='/settings'">Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Agents Page Content -->
+  <main class="page-content">
+    <div class="container">
+      <div class="page-header">
+        <div class="page-header-text">
+          <h1 class="page-title">Agents</h1>
+          <p class="page-subtitle">Claim an AI agent slot, upgrade skills, and compete</p>
+        </div>
+        <div class="page-header-actions">
+          <a href="https://t.me/Flow_b_bot" target="_blank" class="page-action-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
+            Manage on Telegram
+          </a>
+        </div>
+      </div>
+
+      <!-- Agent Grid: All 10 Slots -->
+      <div class="agents-section">
+        <h2 class="agents-section-title">Agent Slots</h2>
+        <p class="agents-section-desc">10 agent slots available. Claim yours to start earning.</p>
+        <div class="agents-grid" id="agentsGrid">
+          <div class="flow-loading">Loading agents...</div>
+        </div>
+      </div>
+
+      <!-- My Agent Section (auth-gated) -->
+      <div class="agents-my-section" id="agentsMySection">
+        <!-- Sign-in Gate -->
+        <div class="agents-signin-gate" id="agentsSigninGate">
+          <div class="flow-card">
+            <div class="flow-card-body" style="text-align:center;padding:32px 20px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="opacity:0.4;margin-bottom:12px;">
+                <path d="M12 2a4 4 0 014 4v1a4 4 0 01-8 0V6a4 4 0 014-4z"/>
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <circle cx="12" cy="18" r="1"/>
+              </svg>
+              <p style="font-weight:600;margin-bottom:6px;">Sign in to manage your agent</p>
+              <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:16px;">Claim a slot, purchase skills, and track your agent's activity.</p>
+              <button class="crew-submit-btn" id="agentsSigninBtn" style="max-width:200px;margin:0 auto;">Sign In</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Authenticated Agent Content -->
+        <div class="agents-authed hidden" id="agentsAuthed">
+
+          <!-- My Agent Card -->
+          <div class="flow-card" style="margin-bottom:20px;">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+                <path d="M12 14v4"/>
+                <path d="M9 18h6"/>
+              </svg>
+              <span>My Agent</span>
+            </div>
+            <div class="flow-card-body" id="myAgentCard">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+
+          <!-- Claim Section (shown if no agent) -->
+          <div class="flow-card hidden" id="agentClaimCard" style="margin-bottom:20px;">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M12 5v14"/>
+                <path d="M5 12h14"/>
+              </svg>
+              <span>Claim an Agent Slot</span>
+            </div>
+            <div class="flow-card-body">
+              <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:12px;">You don't have an agent yet. Claim one of the open slots to get started.</p>
+              <div class="crew-form-group">
+                <label>Agent Name</label>
+                <input type="text" id="claimAgentName" maxlength="40" placeholder="Give your agent a name..." class="crew-input">
+              </div>
+              <button class="crew-submit-btn" id="claimAgentBtn">Claim Slot</button>
+              <p class="crew-form-note" id="claimAgentMsg"></p>
+            </div>
+          </div>
+
+          <!-- Skills Marketplace -->
+          <div class="flow-card" style="margin-bottom:20px;">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span>Skills Marketplace</span>
+            </div>
+            <div class="flow-card-body" id="skillsMarketplace">
+              <div class="flow-loading">Loading skills...</div>
+            </div>
+          </div>
+
+          <!-- Transaction History -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                <line x1="16" y1="2" x2="16" y2="6"/>
+                <line x1="8" y1="2" x2="8" y2="6"/>
+                <line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              <span>Transaction History</span>
+            </div>
+            <div class="flow-card-body" id="agentTransactions">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by eGator</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
+        <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const FLOWB_API = 'https://flowb.fly.dev';
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function getAuthToken() {
+      return Auth.jwt || localStorage.getItem('flowb-jwt') || null;
+    }
+
+    async function fetchAuthed(path, opts = {}) {
+      const token = getAuthToken();
+      if (!token) return null;
+      try {
+        const res = await fetch(`${FLOWB_API}${path}`, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            ...(opts.headers || {}),
+          },
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => null);
+          return { _error: true, status: res.status, message: errBody?.message || errBody?.error || 'Request failed' };
+        }
+        return await res.json();
+      } catch { return null; }
+    }
+
+    // ===== Agent Status Helpers =====
+
+    function statusBadge(status) {
+      const map = {
+        open: { label: 'Open', cls: 'agent-status-open' },
+        claimed: { label: 'Claimed', cls: 'agent-status-claimed' },
+        reserved: { label: 'Reserved', cls: 'agent-status-reserved' },
+      };
+      const s = map[status] || { label: status || 'Unknown', cls: 'agent-status-open' };
+      return `<span class="agent-status-badge ${s.cls}">${s.label}</span>`;
+    }
+
+    // ===== Load All Agents (Public) =====
+
+    async function loadAgents() {
+      const gridEl = document.getElementById('agentsGrid');
+
+      try {
+        const res = await fetch(`${FLOWB_API}/api/v1/agents`);
+        if (!res.ok) throw new Error('Failed to load agents');
+        const data = await res.json();
+        const agents = data.agents || data.slots || [];
+
+        if (!agents.length) {
+          gridEl.innerHTML = '<div class="dash-empty"><p>No agent slots configured yet.</p><span>Check back soon!</span></div>';
+          return;
+        }
+
+        gridEl.innerHTML = agents.map((agent, i) => {
+          const slotNum = agent.slot || agent.slot_number || (i + 1);
+          const status = agent.status || 'open';
+          const name = agent.name || agent.agent_name || '';
+          const skills = agent.skills || [];
+          const skillCount = skills.length;
+          const owner = agent.owner_name || agent.claimed_by_name || '';
+
+          return `
+            <div class="agent-slot-card ${status === 'open' ? 'agent-slot-open' : ''}">
+              <div class="agent-slot-header">
+                <span class="agent-slot-num">#${slotNum}</span>
+                ${statusBadge(status)}
+              </div>
+              <div class="agent-slot-body">
+                ${name
+                  ? `<div class="agent-slot-name">${escapeHtml(name)}</div>`
+                  : `<div class="agent-slot-name agent-slot-empty">Unclaimed</div>`
+                }
+                ${owner ? `<div class="agent-slot-owner">${escapeHtml(owner)}</div>` : ''}
+                <div class="agent-slot-skills">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  <span>${skillCount} skill${skillCount !== 1 ? 's' : ''}</span>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        gridEl.innerHTML = '<div class="dash-empty"><p>Could not load agents.</p><span>Try again later.</span></div>';
+      }
+    }
+
+    // ===== Load My Agent (Authenticated) =====
+
+    async function loadMyAgent() {
+      const cardEl = document.getElementById('myAgentCard');
+      const claimCard = document.getElementById('agentClaimCard');
+      const skillsEl = document.getElementById('skillsMarketplace');
+      const txEl = document.getElementById('agentTransactions');
+
+      const data = await fetchAuthed('/api/v1/agents/me');
+
+      if (!data || data._error) {
+        // No agent claimed
+        cardEl.innerHTML = `
+          <div class="dash-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28">
+              <circle cx="12" cy="8" r="4"/>
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+              <path d="M12 14v4"/>
+              <path d="M9 18h6"/>
+            </svg>
+            <p>No agent claimed yet</p>
+            <span>Claim an open slot below to get started!</span>
+          </div>`;
+        claimCard.classList.remove('hidden');
+        skillsEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Claim an agent first to browse skills.</p>';
+        txEl.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No transactions yet.</p>';
+        return;
+      }
+
+      const agent = data.agent || data;
+      claimCard.classList.add('hidden');
+
+      // Agent Stats
+      const balance = agent.balance ?? 0;
+      const earned = agent.total_earned ?? agent.earned ?? 0;
+      const spent = agent.total_spent ?? agent.spent ?? 0;
+      const skills = agent.skills || [];
+
+      cardEl.innerHTML = `
+        <div class="dash-profile-card" style="border:none;padding:0;">
+          <div class="dash-avatar" style="background:var(--accent);font-size:1.2rem;">${(agent.name || 'A')[0].toUpperCase()}</div>
+          <div class="dash-profile-info">
+            <h3 class="dash-username">${escapeHtml(agent.name || 'My Agent')}</h3>
+            <p class="dash-user-meta">Slot #${agent.slot || agent.slot_number || '?'}</p>
+          </div>
+          <div class="dash-stats-row">
+            <div class="dash-stat">
+              <span class="dash-stat-val">${balance}</span>
+              <span class="dash-stat-label">Balance</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-stat-val">${earned}</span>
+              <span class="dash-stat-label">Earned</span>
+            </div>
+            <div class="dash-stat">
+              <span class="dash-stat-val">${spent}</span>
+              <span class="dash-stat-label">Spent</span>
+            </div>
+          </div>
+        </div>
+        ${skills.length ? `
+          <div style="margin-top:16px;">
+            <p style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Active Skills</p>
+            <div class="agent-skills-list">
+              ${skills.map(skill => `
+                <div class="agent-skill-tag">
+                  <span class="agent-skill-name">${escapeHtml(skill.name || skill.slug)}</span>
+                  ${skill.level ? `<span class="agent-skill-level">Lv${skill.level}</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+      `;
+
+      // Load skills marketplace
+      loadSkillsMarketplace(skills);
+
+      // Load transactions
+      const transactions = data.transactions || agent.transactions || [];
+      renderTransactions(transactions);
+    }
+
+    // ===== Skills Marketplace =====
+
+    async function loadSkillsMarketplace(ownedSkills) {
+      const el = document.getElementById('skillsMarketplace');
+      const ownedSlugs = new Set((ownedSkills || []).map(s => s.slug || s.name));
+
+      try {
+        // The /agents endpoint returns skills info; use it
+        const res = await fetch(`${FLOWB_API}/api/v1/agents`);
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        const allSkills = data.skills || data.available_skills || [];
+
+        if (!allSkills.length) {
+          el.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">No skills available in the marketplace yet.</p>';
+          return;
+        }
+
+        el.innerHTML = allSkills.map(skill => {
+          const owned = ownedSlugs.has(skill.slug || skill.name);
+          const price = skill.price ?? skill.cost ?? 0;
+
+          return `
+            <div class="agent-skill-item ${owned ? 'agent-skill-owned' : ''}">
+              <div class="agent-skill-info">
+                <div class="agent-skill-item-name">${escapeHtml(skill.name || skill.slug)}</div>
+                ${skill.description ? `<div class="agent-skill-desc">${escapeHtml(skill.description)}</div>` : ''}
+              </div>
+              <div class="agent-skill-action">
+                <span class="agent-skill-price">${price} pts</span>
+                ${owned
+                  ? `<span class="agent-skill-owned-badge">Owned</span>`
+                  : `<button class="agent-skill-buy-btn" onclick="purchaseSkill('${escapeHtml((skill.slug || skill.name).replace(/'/g, "\\'"))}', this)">${price > 0 ? 'Buy' : 'Get'}</button>`
+                }
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch {
+        el.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Could not load skills marketplace.</p>';
+      }
+    }
+
+    // ===== Render Transactions =====
+
+    function renderTransactions(transactions) {
+      const el = document.getElementById('agentTransactions');
+
+      if (!transactions || !transactions.length) {
+        el.innerHTML = `
+          <div class="dash-empty dash-empty-sm">
+            <p>No transactions yet</p>
+            <span>Earn points and purchase skills to see activity here.</span>
+          </div>`;
+        return;
+      }
+
+      el.innerHTML = transactions.slice(0, 20).map(tx => {
+        const date = tx.created_at ? new Date(tx.created_at) : null;
+        const dateStr = date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const timeStr = date ? date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : '';
+        const amount = tx.amount || tx.points || 0;
+        const isPositive = amount > 0;
+        const type = tx.type || tx.action || 'transaction';
+        const desc = tx.description || tx.reason || type;
+
+        return `
+          <div class="agent-tx-item">
+            <div class="agent-tx-info">
+              <div class="agent-tx-desc">${escapeHtml(desc)}</div>
+              <div class="agent-tx-meta">${dateStr}${timeStr ? ' at ' + timeStr : ''}</div>
+            </div>
+            <span class="agent-tx-amount ${isPositive ? 'agent-tx-positive' : 'agent-tx-negative'}">${isPositive ? '+' : ''}${amount}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ===== Claim Agent =====
+
+    async function claimAgent() {
+      const nameInput = document.getElementById('claimAgentName');
+      const msgEl = document.getElementById('claimAgentMsg');
+      const btn = document.getElementById('claimAgentBtn');
+      const name = nameInput.value.trim();
+
+      if (!name) {
+        msgEl.textContent = 'Please enter a name for your agent.';
+        msgEl.style.color = 'var(--orange)';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Claiming...';
+
+      const result = await fetchAuthed('/api/v1/agents/claim', {
+        method: 'POST',
+        body: JSON.stringify({ name }),
+      });
+
+      if (result && !result._error) {
+        msgEl.textContent = result.message || 'Agent claimed!';
+        msgEl.style.color = 'var(--green)';
+        nameInput.value = '';
+        // Reload everything
+        loadAgents();
+        loadMyAgent();
+      } else {
+        msgEl.textContent = result?.message || 'Failed to claim agent. Try again.';
+        msgEl.style.color = 'var(--orange)';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Claim Slot';
+    }
+
+    // ===== Purchase Skill =====
+
+    async function purchaseSkill(slug, btnEl) {
+      if (!Auth.isAuthenticated) {
+        if (typeof requireAuth === 'function') requireAuth('purchase skills');
+        return;
+      }
+
+      btnEl.disabled = true;
+      btnEl.textContent = 'Buying...';
+
+      const result = await fetchAuthed('/api/v1/agents/skills/purchase', {
+        method: 'POST',
+        body: JSON.stringify({ slug }),
+      });
+
+      if (result && !result._error) {
+        btnEl.textContent = 'Owned';
+        btnEl.classList.add('agent-skill-owned-badge');
+        btnEl.classList.remove('agent-skill-buy-btn');
+        btnEl.disabled = true;
+        // Reload agent data
+        loadMyAgent();
+      } else {
+        btnEl.textContent = result?.message || 'Failed';
+        btnEl.disabled = false;
+        setTimeout(() => { btnEl.textContent = 'Buy'; }, 2000);
+      }
+    }
+
+    // Make purchaseSkill available for onclick
+    window.purchaseSkill = purchaseSkill;
+
+    // ===== Auth State =====
+
+    function updateAgentsPage() {
+      const gate = document.getElementById('agentsSigninGate');
+      const authed = document.getElementById('agentsAuthed');
+
+      if (Auth.isAuthenticated && Auth.jwt) {
+        gate.classList.add('hidden');
+        authed.classList.remove('hidden');
+        loadMyAgent();
+      } else {
+        gate.classList.remove('hidden');
+        authed.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('flowb-auth-ready', () => setTimeout(updateAgentsPage, 200));
+    window.addEventListener('privy-auth-change', () => setTimeout(updateAgentsPage, 500));
+
+    // Sign-in button
+    document.getElementById('agentsSigninBtn')?.addEventListener('click', () => {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn')?.click();
+      }
+    });
+
+    // Claim button
+    document.getElementById('claimAgentBtn')?.addEventListener('click', () => {
+      if (!Auth.isAuthenticated) {
+        if (typeof requireAuth === 'function') requireAuth('claim an agent');
+        return;
+      }
+      claimAgent();
+    });
+
+    // ===== Init =====
+    loadAgents();
+    updateAgentsPage();
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+</body>
+</html>

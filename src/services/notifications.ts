@@ -14,11 +14,8 @@
  */
 
 import { sendFarcasterNotification } from "./farcaster-notify.js";
-
-interface SbConfig {
-  supabaseUrl: string;
-  supabaseKey: string;
-}
+import { sbQuery, type SbConfig } from "../utils/supabase.js";
+import { log } from "../utils/logger.js";
 
 interface NotifyContext {
   supabase: SbConfig;
@@ -241,7 +238,7 @@ async function markReminderSent(cfg: SbConfig, reminderId: string): Promise<void
       },
       body: JSON.stringify({ sent: true }),
     },
-  ).catch(() => {});
+  ).catch(err => log.error("[notify]", "markReminderSent failed", { error: err instanceof Error ? err.message : String(err) }));
 }
 
 /** Get user notification preferences (cached-friendly shape) */
@@ -249,6 +246,7 @@ async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
   notify_crew_checkins: boolean;
   notify_friend_rsvps: boolean;
   notify_crew_rsvps: boolean;
+  notify_crew_messages: boolean;
   notify_event_reminders: boolean;
   notify_daily_digest: boolean;
   daily_notification_limit: number;
@@ -256,7 +254,7 @@ async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
   quiet_hours_end: number;
 }> {
   const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
-    select: "notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end",
+    select: "notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end",
     user_id: `eq.${userId}`,
     limit: "1",
   });
@@ -265,6 +263,7 @@ async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
     notify_crew_checkins: p?.notify_crew_checkins ?? true,
     notify_friend_rsvps: p?.notify_friend_rsvps ?? true,
     notify_crew_rsvps: p?.notify_crew_rsvps ?? true,
+    notify_crew_messages: p?.notify_crew_messages ?? true,
     notify_event_reminders: p?.notify_event_reminders ?? true,
     notify_daily_digest: p?.notify_daily_digest ?? true,
     daily_notification_limit: p?.daily_notification_limit ?? 10,
@@ -450,6 +449,68 @@ export async function notifyCrewLocate(
 }
 
 // ============================================================================
+// Crew Message Notification
+// ============================================================================
+
+/**
+ * Notify crew members when someone sends a message in crew chat.
+ * Sends via Telegram bot DM (primary) or Farcaster notification (fallback).
+ */
+export async function notifyCrewMessage(
+  ctx: NotifyContext,
+  userId: string,
+  crewId: string,
+  crewName: string,
+  crewEmoji: string,
+  messageText: string,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+
+  // Get crew members (excluding the sender)
+  const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
+    select: "user_id",
+    group_id: `eq.${crewId}`,
+    muted: "eq.false",
+  });
+
+  if (!members?.length) return 0;
+
+  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
+  const preview = messageText.length > 80 ? messageText.slice(0, 77) + "..." : messageText;
+  const message = `${crewEmoji} ${username} in ${crewName}: ${preview}`;
+
+  let sent = 0;
+  for (const member of members) {
+    if (member.user_id === userId) continue;
+
+    // Check per-type toggle
+    const prefs = await getUserNotifyPrefs(ctx.supabase, member.user_id);
+    if (!prefs.notify_crew_messages) continue;
+
+    if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
+
+    // Check dedup
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      member.user_id,
+      "crew_message",
+      `${crewId}:${userId}`,
+      userId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, member.user_id, "crew_message", `${crewId}:${userId}`, userId);
+      sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
@@ -461,12 +522,25 @@ async function sendToUser(
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<boolean> {
   // Telegram users
-  if (userId.startsWith("telegram_") && sendTelegramMessage) {
+  if (userId.startsWith("telegram_")) {
     const chatId = parseInt(userId.replace("telegram_", ""), 10);
     if (!isNaN(chatId)) {
       try {
-        await sendTelegramMessage(chatId, message);
-        return true;
+        if (sendTelegramMessage) {
+          await sendTelegramMessage(chatId, message);
+          return true;
+        }
+        // Fallback: call TG Bot API directly
+        const botToken = ctx.botToken || process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+        if (botToken) {
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: chatId, text: message }),
+          });
+          if (res.ok) return true;
+          console.error(`[notify] TG API send failed for ${userId}: ${res.status}`);
+        }
       } catch (err) {
         console.error(`[notify] TG send failed for ${userId}:`, err);
       }
@@ -524,7 +598,7 @@ async function logNotification(
       },
       body: JSON.stringify({ recipient_id: recipientId, notification_type: type, reference_id: referenceId, triggered_by: triggeredBy }),
     },
-  ).catch(() => {});
+  ).catch(err => log.error("[notify]", "logNotification failed", { error: err instanceof Error ? err.message : String(err) }));
 }
 
 /** Check if user has received too many notifications today (configurable limit) */
@@ -580,23 +654,5 @@ async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean>
       return mstHour >= qhStart || mstHour < qhEnd;
     }
     return mstHour >= qhStart && mstHour < qhEnd;
-  }
-}
-
-/** Supabase query helper */
-async function sbQuery<T>(cfg: SbConfig, table: string, params: Record<string, string>): Promise<T | null> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  try {
-    const res = await fetch(url.toString(), {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch {
-    return null;
   }
 }

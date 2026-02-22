@@ -5,6 +5,7 @@
  */
 
 const FLOWB_MINIAPP_URL = "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
+const FLOWB_LINK = "https://flowb.me";
 const NEYNAR_API = "https://api.neynar.com/v2/farcaster";
 
 // ============================================================================
@@ -48,7 +49,8 @@ const TIME_SLOTS: TimeSlot[] = [
           return `${time} - ${e.title}${e.locationName ? ` @ ${e.locationName}` : ""}`;
         }),
         "",
-        count > 4 ? `+ ${count - 4} more. Check the full lineup:` : "See the full lineup:",
+        count > 4 ? `+ ${count - 4} more. Check the full lineup` : "See the full lineup",
+        FLOWB_LINK,
       ];
       return lines.join("\n");
     },
@@ -70,7 +72,7 @@ const TIME_SLOTS: TimeSlot[] = [
         ...happening.slice(0, 3).map((e) => `- ${e.title}${e.locationName ? ` @ ${e.locationName}` : ""}`),
         "",
         happening.length > 3 ? `${happening.length - 3} more going on right now` : "",
-        "Don't just scroll, go!",
+        `Don't just scroll, go! ${FLOWB_LINK}`,
       ].filter(Boolean);
       return lines.join("\n");
     },
@@ -97,7 +99,7 @@ const TIME_SLOTS: TimeSlot[] = [
         }),
         "",
         free.length > 0 ? `${free.length} free events this afternoon` : "",
-        "Plan your next move:",
+        `Plan your next move: ${FLOWB_LINK}`,
       ].filter(Boolean);
       return lines.join("\n");
     },
@@ -122,7 +124,7 @@ const TIME_SLOTS: TimeSlot[] = [
           return `${medal} ${e.title} (${time})${e.locationName ? ` @ ${e.locationName}` : ""}`;
         }),
         "",
-        "Which one are you hitting?",
+        `Which one are you hitting? ${FLOWB_LINK}`,
       ];
       return lines.join("\n");
     },
@@ -147,7 +149,7 @@ const TIME_SLOTS: TimeSlot[] = [
         }),
         "",
         evening.length > 4 ? `+ ${evening.length - 4} more tonight` : "",
-        "Where's the crew headed?",
+        `Where's the crew headed? ${FLOWB_LINK}`,
       ].filter(Boolean);
       return lines.join("\n");
     },
@@ -168,7 +170,7 @@ const TIME_SLOTS: TimeSlot[] = [
         "",
         ...late.slice(0, 3).map((e) => `- ${e.title}${e.locationName ? ` @ ${e.locationName}` : ""}`),
         "",
-        "The real alpha is at the afterparties",
+        `The real alpha is at the afterparties ${FLOWB_LINK}`,
       ];
       return lines.join("\n");
     },
@@ -295,7 +297,7 @@ export async function postEventCard(event: {
     event.venue ? `@ ${event.venue}` : null,
     event.isFree ? "Free" : null,
     "",
-    "Check it out on FlowB:",
+    `Check it out on FlowB: ${FLOWB_LINK}`,
   ].filter(Boolean);
 
   return publishCast(lines.join("\n"), [{ url: FLOWB_MINIAPP_URL }]);
@@ -311,7 +313,7 @@ export async function postDailyDigest(
     "",
     ...topEvents.slice(0, 5).map((e, i) => `${i + 1}. ${e.title}${e.time ? ` (${e.time})` : ""}`),
     "",
-    "Open FlowB to browse them all:",
+    `Open FlowB to browse them all: ${FLOWB_LINK}`,
   ];
   return publishCast(lines.join("\n"), [{ url: FLOWB_MINIAPP_URL }]);
 }
@@ -325,7 +327,7 @@ export async function postEveningHighlight(
     "",
     ...events.slice(0, 3).map((e) => `- ${e.title}${e.venue ? ` @ ${e.venue}` : ""}`),
     "",
-    "Who's going?",
+    `Who's going? ${FLOWB_LINK}`,
   ];
   return publishCast(lines.join("\n"), [{ url: FLOWB_MINIAPP_URL }]);
 }

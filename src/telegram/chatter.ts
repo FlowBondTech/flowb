@@ -6,13 +6,9 @@
  */
 
 import type { ChatterSignal } from "../core/types.js";
+import { sbUpsert, sbInsert, sbQuery, sbPatch as sbPatchShared, type SbConfig } from "../utils/supabase.js";
 
 const FLOWB_CHAT_URL = "https://flowb.fly.dev";
-
-interface SbConfig {
-  supabaseUrl: string;
-  supabaseKey: string;
-}
 
 let sbCfg: SbConfig | null = null;
 
@@ -193,59 +189,24 @@ function resolveDate(dateStr: string, timeStr?: string): string | undefined {
 // Supabase Storage
 // ============================================================================
 
-async function sbPost(table: string, data: Record<string, any>, upsertCol?: string): Promise<any> {
-  if (!sbCfg) return null;
-  const url = upsertCol
-    ? `${sbCfg.supabaseUrl}/rest/v1/${table}?on_conflict=${upsertCol}`
-    : `${sbCfg.supabaseUrl}/rest/v1/${table}`;
-  const prefer = upsertCol
-    ? "return=representation,resolution=merge-duplicates"
-    : "return=representation";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      apikey: sbCfg.supabaseKey,
-      Authorization: `Bearer ${sbCfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: prefer,
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
+// Thin wrappers that delegate to shared helpers using module-level sbCfg
+
+function chatterPost(table: string, data: Record<string, any>, upsertCol?: string): Promise<any> {
+  if (!sbCfg) return Promise.resolve(null);
+  if (upsertCol) {
+    return sbUpsert(sbCfg, table, data, upsertCol);
+  }
+  return sbInsert(sbCfg, table, data);
 }
 
-async function sbGet<T>(table: string, params: Record<string, string>): Promise<T | null> {
-  if (!sbCfg) return null;
-  const url = new URL(`${sbCfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: sbCfg.supabaseKey,
-      Authorization: `Bearer ${sbCfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
+function chatterGet<T>(table: string, params: Record<string, string>): Promise<T | null> {
+  if (!sbCfg) return Promise.resolve(null);
+  return sbQuery<T>(sbCfg, table, params);
 }
 
-async function sbPatch(table: string, filter: Record<string, string>, data: Record<string, any>): Promise<boolean> {
-  if (!sbCfg) return false;
-  const url = new URL(`${sbCfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    method: "PATCH",
-    headers: {
-      apikey: sbCfg.supabaseKey,
-      Authorization: `Bearer ${sbCfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(data),
-  });
-  return res.ok;
+function chatterPatch(table: string, filter: Record<string, string>, data: Record<string, any>): Promise<boolean> {
+  if (!sbCfg) return Promise.resolve(false);
+  return sbPatchShared(sbCfg, table, filter, data);
 }
 
 // ============================================================================
@@ -258,7 +219,7 @@ export async function registerChannel(
   title: string | undefined,
   addedBy: number,
 ): Promise<void> {
-  await sbPost("flowb_channels", {
+  await chatterPost("flowb_channels", {
     chat_id: chatId,
     chat_type: chatType,
     title: title || null,
@@ -269,7 +230,7 @@ export async function registerChannel(
 }
 
 export async function deactivateChannel(chatId: number): Promise<void> {
-  await sbPatch("flowb_channels", { chat_id: `eq.${chatId}` }, {
+  await chatterPatch("flowb_channels", { chat_id: `eq.${chatId}` }, {
     active: false,
     updated_at: new Date().toISOString(),
   });
@@ -288,14 +249,14 @@ export async function storeSignal(
   rawText: string,
 ): Promise<void> {
   // Look up channel_id
-  const channels = await sbGet<Array<{ id: string }>>("flowb_channels", {
+  const channels = await chatterGet<Array<{ id: string }>>("flowb_channels", {
     chat_id: `eq.${chatId}`,
     select: "id",
     limit: "1",
   });
   const channelId = channels?.[0]?.id || null;
 
-  await sbPost("flowb_channel_signals", {
+  await chatterPost("flowb_channel_signals", {
     channel_id: channelId,
     chat_id: chatId,
     message_id: messageId,
@@ -318,7 +279,7 @@ export async function storeSignal(
 // ============================================================================
 
 export async function buildDigest(chatId: number): Promise<string | null> {
-  const signals = await sbGet<Array<{
+  const signals = await chatterGet<Array<{
     id: string;
     event_title: string | null;
     event_date: string | null;
@@ -359,7 +320,7 @@ export async function buildDigest(chatId: number): Promise<string | null> {
 
   // Mark signals as digested
   for (const id of signalIds) {
-    await sbPatch("flowb_channel_signals", { id: `eq.${id}` }, { digested: true });
+    await chatterPatch("flowb_channel_signals", { id: `eq.${id}` }, { digested: true });
   }
 
   return html;
@@ -370,7 +331,7 @@ export async function buildDigest(chatId: number): Promise<string | null> {
 // ============================================================================
 
 export async function getActiveChannelsWithSignals(): Promise<number[]> {
-  const rows = await sbGet<Array<{ chat_id: number }>>("flowb_channel_signals", {
+  const rows = await chatterGet<Array<{ chat_id: number }>>("flowb_channel_signals", {
     digested: "eq.false",
     "confidence": "gte.0.6",
     select: "chat_id",
