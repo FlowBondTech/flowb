@@ -14,7 +14,7 @@
  */
 
 import { sendFarcasterNotification } from "./farcaster-notify.js";
-import { sbQuery, type SbConfig } from "../utils/supabase.js";
+import { sbQuery, sbFetch, type SbConfig } from "../utils/supabase.js";
 import { log } from "../utils/logger.js";
 
 interface NotifyContext {
@@ -49,8 +49,18 @@ export async function notifyCrewCheckin(
 
   if (!members?.length) return 0;
 
-  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
-  const message = `${crewEmoji} ${username} checked in at ${venueName} (+5 pts)`;
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
+
+  // Build crew deep link for Telegram mini app
+  const crewDetails = await sbFetch<any[]>(
+    ctx.supabase,
+    `flowb_groups?id=eq.${crewId}&select=join_code&limit=1`,
+  );
+  const joinCode = crewDetails?.[0]?.join_code;
+  const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
+  const crewLink = joinCode ? `https://t.me/${botUsername}?startapp=crew_${joinCode}` : "";
+
+  const message = `${crewEmoji} ${displayName} checked in at ${venueName} (${crewName}) (+5 pts)${crewLink ? `\n\nView crew: ${crewLink}` : ""}`;
 
   let sent = 0;
   for (const member of members) {
@@ -107,8 +117,8 @@ export async function notifyFriendRsvp(
 
   if (!friends?.length) return 0;
 
-  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
-  const message = `${username} is going to ${eventName}!`;
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
+  const message = `${displayName} is going to ${eventName}!`;
 
   let sent = 0;
   for (const friend of friends) {
@@ -299,8 +309,8 @@ export async function notifyCrewJoin(
 
   if (!members?.length) return 0;
 
-  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
-  const message = `${crewEmoji} ${username} just joined ${crewName}! (+10 pts)`;
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
+  const message = `${crewEmoji} ${displayName} just joined ${crewName}! (+10 pts)`;
 
   let sent = 0;
   for (const member of members) {
@@ -351,14 +361,14 @@ export async function notifyCrewMemberRsvp(
 
   if (!memberships?.length) return 0;
 
-  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
   const notifiedSet = new Set<string>();
   let sent = 0;
 
   for (const m of memberships) {
     if (!m.flowb_groups) continue;
     const crewEmoji = m.flowb_groups.emoji || "";
-    const message = `${crewEmoji} ${username} is going to ${eventName}! (+5 pts)`;
+    const message = `${crewEmoji} ${displayName} is going to ${eventName}! (+5 pts)`;
 
     // Get other members of this crew
     const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
@@ -416,7 +426,7 @@ export async function notifyCrewLocate(
   memberIds: string[],
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
-  const requesterName = requesterId.replace(/^(telegram_|farcaster_)/, "@");
+  const requesterName = await resolveDisplayName(ctx.supabase, requesterId);
   const message = `${crewEmoji} ${requesterName} is looking for you! Where are you? Check in to let your ${crewName} crew know.`;
 
   let sent = 0;
@@ -475,9 +485,9 @@ export async function notifyCrewMessage(
 
   if (!members?.length) return 0;
 
-  const username = userId.replace(/^(telegram_|farcaster_)/, "@");
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
   const preview = messageText.length > 80 ? messageText.slice(0, 77) + "..." : messageText;
-  const message = `${crewEmoji} ${username} in ${crewName}: ${preview}`;
+  const message = `${crewEmoji} ${displayName} in ${crewName}: ${preview}`;
 
   let sent = 0;
   for (const member of members) {
@@ -513,6 +523,16 @@ export async function notifyCrewMessage(
 // ============================================================================
 // Helpers
 // ============================================================================
+
+/** Resolve a user ID (e.g. "telegram_123") to their display name from flowb_sessions */
+async function resolveDisplayName(cfg: SbConfig, userId: string): Promise<string> {
+  const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
+    select: "display_name,danz_username",
+    user_id: `eq.${userId}`,
+    limit: "1",
+  });
+  return rows?.[0]?.display_name || rows?.[0]?.danz_username || userId.replace(/^(telegram_|farcaster_)/, "");
+}
 
 /** Send notification to a user via their primary platform */
 async function sendToUser(
