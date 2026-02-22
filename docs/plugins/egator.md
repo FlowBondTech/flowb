@@ -31,4 +31,4 @@ title: "Luma Events Plugin"
 
 ---
 
-*Auto-generated on 2026-02-22 15:04:15 UTC*
+*Auto-generated on 2026-02-22 16:04:04 UTC*
