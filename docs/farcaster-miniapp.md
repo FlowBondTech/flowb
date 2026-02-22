@@ -74,6 +74,3 @@ npm run build
 npx netlify-cli deploy --prod --dir=out --no-build --site 67ccf00b-6b89-4980-930f-00e8ccc1fc39
 ```
 
----
-
-*Auto-generated on 2026-02-19*

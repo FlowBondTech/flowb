@@ -245,6 +245,24 @@ View your rewards status and claim available rewards (requires linked wallet).
 
 Show the main menu with all action buttons.
 
+### /wheremycrew
+
+See where your crew members are right now. Shows the latest check-in location for each member of your active crew.
+
+### /onbooths
+
+*Admin only.* Create a QR check-in location (booth) with auto-generated QR code.
+
+**Usage**: `/onbooths Location Name | floor | zone`
+
+### /sponsor
+
+View your USDC sponsorships or get the sponsor wallet address. Shows your sponsorship history and a prompt to sponsor a booth or event.
+
+### /topsponsor
+
+View the public leaderboard of top-sponsored booths ranked by USDC amount.
+
 ---
 
 ## Natural Language
