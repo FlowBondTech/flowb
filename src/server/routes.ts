@@ -4708,7 +4708,7 @@ Claim yours in the app now. Only 8 slots available.`;
 
       // Optional auth -- feedback works for logged-in and anonymous users
       const jwt = extractJwt(request);
-      const userId = jwt?.userId || null;
+      const userId = jwt?.sub || null;
       const platform = jwt?.platform || "web";
 
       const cfg = getSupabaseConfig();
