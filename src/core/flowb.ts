@@ -16,6 +16,7 @@ import { PointsPlugin } from "../plugins/points/index.js";
 import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { AgentKitPlugin } from "../plugins/agentkit/index.js";
+import { SocialPlugin } from "../plugins/social/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -80,6 +81,12 @@ export class FlowBCore {
       agentkit.configure(this.config.plugins.cdp);
     }
     this.registerPlugin(agentkit);
+
+    const social = new SocialPlugin();
+    if (this.config.plugins?.social) {
+      social.configure(this.config.plugins.social);
+    }
+    this.registerPlugin(social);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -327,6 +334,18 @@ export class FlowBCore {
     const egator = this.plugins.get("egator") as EGatorPlugin | undefined;
     if (!egator?.isConfigured()) return null;
     return egator;
+  }
+
+  /** Get the Social plugin for direct access. */
+  getSocialPlugin(): SocialPlugin | null {
+    const social = this.plugins.get("social") as SocialPlugin | undefined;
+    if (!social?.isConfigured()) return null;
+    return social;
+  }
+
+  /** Get the Social plugin config. */
+  getSocialConfig(): import("../plugins/social/types.js").SocialPluginConfig | null {
+    return this.config.plugins?.social || null;
   }
 
   /** Get the list of all action names (for schema generation) */

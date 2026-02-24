@@ -4761,6 +4761,281 @@ Claim yours in the app now. Only 8 slots available.`;
     },
   );
 
+  // ------------------------------------------------------------------
+  // SOCIAL: Organization & multi-platform posting
+  // ------------------------------------------------------------------
+
+  const socialPlugin = core.getSocialPlugin();
+  const socialCfg = core.getSocialConfig();
+
+  // GET /api/v1/social/providers (public)
+  app.get("/api/v1/social/providers", async () => {
+    const { SOCIAL_PROVIDERS } = await import("../plugins/social/types.js");
+    return { providers: SOCIAL_PROVIDERS };
+  });
+
+  // POST /api/v1/social/orgs - Create a social org
+  app.post<{ Body: { name: string } }>(
+    "/api/v1/social/orgs",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["name"],
+          properties: { name: { type: "string", minLength: 1, maxLength: 100 } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const result = await socialPlugin.createOrg(socialCfg, jwt.sub, request.body.name);
+      if (!result) {
+        return reply.status(500).send({ error: "Failed to create organization" });
+      }
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "social_org_created"), "award social org points");
+
+      return result;
+    },
+  );
+
+  // POST /api/v1/social/orgs/:orgId/members - Add a team member
+  app.post<{ Params: { orgId: string }; Body: { userId: string; role: string } }>(
+    "/api/v1/social/orgs/:orgId/members",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["userId", "role"],
+          properties: {
+            userId: { type: "string" },
+            role: { type: "string", enum: ["admin", "member"] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const { orgId } = request.params;
+      if (!await socialPlugin.checkOrgAccess(socialCfg, jwt.sub, orgId, "owner")) {
+        return reply.status(403).send({ error: "Only org owners can add members" });
+      }
+
+      const { sbInsert: sbIns } = await import("../utils/supabase.js");
+      const member = await sbIns(socialCfg, "flowb_social_org_members", {
+        org_id: orgId,
+        user_id: request.body.userId,
+        role: request.body.role,
+      });
+
+      if (!member) {
+        return reply.status(500).send({ error: "Failed to add member" });
+      }
+
+      return { ok: true, member };
+    },
+  );
+
+  // POST /api/v1/social/connect - Get Postiz connect URL
+  app.post<{ Body: { orgId?: string } }>(
+    "/api/v1/social/connect",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const result = await socialPlugin.execute("social-connect", {
+        action: "social-connect",
+        user_id: jwt.sub,
+        org_id: request.body?.orgId,
+      }, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      return JSON.parse(result);
+    },
+  );
+
+  // GET /api/v1/social/accounts - List connected social accounts
+  app.get<{ Querystring: { orgId?: string } }>(
+    "/api/v1/social/accounts",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const result = await socialPlugin.execute("social-accounts", {
+        action: "social-accounts",
+        user_id: jwt.sub,
+        org_id: request.query.orgId,
+      }, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      return JSON.parse(result);
+    },
+  );
+
+  // POST /api/v1/social/post - Post to platforms immediately
+  app.post<{
+    Body: { orgId?: string; text: string; platforms: string[]; mediaUrls?: string[] };
+  }>(
+    "/api/v1/social/post",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["text", "platforms"],
+          properties: {
+            orgId: { type: "string" },
+            text: { type: "string", minLength: 1, maxLength: 5000 },
+            platforms: { type: "array", items: { type: "string" }, minItems: 1 },
+            mediaUrls: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const { orgId, text, platforms, mediaUrls } = request.body;
+
+      const result = await socialPlugin.execute("social-post", {
+        action: "social-post",
+        user_id: jwt.sub,
+        query: text,
+        org_id: orgId,
+        platforms,
+        media_urls: mediaUrls,
+      }, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      const parsed = JSON.parse(result);
+      if (parsed.success) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "social_post"), "award social post points");
+      }
+
+      return parsed;
+    },
+  );
+
+  // POST /api/v1/social/schedule - Schedule a post
+  app.post<{
+    Body: { orgId?: string; text: string; platforms: string[]; scheduledAt: string; mediaUrls?: string[] };
+  }>(
+    "/api/v1/social/schedule",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["text", "platforms", "scheduledAt"],
+          properties: {
+            orgId: { type: "string" },
+            text: { type: "string", minLength: 1, maxLength: 5000 },
+            platforms: { type: "array", items: { type: "string" }, minItems: 1 },
+            scheduledAt: { type: "string" },
+            mediaUrls: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const { orgId, text, platforms, scheduledAt, mediaUrls } = request.body;
+
+      const result = await socialPlugin.execute("social-schedule", {
+        action: "social-schedule",
+        user_id: jwt.sub,
+        query: text,
+        org_id: orgId,
+        platforms,
+        scheduled_at: scheduledAt,
+        media_urls: mediaUrls,
+      }, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      const parsed = JSON.parse(result);
+      if (parsed.success) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "social_scheduled"), "award social schedule points");
+      }
+
+      return parsed;
+    },
+  );
+
+  // DELETE /api/v1/social/posts/:id - Cancel a post
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/social/posts/:id",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const result = await socialPlugin.execute("social-cancel", {
+        action: "social-cancel",
+        user_id: jwt.sub,
+        post_id: request.params.id,
+      }, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      return { ok: true, message: result };
+    },
+  );
+
+  // GET /api/v1/social/posts - List post history
+  app.get<{ Querystring: { orgId?: string; limit?: string; offset?: string } }>(
+    "/api/v1/social/posts",
+    {
+      config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!socialPlugin || !socialCfg) {
+        return reply.status(503).send({ error: "Social plugin not available" });
+      }
+
+      const result = await socialPlugin.execute("social-history", {
+        action: "social-history",
+        user_id: jwt.sub,
+        org_id: request.query.orgId,
+      } as any, { userId: jwt.sub, platform: jwt.platform, config: core["config"] });
+
+      return JSON.parse(result);
+    },
+  );
+
 } // end registerMiniAppRoutes
 
 // ============================================================================

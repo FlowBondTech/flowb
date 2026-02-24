@@ -71,6 +71,11 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   sponsor_verified:      { points: 50,  dailyCap: 200 },
   proximity_checkin:     { points: 5,   dailyCap: 25 },
   sponsored_checkin:     { points: 10,  dailyCap: 50 },
+  // Social posting actions
+  social_post:           { points: 5,   dailyCap: 25 },
+  social_scheduled:      { points: 3,   dailyCap: 15 },
+  social_account_linked: { points: 10,  dailyCap: 30 },
+  social_org_created:    { points: 20,  dailyCap: 20 },
 };
 
 const MILESTONES = [

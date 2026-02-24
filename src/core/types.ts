@@ -12,6 +12,7 @@ export interface FlowBConfig {
     points?: PointsPluginConfig;
     cdp?: CDPPluginConfig;
     flow?: FlowPluginConfig;
+    social?: SocialPluginConfig;
     [key: string]: any;
   };
 }
@@ -53,6 +54,14 @@ export interface PointsPluginConfig {
 export interface FlowPluginConfig {
   supabaseUrl: string;
   supabaseKey: string;
+}
+
+export interface SocialPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+  postizBaseUrl: string;
+  postizMasterApiKey: string;
+  encryptionKey: string;
 }
 
 export interface CDPPluginConfig {
@@ -279,4 +288,11 @@ export interface ToolInput {
   event_status?: "going" | "maybe";
   visibility?: "friends" | "groups" | "public" | "private";
   url?: string;
+  // Social fields
+  org_id?: string;
+  platforms?: string[];
+  media_urls?: string[];
+  scheduled_at?: string;
+  post_id?: string;
+  integration_id?: string;
 }
