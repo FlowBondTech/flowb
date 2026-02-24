@@ -123,25 +123,12 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             </div>
             <div className="onboarding-highlight">
               <span className="onboarding-highlight-icon">{"\uD83D\uDC65"}</span>
-              <span className="onboarding-highlight-text">Build your crew & coordinate IRL</span>
+              <span className="onboarding-highlight-text">Find your Crew & coordinate IRL</span>
             </div>
             <div className="onboarding-highlight">
               <span className="onboarding-highlight-icon">{"\u2B50"}</span>
               <span className="onboarding-highlight-text">Earn points across all platforms</span>
             </div>
-          </div>
-
-          <div className="onboarding-portal-hint">
-            Also on Telegram or the web? Log into{" "}
-            <a
-              href="https://flowb.me/settings"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--accent-light, #3b82f6)", fontWeight: 600 }}
-            >
-              flowb.me
-            </a>{" "}
-            to sync your points across all platforms.
           </div>
 
           <button
@@ -151,6 +138,20 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
           >
             Get Started
           </button>
+
+          <div className="onboarding-portal-hint" style={{ marginTop: 16, textAlign: "center" }}>
+            <a
+              href="https://flowb.me/settings?from=farcaster"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "var(--accent-light, #3b82f6)", fontWeight: 600, textDecoration: "none" }}
+            >
+              Already in the flow? Sign in
+            </a>
+            <div style={{ fontSize: 11, color: "var(--hint)", marginTop: 4 }}>
+              Syncs your accounts across platforms — powered by FlowBond.Tech
+            </div>
+          </div>
         </div>
       </div>
     );

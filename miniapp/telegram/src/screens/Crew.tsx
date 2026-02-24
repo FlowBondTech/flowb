@@ -630,7 +630,7 @@ export function Crew({ crewId, checkinCode }: Props) {
   if (loading) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <SkeletonMembers />
       </div>
     );
@@ -640,7 +640,7 @@ export function Crew({ crewId, checkinCode }: Props) {
   if (crews.length === 0 && !crewId) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>

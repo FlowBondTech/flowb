@@ -121,23 +121,12 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             </div>
             <div className="onboarding-highlight">
               <span className="onboarding-highlight-icon">{"\uD83D\uDC65"}</span>
-              <span className="onboarding-highlight-text">Build your crew & coordinate IRL</span>
+              <span className="onboarding-highlight-text">Find your Crew & coordinate IRL</span>
             </div>
             <div className="onboarding-highlight">
               <span className="onboarding-highlight-icon">{"\u2B50"}</span>
               <span className="onboarding-highlight-text">Earn points across all platforms</span>
             </div>
-          </div>
-
-          <div className="onboarding-portal-hint">
-            Already using FlowB on Farcaster or Web? Log into{" "}
-            <span
-              style={{ color: "var(--accent-light)", fontWeight: 600, cursor: "pointer" }}
-              onClick={() => tg?.openLink?.("https://flowb.me/settings")}
-            >
-              flowb.me
-            </span>{" "}
-            to sync your points across all platforms.
           </div>
 
           <button
@@ -147,6 +136,18 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
           >
             Get Started
           </button>
+
+          <div className="onboarding-portal-hint" style={{ marginTop: 16, textAlign: "center" }}>
+            <span
+              style={{ color: "var(--accent-light)", fontWeight: 600, cursor: "pointer" }}
+              onClick={() => tg?.openLink?.("https://flowb.me/settings?from=telegram")}
+            >
+              Already in the flow? Sign into your flow
+            </span>
+            <div style={{ fontSize: 11, color: "var(--hint)", marginTop: 4 }}>
+              Syncs your accounts across platforms — powered by FlowBond.Tech
+            </div>
+          </div>
         </div>
       </div>
     );

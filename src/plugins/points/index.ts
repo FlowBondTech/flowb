@@ -76,6 +76,9 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   social_scheduled:      { points: 3,   dailyCap: 15 },
   social_account_linked: { points: 10,  dailyCap: 30 },
   social_org_created:    { points: 20,  dailyCap: 20 },
+  // SocialB auto-repost actions
+  socialb_repost:        { points: 3,   dailyCap: 30 },
+  socialb_enabled:       { points: 15,  dailyCap: 15, once: true },
 };
 
 const MILESTONES = [

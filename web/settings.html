@@ -483,7 +483,7 @@
         <div class="settings-panel active" id="panel-accounts">
 
           <!-- Encouragement Banner -->
-          <div class="settings-encourage">
+          <div class="settings-encourage" id="accountsEncourage">
             <p class="settings-encourage-title">Connect everything, miss nothing</p>
             <p class="settings-encourage-msg">Link your accounts so your RSVPs, crews, points, and schedule sync everywhere. One identity across Telegram, Farcaster, email, Discord, and more.</p>
           </div>
@@ -831,6 +831,25 @@
 
     window.addEventListener('flowb-auth-ready', () => setTimeout(updateSettingsPage, 200));
     window.addEventListener('privy-auth-change', () => setTimeout(updateSettingsPage, 500));
+
+    // Handle deep link from Telegram/Farcaster mini apps
+    (function handleFromPlatform() {
+      const from = sessionStorage.getItem('flowb-from-platform');
+      if (!from) return;
+      const banner = document.getElementById('accountsEncourage');
+      if (!banner) return;
+      if (from === 'telegram') {
+        banner.querySelector('.settings-encourage-title').textContent = 'Welcome from Telegram!';
+        banner.querySelector('.settings-encourage-msg').textContent =
+          'Log in with Privy below, then connect your Farcaster, email, and other accounts to merge all your points into one identity.';
+      } else if (from === 'farcaster') {
+        banner.querySelector('.settings-encourage-title').textContent = 'Welcome from Farcaster!';
+        banner.querySelector('.settings-encourage-msg').textContent =
+          'Log in with Privy below, then connect your Telegram and other accounts to merge all your points into one identity.';
+      }
+      banner.style.border = '1px solid var(--accent)';
+      banner.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))';
+    })();
 
     document.getElementById('settingsSigninBtn')?.addEventListener('click', () => {
       if (window.flowbPrivy) {

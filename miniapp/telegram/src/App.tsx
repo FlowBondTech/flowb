@@ -12,6 +12,7 @@ import { Chat } from "./screens/Chat";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
 import { Agents } from "./screens/Agents";
+import { SocialB } from "./screens/SocialB";
 
 export type Screen =
   | { name: "home" }
@@ -22,6 +23,7 @@ export type Screen =
   | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" }
   | { name: "agents" }
+  | { name: "socialb" }
   | { name: "about" }
   | { name: "settings" };
 
@@ -53,6 +55,8 @@ export default function App() {
       setScreen({ name: "points" });
     } else if (startParam === "chat") {
       setScreen({ name: "chat" });
+    } else if (startParam === "socialb") {
+      setScreen({ name: "socialb" });
     }
   }, []);
 
@@ -173,6 +177,7 @@ export default function App() {
       {screen.name === "points" && <Points onNavigate={navigate} />}
       {screen.name === "about" && <About onNavigate={navigate} />}
       {screen.name === "agents" && <Agents onNavigate={navigate} />}
+      {screen.name === "socialb" && <SocialB onNavigate={navigate} />}
       {screen.name === "settings" && <Settings onNavigate={navigate} />}
 
       <BottomNav current={screen.name === "feed" ? "feed" : screen.name} onNavigate={navigate} />

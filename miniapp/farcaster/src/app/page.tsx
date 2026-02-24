@@ -17,8 +17,9 @@ import { FlowBChat } from "../components/FlowBChat";
 import { EthDenverFeed } from "../components/EthDenverFeed";
 import { AboutScreen } from "../components/AboutScreen";
 import { AgentsScreen } from "../components/AgentsScreen";
+import { SocialBScreen } from "../components/SocialBScreen";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents" | "socialb";
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
@@ -1345,6 +1346,9 @@ export default function FarcasterApp() {
 
       {/* Agents Screen */}
       {screen === "agents" && <AgentsScreen authed={authed} currentUserId={userId} />}
+
+      {/* SocialB Screen */}
+      {screen === "socialb" && <SocialBScreen authed={authed} currentUserId={userId} />}
 
       {/* Bottom Navigation */}
       <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />

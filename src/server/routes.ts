@@ -5036,6 +5036,289 @@ Claim yours in the app now. Only 8 slots available.`;
     },
   );
 
+  // ------------------------------------------------------------------
+  // SOCIALB: Auto-repost Farcaster casts to all platforms
+  // ------------------------------------------------------------------
+
+  // GET /api/v1/socialb/config
+  app.get(
+    "/api/v1/socialb/config",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbQuery } = await import("../utils/supabase.js");
+      const configs = await sbQuery<any[]>(cfg, "flowb_socialb_configs", {
+        select: "*",
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (!configs?.length) return { config: null };
+      return { config: configs[0] };
+    },
+  );
+
+  // POST /api/v1/socialb/config
+  app.post<{
+    Body: {
+      farcaster_fid: number;
+      org_id: string;
+      enabled?: boolean;
+      platforms?: string[];
+      auto_media?: boolean;
+      include_links?: boolean;
+      exclude_replies?: boolean;
+      exclude_recasts?: boolean;
+      daily_limit?: number;
+    };
+  }>(
+    "/api/v1/socialb/config",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbQuery, sbInsert, sbPatch } = await import("../utils/supabase.js");
+      const body = request.body;
+
+      // Check if config exists
+      const existing = await sbQuery<any[]>(cfg, "flowb_socialb_configs", {
+        select: "id",
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (existing?.length) {
+        // Update
+        const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+        if (body.enabled !== undefined) updates.enabled = body.enabled;
+        if (body.platforms) updates.platforms = body.platforms;
+        if (body.auto_media !== undefined) updates.auto_media = body.auto_media;
+        if (body.include_links !== undefined) updates.include_links = body.include_links;
+        if (body.exclude_replies !== undefined) updates.exclude_replies = body.exclude_replies;
+        if (body.exclude_recasts !== undefined) updates.exclude_recasts = body.exclude_recasts;
+        if (body.daily_limit !== undefined) updates.daily_limit = body.daily_limit;
+
+        await sbPatch(cfg, "flowb_socialb_configs", { id: `eq.${existing[0].id}` }, updates);
+
+        const updated = await sbQuery<any[]>(cfg, "flowb_socialb_configs", {
+          select: "*",
+          id: `eq.${existing[0].id}`,
+          limit: "1",
+        });
+
+        return { config: updated?.[0] || null, updated: true };
+      }
+
+      // Create
+      if (!body.farcaster_fid || !body.org_id) {
+        return reply.status(400).send({ error: "farcaster_fid and org_id required" });
+      }
+
+      const row = await sbInsert(cfg, "flowb_socialb_configs", {
+        user_id: jwt.sub,
+        org_id: body.org_id,
+        farcaster_fid: body.farcaster_fid,
+        enabled: body.enabled ?? false,
+        platforms: body.platforms || [],
+        auto_media: body.auto_media ?? true,
+        include_links: body.include_links ?? true,
+        exclude_replies: body.exclude_replies ?? true,
+        exclude_recasts: body.exclude_recasts ?? true,
+        daily_limit: body.daily_limit ?? 10,
+      });
+
+      if (!row) return reply.status(500).send({ error: "Failed to create config" });
+
+      // Award points for enabling SocialB
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "socialb_enabled"), "socialb-points");
+
+      return { config: row, created: true };
+    },
+  );
+
+  // POST /api/v1/socialb/config/toggle
+  app.post(
+    "/api/v1/socialb/config/toggle",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbQuery, sbPatch } = await import("../utils/supabase.js");
+      const configs = await sbQuery<any[]>(cfg, "flowb_socialb_configs", {
+        select: "id,enabled",
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (!configs?.length) return reply.status(404).send({ error: "No SocialB config found" });
+
+      const newEnabled = !configs[0].enabled;
+      await sbPatch(cfg, "flowb_socialb_configs", { id: `eq.${configs[0].id}` }, {
+        enabled: newEnabled,
+        updated_at: new Date().toISOString(),
+      });
+
+      return { enabled: newEnabled };
+    },
+  );
+
+  // DELETE /api/v1/socialb/config
+  app.delete(
+    "/api/v1/socialb/config",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbPatch } = await import("../utils/supabase.js");
+      await sbPatch(cfg, "flowb_socialb_configs", { user_id: `eq.${jwt.sub}` }, {
+        enabled: false,
+        updated_at: new Date().toISOString(),
+      });
+
+      return { ok: true, disabled: true };
+    },
+  );
+
+  // GET /api/v1/socialb/activity
+  app.get<{ Querystring: { limit?: string } }>(
+    "/api/v1/socialb/activity",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const limit = Math.min(parseInt(request.query.limit || "20", 10), 50);
+      const { sbQuery } = await import("../utils/supabase.js");
+
+      // Get config ID
+      const configs = await sbQuery<any[]>(cfg, "flowb_socialb_configs", {
+        select: "id",
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (!configs?.length) return { activity: [] };
+
+      const activity = await sbQuery<any[]>(cfg, "flowb_socialb_activity", {
+        select: "*",
+        config_id: `eq.${configs[0].id}`,
+        order: "created_at.desc",
+        limit: String(limit),
+      });
+
+      return { activity: activity || [] };
+    },
+  );
+
+  // POST /api/v1/socialb/webhook — Neynar cast.created webhook
+  app.post<{ Body: any }>(
+    "/api/v1/socialb/webhook",
+    {
+      config: { rateLimit: { max: 100, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      // Verify HMAC signature from Neynar
+      const signature = request.headers["x-neynar-signature"] as string;
+      const webhookSecret = process.env.NEYNAR_WEBHOOK_SECRET;
+
+      if (webhookSecret && signature) {
+        const { createHmac } = await import("crypto");
+        const body = JSON.stringify(request.body);
+        const expected = createHmac("sha512", webhookSecret).update(body).digest("hex");
+        if (signature !== expected) {
+          return reply.status(401).send({ error: "Invalid signature" });
+        }
+      }
+
+      const event = request.body;
+      if (event?.type !== "cast.created") {
+        return { ok: true, skipped: true };
+      }
+
+      const cast = event.data;
+      if (!cast?.author?.fid) return { ok: true, skipped: true };
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbQuery: sq } = await import("../utils/supabase.js");
+      const configs = await sq<any[]>(cfg, "flowb_socialb_configs", {
+        select: "*",
+        farcaster_fid: `eq.${cast.author.fid}`,
+        enabled: "eq.true",
+        limit: "1",
+      });
+
+      if (!configs?.length) return { ok: true, skipped: true, reason: "no config" };
+
+      const config = configs[0];
+
+      if (!socialCfg) return reply.status(503).send({ error: "Social plugin not configured" });
+
+      const { handleNewCast } = await import("../services/socialb-repost.js");
+      const result = await handleNewCast(cast, config, socialCfg);
+
+      if (result.success) {
+        fireAndForget(core.awardPoints(config.user_id, "farcaster", "socialb_repost"), "socialb-points");
+      }
+
+      return { ok: true, ...result };
+    },
+  );
+
+  // POST /api/v1/socialb/chat — AI chat for custom flows
+  app.post<{ Body: { message: string } }>(
+    "/api/v1/socialb/chat",
+    {
+      preHandler: authMiddleware,
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwtPayload as JWTPayload;
+      const { message } = request.body || {};
+
+      if (!message) return reply.status(400).send({ error: "Message required" });
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(503).send({ error: "Database not configured" });
+
+      const { sbQuery: sq } = await import("../utils/supabase.js");
+      const configs = await sq<any[]>(cfg, "flowb_socialb_configs", {
+        select: "*",
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (!configs?.length) {
+        return reply.status(404).send({ error: "Set up SocialB first" });
+      }
+
+      if (!socialCfg) return reply.status(503).send({ error: "Social plugin not configured" });
+
+      const neynarApiKey = process.env.NEYNAR_API_KEY;
+      if (!neynarApiKey) return reply.status(503).send({ error: "Neynar not configured" });
+
+      const { handleSocialBChat } = await import("../services/socialb-chat.js");
+      const result = await handleSocialBChat(jwt.sub, message, {
+        config: configs[0],
+        socialCfg,
+        neynarApiKey,
+      });
+
+      return result;
+    },
+  );
+
 } // end registerMiniAppRoutes
 
 // ============================================================================

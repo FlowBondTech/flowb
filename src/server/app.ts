@@ -51,7 +51,7 @@ export async function buildApp(core: FlowBCore) {
     }, 30_000);
 
     // Time-slot based Farcaster posting: check every 5 minutes
-    // Posts today's EthDenver events at 8am, 10am, 12pm, 3pm, 5pm, 8pm MST
+    // Posts crew-focused content at 9am, 1pm, 4pm, 7pm MST
     const firedSlots: Record<string, string> = {};
 
     setInterval(async () => {
@@ -64,8 +64,8 @@ export async function buildApp(core: FlowBCore) {
         const hour = parseInt(parts[0], 10);
         const dateKey = now.toISOString().slice(0, 10);
 
-        // Slot hours: 8, 10, 12, 15, 17, 20
-        const slotHours = [8, 10, 12, 15, 17, 20];
+        // Slot hours: 9, 13, 16, 19
+        const slotHours = [9, 13, 16, 19];
         const matchedHour = slotHours.find((h) => hour === h);
         if (matchedHour === undefined) return;
 
@@ -86,6 +86,21 @@ export async function buildApp(core: FlowBCore) {
     }, 5 * 60 * 1000);
 
     console.log("[scheduler] Farcaster time-slot poster + event scanner scheduled");
+
+    // SocialB poller: check for new Farcaster casts every 2 minutes
+    const neynarApiKey = process.env.NEYNAR_API_KEY;
+    const socialCfg = core.getSocialConfig();
+    if (neynarApiKey && socialCfg) {
+      const { startSocialBPoller } = await import("../services/socialb-poller.js");
+      startSocialBPoller(
+        socialCfg,
+        neynarApiKey,
+        (userId, platform, action) => core.awardPoints(userId, platform, action),
+      );
+      console.log("[scheduler] SocialB poller started");
+    } else {
+      console.log("[scheduler] SocialB poller skipped (missing NEYNAR_API_KEY or social config)");
+    }
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }

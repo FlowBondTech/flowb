@@ -247,6 +247,63 @@
       </div>
     </div>
 
+    <!-- Feedback CTA -->
+    <div style="max-width: 720px; margin: 0 auto 48px;">
+      <div style="padding: 28px; background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(168,85,247,0.06) 100%); border: 1.5px solid rgba(99,102,241,0.2); border-radius: var(--radius); text-align: center;">
+        <h2 style="font-size: 1.2rem; font-weight: 700; margin-bottom: 8px;">Help us build the flow</h2>
+        <p style="color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; font-size: 0.95rem;">
+          Don't see a feature or notice a bug? Let us know so we can make FlowB better for everyone.
+        </p>
+        <button onclick="document.getElementById('feedbackModal').classList.remove('hidden')" class="btn btn-primary" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Share Feedback
+        </button>
+      </div>
+    </div>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="hidden">
+      <div style="position: fixed; inset: 0; z-index: 999; display: flex; align-items: center; justify-content: center; padding: 16px;">
+        <div onclick="document.getElementById('feedbackModal').classList.add('hidden')" style="position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);"></div>
+        <div style="position: relative; z-index: 1; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; max-width: 480px; width: 100%;">
+          <div id="feedbackForm">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3 style="font-size: 1.1rem; font-weight: 700; margin: 0;">Share Feedback</h3>
+              <button onclick="document.getElementById('feedbackModal').classList.add('hidden')" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 20px; line-height: 1; padding: 4px;">&times;</button>
+            </div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">
+              Don't see a feature or notice a bug? Let us know so we can build the flow.
+            </p>
+
+            <!-- Type -->
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;" id="feedbackTypeRow">
+              <button onclick="selectFeedbackType('bug')" class="feedback-type-btn" data-type="bug" style="flex:1; padding: 8px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-muted); cursor: pointer; font: inherit; font-weight: 600; font-size: 0.85rem;">&#x1F41B; Bug</button>
+              <button onclick="selectFeedbackType('feature')" class="feedback-type-btn" data-type="feature" style="flex:1; padding: 8px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-muted); cursor: pointer; font: inherit; font-weight: 600; font-size: 0.85rem;">&#x1F4A1; Feature</button>
+              <button onclick="selectFeedbackType('feedback')" class="feedback-type-btn active" data-type="feedback" style="flex:1; padding: 8px; border-radius: var(--radius); border: 1.5px solid var(--accent); background: rgba(99,102,241,0.12); color: var(--accent); cursor: pointer; font: inherit; font-weight: 600; font-size: 0.85rem;">&#x1F4AC; Feedback</button>
+            </div>
+
+            <!-- Message -->
+            <textarea id="feedbackMessage" rows="4" maxlength="2000" placeholder="Tell us what's on your mind..." style="width: 100%; padding: 10px 14px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text); font: inherit; font-size: 0.9rem; resize: vertical; margin-bottom: 10px; outline: none; box-sizing: border-box;"></textarea>
+
+            <!-- Contact -->
+            <input id="feedbackContact" maxlength="200" placeholder="Your TG/FC handle (optional, for follow-up)" style="width: 100%; padding: 9px 14px; border-radius: var(--radius); border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text); font: inherit; font-size: 0.85rem; margin-bottom: 16px; outline: none; box-sizing: border-box;" />
+
+            <button onclick="submitWebFeedback()" id="feedbackSubmitBtn" class="btn btn-primary" style="width: 100%; font-size: 0.9rem;">Send Feedback</button>
+          </div>
+
+          <!-- Success state -->
+          <div id="feedbackSuccess" style="display: none; text-align: center; padding: 20px 0;">
+            <div style="font-size: 40px; margin-bottom: 12px;">&#x2705;</div>
+            <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 6px;">Thanks for the feedback!</div>
+            <p style="color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; margin-bottom: 16px;">Your feedback has been sent to the team. We read every one.</p>
+            <button onclick="document.getElementById('feedbackModal').classList.add('hidden'); resetFeedbackForm();" class="btn btn-primary">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- FAQ -->
     <div class="faq-section">
       <h2>Frequently Asked Questions</h2>
@@ -339,6 +396,65 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    var _fbType = 'feedback';
+
+    function selectFeedbackType(type) {
+      _fbType = type;
+      var btns = document.querySelectorAll('.feedback-type-btn');
+      btns.forEach(function(btn) {
+        if (btn.dataset.type === type) {
+          btn.style.border = '1.5px solid var(--accent)';
+          btn.style.background = 'rgba(99,102,241,0.12)';
+          btn.style.color = 'var(--accent)';
+        } else {
+          btn.style.border = '1.5px solid var(--border)';
+          btn.style.background = 'var(--bg-card)';
+          btn.style.color = 'var(--text-muted)';
+        }
+      });
+      // Update placeholder
+      var ta = document.getElementById('feedbackMessage');
+      if (type === 'bug') ta.placeholder = 'What happened? What did you expect?';
+      else if (type === 'feature') ta.placeholder = 'What feature would make FlowB better?';
+      else ta.placeholder = "Tell us what's on your mind...";
+    }
+
+    function submitWebFeedback() {
+      var msg = document.getElementById('feedbackMessage').value.trim();
+      if (!msg) return;
+      var contact = document.getElementById('feedbackContact').value.trim();
+      var btn = document.getElementById('feedbackSubmitBtn');
+      btn.textContent = 'Sending...';
+      btn.disabled = true;
+
+      fetch('https://flowb.fly.dev/api/v1/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: _fbType, message: msg, contact: contact || undefined, screen: 'about' }),
+      })
+      .then(function() {
+        document.getElementById('feedbackForm').style.display = 'none';
+        document.getElementById('feedbackSuccess').style.display = 'block';
+      })
+      .catch(function() {
+        btn.textContent = 'Failed -- try again';
+        btn.disabled = false;
+      });
+    }
+
+    function resetFeedbackForm() {
+      document.getElementById('feedbackForm').style.display = 'block';
+      document.getElementById('feedbackSuccess').style.display = 'none';
+      document.getElementById('feedbackMessage').value = '';
+      document.getElementById('feedbackContact').value = '';
+      document.getElementById('feedbackSubmitBtn').textContent = 'Send Feedback';
+      document.getElementById('feedbackSubmitBtn').disabled = false;
+      _fbType = 'feedback';
+      selectFeedbackType('feedback');
+    }
+  </script>
 
 </body>
 </html>

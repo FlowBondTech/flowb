@@ -165,12 +165,12 @@ export function Points({ onNavigate }: Props) {
       </div>
 
       {/* Cross-platform sync */}
-      <div className="cross-platform-card" onClick={() => tg?.openLink?.("https://flowb.me/settings")}>
+      <div className="cross-platform-card" onClick={() => tg?.openLink?.("https://flowb.me/settings?from=telegram")}>
         <div className="cross-platform-icon">{"\uD83D\uDD17"}</div>
         <div className="cross-platform-info">
-          <div className="cross-platform-title">Sync Points Across Platforms</div>
+          <div className="cross-platform-title">Link & Sync Accounts</div>
           <div className="cross-platform-desc">
-            Log into flowb.me to link your Telegram, Farcaster &amp; Web accounts and combine your points.
+            Connect your Telegram, Farcaster &amp; Web accounts on flowb.me to merge all your points.
           </div>
         </div>
         <span className="cross-platform-arrow">{"\u203A"}</span>

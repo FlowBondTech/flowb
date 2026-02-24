@@ -297,19 +297,17 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   const [checkinVenue, setCheckinVenue] = useState("");
   const [showCheckin, setShowCheckin] = useState(false);
 
-  // Load crews
+  // Load crews - try even without auth (will gracefully fail)
   useEffect(() => {
-    if (!authed) {
-      setLoading(false);
-      return;
-    }
     getCrews()
       .then((c) => {
         setCrews(c);
         if (c.length === 1) setSelectedCrew(c[0]);
         else if (c.length > 1) setSelectedCrew(c[0]);
       })
-      .catch(console.error)
+      .catch(() => {
+        // Auth may not be ready yet - show empty state
+      })
       .finally(() => setLoading(false));
   }, [authed]);
 
@@ -385,40 +383,17 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   if (loading) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <SkeletonMembers />
       </div>
     );
   }
 
-  if (!authed) {
-    return (
-      <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
-        <div className="card">
-          <div className="empty-state">
-            <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
-            <div className="empty-state-title">Authentication needed</div>
-            <div className="empty-state-text" style={{ marginBottom: 12 }}>
-              Open FlowB inside Warpcast to automatically connect your Farcaster account, then come back to create or join a crew.
-            </div>
-            <button
-              className="btn btn-primary"
-              onClick={() => window.location.reload()}
-            >
-              Retry Connection
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // No crews state
+  // No crews state (works whether authed or not)
   if (crews.length === 0) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>

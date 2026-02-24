@@ -104,6 +104,27 @@ export function Settings({ onNavigate }: Props) {
         </div>
       )}
 
+      {/* Account Linking CTA */}
+      <div
+        className="card"
+        style={{
+          marginBottom: 16, padding: "14px 16px", cursor: "pointer",
+          display: "flex", alignItems: "center", gap: 12,
+          background: "linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.12))",
+          border: "1px solid rgba(99,102,241,0.25)",
+        }}
+        onClick={() => openLink("https://flowb.me/settings?from=telegram")}
+      >
+        <span style={{ fontSize: 22, flexShrink: 0 }}>{"\uD83D\uDD17"}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Link & Verify Accounts</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.5 }}>
+            Connect Telegram + Farcaster + Web on flowb.me to merge points across all platforms
+          </div>
+        </div>
+        <span style={{ color: "var(--accent-light)", fontSize: 18 }}>{"\u203A"}</span>
+      </div>
+
       {/* Controls */}
       <div className="section-title">Notifications</div>
       <div className="card" style={{ padding: 0, marginBottom: 16 }}>

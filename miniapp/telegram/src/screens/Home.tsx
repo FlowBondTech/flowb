@@ -4,6 +4,7 @@ import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLo
 import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBoost } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { FeaturedSponsorModal } from "../components/FeaturedSponsorModal";
+import { FeedbackModal } from "../components/FeedbackModal";
 
 interface Props {
   onNavigate: (s: Screen) => void;
@@ -168,6 +169,9 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   // Featured event sponsorship state
   const [featuredBoost, setFeaturedBid] = useState<FeaturedEventBoost | null>(null);
   const [showFeaturedModal, setShowFeaturedModal] = useState(false);
+
+  // Feedback
+  const [showFeedback, setShowFeedback] = useState(false);
 
   // Load ranked locations and featured boost on mount
   useEffect(() => {
@@ -707,6 +711,34 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
           )}
         </>
       )}
+
+      {/* Feedback nudge */}
+      <button
+        onClick={() => setShowFeedback(true)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          width: "100%",
+          margin: "20px 0 8px",
+          padding: "10px 14px",
+          background: "none",
+          border: "1px dashed var(--border, #2a2a3e)",
+          borderRadius: "var(--radius, 10px)",
+          color: "var(--text-muted)",
+          fontSize: 13,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        Don't see a feature or notice a bug? Let us know
+      </button>
+
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} screen="home" />}
     </div>
   );
 }
