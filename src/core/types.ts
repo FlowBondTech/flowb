@@ -13,8 +13,14 @@ export interface FlowBConfig {
     cdp?: CDPPluginConfig;
     flow?: FlowPluginConfig;
     social?: SocialPluginConfig;
+    leads?: LeadsPluginConfig;
     [key: string]: any;
   };
+}
+
+export interface LeadsPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
 }
 
 export interface DANZPluginConfig {

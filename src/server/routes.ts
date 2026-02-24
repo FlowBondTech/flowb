@@ -4762,6 +4762,227 @@ Claim yours in the app now. Only 8 slots available.`;
   );
 
   // ------------------------------------------------------------------
+  // LEADS: Organization lead management
+  // ------------------------------------------------------------------
+
+  const leadsPlugin = core.getLeadsPlugin();
+  const leadsCfg = core.getLeadsConfig();
+
+  // GET /api/v1/leads - List leads for the user's org
+  app.get<{ Querystring: { org_id?: string; status?: string; limit?: string; offset?: string } }>(
+    "/api/v1/leads",
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const { org_id, status, limit, offset } = request.query;
+
+      // Find user's org(s)
+      const orgs = await leadsPlugin.getUserOrgs(leadsCfg, jwt.sub);
+      if (!orgs.length) {
+        return reply.status(403).send({ error: "Not a member of any organization" });
+      }
+
+      const orgId = org_id || orgs[0].org_id;
+      const access = await leadsPlugin.checkOrgAccess(leadsCfg, jwt.sub, orgId);
+      if (!access) {
+        return reply.status(403).send({ error: "Not a member of this organization" });
+      }
+
+      const leads = await leadsPlugin.getLeads(leadsCfg, orgId, {
+        status,
+        limit: limit ? parseInt(limit, 10) : 25,
+        offset: offset ? parseInt(offset, 10) : 0,
+      });
+      const stats = await leadsPlugin.getLeadStats(leadsCfg, orgId);
+
+      return { leads, stats, org_id: orgId };
+    },
+  );
+
+  // GET /api/v1/leads/:id - Get a single lead
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/leads/:id",
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const lead = await leadsPlugin.getLead(leadsCfg, request.params.id);
+      if (!lead) {
+        return reply.status(404).send({ error: "Lead not found" });
+      }
+
+      const access = await leadsPlugin.checkOrgAccess(leadsCfg, jwt.sub, lead.org_id);
+      if (!access) {
+        return reply.status(403).send({ error: "Not a member of this organization" });
+      }
+
+      return { lead };
+    },
+  );
+
+  // POST /api/v1/leads - Create a new lead
+  app.post<{ Body: { org_id?: string; name: string; contact?: string; contact_type?: string; company?: string; notes?: string; tags?: string[]; priority?: string } }>(
+    "/api/v1/leads",
+    {
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["name"],
+          properties: {
+            org_id: { type: "string" },
+            name: { type: "string", minLength: 1, maxLength: 200 },
+            contact: { type: "string", maxLength: 500 },
+            contact_type: { type: "string", enum: ["email", "phone", "telegram", "twitter", "other"] },
+            company: { type: "string", maxLength: 200 },
+            notes: { type: "string", maxLength: 2000 },
+            tags: { type: "array", items: { type: "string" } },
+            priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const orgs = await leadsPlugin.getUserOrgs(leadsCfg, jwt.sub);
+      if (!orgs.length) {
+        return reply.status(403).send({ error: "Not a member of any organization" });
+      }
+
+      const orgId = request.body.org_id || orgs[0].org_id;
+      const access = await leadsPlugin.checkOrgAccess(leadsCfg, jwt.sub, orgId);
+      if (!access) {
+        return reply.status(403).send({ error: "Not a member of this organization" });
+      }
+
+      const lead = await leadsPlugin.createLead(
+        leadsCfg,
+        orgId,
+        jwt.sub,
+        jwt.username || null,
+        {
+          name: request.body.name,
+          contact: request.body.contact,
+          contact_type: request.body.contact_type,
+          company: request.body.company,
+          notes: request.body.notes,
+          tags: request.body.tags,
+          source: "web",
+          priority: request.body.priority,
+        },
+      );
+
+      if (!lead) {
+        return reply.status(500).send({ error: "Failed to create lead" });
+      }
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "lead_added"), "award lead points");
+
+      return { lead };
+    },
+  );
+
+  // PATCH /api/v1/leads/:id - Update a lead
+  app.patch<{ Params: { id: string }; Body: { status?: string; priority?: string; notes?: string; contact?: string; contact_type?: string; company?: string; tags?: string[] } }>(
+    "/api/v1/leads/:id",
+    {
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            status: { type: "string", enum: ["new", "contacted", "qualified", "converted", "lost"] },
+            priority: { type: "string", enum: ["low", "normal", "high", "urgent"] },
+            notes: { type: "string", maxLength: 2000 },
+            contact: { type: "string", maxLength: 500 },
+            contact_type: { type: "string", enum: ["email", "phone", "telegram", "twitter", "other"] },
+            company: { type: "string", maxLength: 200 },
+            tags: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const lead = await leadsPlugin.getLead(leadsCfg, request.params.id);
+      if (!lead) {
+        return reply.status(404).send({ error: "Lead not found" });
+      }
+
+      const access = await leadsPlugin.checkOrgAccess(leadsCfg, jwt.sub, lead.org_id);
+      if (!access) {
+        return reply.status(403).send({ error: "Not a member of this organization" });
+      }
+
+      const ok = await leadsPlugin.updateLeadFields(leadsCfg, request.params.id, request.body);
+      if (!ok) {
+        return reply.status(500).send({ error: "Failed to update lead" });
+      }
+
+      const updated = await leadsPlugin.getLead(leadsCfg, request.params.id);
+      return { lead: updated };
+    },
+  );
+
+  // GET /api/v1/leads/orgs - List user's orgs
+  app.get(
+    "/api/v1/leads/orgs",
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const memberships = await leadsPlugin.getUserOrgs(leadsCfg, jwt.sub);
+      return { orgs: memberships };
+    },
+  );
+
+  // GET /api/v1/leads/orgs/:orgId/stats - Get lead stats for an org
+  app.get<{ Params: { orgId: string } }>(
+    "/api/v1/leads/orgs/:orgId/stats",
+    {
+      preHandler: [authMiddleware],
+    },
+    async (request, reply) => {
+      const jwt = (request as any).jwt as JWTPayload;
+      if (!leadsPlugin || !leadsCfg) {
+        return reply.status(503).send({ error: "Leads plugin not available" });
+      }
+
+      const access = await leadsPlugin.checkOrgAccess(leadsCfg, jwt.sub, request.params.orgId);
+      if (!access) {
+        return reply.status(403).send({ error: "Not a member of this organization" });
+      }
+
+      const stats = await leadsPlugin.getLeadStats(leadsCfg, request.params.orgId);
+      return { stats };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // SOCIAL: Organization & multi-platform posting
   // ------------------------------------------------------------------
 

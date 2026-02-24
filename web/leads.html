@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leads -- FlowB</title>
+  <meta name="description" content="Manage your organization's sales leads with FlowB.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .leads-page { padding: 40px 0 80px; }
+
+    .leads-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      transition: color 0.2s;
+    }
+    .leads-back:hover { color: var(--text); text-decoration: none; }
+
+    .leads-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .leads-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    /* Stats row */
+    .leads-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .leads-stat {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      text-align: center;
+    }
+    .leads-stat-value {
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
+    .leads-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* Toolbar */
+    .leads-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .leads-toolbar select,
+    .leads-toolbar input {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 8px 12px;
+      font-family: var(--font);
+      font-size: 0.85rem;
+    }
+    .leads-toolbar select:focus,
+    .leads-toolbar input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .leads-toolbar input { flex: 1; min-width: 200px; }
+
+    .btn-add {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px 20px;
+      font-family: var(--font);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-add:hover { background: var(--accent-light); }
+
+    /* Lead cards list */
+    .leads-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .lead-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .lead-card:hover { border-color: var(--border-hover); }
+
+    .lead-status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .lead-status-dot.new { background: var(--green); }
+    .lead-status-dot.contacted { background: var(--orange); }
+    .lead-status-dot.qualified { background: var(--accent-light); }
+    .lead-status-dot.converted { background: var(--purple); }
+    .lead-status-dot.lost { background: #ef4444; }
+
+    .lead-info { flex: 1; }
+    .lead-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      margin-bottom: 2px;
+    }
+    .lead-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .lead-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .lead-actions select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 4px 8px;
+      font-family: var(--font);
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+
+    /* Empty state */
+    .leads-empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .leads-empty-icon { font-size: 3rem; margin-bottom: 16px; }
+    .leads-empty-text { font-size: 1rem; margin-bottom: 8px; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      max-width: 480px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal h2 {
+      font-size: 1.2rem;
+      font-weight: 800;
+      margin-bottom: 20px;
+    }
+    .modal label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+      margin-top: 12px;
+    }
+    .modal input,
+    .modal textarea,
+    .modal select {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 10px 12px;
+      font-family: var(--font);
+      font-size: 0.9rem;
+    }
+    .modal textarea { resize: vertical; min-height: 80px; }
+    .modal input:focus,
+    .modal textarea:focus,
+    .modal select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .modal-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 24px;
+      justify-content: flex-end;
+    }
+    .modal-buttons button {
+      padding: 10px 24px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-cancel {
+      background: var(--bg-surface);
+      color: var(--text);
+      border: 1px solid var(--border) !important;
+    }
+    .btn-save {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* Login prompt */
+    .login-prompt {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    .login-prompt h2 { font-size: 1.4rem; margin-bottom: 12px; }
+    .login-prompt p { color: var(--text-muted); margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/leads" class="header-nav-link active">Leads</a>
+        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/flow" class="header-nav-link">My Flow</a>
+        <a href="/about" class="header-nav-link">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container leads-page">
+    <a href="/" class="leads-back">&larr; Back to FlowB</a>
+    <h1 class="leads-title">Leads</h1>
+    <p class="leads-subtitle">Manage your organization's leads across Telegram and web.</p>
+
+    <!-- Login prompt (shown when not authed) -->
+    <div id="loginPrompt" class="login-prompt hidden">
+      <h2>Sign in to view leads</h2>
+      <p>Connect via Telegram or the FlowB app to access your org's leads.</p>
+    </div>
+
+    <!-- Main content (shown when authed) -->
+    <div id="leadsContent" class="hidden">
+      <!-- Stats -->
+      <div class="leads-stats" id="leadsStats"></div>
+
+      <!-- Toolbar -->
+      <div class="leads-toolbar">
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="new">New</option>
+          <option value="contacted">Contacted</option>
+          <option value="qualified">Qualified</option>
+          <option value="converted">Converted</option>
+          <option value="lost">Lost</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="Search leads...">
+        <button class="btn-add" id="btnAddLead">+ Add Lead</button>
+      </div>
+
+      <!-- Lead list -->
+      <div class="leads-list" id="leadsList"></div>
+
+      <!-- Empty state -->
+      <div id="leadsEmpty" class="leads-empty hidden">
+        <div class="leads-empty-icon">&#128203;</div>
+        <div class="leads-empty-text">No leads yet</div>
+        <p style="color:var(--text-dim)">Add your first lead with the button above or via Telegram with /lead</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add/Edit Lead Modal -->
+  <div class="modal-overlay" id="leadModal">
+    <div class="modal">
+      <h2 id="modalTitle">Add Lead</h2>
+      <label for="leadName">Name *</label>
+      <input type="text" id="leadName" placeholder="Person or company name" required>
+
+      <label for="leadContact">Contact</label>
+      <input type="text" id="leadContact" placeholder="Email, phone, or @handle">
+
+      <label for="leadContactType">Contact Type</label>
+      <select id="leadContactType">
+        <option value="other">Other</option>
+        <option value="email">Email</option>
+        <option value="phone">Phone</option>
+        <option value="telegram">Telegram</option>
+        <option value="twitter">Twitter</option>
+      </select>
+
+      <label for="leadCompany">Company</label>
+      <input type="text" id="leadCompany" placeholder="Company or org">
+
+      <label for="leadPriority">Priority</label>
+      <select id="leadPriority">
+        <option value="normal">Normal</option>
+        <option value="low">Low</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+
+      <label for="leadNotes">Notes</label>
+      <textarea id="leadNotes" placeholder="Additional context..."></textarea>
+
+      <div class="modal-buttons">
+        <button class="btn-cancel" id="btnCancelLead">Cancel</button>
+        <button class="btn-save" id="btnSaveLead">Save Lead</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost'
+      ? 'http://localhost:8080'
+      : 'https://flowb.fly.dev';
+
+    let authToken = localStorage.getItem('flowb_token');
+    let currentLeads = [];
+    let editingLeadId = null;
+
+    // ---- Auth check ----
+    function checkAuth() {
+      if (!authToken) {
+        document.getElementById('loginPrompt').classList.remove('hidden');
+        document.getElementById('leadsContent').classList.add('hidden');
+        return false;
+      }
+      document.getElementById('loginPrompt').classList.add('hidden');
+      document.getElementById('leadsContent').classList.remove('hidden');
+      return true;
+    }
+
+    // ---- API helpers ----
+    async function apiFetch(path, opts = {}) {
+      const res = await fetch(`${API_BASE}${path}`, {
+        ...opts,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+          ...(opts.headers || {}),
+        },
+      });
+      if (res.status === 401) {
+        localStorage.removeItem('flowb_token');
+        authToken = null;
+        checkAuth();
+        return null;
+      }
+      if (!res.ok) return null;
+      return res.json();
+    }
+
+    // ---- Load leads ----
+    async function loadLeads(statusFilter) {
+      const params = new URLSearchParams();
+      if (statusFilter) params.set('status', statusFilter);
+      params.set('limit', '50');
+
+      const data = await apiFetch(`/api/v1/leads?${params}`);
+      if (!data) return;
+
+      currentLeads = data.leads || [];
+      renderStats(data.stats || {});
+      renderLeads(currentLeads);
+    }
+
+    // ---- Render stats ----
+    function renderStats(stats) {
+      const el = document.getElementById('leadsStats');
+      const items = [
+        { label: 'Total', value: stats.total || 0 },
+        { label: 'New', value: stats.new || 0 },
+        { label: 'Contacted', value: stats.contacted || 0 },
+        { label: 'Qualified', value: stats.qualified || 0 },
+        { label: 'Converted', value: stats.converted || 0 },
+      ];
+      el.innerHTML = items.map(i => `
+        <div class="leads-stat">
+          <div class="leads-stat-value">${i.value}</div>
+          <div class="leads-stat-label">${i.label}</div>
+        </div>
+      `).join('');
+    }
+
+    // ---- Render lead list ----
+    function renderLeads(leads) {
+      const list = document.getElementById('leadsList');
+      const empty = document.getElementById('leadsEmpty');
+
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = leads.filter(l => {
+        if (!search) return true;
+        return (l.name || '').toLowerCase().includes(search)
+          || (l.company || '').toLowerCase().includes(search)
+          || (l.contact || '').toLowerCase().includes(search)
+          || (l.notes || '').toLowerCase().includes(search);
+      });
+
+      if (!filtered.length) {
+        list.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      list.innerHTML = filtered.map(l => `
+        <div class="lead-card" data-id="${l.id}">
+          <div class="lead-status-dot ${l.status}"></div>
+          <div class="lead-info">
+            <div class="lead-name">${esc(l.name)}</div>
+            <div class="lead-meta">
+              ${l.company ? esc(l.company) + ' &bull; ' : ''}
+              ${l.contact ? esc(l.contact) + ' &bull; ' : ''}
+              ${l.status} &bull; ${l.priority}
+              ${l.submitted_by_name ? ' &bull; by ' + esc(l.submitted_by_name) : ''}
+            </div>
+            ${l.notes ? '<div class="lead-meta" style="margin-top:4px">' + esc(l.notes).slice(0, 120) + '</div>' : ''}
+          </div>
+          <div class="lead-actions">
+            <select onchange="updateStatus('${l.id}', this.value)" title="Change status">
+              ${['new','contacted','qualified','converted','lost'].map(s =>
+                `<option value="${s}" ${s === l.status ? 'selected' : ''}>${s}</option>`
+              ).join('')}
+            </select>
+          </div>
+        </div>
+      `).join('');
+
+      // Click card to edit
+      list.querySelectorAll('.lead-card').forEach(card => {
+        card.addEventListener('click', (e) => {
+          if (e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION') return;
+          const id = card.dataset.id;
+          const lead = currentLeads.find(l => l.id === id);
+          if (lead) openEditModal(lead);
+        });
+      });
+    }
+
+    function esc(str) {
+      if (!str) return '';
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    // ---- Status update ----
+    async function updateStatus(leadId, newStatus) {
+      await apiFetch(`/api/v1/leads/${leadId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      loadLeads(document.getElementById('filterStatus').value);
+    }
+
+    // ---- Add/Edit Modal ----
+    function openAddModal() {
+      editingLeadId = null;
+      document.getElementById('modalTitle').textContent = 'Add Lead';
+      document.getElementById('leadName').value = '';
+      document.getElementById('leadContact').value = '';
+      document.getElementById('leadContactType').value = 'other';
+      document.getElementById('leadCompany').value = '';
+      document.getElementById('leadPriority').value = 'normal';
+      document.getElementById('leadNotes').value = '';
+      document.getElementById('leadModal').classList.add('active');
+    }
+
+    function openEditModal(lead) {
+      editingLeadId = lead.id;
+      document.getElementById('modalTitle').textContent = 'Edit Lead';
+      document.getElementById('leadName').value = lead.name || '';
+      document.getElementById('leadContact').value = lead.contact || '';
+      document.getElementById('leadContactType').value = lead.contact_type || 'other';
+      document.getElementById('leadCompany').value = lead.company || '';
+      document.getElementById('leadPriority').value = lead.priority || 'normal';
+      document.getElementById('leadNotes').value = lead.notes || '';
+      document.getElementById('leadModal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('leadModal').classList.remove('active');
+      editingLeadId = null;
+    }
+
+    async function saveLead() {
+      const name = document.getElementById('leadName').value.trim();
+      if (!name) { alert('Name is required'); return; }
+
+      const body = {
+        name,
+        contact: document.getElementById('leadContact').value.trim() || undefined,
+        contact_type: document.getElementById('leadContactType').value,
+        company: document.getElementById('leadCompany').value.trim() || undefined,
+        priority: document.getElementById('leadPriority').value,
+        notes: document.getElementById('leadNotes').value.trim() || undefined,
+      };
+
+      if (editingLeadId) {
+        await apiFetch(`/api/v1/leads/${editingLeadId}`, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+      } else {
+        await apiFetch('/api/v1/leads', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+      }
+
+      closeModal();
+      loadLeads(document.getElementById('filterStatus').value);
+    }
+
+    // ---- Event listeners ----
+    document.getElementById('btnAddLead').addEventListener('click', openAddModal);
+    document.getElementById('btnCancelLead').addEventListener('click', closeModal);
+    document.getElementById('btnSaveLead').addEventListener('click', saveLead);
+    document.getElementById('leadModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeModal();
+    });
+
+    document.getElementById('filterStatus').addEventListener('change', (e) => {
+      loadLeads(e.target.value);
+    });
+
+    document.getElementById('searchInput').addEventListener('input', () => {
+      renderLeads(currentLeads);
+    });
+
+    // Keyboard shortcut: Escape to close modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ---- Init ----
+    if (checkAuth()) {
+      loadLeads('');
+    }
+  </script>
+</body>
+</html>
