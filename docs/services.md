@@ -12,11 +12,14 @@ Backend services that power FlowB's cross-platform features.
 | cdp | `src/services/cdp.ts` | — |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
-| farcaster poster | `src/services/farcaster-poster.ts` | `postTimeSlotCast`, `postEventCard`, `postDailyDigest`, `postEveningHighlight`, `processEventQueue` |
+| farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
 | notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage` |
 | privy | `src/services/privy.ts` | — |
+| socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
+| socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
+| socialb repost | `src/services/socialb-repost.ts` | `handleNewCast`, `adaptContent` |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
@@ -57,7 +60,7 @@ FlowB Farcaster Poster Service
 
 **Source**: `src/services/farcaster-poster.ts`
 
-**Exports**: `postTimeSlotCast()`, `postEventCard()`, `postDailyDigest()`, `postEveningHighlight()`, `processEventQueue()`
+**Exports**: `postCrewCast()`, `processEventQueue()`
 
 ### farcaster responder
 
@@ -89,6 +92,30 @@ Privy API Client (zero-dep)
 
 **Source**: `src/services/privy.ts`
 
+### socialb chat
+
+SocialB AI Chat Service
+
+**Source**: `src/services/socialb-chat.ts`
+
+**Exports**: `handleSocialBChat()`
+
+### socialb poller
+
+SocialB Poller — Background polling fallback
+
+**Source**: `src/services/socialb-poller.ts`
+
+**Exports**: `startSocialBPoller()`, `stopSocialBPoller()`
+
+### socialb repost
+
+SocialB Repost Engine
+
+**Source**: `src/services/socialb-repost.ts`
+
+**Exports**: `handleNewCast()`, `adaptContent()`
+
 ### telegram auth
 
 Telegram Login Widget - Server-side verification
@@ -99,4 +126,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-24 16:20:10 UTC*
+*Auto-generated on 2026-02-24 16:34:24 UTC*

@@ -122,6 +122,20 @@ FlowB exposes two backend servers:
 | `PATCH` | `unknown` | Yes |  |
 | `GET` | `/api/v1/me/crew-visibility` | Yes |  |
 | `GET` | `/api/v1/events/:id/social` | No |  |
+| `POST` | `/api/v1/social/orgs` | Yes |  |
+| `POST` | `/api/v1/social/orgs/:orgId/members` | No |  |
+| `POST` | `/api/v1/social/connect` | Yes |  |
+| `GET` | `/api/v1/social/accounts` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `POST` | `unknown` | No |  |
+| `DELETE` | `/api/v1/social/posts/:id` | Yes |  |
+| `GET` | `/api/v1/social/posts` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `POST` | `/api/v1/socialb/config/toggle` | Yes |  |
+| `DELETE` | `/api/v1/socialb/config` | Yes |  |
+| `GET` | `/api/v1/socialb/activity` | Yes |  |
+| `POST` | `/api/v1/socialb/webhook` | No |  |
+| `POST` | `/api/v1/socialb/chat` | Yes |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## REMINDERS
@@ -220,6 +234,18 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `unknown` | No | Submit bug reports, feature requests, feedback |
 
+## SOCIAL
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/social/providers` | No | Organization & multi-platform posting |
+
+## SOCIALB
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/socialb/config` | Yes | Auto-repost Farcaster casts to all platforms |
+
 ## NOTE
 
 | Method | Path | Auth | Description |
@@ -288,4 +314,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-24 16:20:10 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-24 16:34:24 UTC*
