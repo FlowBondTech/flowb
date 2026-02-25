@@ -43,6 +43,7 @@ export function buildMenuKeyboard(miniAppUrl?: string): InlineKeyboard {
     .text("\ud83d\udcb0 Rewards", "mn:rewards")
     .text("\u2694\ufe0f Battles", "mn:battles")
     .row()
+    .text("\ud83d\udcdd Leads", "mn:leads")
     .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
   if (miniAppUrl) {
     kb.row().webApp("\u26a1 Open FlowB App", miniAppUrl);

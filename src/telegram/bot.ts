@@ -91,7 +91,8 @@ const FLOWB_CHAT_URL = "https://flowb.fly.dev";
 
 const PERSISTENT_KEYBOARD = new Keyboard()
   .text("Events").text("Flow").row()
-  .text("Points").text("Menu")
+  .text("Leads").text("Points").row()
+  .text("Menu")
   .resized().persistent();
 
 interface TgSession {
@@ -137,7 +138,7 @@ const onboardingStates = new Map<number, OnboardingState>();
 // ============================================================================
 
 interface LeadInputState {
-  step: "name" | "contact" | "company" | "notes" | "done";
+  step: "org_name" | "name" | "contact" | "company" | "notes" | "done";
   orgId: string;
   data: {
     name?: string;
@@ -1394,9 +1395,12 @@ export function startTelegramBot(
     if (!orgs.length) {
       await ctx.reply(
         "<b>You're not part of any organization yet.</b>\n\n"
-        + "Ask your org admin to add you, or create one with:\n"
-        + "<code>/orgnew slug OrgName</code>",
-        { parse_mode: "HTML" },
+        + "Create one to start tracking leads, or ask your org admin to add you.",
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard()
+            .text("Create Org", "leads:setup:new"),
+        },
       );
       return;
     }
@@ -1415,7 +1419,7 @@ export function startTelegramBot(
           + `<b>Name:</b> ${escapeHtml(lead.name)}\n`
           + `<b>Status:</b> ${lead.status}\n`
           + `<b>Org:</b> ${orgs[0].org_id}\n\n`
-          + `Add details with the buttons below, or add more with /lead`,
+          + `Add details or keep going:`,
           {
             parse_mode: "HTML",
             reply_markup: new InlineKeyboard()
@@ -1423,7 +1427,9 @@ export function startTelegramBot(
               .text("Add Company", `lead:company:${lead.id}`)
               .row()
               .text("Add Notes", `lead:notes:${lead.id}`)
-              .text("View All Leads", `leads:list:${orgs[0].org_id}`),
+              .row()
+              .text("\u2795 Add Another", `leads:add:${orgs[0].org_id}`)
+              .text("\ud83d\udcdd Leads Home", `leads:home:${orgs[0].org_id}`),
           },
         );
         fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_added"), "award points");
@@ -1446,59 +1452,7 @@ export function startTelegramBot(
   bot.command("leads", async (ctx) => {
     const tgId = ctx.from!.id;
     await ensureVerified(tgId);
-    const leadsPlugin = core.getLeadsPlugin();
-    const leadsCfg = core.getLeadsConfig();
-    if (!leadsPlugin || !leadsCfg) {
-      await ctx.reply("Leads feature not configured.");
-      return;
-    }
-
-    const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
-    if (!orgs.length) {
-      await ctx.reply(
-        "<b>You're not part of any organization yet.</b>\n\n"
-        + "Ask your org admin to add you, or create one with:\n"
-        + "<code>/orgnew slug OrgName</code>",
-        { parse_mode: "HTML" },
-      );
-      return;
-    }
-
-    const orgId = orgs[0].org_id;
-    const leads = await leadsPlugin.getLeads(leadsCfg, orgId, { limit: 10 });
-    const stats = await leadsPlugin.getLeadStats(leadsCfg, orgId);
-
-    if (!leads.length) {
-      await ctx.reply(
-        `<b>No leads yet for ${escapeHtml(orgId)}</b>\n\n`
-        + `Add your first lead with /lead`,
-        { parse_mode: "HTML" },
-      );
-      return;
-    }
-
-    const lines = leads.map((l, i) => {
-      const statusIcon = l.status === "new" ? "\u{1F7E2}" : l.status === "contacted" ? "\u{1F7E1}" : l.status === "qualified" ? "\u{1F535}" : l.status === "converted" ? "\u2705" : "\u{1F534}";
-      const company = l.company ? ` @ ${escapeHtml(l.company)}` : "";
-      return `${statusIcon} <b>${escapeHtml(l.name)}</b>${company}\n   <i>${l.status}</i> \u2022 by ${escapeHtml(l.submitted_by_name || "unknown")}`;
-    });
-
-    const statsLine = `Total: ${stats.total || 0} | New: ${stats.new || 0} | Contacted: ${stats.contacted || 0} | Qualified: ${stats.qualified || 0} | Converted: ${stats.converted || 0}`;
-
-    await ctx.reply(
-      `<b>Leads for ${escapeHtml(orgId)}</b>\n\n`
-      + lines.join("\n\n") + "\n\n"
-      + `<i>${statsLine}</i>`,
-      {
-        parse_mode: "HTML",
-        reply_markup: new InlineKeyboard()
-          .text("Add Lead", `leads:add:${orgId}`)
-          .text("Filter: New", `leads:filter:${orgId}:new`)
-          .row()
-          .text("Filter: Contacted", `leads:filter:${orgId}:contacted`)
-          .text("Filter: Qualified", `leads:filter:${orgId}:qualified`),
-      },
-    );
+    await sendLeadsHome(ctx, core, tgId);
   });
 
   bot.command("orgnew", async (ctx) => {
@@ -2272,8 +2226,13 @@ export function startTelegramBot(
 
         if (!leads.length) {
           await ctx.reply(
-            `<b>No leads for ${escapeHtml(orgId)}</b>\n\nAdd one with /lead`,
-            { parse_mode: "HTML" },
+            `<b>No leads for ${escapeHtml(orgId)}</b>\n\nTap below to add your first!`,
+            {
+              parse_mode: "HTML",
+              reply_markup: new InlineKeyboard()
+                .text("\u2795 Add Lead", `leads:add:${orgId}`)
+                .text("\u2190 Back", `leads:home:${orgId}`),
+            },
           );
           return;
         }
@@ -2290,12 +2249,32 @@ export function startTelegramBot(
           if (i > 0 && i % 2 === 0) kb.row();
           kb.text(l.name.slice(0, 20), `lead:view:${l.id}`);
         });
-        kb.row().text("Add Lead", `leads:add:${orgId}`);
+        kb.row().text("\u2795 Add Lead", `leads:add:${orgId}`)
+          .text("\u2190 Back", `leads:home:${orgId}`);
 
         await ctx.reply(
           `<b>Leads for ${escapeHtml(orgId)}</b>\n\n` + lines.join("\n"),
           { parse_mode: "HTML", reply_markup: kb },
         );
+        return;
+      }
+
+      // leads:setup:new - start org creation via button (no slash command)
+      if (parts[0] === "leads" && parts[1] === "setup" && parts[2] === "new") {
+        leadInputStates.set(tgId, { step: "org_name", orgId: "", data: {} });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "<b>Create your organization</b>\n\n"
+          + "What should we call it? Enter a <b>name</b> (e.g. FlowBond, Acme Corp):",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // leads:home:ORG_ID - go back to leads home
+      if (parts[0] === "leads" && parts[1] === "home") {
+        await ctx.answerCallbackQuery();
+        await sendLeadsHome(ctx, core, tgId);
         return;
       }
 
@@ -3367,32 +3346,10 @@ export function startTelegramBot(
       return;
     }
 
-    // Leads
+    // Leads (persistent keyboard tap or natural text)
     if (/^(leads|my leads|view leads|show leads)$/i.test(lower)) {
       await ensureVerified(tgId);
-      const leadsPlugin = core.getLeadsPlugin();
-      const leadsCfg = core.getLeadsConfig();
-      if (leadsPlugin && leadsCfg) {
-        const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
-        if (orgs.length) {
-          const orgId = orgs[0].org_id;
-          const leads = await leadsPlugin.getLeads(leadsCfg, orgId, { limit: 10 });
-          if (!leads.length) {
-            await ctx.reply(`<b>No leads yet for ${escapeHtml(orgId)}</b>\n\nAdd one with /lead`, { parse_mode: "HTML" });
-          } else {
-            const lines = leads.map((l) => {
-              const icon = l.status === "new" ? "\u{1F7E2}" : l.status === "contacted" ? "\u{1F7E1}" : l.status === "qualified" ? "\u{1F535}" : l.status === "converted" ? "\u2705" : "\u{1F534}";
-              return `${icon} <b>${escapeHtml(l.name)}</b>${l.company ? ` @ ${escapeHtml(l.company)}` : ""}`;
-            });
-            const kb = new InlineKeyboard();
-            leads.forEach((l, i) => { if (i > 0 && i % 2 === 0) kb.row(); kb.text(l.name.slice(0, 20), `lead:view:${l.id}`); });
-            kb.row().text("Add Lead", `leads:add:${orgId}`);
-            await ctx.reply(`<b>Leads for ${escapeHtml(orgId)}</b>\n\n` + lines.join("\n"), { parse_mode: "HTML", reply_markup: kb });
-          }
-        } else {
-          await ctx.reply("You're not part of any organization. Create one with /orgnew", { parse_mode: "HTML" });
-        }
-      }
+      await sendLeadsHome(ctx, core, tgId);
       return;
     }
 
@@ -3417,7 +3374,9 @@ export function startTelegramBot(
                   .text("Add Company", `lead:company:${lead.id}`)
                   .row()
                   .text("Add Notes", `lead:notes:${lead.id}`)
-                  .text("View All", `leads:list:${orgs[0].org_id}`),
+                  .row()
+                  .text("\u2795 Add Another", `leads:add:${orgs[0].org_id}`)
+                  .text("\ud83d\udcdd Leads Home", `leads:home:${orgs[0].org_id}`),
               },
             );
             fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_added"), "award points");
@@ -3425,7 +3384,9 @@ export function startTelegramBot(
             await ctx.reply("Failed to add lead. Try again.");
           }
         } else {
-          await ctx.reply("You're not part of any organization. Create one with /orgnew");
+          await ctx.reply("You're not part of any organization yet.", {
+            reply_markup: new InlineKeyboard().text("Create Org", "leads:setup:new"),
+          });
         }
       }
       return;
@@ -3570,7 +3531,9 @@ export function startTelegramBot(
         `<b>Where's my crew</b> — locate crew members\n` +
         `<b>Share</b> — get your invite link\n` +
         `<b>Points</b> — see your score\n` +
-        `<b>Rewards</b> — view challenges\n\n` +
+        `<b>Rewards</b> — view challenges\n` +
+        `<b>Leads</b> — manage your org's leads\n` +
+        `<b>Add lead Jane Doe</b> — quick-add a lead\n\n` +
         `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
         { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
@@ -3584,6 +3547,39 @@ export function startTelegramBot(
       const leadsCfg = core.getLeadsConfig();
 
       if (leadsPlugin && leadsCfg) {
+        // Handle org creation flow (from "Create Org" button)
+        if (leadState.step === "org_name") {
+          const orgName = text.trim();
+          const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+
+          const existing = await leadsPlugin.getOrg(leadsCfg, slug);
+          if (existing) {
+            await ctx.reply(`An org called <b>${escapeHtml(slug)}</b> already exists. Try a different name.`, { parse_mode: "HTML" });
+            return;
+          }
+
+          const org = await leadsPlugin.createOrg(leadsCfg, slug, orgName, userId(tgId), displayName);
+          leadInputStates.delete(tgId);
+
+          if (org) {
+            await ctx.reply(
+              `<b>Org created!</b>\n\n`
+              + `<b>${escapeHtml(org.name)}</b> (${escapeHtml(org.id)})\n\n`
+              + `You're the owner. Start adding leads:`,
+              {
+                parse_mode: "HTML",
+                reply_markup: new InlineKeyboard()
+                  .text("\u2795 Add Lead", `leads:add:${org.id}`)
+                  .text("\ud83d\udcdd Leads Home", `leads:home:${org.id}`),
+              },
+            );
+          } else {
+            await ctx.reply("Failed to create org. Try again.");
+          }
+          return;
+        }
+
         // Handle update-existing-lead flows (from inline buttons)
         if (leadState.data.name?.startsWith("__update:")) {
           const leadId = leadState.data.name.replace("__update:", "");
@@ -3822,6 +3818,7 @@ function buildCompactMenuKeyboard(miniAppUrl?: string): InlineKeyboard {
     .text("\ud83d\udc65 Crew", "fl:crew")
     .text("\ud83d\udcf2 Share", "fl:share")
     .row()
+    .text("\ud83d\udcdd Leads", "mn:leads")
     .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
   if (miniAppUrl) {
     kb.row().webApp("\u26a1 Open FlowB App", miniAppUrl);
@@ -4106,6 +4103,71 @@ async function saveEventToDiscovered(event: EventResult): Promise<void> {
   }
 }
 
+/** Show the leads home card — overview + action buttons */
+async function sendLeadsHome(ctx: any, core: FlowBCore, tgId: number): Promise<void> {
+  const leadsPlugin = core.getLeadsPlugin();
+  const leadsCfg = core.getLeadsConfig();
+  if (!leadsPlugin || !leadsCfg) {
+    await ctx.reply("Leads feature not configured yet.");
+    return;
+  }
+
+  const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
+
+  // No org yet — offer to create one
+  if (!orgs.length) {
+    await ctx.reply(
+      `<b>\ud83d\udcdd Leads</b>\n\n`
+      + `Track and manage your sales leads right from Telegram.\n\n`
+      + `You're not part of an org yet. Create one to get started:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard()
+          .text("Create Org", "leads:setup:new")
+          .row()
+          .text("\u2190 Menu", "mn:menu"),
+      },
+    );
+    return;
+  }
+
+  const orgId = orgs[0].org_id;
+  const stats = await leadsPlugin.getLeadStats(leadsCfg, orgId);
+  const recent = await leadsPlugin.getLeads(leadsCfg, orgId, { limit: 3 });
+
+  const recentLines = recent.length
+    ? recent.map((l) => {
+        const icon = l.status === "new" ? "\ud83d\udfe2" : l.status === "contacted" ? "\ud83d\udfe1" : l.status === "qualified" ? "\ud83d\udd35" : l.status === "converted" ? "\u2705" : "\ud83d\udd34";
+        const company = l.company ? ` @ ${escapeHtml(l.company)}` : "";
+        return `${icon} ${escapeHtml(l.name)}${company}`;
+      }).join("\n")
+    : "<i>No leads yet — tap Add Lead to start!</i>";
+
+  await ctx.reply(
+    `<b>\ud83d\udcdd Leads</b>  <i>${escapeHtml(orgId)}</i>\n\n`
+    + `<b>Total:</b> ${stats.total || 0}  |  `
+    + `<b>New:</b> ${stats.new || 0}  |  `
+    + `<b>Contacted:</b> ${stats.contacted || 0}  |  `
+    + `<b>Qualified:</b> ${stats.qualified || 0}  |  `
+    + `<b>Converted:</b> ${stats.converted || 0}\n\n`
+    + `<b>Recent:</b>\n${recentLines}`,
+    {
+      parse_mode: "HTML",
+      reply_markup: new InlineKeyboard()
+        .text("\u2795 Add Lead", `leads:add:${orgId}`)
+        .text("\ud83d\udccb View All", `leads:list:${orgId}`)
+        .row()
+        .text("\ud83d\udfe2 New", `leads:filter:${orgId}:new`)
+        .text("\ud83d\udfe1 Contacted", `leads:filter:${orgId}:contacted`)
+        .row()
+        .text("\ud83d\udd35 Qualified", `leads:filter:${orgId}:qualified`)
+        .text("\u2705 Converted", `leads:filter:${orgId}:converted`)
+        .row()
+        .text("\u2190 Menu", "mn:menu"),
+    },
+  );
+}
+
 async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<void> {
   const tgId = ctx.from!.id;
 
@@ -4191,6 +4253,11 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
         parse_mode: "HTML",
         reply_markup: buildFlowMenuKeyboard(MOD_BOT_USERNAME),
       });
+      break;
+
+    case "leads":
+      await ctx.answerCallbackQuery();
+      await sendLeadsHome(ctx, core, tgId);
       break;
 
     case "farcaster":
