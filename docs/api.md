@@ -35,6 +35,7 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/api/v1/events` | No | DB-first discovery |
+| `GET` | `/api/v1/events/cities` | No | Distinct cities (for city picker UI) |
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
@@ -56,6 +57,9 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/crews/:id/members` | Yes | Crew members + live checkins (requires auth) |
 | `POST` | `unknown` | Yes | Crew checkin - broadcast location (requires auth) |
 | `GET` | `/api/v1/flow/friends` | Yes | Friends list (requires auth) |
+| `GET` | `/api/v1/flow/friends/:friendId` | Yes | Get detailed friend info (requires auth) |
+| `PATCH` | `unknown` | Yes | Update connection note/tags (requires auth) |
+| `POST` | `unknown` | Yes | Share contact info with a friend (requires auth) |
 | `POST` | `/api/v1/flow/connect` | Yes | Connect / send friend request (requires auth) |
 | `GET` | `/api/v1/flow/invite` | Yes | Get personal invite link (requires auth) |
 | `DELETE` | `/api/v1/flow/crews/:id/leave` | Yes | Leave crew (requires auth) |
@@ -69,6 +73,13 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/flow/crews/:id/locate` | Yes | "Where are you?" ping (requires auth, any member) |
 | `GET` | `/api/v1/flow/crews/:crewId/messages` | Yes | Crew messages - get (requires auth) |
 | `POST` | `/api/v1/flow/crews/:crewId/messages` | Yes | Crew messages - send (requires auth) |
+
+## PROFILE
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `PATCH` | `unknown` | Yes | Update own bio, role, tags (requires auth) |
+| `GET` | `/api/v1/me/profile` | Yes | Get own profile (bio, role, tags) (requires auth) |
 
 ## POINTS
 
@@ -322,4 +333,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 18:13:30 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 18:31:49 UTC*
