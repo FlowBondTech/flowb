@@ -38,6 +38,7 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/whatsup` | — |
 | `/afterparty` | — |
 | `/whoshere` | — |
+| `/reportbug` | — |
 
 ## Deep Links
 
@@ -131,4 +132,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-02-26 21:09:38 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-02-26 21:40:04 UTC*

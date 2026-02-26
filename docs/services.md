@@ -8,6 +8,7 @@ Backend services that power FlowB's cross-platform features.
 
 | Service | File | Exports |
 |---------|------|---------|
+| admin alerts | `src/services/admin-alerts.ts` | `alertAdmins`, `alertDaily`, `checkMilestone` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
@@ -24,6 +25,14 @@ Backend services that power FlowB's cross-platform features.
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
+
+### admin alerts
+
+Admin Alert Service
+
+**Source**: `src/services/admin-alerts.ts`
+
+**Exports**: `alertAdmins()`, `alertDaily()`, `checkMilestone()`
 
 ### ai chat
 
@@ -135,4 +144,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-26 21:09:38 UTC*
+*Auto-generated on 2026-02-26 21:40:04 UTC*
