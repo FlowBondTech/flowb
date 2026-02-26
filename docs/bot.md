@@ -35,6 +35,9 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/topsponsor` | — |
 | `/help` | Show available commands and help text |
 | `/register` | Verify your account or check status |
+| `/whatsup` | — |
+| `/afterparty` | — |
+| `/whoshere` | — |
 
 ## Deep Links
 
@@ -128,4 +131,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-02-26 18:31:49 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-02-26 18:51:45 UTC*

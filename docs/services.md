@@ -10,6 +10,7 @@ Backend services that power FlowB's cross-platform features.
 |---------|------|---------|
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
+| context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
@@ -37,6 +38,14 @@ AI Chat Service — Tool-augmented chat using xAI Grok
 Coinbase CDP REST API v2 client for Base network
 
 **Source**: `src/services/cdp.ts`
+
+### context notifications
+
+Contextual Push Notification Engine
+
+**Source**: `src/services/context-notifications.ts`
+
+**Exports**: `runContextNotifications()`
 
 ### event scanner
 
@@ -126,4 +135,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-26 18:31:49 UTC*
+*Auto-generated on 2026-02-26 18:51:45 UTC*

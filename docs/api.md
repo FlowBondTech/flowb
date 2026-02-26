@@ -149,6 +149,9 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/socialb/activity` | Yes |  |
 | `POST` | `/api/v1/socialb/webhook` | No |  |
 | `POST` | `/api/v1/socialb/chat` | Yes |  |
+| `GET` | `/api/v1/flow/whats-happening` | Yes |  |
+| `GET` | `/api/v1/flow/after-party` | Yes |  |
+| `GET` | `/api/v1/flow/whos-here` | Yes |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## DISCOVERY
@@ -333,4 +336,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 18:31:49 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 18:51:45 UTC*
