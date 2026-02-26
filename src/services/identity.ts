@@ -100,6 +100,8 @@ export async function getLinkedIds(cfg: SbConfig, canonicalId: string): Promise<
 function detectPlatform(userId: string): string {
   if (userId.startsWith("telegram_")) return "telegram";
   if (userId.startsWith("farcaster_")) return "farcaster";
+  if (userId.startsWith("whatsapp_")) return "whatsapp";
+  if (userId.startsWith("signal_")) return "signal";
   if (userId.startsWith("web_")) return "web";
   return "web";
 }
@@ -159,6 +161,12 @@ async function lookupPrivyLinks(
     } else if (platform === "farcaster") {
       searchField = "farcaster";
       searchValue = platformUserId.replace("farcaster_", "");
+    } else if (platform === "whatsapp") {
+      searchField = "phone";
+      searchValue = "+" + platformUserId.replace("whatsapp_", "");
+    } else if (platform === "signal") {
+      searchField = "phone";
+      searchValue = "+" + platformUserId.replace("signal_", "");
     } else if (platform === "web") {
       // Web users are already Privy users
       const did = platformUserId.replace("web_", "");
@@ -229,6 +237,13 @@ function extractLinkedIds(privyUser: any, excludeUserId: string): PrivyLinkResul
     if (account.type === "farcaster" && account.fid) {
       const id = `farcaster_${account.fid}`;
       if (id !== excludeUserId) linkedIds.push(id);
+    }
+    if (account.type === "phone" && account.phone_number) {
+      const phone = account.phone_number.replace("+", "");
+      const waId = `whatsapp_${phone}`;
+      if (waId !== excludeUserId) linkedIds.push(waId);
+      const sigId = `signal_${phone}`;
+      if (sigId !== excludeUserId) linkedIds.push(sigId);
     }
   }
 

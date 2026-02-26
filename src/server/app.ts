@@ -14,6 +14,7 @@ import { alertDaily } from "../services/admin-alerts.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
 import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
+import { registerSignalWebhook } from "../signal/bot.js";
 
 export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
@@ -32,6 +33,11 @@ export async function buildApp(core: FlowBCore) {
   // Register WhatsApp webhook (conditional on env vars)
   if (process.env.WHATSAPP_ACCESS_TOKEN) {
     registerWhatsAppWebhook(app, core);
+  }
+
+  // Register Signal webhook (conditional on env vars)
+  if (process.env.SIGNAL_API_URL) {
+    registerSignalWebhook(app, core);
   }
 
   // ==========================================================================
@@ -503,6 +509,13 @@ export async function buildApp(core: FlowBCore) {
         const waMiniAppUrl = process.env.FLOWB_WA_MINIAPP_URL || "https://wa.flowb.me";
         const waUrl = `${waMiniAppUrl}?event=${encodeURIComponent(id)}`;
         return reply.redirect(waUrl);
+      }
+
+      // Signal in-app browser detection
+      if (ua.includes("signal")) {
+        // Signal doesn't have a deep link scheme for bots - redirect to web
+        const eventWebUrl = `${webUrl}?event=${encodeURIComponent(id)}&platform=signal`;
+        return reply.redirect(eventWebUrl);
       }
 
       // Default: redirect to web app with event context

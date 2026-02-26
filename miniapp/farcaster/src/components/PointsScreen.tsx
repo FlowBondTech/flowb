@@ -184,7 +184,7 @@ export function PointsScreen({ authed }: Props) {
         <div className="cross-platform-info">
           <div className="cross-platform-title">Link & Sync Accounts</div>
           <div className="cross-platform-desc">
-            Connect your Farcaster, Telegram &amp; Web accounts on flowb.me to merge all your points.
+            Connect your Farcaster, Telegram, WhatsApp &amp; Web accounts on flowb.me to merge all your points.
           </div>
         </div>
         <span className="cross-platform-arrow">{"\u203A"}</span>

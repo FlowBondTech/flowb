@@ -237,7 +237,7 @@ export interface Booth {
 export interface UserIdentity {
   id: string;
   canonicalId: string;
-  platform: 'telegram' | 'farcaster' | 'web';
+  platform: 'telegram' | 'farcaster' | 'web' | 'whatsapp' | 'signal';
   platformUserId: string;
   privyId?: string;
   displayName?: string;
@@ -286,7 +286,7 @@ export interface FlowBContext {
 export interface ToolInput {
   action: string;
   user_id?: string;
-  platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app";
+  platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app" | "whatsapp" | "signal";
   platform_username?: string;
   danz_username?: string;
   city?: string;

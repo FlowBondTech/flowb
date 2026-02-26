@@ -14,6 +14,8 @@
  */
 
 import { sendFarcasterNotification } from "./farcaster-notify.js";
+import { sendWhatsAppNotification } from "../whatsapp/templates.js";
+import { sendSignalNotification } from "../signal/api.js";
 import { sbQuery, sbFetch, type SbConfig } from "../utils/supabase.js";
 import { log } from "../utils/logger.js";
 
@@ -563,6 +565,30 @@ async function sendToUser(
         }
       } catch (err) {
         console.error(`[notify] TG send failed for ${userId}:`, err);
+      }
+    }
+  }
+
+  // WhatsApp users
+  if (userId.startsWith("whatsapp_")) {
+    const phone = userId.replace("whatsapp_", "");
+    if (phone) {
+      try {
+        return await sendWhatsAppNotification(phone, message);
+      } catch (err) {
+        console.error(`[notify] WA send failed for ${userId}:`, err);
+      }
+    }
+  }
+
+  // Signal users
+  if (userId.startsWith("signal_")) {
+    const phone = userId.replace("signal_", "");
+    if (phone) {
+      try {
+        return await sendSignalNotification(phone, message);
+      } catch (err) {
+        console.error(`[notify] Signal send failed for ${userId}:`, err);
       }
     }
   }

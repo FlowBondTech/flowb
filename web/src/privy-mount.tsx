@@ -179,8 +179,8 @@ if (el) {
           theme: 'dark',
           accentColor: '#6366f1',
         },
-        // Configure which login methods to show (no Google)
-        loginMethods: ['email', 'wallet', 'telegram', 'farcaster', 'discord', 'twitter', 'github', 'apple'],
+        // Active login methods — others coming soon
+        loginMethods: ['email', 'wallet', 'telegram', 'farcaster'],
       }}
     >
       <AuthBridge />

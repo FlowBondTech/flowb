@@ -21,6 +21,7 @@
 import { sbFetch, sbQuery, type SbConfig } from "../utils/supabase.js";
 import { log } from "../utils/logger.js";
 import { sendFarcasterNotification } from "./farcaster-notify.js";
+import { sendWhatsAppNotification } from "../whatsapp/templates.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -73,7 +74,7 @@ export async function runContextNotifications(cfg: CtxNotifyConfig): Promise<{
     // who have notifications_enabled (or the column hasn't been set yet, defaulting to true)
     const users = await sbFetch<ActiveUser[]>(
       cfg.supabase,
-      `flowb_sessions?select=user_id,current_city,destination_city,timezone,notifications_enabled,notify_daily_digest,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,daily_notification_limit&or=(user_id.like.telegram_%25,user_id.like.farcaster_%25)&notifications_enabled=not.is.false&limit=500`,
+      `flowb_sessions?select=user_id,current_city,destination_city,timezone,notifications_enabled,notify_daily_digest,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,daily_notification_limit&or=(user_id.like.telegram_%25,user_id.like.farcaster_%25,user_id.like.whatsapp_%25)&notifications_enabled=not.is.false&limit=500`,
     );
 
     if (!users?.length) {
@@ -512,6 +513,23 @@ async function sendToUser(cfg: CtxNotifyConfig, userId: string, message: string)
       return true;
     } catch (err) {
       log.error("[ctx-notify]", `TG send error for ${userId}`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return false;
+    }
+  }
+
+  // WhatsApp users
+  if (userId.startsWith("whatsapp_")) {
+    const phone = userId.replace("whatsapp_", "");
+    if (!phone) return false;
+
+    // Strip HTML tags for WhatsApp (uses its own markdown)
+    const plainMessage = message.replace(/<[^>]*>/g, "");
+    try {
+      return await sendWhatsAppNotification(phone, plainMessage);
+    } catch (err) {
+      log.error("[ctx-notify]", `WA send error for ${userId}`, {
         error: err instanceof Error ? err.message : String(err),
       });
       return false;

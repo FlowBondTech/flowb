@@ -63,6 +63,7 @@ Stay in the loop across platforms.
 | Platform | Interface | Status |
 |----------|-----------|--------|
 | Telegram | Bot + Mini App | Live |
+| WhatsApp | Bot + Mini App | Live |
 | Farcaster | Mini App + @flowb mentions | Live |
 | Web | flowb.me | Live |
 | Mobile | iOS (TestFlight) | Beta |

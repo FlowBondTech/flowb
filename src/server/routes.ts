@@ -516,6 +516,75 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // AUTH: Signal Mini App (HMAC-based, same pattern as WhatsApp)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { phone: string; ts: string; sig: string } }>(
+    "/api/v1/auth/signal",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["phone", "ts", "sig"],
+          properties: {
+            phone: { type: "string" },
+            ts: { type: "string" },
+            sig: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { phone, ts, sig } = request.body;
+
+      const secret = process.env.SIGNAL_WEBHOOK_SECRET || process.env.FLOWB_JWT_SECRET || "";
+      if (!secret) {
+        return reply.status(500).send({ error: "Signal auth not configured" });
+      }
+
+      const crypto = await import("node:crypto");
+      const expectedSig = crypto.createHmac("sha256", secret)
+        .update(`${phone}:${ts}`)
+        .digest("hex");
+
+      if (sig !== expectedSig) {
+        return reply.status(401).send({ error: "Invalid signature" });
+      }
+
+      const tsNum = parseInt(ts, 10);
+      if (isNaN(tsNum) || Math.abs(Date.now() - tsNum) > 5 * 60 * 1000) {
+        return reply.status(401).send({ error: "Link expired" });
+      }
+
+      const userId = `signal_${phone}`;
+
+      fireAndForget(core.awardPoints(userId, "signal", "miniapp_open"), "award points");
+
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+          user_id: userId,
+        }, "return=minimal,resolution=merge-duplicates"), "upsert signal session");
+      }
+
+      const token = signJwt({
+        sub: userId,
+        platform: "signal",
+        username: phone,
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "signal",
+          username: phone,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // AUTH: Claim pending points (pre-auth actions → backend account)
   // Accepts actions logged in localStorage before the user signed in.
   // Each action is validated: must be a known action, within 24h.
