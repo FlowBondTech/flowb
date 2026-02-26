@@ -1,6 +1,9 @@
 import React, { useState } from "react";
 import { openUrl } from "../lib/farcaster";
 import { FeedbackModal } from "./FeedbackModal";
+import { useI18n } from "../../../shared/i18n/useI18n";
+import { LanguagePicker } from "../../../shared/components/LanguagePicker";
+import { updatePreferences } from "../api/client";
 
 interface Props {
   onBack: () => void;
@@ -79,17 +82,121 @@ const PLATFORMS = [
 export function AboutScreen({ onBack }: Props) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showFeedback, setShowFeedback] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
+  const { t, locale, changeLocale, detectLocale, locales } = useI18n();
+
+  const saveLocaleToApi = (code: string) => {
+    updatePreferences({ locale: code }).catch(() => {});
+  };
+
+  /** Find the native name for the current locale */
+  const currentLocaleName =
+    locales.find((l: { code: string; nativeName: string }) => l.code === locale)?.nativeName || locale;
 
   return (
     <div className="screen" style={{ paddingBottom: 100 }}>
       <button className="btn btn-sm btn-secondary" onClick={onBack} style={{ marginBottom: 16 }}>
-        Back
+        {t("common.back")}
       </button>
 
-      <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>About FlowB</h1>
+      <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
+        {t("settings.about")} FlowB
+      </h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
         Your companion for navigating ETHDenver. Discover events, form crews, earn points.
       </p>
+
+      {/* Language Picker */}
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
+        {t("settings.language")}
+      </div>
+      <div
+        className="card"
+        style={{ padding: 0, marginBottom: 20, overflow: "hidden" }}
+      >
+        <button
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+            padding: "12px 14px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          onClick={() => setLangOpen(!langOpen)}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                background: "var(--accent, #6366f1)",
+                color: "#fff",
+                textTransform: "uppercase",
+                flexShrink: 0,
+              }}
+            >
+              {locale}
+            </span>
+            <div style={{ textAlign: "left" }}>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: "var(--text, #e4e4ec)",
+                }}
+              >
+                {currentLocaleName}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {t("settings.change_language")}
+              </div>
+            </div>
+          </div>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{
+              width: 16,
+              height: 16,
+              flexShrink: 0,
+              transition: "transform 0.2s",
+              transform: langOpen ? "rotate(180deg)" : "rotate(0deg)",
+              color: "var(--text-muted)",
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {langOpen && (
+          <div
+            style={{
+              borderTop:
+                "1px solid var(--border, rgba(255,255,255,0.08))",
+            }}
+          >
+            <LanguagePicker
+              locale={locale}
+              locales={locales}
+              t={t}
+              onChangeLocale={changeLocale}
+              onAutoDetect={detectLocale}
+              onSaveToApi={saveLocaleToApi}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Mission */}
       <div className="card" style={{ marginBottom: 16 }}>
@@ -103,7 +210,9 @@ export function AboutScreen({ onBack }: Props) {
       </div>
 
       {/* Platforms */}
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Get FlowB Everywhere</div>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
+        {t("settings.platforms")}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
         {PLATFORMS.map((p) => (
           <button
@@ -162,7 +271,9 @@ export function AboutScreen({ onBack }: Props) {
       </div>
 
       {/* FAQ */}
-      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>FAQ</div>
+      <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 10 }}>
+        {t("settings.faq")}
+      </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {FAQ_ITEMS.map((item, i) => (
           <div key={i} className="card" style={{ padding: 0, overflow: "hidden" }}>

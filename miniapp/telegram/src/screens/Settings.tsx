@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import type { Screen } from "../App";
 import { useAuth } from "../hooks/useAuth";
+import { useI18n } from "../../../shared/i18n/useI18n";
+import { LanguagePicker } from "../../../shared/components/LanguagePicker";
+import { updatePreferences } from "../api/client";
 
 interface Props {
   onNavigate: (s: Screen) => void;
@@ -42,8 +45,10 @@ const TOGGLE_DEFAULTS = {
 
 export function Settings({ onNavigate }: Props) {
   const { user } = useAuth();
+  const { t, locale, changeLocale, detectLocale, locales } = useI18n();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [toggles, setToggles] = useState(TOGGLE_DEFAULTS);
+  const [langOpen, setLangOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -75,15 +80,25 @@ export function Settings({ onNavigate }: Props) {
       localStorage.removeItem("flowb_settings");
       const tg = (window as any).Telegram?.WebApp;
       tg?.HapticFeedback?.notificationOccurred("success");
-      tg?.showAlert?.("Cache cleared! Restart the app to see onboarding again.");
+      tg?.showAlert?.(t("settings.cache_cleared"));
     } catch {}
   };
 
+  const saveLocaleToApi = (code: string) => {
+    updatePreferences({ locale: code }).catch(() => {});
+  };
+
+  /** Find the native name for the current locale */
+  const currentLocaleName =
+    locales.find((l: { code: string; nativeName: string }) => l.code === locale)?.nativeName || locale;
+
   return (
     <div className="screen" style={{ paddingBottom: 100 }}>
-      <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Settings</h1>
+      <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>
+        {t("nav.settings")}
+      </h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
-        Customize your FlowB experience
+        {t("settings.customize")}
       </p>
 
       {/* User Info */}
@@ -117,40 +132,131 @@ export function Settings({ onNavigate }: Props) {
       >
         <span style={{ fontSize: 22, flexShrink: 0 }}>{"\uD83D\uDD17"}</span>
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>Link & Verify Accounts</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: "var(--text)" }}>
+            {t("settings.link_accounts")}
+          </div>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.5 }}>
-            Connect Telegram + Farcaster + Web on flowb.me to merge points across all platforms
+            {t("settings.link_accounts_desc")}
           </div>
         </div>
         <span style={{ color: "var(--accent-light)", fontSize: 18 }}>{"\u203A"}</span>
       </div>
 
+      {/* Language Picker */}
+      <div className="section-title">{t("settings.language")}</div>
+      <div className="card" style={{ padding: 0, marginBottom: 16, overflow: "hidden" }}>
+        <button
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            width: "100%",
+            padding: "12px 14px",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+          onClick={() => {
+            setLangOpen(!langOpen);
+            const tg = (window as any).Telegram?.WebApp;
+            tg?.HapticFeedback?.selectionChanged();
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: 700,
+                background: "var(--accent, #6366f1)",
+                color: "#fff",
+                textTransform: "uppercase",
+                flexShrink: 0,
+              }}
+            >
+              {locale}
+            </span>
+            <div style={{ textAlign: "left" }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text, #e4e4ec)" }}>
+                {currentLocaleName}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                {t("settings.change_language")}
+              </div>
+            </div>
+          </div>
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            style={{
+              width: 16,
+              height: 16,
+              flexShrink: 0,
+              transition: "transform 0.2s",
+              transform: langOpen ? "rotate(180deg)" : "rotate(0deg)",
+              color: "var(--text-muted)",
+            }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        {langOpen && (
+          <div style={{ borderTop: "1px solid var(--border, rgba(255,255,255,0.08))" }}>
+            <LanguagePicker
+              locale={locale}
+              locales={locales}
+              t={t}
+              onChangeLocale={(code: string) => {
+                changeLocale(code);
+                const tg = (window as any).Telegram?.WebApp;
+                tg?.HapticFeedback?.impactOccurred("light");
+              }}
+              onAutoDetect={() => {
+                const detected = detectLocale();
+                const tg = (window as any).Telegram?.WebApp;
+                tg?.HapticFeedback?.impactOccurred("light");
+                return detected;
+              }}
+              onSaveToApi={saveLocaleToApi}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Controls */}
-      <div className="section-title">Notifications</div>
+      <div className="section-title">{t("settings.notifications")}</div>
       <div className="card" style={{ padding: 0, marginBottom: 16 }}>
         <ToggleRow
-          label="Event Reminders"
-          desc="Get notified before events start"
+          label={t("settings.event_reminders")}
+          desc={t("settings.event_reminders_desc")}
           value={toggles.reminders}
           onChange={(v) => setToggle("reminders", v)}
         />
         <ToggleRow
-          label="Crew Updates"
-          desc="When crew members check in or post"
+          label={t("settings.crew_updates")}
+          desc={t("settings.crew_updates_desc")}
           value={toggles.crewUpdates}
           onChange={(v) => setToggle("crewUpdates", v)}
           border
         />
         <ToggleRow
-          label="Points & Milestones"
-          desc="When you earn points or hit milestones"
+          label={t("settings.points_alerts")}
+          desc={t("settings.points_alerts_desc")}
           value={toggles.pointsAlerts}
           onChange={(v) => setToggle("pointsAlerts", v)}
           border
         />
         <ToggleRow
-          label="Push Notifications"
-          desc="Receive notifications via Telegram DM"
+          label={t("settings.push_notifications")}
+          desc={t("settings.push_notifications_desc")}
           value={toggles.notifications}
           onChange={(v) => setToggle("notifications", v)}
           border
@@ -158,36 +264,36 @@ export function Settings({ onNavigate }: Props) {
       </div>
 
       {/* Platforms */}
-      <div className="section-title">Get FlowB Everywhere</div>
+      <div className="section-title">{t("settings.platforms")}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
         <PlatformRow
-          name="Web App"
-          desc="flowb.me -- browse on any device"
+          name={t("settings.web_app")}
+          desc={t("settings.web_app_desc")}
           url="https://flowb.me"
           icon={<GlobeIcon />}
           onOpen={openLink}
         />
         <PlatformRow
-          name="Telegram"
-          desc="You're here!"
+          name={t("settings.telegram_app")}
+          desc={t("settings.telegram_app_desc")}
           icon={<TelegramIcon />}
         />
         <PlatformRow
-          name="Farcaster"
-          desc="Mini app in Warpcast"
+          name={t("settings.farcaster_app")}
+          desc={t("settings.farcaster_app_desc")}
           url="https://warpcast.com/flowb"
           icon={<FarcasterIcon />}
           onOpen={openLink}
         />
         <PlatformRow
-          name="Mobile App"
-          desc="Coming soon to iOS & Android"
+          name={t("settings.mobile_app")}
+          desc={t("settings.mobile_app_desc")}
           icon={<PhoneIcon />}
         />
       </div>
 
       {/* Creators */}
-      <div className="section-title">Created By</div>
+      <div className="section-title">{t("settings.created_by")}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
         <button
           className="card"
@@ -201,9 +307,9 @@ export function Settings({ onNavigate }: Props) {
           <div className="avatar" style={{ width: 36, height: 36, fontSize: 14, background: "linear-gradient(135deg, #3b82f6, #8b5cf6)" }}>K</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>@koh</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Co-creator & Visionary</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t("settings.cocreator")}</div>
           </div>
-          <span style={{ color: "var(--accent-light)", fontSize: 12, fontWeight: 500 }}>Follow</span>
+          <span style={{ color: "var(--accent-light)", fontSize: 12, fontWeight: 500 }}>{t("settings.follow")}</span>
         </button>
         <button
           className="card"
@@ -217,14 +323,14 @@ export function Settings({ onNavigate }: Props) {
           <div className="avatar" style={{ width: 36, height: 36, fontSize: 14, background: "linear-gradient(135deg, #ec4899, #a855f7)" }}>S</div>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: 14, color: "var(--text)" }}>@step-by-steph</div>
-            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Co-creator & Visionary</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{t("settings.cocreator")}</div>
           </div>
-          <span style={{ color: "var(--accent-light)", fontSize: 12, fontWeight: 500 }}>Follow</span>
+          <span style={{ color: "var(--accent-light)", fontSize: 12, fontWeight: 500 }}>{t("settings.follow")}</span>
         </button>
       </div>
 
       {/* FAQ */}
-      <div className="section-title">FAQ</div>
+      <div className="section-title">{t("settings.faq")}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
         {FAQ_ITEMS.map((item, i) => (
           <div key={i} className="card" style={{ padding: 0, overflow: "hidden" }}>
@@ -260,18 +366,18 @@ export function Settings({ onNavigate }: Props) {
       </div>
 
       {/* App Info */}
-      <div className="section-title">App Info</div>
+      <div className="section-title">{t("settings.app_info")}</div>
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Version</span>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("common.version")}</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>1.0.0</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Platform</span>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("common.platform")}</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>Telegram Mini App</span>
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>Event</span>
+          <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("events.category")}</span>
           <span style={{ fontSize: 13, fontWeight: 600 }}>ETHDenver 2026</span>
         </div>
       </div>
@@ -282,13 +388,13 @@ export function Settings({ onNavigate }: Props) {
         onClick={clearCache}
         style={{ marginBottom: 16, fontSize: 13 }}
       >
-        Clear Cache & Reset Onboarding
+        {t("settings.clear_cache")}
       </button>
 
       {/* Footer */}
       <div style={{ textAlign: "center", padding: "8px 0 16px" }}>
         <div style={{ fontSize: 11, color: "var(--text-dim)", lineHeight: 1.6 }}>
-          Built with love for the ETHDenver community
+          {t("settings.built_with_love")}
         </div>
       </div>
     </div>

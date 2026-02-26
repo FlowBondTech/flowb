@@ -34,7 +34,7 @@ import {
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
-import { sbFetch, sbPost, type SbConfig } from "../utils/supabase.js";
+import { sbFetch, sbPost, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 
 
@@ -686,6 +686,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   // EVENTS: DB-first discovery
   // Accepts: ?city=&categories=&zone=&type=&date=&from=&to=&featured=&q=&limit=&offset=
+  // If no city param but user is authenticated, auto-uses current_city or destination_city
   // ------------------------------------------------------------------
   app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; free?: string; q?: string; limit?: string; offset?: string } }>(
     "/api/v1/events",
@@ -693,9 +694,31 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { events: [], total: 0 };
 
-      const { city, categories, zone, type, date, from, to, featured, free: freeOnly, q, limit, offset } = request.query;
+      let { city, categories, zone, type, date, from, to, featured, free: freeOnly, q, limit, offset } = request.query;
       const maxResults = Math.min(parseInt(limit || "50", 10), 200);
       const skip = parseInt(offset || "0", 10);
+
+      // Auto-detect city from user session when not explicitly provided
+      let citySource: "param" | "session" | undefined;
+      if (city) {
+        citySource = "param";
+      } else {
+        const jwt = extractJwt(request);
+        if (jwt?.sub && cfg) {
+          const sessions = await sbFetch<any[]>(
+            cfg,
+            `flowb_sessions?user_id=eq.${jwt.sub}&select=current_city,destination_city&limit=1`,
+          );
+          const session = sessions?.[0];
+          if (session?.current_city) {
+            city = session.current_city;
+            citySource = "session";
+          } else if (session?.destination_city) {
+            city = session.destination_city;
+            citySource = "session";
+          }
+        }
+      }
 
       // Build PostgREST query
       let query = `flowb_events?hidden=eq.false&order=starts_at.asc&limit=${maxResults}&offset=${skip}`;
@@ -750,7 +773,41 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      return { events, total: events.length };
+      return {
+        events,
+        total: events.length,
+        ...(city ? { city } : {}),
+        ...(citySource ? { citySource } : {}),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Distinct cities (for city picker UI)
+  // Returns list of cities that have upcoming events
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/events/cities",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { cities: [] };
+
+      // Fetch distinct non-null city values from future events
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_events?hidden=eq.false&starts_at=gte.${new Date().toISOString().slice(0, 10)}T00:00:00&city=not.is.null&select=city&order=city.asc`,
+      );
+
+      if (!rows?.length) return { cities: [] };
+
+      // Deduplicate (PostgREST doesn't support DISTINCT on single column easily)
+      const citySet = new Set<string>();
+      for (const row of rows) {
+        if (row.city) citySet.add(row.city.trim());
+      }
+
+      const cities = [...citySet].sort((a, b) => a.localeCompare(b));
+      return { cities, total: cities.length };
     },
   );
 
@@ -1292,6 +1349,254 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       );
 
       return { friends: connections || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PROFILE: Update own bio, role, tags (requires auth)
+  // ------------------------------------------------------------------
+  app.patch<{
+    Body: {
+      bio?: string;
+      role?: string;
+      tags?: string[];
+    };
+  }>(
+    "/api/v1/me/profile",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const body = request.body || {};
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+
+      if (body.bio !== undefined) updates.bio = body.bio;
+      if (body.role !== undefined) updates.role = body.role;
+      if (body.tags !== undefined) {
+        // Sanitize: lowercase, trim, deduplicate, max 20 tags
+        const cleaned = [...new Set(
+          (body.tags || []).map((t: string) => t.trim().toLowerCase()).filter(Boolean),
+        )].slice(0, 20);
+        updates.tags = cleaned;
+      }
+
+      // Upsert session row (POST + merge-duplicates)
+      const res = await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_sessions`,
+        {
+          method: "POST",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal,resolution=merge-duplicates",
+          },
+          body: JSON.stringify({ user_id: jwt.sub, ...updates }),
+        },
+      );
+
+      if (!res.ok) {
+        log.warn("[routes]", "profile update failed", { status: res.status });
+        return { ok: false, error: "Update failed" };
+      }
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PROFILE: Get own profile (bio, role, tags) (requires auth)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/me/profile",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { profile: {} };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,role,tags,danz_username&limit=1`,
+      );
+
+      const row = rows?.[0] || {};
+      return {
+        profile: {
+          bio: row.bio || null,
+          role: row.role || null,
+          tags: row.tags || [],
+          display_name: row.danz_username || null,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Get detailed friend info (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { friendId: string } }>(
+    "/api/v1/flow/friends/:friendId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const friendId = request.params.friendId;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Get the connection row (caller's side)
+      const conns = await sbFetch<any[]>(
+        cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&friend_id=eq.${friendId}&select=id,status,note,tags,contact_shared,contact_info,accepted_at,met_at_event,met_at_city&limit=1`,
+      );
+
+      if (!conns?.length) return { ok: false, error: "Not in your flow" };
+      const conn = conns[0];
+
+      // Get friend's profile from sessions
+      const sessions = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${friendId}&select=danz_username,bio,role,tags,home_city,current_city&limit=1`,
+      );
+      const profile = sessions?.[0] || {};
+
+      // Check if friend has shared contact with us (look at friend's side of connection)
+      const friendConn = await sbFetch<any[]>(
+        cfg,
+        `flowb_connections?user_id=eq.${friendId}&friend_id=eq.${jwt.sub}&select=contact_shared,contact_info&limit=1`,
+      );
+      const friendShared = friendConn?.[0];
+
+      return {
+        friend: {
+          user_id: friendId,
+          display_name: profile.danz_username || null,
+          bio: profile.bio || null,
+          role: profile.role || null,
+          tags: profile.tags || [],
+          home_city: profile.home_city || null,
+          current_city: profile.current_city || null,
+        },
+        connection: {
+          status: conn.status,
+          note: conn.note || null,
+          tags: conn.tags || [],
+          contact_shared: conn.contact_shared || false,
+          accepted_at: conn.accepted_at,
+          met_at_event: conn.met_at_event || null,
+          met_at_city: conn.met_at_city || null,
+        },
+        // Contact info the friend shared with you (from their side)
+        shared_contact: friendShared?.contact_shared ? (friendShared.contact_info || null) : null,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Update connection note/tags (requires auth)
+  // ------------------------------------------------------------------
+  app.patch<{
+    Params: { friendId: string };
+    Body: {
+      note?: string;
+      tags?: string[];
+    };
+  }>(
+    "/api/v1/flow/friends/:friendId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const friendId = request.params.friendId;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const body = request.body || {};
+      const updates: Record<string, any> = {};
+
+      if (body.note !== undefined) updates.note = body.note;
+      if (body.tags !== undefined) {
+        const cleaned = [...new Set(
+          (body.tags || []).map((t: string) => t.trim().toLowerCase()).filter(Boolean),
+        )].slice(0, 20);
+        updates.tags = cleaned;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { ok: false, error: "Nothing to update" };
+      }
+
+      const ok = await sbPatchRaw(
+        cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&friend_id=eq.${friendId}`,
+        updates,
+      );
+
+      if (!ok) return { ok: false, error: "Connection not found or update failed" };
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Share contact info with a friend (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{
+    Params: { friendId: string };
+    Body: {
+      email?: string;
+      twitter?: string;
+      telegram?: string;
+      farcaster?: string;
+      phone?: string;
+      website?: string;
+      linkedin?: string;
+    };
+  }>(
+    "/api/v1/flow/friends/:friendId/share-contact",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const friendId = request.params.friendId;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Verify connection exists
+      const conns = await sbFetch<any[]>(
+        cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&friend_id=eq.${friendId}&status=eq.active&select=id&limit=1`,
+      );
+
+      if (!conns?.length) return { ok: false, error: "Not in your flow or connection not active" };
+
+      const body = request.body || {};
+      const contactInfo: Record<string, string> = {};
+
+      // Only include non-empty fields
+      if (body.email) contactInfo.email = body.email;
+      if (body.twitter) contactInfo.twitter = body.twitter;
+      if (body.telegram) contactInfo.telegram = body.telegram;
+      if (body.farcaster) contactInfo.farcaster = body.farcaster;
+      if (body.phone) contactInfo.phone = body.phone;
+      if (body.website) contactInfo.website = body.website;
+      if (body.linkedin) contactInfo.linkedin = body.linkedin;
+
+      if (Object.keys(contactInfo).length === 0) {
+        return { ok: false, error: "At least one contact field required" };
+      }
+
+      // Update caller's side of the connection with shared contact info
+      const ok = await sbPatchRaw(
+        cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&friend_id=eq.${friendId}`,
+        {
+          contact_shared: true,
+          contact_info: contactInfo,
+        },
+      );
+
+      if (!ok) return { ok: false, error: "Failed to share contact" };
+      return { ok: true, shared: contactInfo };
     },
   );
 

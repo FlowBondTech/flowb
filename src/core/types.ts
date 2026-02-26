@@ -115,6 +115,14 @@ export interface EventQuery {
   category?: string;
   danceStyle?: string;
   limit?: number;
+  /** ISO date string - only return events starting from this date */
+  from?: string;
+  /** ISO date string - only return events starting before this date */
+  to?: string;
+  /** Free-text search query */
+  q?: string;
+  /** Only free events */
+  free?: boolean;
 }
 
 export interface EventResult {
@@ -234,6 +242,10 @@ export interface UserIdentity {
   privyId?: string;
   displayName?: string;
   avatarUrl?: string;
+  // Profile enrichment
+  bio?: string;
+  role?: string;
+  tags?: string[];
   // Location & i18n fields
   homeCity?: string;
   homeCountry?: string;

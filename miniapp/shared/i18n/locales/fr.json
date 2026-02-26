@@ -248,7 +248,9 @@
     "built_with_love": "Built with love for the community",
     "customize": "Customize your FlowB experience",
     "change_language": "Changer de langue",
-    "select_language": "Choisir la langue"
+    "select_language": "Choisir la langue",
+    "language_auto": "Detection auto",
+    "language_auto_desc": "Utiliser la langue de votre appareil"
   },
   "location": {
     "where_based": "Where are you based?",

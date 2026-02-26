@@ -248,7 +248,9 @@
     "built_with_love": "Built with love for the community",
     "customize": "Customize your FlowB experience",
     "change_language": "Dili degistir",
-    "select_language": "Dil sec"
+    "select_language": "Dil sec",
+    "language_auto": "Otomatik algilama",
+    "language_auto_desc": "Cihaz dilini kullan"
   },
   "location": {
     "where_based": "Nerede yasiyorsunuz?",
