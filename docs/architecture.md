@@ -24,12 +24,12 @@ egator-api.fly.dev   flowb.fly.dev
               |
          Supabase (DB)
               |
-     +--------+---------+---------+
-     |                  |         |
- Telegram Bot    WhatsApp Bot  Farcaster
- (Grammy)      (Cloud API)   (Neynar + Poster)
-     |                  |         |
-     +--------+---------+---------+
+     +--------+---------+
+     |                  |
+ Telegram Bot       Farcaster
+ (Grammy)          (Neynar + Poster)
+     |                  |
+     +--------+---------+
               |
           Plugins
    flow | points | egator
@@ -50,7 +50,6 @@ egator-api.fly.dev   flowb.fly.dev
 | **Web** | `flowb.me` | Static HTML/JS | Event discovery, auth, dashboard |
 | **Farcaster Mini App** | `flowb-farcaster.netlify.app` | Next.js static export | Farcaster frame mini app |
 | **Telegram Mini App** | `flowb-telegram.netlify.app` | Vite | Telegram WebApp mini app |
-| **WhatsApp Mini App** | `wa.flowb.me` | Vite | WhatsApp web mini app |
 | **Mobile** | App Store / TestFlight | Expo React Native | Native mobile app |
 
 ## Plugin Architecture
@@ -96,4 +95,4 @@ Key tables:
 
 ---
 
-*Auto-generated on 2026-02-26 21:40:04 UTC*
+*Auto-generated on 2026-02-26 22:02:37 UTC*

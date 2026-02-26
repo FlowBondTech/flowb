@@ -63,11 +63,10 @@ Stay in the loop across platforms.
 | Platform | Interface | Status |
 |----------|-----------|--------|
 | Telegram | Bot + Mini App | Live |
-| WhatsApp | Bot + Mini App | Live |
 | Farcaster | Mini App + @flowb mentions | Live |
 | Web | flowb.me | Live |
 | Mobile | iOS (TestFlight) | Beta |
 
 ---
 
-*Auto-generated on 2026-02-26 21:40:04 UTC*
+*Auto-generated on 2026-02-26 22:02:37 UTC*

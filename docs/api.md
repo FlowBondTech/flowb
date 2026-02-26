@@ -22,6 +22,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/app` | No | Native App (hardcoded users for EthDenver) |
 | `POST` | `/api/v1/auth/web` | No | Web (Privy) - issues a FlowB JWT for web users |
 | `POST` | `/api/v1/auth/whatsapp` | No | WhatsApp Mini App (HMAC-based phone verification) |
+| `POST` | `/api/v1/auth/signal` | No | Signal Mini App (HMAC-based, same pattern as WhatsApp) |
 | `POST` | `/api/v1/auth/claim-points` | Yes | Claim pending points (pre-auth actions → backend account) |
 
 ## FEED
@@ -337,4 +338,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 21:40:04 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 22:02:37 UTC*
