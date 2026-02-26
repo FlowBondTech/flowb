@@ -115,6 +115,8 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/me/preferences` | Yes |  |
 | `PATCH` | `unknown` | No |  |
+| `GET` | `/api/v1/flow/friends/nearby` | Yes |  |
+| `GET` | `/api/v1/discover/people` | Yes |  |
 | `GET` | `/api/v1/me/linked-accounts` | Yes |  |
 | `GET` | `/api/v1/me/link-status` | Yes |  |
 | `POST` | `/api/v1/me/sync-linked-accounts` | Yes |  |
@@ -137,6 +139,12 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/socialb/webhook` | No |  |
 | `POST` | `/api/v1/socialb/chat` | Yes |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
+
+## DISCOVERY
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/flow/friends/map` | Yes | Location-based friend & user discovery |
 
 ## REMINDERS
 
@@ -314,4 +322,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 17:21:56 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-26 18:03:54 UTC*
