@@ -91,7 +91,8 @@ const FLOWB_CHAT_URL = "https://flowb.fly.dev";
 
 const PERSISTENT_KEYBOARD = new Keyboard()
   .text("Events").text("Flow").row()
-  .text("Points").text("Menu")
+  .text("Leads").text("Points").row()
+  .text("Menu")
   .resized().persistent();
 
 interface TgSession {
@@ -131,6 +132,23 @@ interface OnboardingState {
 }
 
 const onboardingStates = new Map<number, OnboardingState>();
+
+// ============================================================================
+// Lead Input State (in-memory, per-user multi-step flow)
+// ============================================================================
+
+interface LeadInputState {
+  step: "org_name" | "name" | "contact" | "company" | "notes" | "done";
+  orgId: string;
+  data: {
+    name?: string;
+    contact?: string;
+    company?: string;
+    notes?: string;
+  };
+}
+
+const leadInputStates = new Map<number, LeadInputState>();
 
 // Supabase client for persistent session storage (survives restarts)
 const supabase: SupabaseClient | null =
@@ -1358,6 +1376,184 @@ export function startTelegramBot(
     await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
   });
 
+  // ========================================================================
+  // Lead Management Commands
+  // ========================================================================
+
+  bot.command("lead", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    const leadsPlugin = core.getLeadsPlugin();
+    const leadsCfg = core.getLeadsConfig();
+    if (!leadsPlugin || !leadsCfg) {
+      await ctx.reply("Leads feature not configured.");
+      return;
+    }
+
+    // Check if user has an org
+    const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
+    if (!orgs.length) {
+      await ctx.reply(
+        "<b>You're not part of any organization yet.</b>\n\n"
+        + "Create one to start tracking leads, or ask your org admin to add you.",
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard()
+            .text("Create Org", "leads:setup:new"),
+        },
+      );
+      return;
+    }
+
+    const args = ctx.match?.trim();
+    if (args) {
+      // Quick add: /lead John Doe
+      const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+      const lead = await leadsPlugin.createLead(
+        leadsCfg, orgs[0].org_id, userId(tgId), displayName,
+        { name: args, source: "telegram" },
+      );
+      if (lead) {
+        await ctx.reply(
+          `<b>Lead added!</b>\n\n`
+          + `<b>Name:</b> ${escapeHtml(lead.name)}\n`
+          + `<b>Status:</b> ${lead.status}\n`
+          + `<b>Org:</b> ${orgs[0].org_id}\n\n`
+          + `Add details or keep going:`,
+          {
+            parse_mode: "HTML",
+            reply_markup: new InlineKeyboard()
+              .text("Add Contact", `lead:contact:${lead.id}`)
+              .text("Add Company", `lead:company:${lead.id}`)
+              .row()
+              .text("Add Notes", `lead:notes:${lead.id}`)
+              .row()
+              .text("\u2795 Add Another", `leads:add:${orgs[0].org_id}`)
+              .text("\ud83d\udcdd Leads Home", `leads:home:${orgs[0].org_id}`),
+          },
+        );
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_added"), "award points");
+      } else {
+        await ctx.reply("Failed to add lead. Please try again.");
+      }
+      return;
+    }
+
+    // Start multi-step input flow
+    leadInputStates.set(tgId, { step: "name", orgId: orgs[0].org_id, data: {} });
+    await ctx.reply(
+      "<b>Add a new lead</b>\n\n"
+      + "What's the lead's <b>name</b>? (person or company name)\n\n"
+      + "<i>Or quick-add: /lead John Doe</i>",
+      { parse_mode: "HTML" },
+    );
+  });
+
+  bot.command("leads", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await sendLeadsHome(ctx, core, tgId);
+  });
+
+  bot.command("orgnew", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    const leadsPlugin = core.getLeadsPlugin();
+    const leadsCfg = core.getLeadsConfig();
+    if (!leadsPlugin || !leadsCfg) {
+      await ctx.reply("Leads feature not configured.");
+      return;
+    }
+
+    const args = ctx.match?.trim();
+    if (!args) {
+      await ctx.reply(
+        "<b>Create an organization</b>\n\n"
+        + "Usage: <code>/orgnew slug Display Name</code>\n"
+        + "Example: <code>/orgnew flowbond FlowBond</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const parts = args.split(/\s+/);
+    const slug = parts[0].toLowerCase().replace(/[^a-z0-9_-]/g, "");
+    const name = parts.slice(1).join(" ") || slug;
+    const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+
+    const existing = await leadsPlugin.getOrg(leadsCfg, slug);
+    if (existing) {
+      await ctx.reply(`Organization <b>${escapeHtml(slug)}</b> already exists.`, { parse_mode: "HTML" });
+      return;
+    }
+
+    const org = await leadsPlugin.createOrg(leadsCfg, slug, name, userId(tgId), displayName);
+    if (org) {
+      await ctx.reply(
+        `<b>Organization created!</b>\n\n`
+        + `<b>ID:</b> ${escapeHtml(org.id)}\n`
+        + `<b>Name:</b> ${escapeHtml(org.name)}\n\n`
+        + `You are the owner. Add team members with:\n`
+        + `<code>/orgadd ${org.id} @username</code>\n\n`
+        + `Start adding leads with /lead`,
+        { parse_mode: "HTML" },
+      );
+    } else {
+      await ctx.reply("Failed to create organization. The slug may already be taken.");
+    }
+  });
+
+  bot.command("orgadd", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    const leadsPlugin = core.getLeadsPlugin();
+    const leadsCfg = core.getLeadsConfig();
+    if (!leadsPlugin || !leadsCfg) {
+      await ctx.reply("Leads feature not configured.");
+      return;
+    }
+
+    const args = ctx.match?.trim();
+    if (!args) {
+      await ctx.reply(
+        "<b>Add a member to your org</b>\n\n"
+        + "Usage: <code>/orgadd orgslug telegram_ID DisplayName</code>\n"
+        + "Example: <code>/orgadd flowbond telegram_123456 Steph</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const parts = args.split(/\s+/);
+    if (parts.length < 2) {
+      await ctx.reply("Usage: <code>/orgadd orgslug telegram_ID [DisplayName]</code>", { parse_mode: "HTML" });
+      return;
+    }
+
+    const orgId = parts[0];
+    const targetUserId = parts[1];
+    const targetName = parts.slice(2).join(" ") || null;
+
+    // Check that the caller is an owner/admin
+    const access = await leadsPlugin.checkOrgAccess(leadsCfg, userId(tgId), orgId);
+    if (!access || (access.role !== "owner" && access.role !== "admin")) {
+      await ctx.reply("You need to be an owner or admin of this org to add members.");
+      return;
+    }
+
+    const member = await leadsPlugin.addOrgMember(leadsCfg, orgId, targetUserId, targetName, "member");
+    if (member) {
+      await ctx.reply(
+        `<b>Member added!</b>\n\n`
+        + `<b>${escapeHtml(targetName || targetUserId)}</b> is now a member of <b>${escapeHtml(orgId)}</b>.\n`
+        + `They can now add leads with /lead`,
+        { parse_mode: "HTML" },
+      );
+    } else {
+      await ctx.reply("Failed to add member. They may already be a member.");
+    }
+  });
+
   bot.command("help", async (ctx) => {
     await sendCoreAction(ctx, core, "help");
   });
@@ -1876,6 +2072,243 @@ export function startTelegramBot(
       // --- Noop (position indicator tap) ---
       if (action === "noop") {
         await ctx.answerCallbackQuery();
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    // ---- Lead callbacks: lead:* and leads:* ----
+    if (data.startsWith("lead:") || data.startsWith("leads:")) {
+      const parts = data.split(":");
+      const leadsPlugin = core.getLeadsPlugin();
+      const leadsCfg = core.getLeadsConfig();
+
+      if (!leadsPlugin || !leadsCfg) {
+        await ctx.answerCallbackQuery({ text: "Leads not configured" });
+        return;
+      }
+
+      // lead:contact:LEAD_ID - prompt for contact info
+      if (parts[0] === "lead" && parts[1] === "contact") {
+        const leadId = parts[2];
+        leadInputStates.set(tgId, { step: "contact", orgId: "", data: { name: `__update:${leadId}` } });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "Enter the <b>contact info</b> for this lead (email, phone, or @handle):",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // lead:company:LEAD_ID - prompt for company
+      if (parts[0] === "lead" && parts[1] === "company") {
+        const leadId = parts[2];
+        leadInputStates.set(tgId, { step: "company", orgId: "", data: { name: `__update:${leadId}` } });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "Enter the <b>company name</b> for this lead:",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // lead:notes:LEAD_ID - prompt for notes
+      if (parts[0] === "lead" && parts[1] === "notes") {
+        const leadId = parts[2];
+        leadInputStates.set(tgId, { step: "notes", orgId: "", data: { name: `__update:${leadId}` } });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "Enter <b>notes</b> about this lead:",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // lead:status:LEAD_ID:STATUS - update lead status
+      if (parts[0] === "lead" && parts[1] === "status") {
+        const leadId = parts[2];
+        const newStatus = parts[3];
+        const ok = await leadsPlugin.updateLeadFields(leadsCfg, leadId, { status: newStatus });
+        if (ok) {
+          await ctx.answerCallbackQuery({ text: `Status updated to ${newStatus}` });
+          // Refresh the lead view
+          const lead = await leadsPlugin.getLead(leadsCfg, leadId);
+          if (lead) {
+            const statusIcon = lead.status === "new" ? "\u{1F7E2}" : lead.status === "contacted" ? "\u{1F7E1}" : lead.status === "qualified" ? "\u{1F535}" : lead.status === "converted" ? "\u2705" : "\u{1F534}";
+            try {
+              await ctx.editMessageText(
+                `${statusIcon} <b>${escapeHtml(lead.name)}</b>\n\n`
+                + (lead.company ? `<b>Company:</b> ${escapeHtml(lead.company)}\n` : "")
+                + (lead.contact ? `<b>Contact:</b> ${escapeHtml(lead.contact)}\n` : "")
+                + (lead.notes ? `<b>Notes:</b> ${escapeHtml(lead.notes)}\n` : "")
+                + `<b>Status:</b> ${lead.status}\n`
+                + `<b>Priority:</b> ${lead.priority}\n`
+                + `<b>Added by:</b> ${escapeHtml(lead.submitted_by_name || "unknown")}\n`
+                + `<b>Added:</b> ${new Date(lead.created_at).toLocaleDateString()}`,
+                {
+                  parse_mode: "HTML",
+                  reply_markup: new InlineKeyboard()
+                    .text("New", `lead:status:${lead.id}:new`)
+                    .text("Contacted", `lead:status:${lead.id}:contacted`)
+                    .row()
+                    .text("Qualified", `lead:status:${lead.id}:qualified`)
+                    .text("Converted", `lead:status:${lead.id}:converted`)
+                    .row()
+                    .text("Back to Leads", `leads:list:${lead.org_id}`),
+                },
+              );
+            } catch { /* message may not be editable */ }
+          }
+        } else {
+          await ctx.answerCallbackQuery({ text: "Failed to update" });
+        }
+        return;
+      }
+
+      // lead:view:LEAD_ID - view lead details
+      if (parts[0] === "lead" && parts[1] === "view") {
+        const leadId = parts[2];
+        const lead = await leadsPlugin.getLead(leadsCfg, leadId);
+        if (!lead) {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+          return;
+        }
+        const statusIcon = lead.status === "new" ? "\u{1F7E2}" : lead.status === "contacted" ? "\u{1F7E1}" : lead.status === "qualified" ? "\u{1F535}" : lead.status === "converted" ? "\u2705" : "\u{1F534}";
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          `${statusIcon} <b>${escapeHtml(lead.name)}</b>\n\n`
+          + (lead.company ? `<b>Company:</b> ${escapeHtml(lead.company)}\n` : "")
+          + (lead.contact ? `<b>Contact:</b> ${escapeHtml(lead.contact)}\n` : "")
+          + (lead.notes ? `<b>Notes:</b> ${escapeHtml(lead.notes)}\n` : "")
+          + `<b>Status:</b> ${lead.status}\n`
+          + `<b>Priority:</b> ${lead.priority}\n`
+          + `<b>Added by:</b> ${escapeHtml(lead.submitted_by_name || "unknown")}\n`
+          + `<b>Added:</b> ${new Date(lead.created_at).toLocaleDateString()}`,
+          {
+            parse_mode: "HTML",
+            reply_markup: new InlineKeyboard()
+              .text("Add Contact", `lead:contact:${lead.id}`)
+              .text("Add Company", `lead:company:${lead.id}`)
+              .row()
+              .text("Add Notes", `lead:notes:${lead.id}`)
+              .row()
+              .text("New", `lead:status:${lead.id}:new`)
+              .text("Contacted", `lead:status:${lead.id}:contacted`)
+              .row()
+              .text("Qualified", `lead:status:${lead.id}:qualified`)
+              .text("Converted", `lead:status:${lead.id}:converted`)
+              .row()
+              .text("Back to Leads", `leads:list:${lead.org_id}`),
+          },
+        );
+        return;
+      }
+
+      // leads:add:ORG_ID - start adding a lead
+      if (parts[0] === "leads" && parts[1] === "add") {
+        const orgId = parts[2];
+        leadInputStates.set(tgId, { step: "name", orgId, data: {} });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "<b>Add a new lead</b>\n\nWhat's the lead's <b>name</b>?",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // leads:list:ORG_ID - list leads
+      if (parts[0] === "leads" && parts[1] === "list") {
+        const orgId = parts[2];
+        const leads = await leadsPlugin.getLeads(leadsCfg, orgId, { limit: 10 });
+        await ctx.answerCallbackQuery();
+
+        if (!leads.length) {
+          await ctx.reply(
+            `<b>No leads for ${escapeHtml(orgId)}</b>\n\nTap below to add your first!`,
+            {
+              parse_mode: "HTML",
+              reply_markup: new InlineKeyboard()
+                .text("\u2795 Add Lead", `leads:add:${orgId}`)
+                .text("\u2190 Back", `leads:home:${orgId}`),
+            },
+          );
+          return;
+        }
+
+        const lines = leads.map((l) => {
+          const statusIcon = l.status === "new" ? "\u{1F7E2}" : l.status === "contacted" ? "\u{1F7E1}" : l.status === "qualified" ? "\u{1F535}" : l.status === "converted" ? "\u2705" : "\u{1F534}";
+          const company = l.company ? ` @ ${escapeHtml(l.company)}` : "";
+          return `${statusIcon} <b>${escapeHtml(l.name)}</b>${company}`;
+        });
+
+        // Build inline keyboard with view buttons for each lead
+        const kb = new InlineKeyboard();
+        leads.forEach((l, i) => {
+          if (i > 0 && i % 2 === 0) kb.row();
+          kb.text(l.name.slice(0, 20), `lead:view:${l.id}`);
+        });
+        kb.row().text("\u2795 Add Lead", `leads:add:${orgId}`)
+          .text("\u2190 Back", `leads:home:${orgId}`);
+
+        await ctx.reply(
+          `<b>Leads for ${escapeHtml(orgId)}</b>\n\n` + lines.join("\n"),
+          { parse_mode: "HTML", reply_markup: kb },
+        );
+        return;
+      }
+
+      // leads:setup:new - start org creation via button (no slash command)
+      if (parts[0] === "leads" && parts[1] === "setup" && parts[2] === "new") {
+        leadInputStates.set(tgId, { step: "org_name", orgId: "", data: {} });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "<b>Create your organization</b>\n\n"
+          + "What should we call it? Enter a <b>name</b> (e.g. FlowBond, Acme Corp):",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // leads:home:ORG_ID - go back to leads home
+      if (parts[0] === "leads" && parts[1] === "home") {
+        await ctx.answerCallbackQuery();
+        await sendLeadsHome(ctx, core, tgId);
+        return;
+      }
+
+      // leads:filter:ORG_ID:STATUS - filter leads by status
+      if (parts[0] === "leads" && parts[1] === "filter") {
+        const orgId = parts[2];
+        const status = parts[3];
+        const leads = await leadsPlugin.getLeads(leadsCfg, orgId, { status, limit: 10 });
+        await ctx.answerCallbackQuery();
+
+        if (!leads.length) {
+          await ctx.reply(
+            `<b>No ${status} leads for ${escapeHtml(orgId)}</b>`,
+            { parse_mode: "HTML", reply_markup: new InlineKeyboard().text("View All", `leads:list:${orgId}`) },
+          );
+          return;
+        }
+
+        const lines = leads.map((l) => {
+          const company = l.company ? ` @ ${escapeHtml(l.company)}` : "";
+          return `<b>${escapeHtml(l.name)}</b>${company}`;
+        });
+
+        const kb = new InlineKeyboard();
+        leads.forEach((l, i) => {
+          if (i > 0 && i % 2 === 0) kb.row();
+          kb.text(l.name.slice(0, 20), `lead:view:${l.id}`);
+        });
+        kb.row().text("View All", `leads:list:${orgId}`);
+
+        await ctx.reply(
+          `<b>${status.charAt(0).toUpperCase() + status.slice(1)} leads for ${escapeHtml(orgId)}</b>\n\n` + lines.join("\n"),
+          { parse_mode: "HTML", reply_markup: kb },
+        );
         return;
       }
 
@@ -2913,6 +3346,52 @@ export function startTelegramBot(
       return;
     }
 
+    // Leads (persistent keyboard tap or natural text)
+    if (/^(leads|my leads|view leads|show leads)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await sendLeadsHome(ctx, core, tgId);
+      return;
+    }
+
+    // Add lead (natural text: "add lead John Doe")
+    const addLeadMatch = lower.match(/^(?:add lead|new lead)\s+(.+)/i);
+    if (addLeadMatch) {
+      await ensureVerified(tgId);
+      const leadsPlugin = core.getLeadsPlugin();
+      const leadsCfg = core.getLeadsConfig();
+      if (leadsPlugin && leadsCfg) {
+        const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
+        if (orgs.length) {
+          const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+          const lead = await leadsPlugin.createLead(leadsCfg, orgs[0].org_id, userId(tgId), displayName, { name: addLeadMatch[1], source: "telegram" });
+          if (lead) {
+            await ctx.reply(
+              `<b>Lead added!</b>\n\n<b>Name:</b> ${escapeHtml(lead.name)}\n<b>Status:</b> ${lead.status}`,
+              {
+                parse_mode: "HTML",
+                reply_markup: new InlineKeyboard()
+                  .text("Add Contact", `lead:contact:${lead.id}`)
+                  .text("Add Company", `lead:company:${lead.id}`)
+                  .row()
+                  .text("Add Notes", `lead:notes:${lead.id}`)
+                  .row()
+                  .text("\u2795 Add Another", `leads:add:${orgs[0].org_id}`)
+                  .text("\ud83d\udcdd Leads Home", `leads:home:${orgs[0].org_id}`),
+              },
+            );
+            fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_added"), "award points");
+          } else {
+            await ctx.reply("Failed to add lead. Try again.");
+          }
+        } else {
+          await ctx.reply("You're not part of any organization yet.", {
+            reply_markup: new InlineKeyboard().text("Create Org", "leads:setup:new"),
+          });
+        }
+      }
+      return;
+    }
+
     // Points / score
     if (/^(points|my points|score|my score|how many points|xp)$/i.test(lower)) {
       await ensureVerified(tgId);
@@ -3052,11 +3531,151 @@ export function startTelegramBot(
         `<b>Where's my crew</b> — locate crew members\n` +
         `<b>Share</b> — get your invite link\n` +
         `<b>Points</b> — see your score\n` +
-        `<b>Rewards</b> — view challenges\n\n` +
+        `<b>Rewards</b> — view challenges\n` +
+        `<b>Leads</b> — manage your org's leads\n` +
+        `<b>Add lead Jane Doe</b> — quick-add a lead\n\n` +
         `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
         { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
       return;
+    }
+
+    // ---- Lead input multi-step flow ----
+    const leadState = leadInputStates.get(tgId);
+    if (leadState && leadState.step !== "done") {
+      const leadsPlugin = core.getLeadsPlugin();
+      const leadsCfg = core.getLeadsConfig();
+
+      if (leadsPlugin && leadsCfg) {
+        // Handle org creation flow (from "Create Org" button)
+        if (leadState.step === "org_name") {
+          const orgName = text.trim();
+          const slug = orgName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+
+          const existing = await leadsPlugin.getOrg(leadsCfg, slug);
+          if (existing) {
+            await ctx.reply(`An org called <b>${escapeHtml(slug)}</b> already exists. Try a different name.`, { parse_mode: "HTML" });
+            return;
+          }
+
+          const org = await leadsPlugin.createOrg(leadsCfg, slug, orgName, userId(tgId), displayName);
+          leadInputStates.delete(tgId);
+
+          if (org) {
+            await ctx.reply(
+              `<b>Org created!</b>\n\n`
+              + `<b>${escapeHtml(org.name)}</b> (${escapeHtml(org.id)})\n\n`
+              + `You're the owner. Start adding leads:`,
+              {
+                parse_mode: "HTML",
+                reply_markup: new InlineKeyboard()
+                  .text("\u2795 Add Lead", `leads:add:${org.id}`)
+                  .text("\ud83d\udcdd Leads Home", `leads:home:${org.id}`),
+              },
+            );
+          } else {
+            await ctx.reply("Failed to create org. Try again.");
+          }
+          return;
+        }
+
+        // Handle update-existing-lead flows (from inline buttons)
+        if (leadState.data.name?.startsWith("__update:")) {
+          const leadId = leadState.data.name.replace("__update:", "");
+          const field = leadState.step; // "contact" | "company" | "notes"
+          const ok = await leadsPlugin.updateLeadFields(leadsCfg, leadId, { [field]: text });
+          leadInputStates.delete(tgId);
+          if (ok) {
+            const lead = await leadsPlugin.getLead(leadsCfg, leadId);
+            await ctx.reply(
+              `<b>${field.charAt(0).toUpperCase() + field.slice(1)} updated!</b>` +
+              (lead ? `\n\n<b>${escapeHtml(lead.name)}</b> — ${lead.status}` : ""),
+              {
+                parse_mode: "HTML",
+                reply_markup: lead ? new InlineKeyboard()
+                  .text("View Lead", `lead:view:${leadId}`)
+                  .text("View All Leads", `leads:list:${lead.org_id}`) : undefined,
+              },
+            );
+          } else {
+            await ctx.reply("Failed to update. Please try again.");
+          }
+          return;
+        }
+
+        // Multi-step new lead creation
+        switch (leadState.step) {
+          case "name":
+            leadState.data.name = text;
+            leadState.step = "contact";
+            await ctx.reply(
+              `Got it: <b>${escapeHtml(text)}</b>\n\n`
+              + "Now enter their <b>contact info</b> (email, phone, @handle), or type <b>skip</b>:",
+              { parse_mode: "HTML" },
+            );
+            return;
+
+          case "contact":
+            if (text.toLowerCase() !== "skip") leadState.data.contact = text;
+            leadState.step = "company";
+            await ctx.reply(
+              "Enter their <b>company name</b>, or type <b>skip</b>:",
+              { parse_mode: "HTML" },
+            );
+            return;
+
+          case "company":
+            if (text.toLowerCase() !== "skip") leadState.data.company = text;
+            leadState.step = "notes";
+            await ctx.reply(
+              "Any <b>notes</b> about this lead? (or type <b>skip</b>):",
+              { parse_mode: "HTML" },
+            );
+            return;
+
+          case "notes": {
+            if (text.toLowerCase() !== "skip") leadState.data.notes = text;
+            leadState.step = "done";
+            const displayName = ctx.from!.first_name || ctx.from!.username || "Unknown";
+            const lead = await leadsPlugin.createLead(
+              leadsCfg, leadState.orgId, userId(tgId), displayName,
+              {
+                name: leadState.data.name!,
+                contact: leadState.data.contact,
+                company: leadState.data.company,
+                notes: leadState.data.notes,
+                source: "telegram",
+              },
+            );
+            leadInputStates.delete(tgId);
+
+            if (lead) {
+              await ctx.reply(
+                `<b>Lead added!</b>\n\n`
+                + `<b>Name:</b> ${escapeHtml(lead.name)}\n`
+                + (lead.contact ? `<b>Contact:</b> ${escapeHtml(lead.contact)}\n` : "")
+                + (lead.company ? `<b>Company:</b> ${escapeHtml(lead.company)}\n` : "")
+                + (lead.notes ? `<b>Notes:</b> ${escapeHtml(lead.notes)}\n` : "")
+                + `<b>Status:</b> ${lead.status}`,
+                {
+                  parse_mode: "HTML",
+                  reply_markup: new InlineKeyboard()
+                    .text("View Lead", `lead:view:${lead.id}`)
+                    .text("Add Another", `leads:add:${leadState.orgId}`)
+                    .row()
+                    .text("View All Leads", `leads:list:${leadState.orgId}`),
+                },
+              );
+              fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_added"), "award points");
+            } else {
+              await ctx.reply("Failed to add lead. Please try again with /lead");
+            }
+            return;
+          }
+        }
+      }
+      leadInputStates.delete(tgId);
     }
 
     // ---- LLM Chat (everything else) ----
@@ -3199,6 +3818,7 @@ function buildCompactMenuKeyboard(miniAppUrl?: string): InlineKeyboard {
     .text("\ud83d\udc65 Crew", "fl:crew")
     .text("\ud83d\udcf2 Share", "fl:share")
     .row()
+    .text("\ud83d\udcdd Leads", "mn:leads")
     .text("\ud83d\udfe3 Farcaster", "mn:farcaster");
   if (miniAppUrl) {
     kb.row().webApp("\u26a1 Open FlowB App", miniAppUrl);
@@ -3483,6 +4103,71 @@ async function saveEventToDiscovered(event: EventResult): Promise<void> {
   }
 }
 
+/** Show the leads home card — overview + action buttons */
+async function sendLeadsHome(ctx: any, core: FlowBCore, tgId: number): Promise<void> {
+  const leadsPlugin = core.getLeadsPlugin();
+  const leadsCfg = core.getLeadsConfig();
+  if (!leadsPlugin || !leadsCfg) {
+    await ctx.reply("Leads feature not configured yet.");
+    return;
+  }
+
+  const orgs = await leadsPlugin.getUserOrgs(leadsCfg, userId(tgId));
+
+  // No org yet — offer to create one
+  if (!orgs.length) {
+    await ctx.reply(
+      `<b>\ud83d\udcdd Leads</b>\n\n`
+      + `Track and manage your sales leads right from Telegram.\n\n`
+      + `You're not part of an org yet. Create one to get started:`,
+      {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard()
+          .text("Create Org", "leads:setup:new")
+          .row()
+          .text("\u2190 Menu", "mn:menu"),
+      },
+    );
+    return;
+  }
+
+  const orgId = orgs[0].org_id;
+  const stats = await leadsPlugin.getLeadStats(leadsCfg, orgId);
+  const recent = await leadsPlugin.getLeads(leadsCfg, orgId, { limit: 3 });
+
+  const recentLines = recent.length
+    ? recent.map((l) => {
+        const icon = l.status === "new" ? "\ud83d\udfe2" : l.status === "contacted" ? "\ud83d\udfe1" : l.status === "qualified" ? "\ud83d\udd35" : l.status === "converted" ? "\u2705" : "\ud83d\udd34";
+        const company = l.company ? ` @ ${escapeHtml(l.company)}` : "";
+        return `${icon} ${escapeHtml(l.name)}${company}`;
+      }).join("\n")
+    : "<i>No leads yet — tap Add Lead to start!</i>";
+
+  await ctx.reply(
+    `<b>\ud83d\udcdd Leads</b>  <i>${escapeHtml(orgId)}</i>\n\n`
+    + `<b>Total:</b> ${stats.total || 0}  |  `
+    + `<b>New:</b> ${stats.new || 0}  |  `
+    + `<b>Contacted:</b> ${stats.contacted || 0}  |  `
+    + `<b>Qualified:</b> ${stats.qualified || 0}  |  `
+    + `<b>Converted:</b> ${stats.converted || 0}\n\n`
+    + `<b>Recent:</b>\n${recentLines}`,
+    {
+      parse_mode: "HTML",
+      reply_markup: new InlineKeyboard()
+        .text("\u2795 Add Lead", `leads:add:${orgId}`)
+        .text("\ud83d\udccb View All", `leads:list:${orgId}`)
+        .row()
+        .text("\ud83d\udfe2 New", `leads:filter:${orgId}:new`)
+        .text("\ud83d\udfe1 Contacted", `leads:filter:${orgId}:contacted`)
+        .row()
+        .text("\ud83d\udd35 Qualified", `leads:filter:${orgId}:qualified`)
+        .text("\u2705 Converted", `leads:filter:${orgId}:converted`)
+        .row()
+        .text("\u2190 Menu", "mn:menu"),
+    },
+  );
+}
+
 async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<void> {
   const tgId = ctx.from!.id;
 
@@ -3568,6 +4253,11 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
         parse_mode: "HTML",
         reply_markup: buildFlowMenuKeyboard(MOD_BOT_USERNAME),
       });
+      break;
+
+    case "leads":
+      await ctx.answerCallbackQuery();
+      await sendLeadsHome(ctx, core, tgId);
       break;
 
     case "farcaster":

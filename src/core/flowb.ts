@@ -17,6 +17,7 @@ import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { AgentKitPlugin } from "../plugins/agentkit/index.js";
 import { SocialPlugin } from "../plugins/social/index.js";
+import { LeadsPlugin } from "../plugins/leads/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -87,6 +88,12 @@ export class FlowBCore {
       social.configure(this.config.plugins.social);
     }
     this.registerPlugin(social);
+
+    const leads = new LeadsPlugin();
+    if (this.config.plugins?.leads) {
+      leads.configure(this.config.plugins.leads);
+    }
+    this.registerPlugin(leads);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -346,6 +353,18 @@ export class FlowBCore {
   /** Get the Social plugin config. */
   getSocialConfig(): import("../plugins/social/types.js").SocialPluginConfig | null {
     return this.config.plugins?.social || null;
+  }
+
+  /** Get the Leads plugin for direct access. */
+  getLeadsPlugin(): LeadsPlugin | null {
+    const leads = this.plugins.get("leads") as LeadsPlugin | undefined;
+    if (!leads?.isConfigured()) return null;
+    return leads;
+  }
+
+  /** Get the Leads plugin config. */
+  getLeadsConfig(): import("../plugins/leads/types.js").LeadsPluginConfig | null {
+    return this.config.plugins?.leads || null;
   }
 
   /** Get the list of all action names (for schema generation) */

@@ -37,6 +37,10 @@ export function loadConfig(): FlowBConfig {
         postizMasterApiKey: process.env.POSTIZ_MASTER_API_KEY!,
         encryptionKey: process.env.SOCIAL_ENCRYPTION_KEY!,
       } : undefined,
+      leads: process.env.DANZ_SUPABASE_URL ? {
+        supabaseUrl: process.env.DANZ_SUPABASE_URL,
+        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      } : undefined,
     },
   };
 }
