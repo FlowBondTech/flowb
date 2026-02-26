@@ -5789,6 +5789,369 @@ Claim yours in the app now. Only 8 slots available.`;
     },
   );
 
+
+  // ------------------------------------------------------------------
+  // SOCIAL AWARENESS: What's happening (contextual dashboard)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/flow/whats-happening",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { friends_nearby: 0, crew_nearby: 0, friend_events: [], crew_checkins: [] };
+
+      // 1. Get user's current city
+      const meRows = await sbFetch<any[]>(cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=current_city&limit=1`);
+      const myCity = meRows?.[0]?.current_city || null;
+
+      // 2. Get friend IDs
+      const connections = await sbFetch<any[]>(cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+      const friendIds = (connections || []).map((c: any) => c.friend_id);
+
+      // 3. Get crew member IDs (via group_members)
+      const myMemberships = await sbFetch<any[]>(cfg,
+        `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+      const crewIds = (myMemberships || []).map((m: any) => m.group_id);
+
+      let crewMemberIds: string[] = [];
+      if (crewIds.length) {
+        const crewMembers = await sbFetch<any[]>(cfg,
+          `flowb_group_members?group_id=in.(${crewIds.join(",")})&user_id=neq.${jwt.sub}&select=user_id`);
+        crewMemberIds = [...new Set((crewMembers || []).map((m: any) => m.user_id))];
+      }
+
+      // 4. Count friends in my current city
+      let friendsNearby = 0;
+      if (myCity && friendIds.length) {
+        const inClause = friendIds.map((id: string) => `"${id}"`).join(",");
+        const nearbyRows = await sbFetch<any[]>(cfg,
+          `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${encodeURIComponent(myCity)}&location_visibility=neq.hidden&select=user_id`);
+        friendsNearby = nearbyRows?.length || 0;
+      }
+
+      // 5. Count crew members in my current city
+      let crewNearby = 0;
+      if (myCity && crewMemberIds.length) {
+        const inClause = crewMemberIds.map((id: string) => `"${id}"`).join(",");
+        const nearbyCrewRows = await sbFetch<any[]>(cfg,
+          `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${encodeURIComponent(myCity)}&location_visibility=neq.hidden&select=user_id`);
+        crewNearby = nearbyCrewRows?.length || 0;
+      }
+
+      // 6. Upcoming events friends are RSVPed to (next 48h)
+      const soon = new Date(Date.now() + 48 * 3600_000).toISOString();
+      const now = new Date().toISOString();
+      let friendEvents: any[] = [];
+      if (friendIds.length) {
+        const inClause = friendIds.map((id: string) => `"${id}"`).join(",");
+        const attendance = await sbFetch<any[]>(cfg,
+          `flowb_event_attendance?user_id=in.(${inClause})&status=eq.going&select=user_id,event_id`);
+
+        if (attendance?.length) {
+          // Get unique event IDs and look them up
+          const eventIds = [...new Set(attendance.map((a: any) => a.event_id))];
+          const eventIdClause = eventIds.map((id: string) => `"${id}"`).join(",");
+          const events = await sbFetch<any[]>(cfg,
+            `flowb_events?id=in.(${eventIdClause})&starts_at=gte.${now}&starts_at=lte.${soon}&select=id,title,starts_at,venue_name&order=starts_at.asc&limit=10`);
+
+          // Resolve display names
+          const nameRows = friendIds.length
+            ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username`)
+            : [];
+          const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+
+          // Match friends to events
+          const attendanceByEvent = new Map<string, string[]>();
+          for (const a of attendance) {
+            const list = attendanceByEvent.get(a.event_id) || [];
+            const name = nameMap.get(a.user_id) || "Someone";
+            if (!list.includes(name)) list.push(name);
+            attendanceByEvent.set(a.event_id, list);
+          }
+
+          friendEvents = (events || []).map((e: any) => ({
+            event_id: e.id,
+            title: e.title,
+            starts_at: e.starts_at,
+            venue: e.venue_name,
+            friends_going: attendanceByEvent.get(e.id) || [],
+          }));
+        }
+      }
+
+      // 7. Recent crew check-ins (last 24h)
+      const cutoff24h = new Date(Date.now() - 24 * 3600_000).toISOString();
+      let crewCheckins: any[] = [];
+      if (crewIds.length) {
+        const checkins = await sbFetch<any[]>(cfg,
+          `flowb_checkins?crew_id=in.(${crewIds.join(",")})&created_at=gte.${cutoff24h}&user_id=neq.${jwt.sub}&order=created_at.desc&select=user_id,venue_name,status,message,created_at,crew_id&limit=20`);
+
+        if (checkins?.length) {
+          // Resolve names
+          const checkinUserIds = [...new Set(checkins.map((c: any) => c.user_id))];
+          const checkinNameRows = await sbFetch<any[]>(cfg,
+            `flowb_sessions?user_id=in.(${checkinUserIds.map((id: string) => `"${id}"`).join(",")})&select=user_id,danz_username`);
+          const checkinNameMap = new Map((checkinNameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+
+          // Resolve crew names
+          const crewRows = await sbFetch<any[]>(cfg,
+            `flowb_groups?id=in.(${crewIds.join(",")})&select=id,name,emoji`);
+          const crewNameMap = new Map((crewRows || []).map((c: any) => [c.id, { name: c.name, emoji: c.emoji || "" }]));
+
+          crewCheckins = checkins.map((c: any) => ({
+            user: checkinNameMap.get(c.user_id) || "Someone",
+            venue: c.venue_name,
+            status: c.status,
+            message: c.message,
+            crew: crewNameMap.get(c.crew_id) || { name: "Unknown", emoji: "" },
+            when: c.created_at,
+          }));
+        }
+      }
+
+      return {
+        city: myCity,
+        friends_nearby: friendsNearby,
+        crew_nearby: crewNearby,
+        friend_events: friendEvents,
+        crew_checkins: crewCheckins,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // SOCIAL AWARENESS: After party — where is everyone heading next?
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/flow/after-party",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { destinations: [], upcoming_events: [] };
+
+      // 1. Get friend + crew member IDs
+      const connections = await sbFetch<any[]>(cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+      const friendIds = (connections || []).map((c: any) => c.friend_id);
+
+      const myMemberships = await sbFetch<any[]>(cfg,
+        `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+      const crewIds = (myMemberships || []).map((m: any) => m.group_id);
+
+      let crewMemberIds: string[] = [];
+      if (crewIds.length) {
+        const crewMembers = await sbFetch<any[]>(cfg,
+          `flowb_group_members?group_id=in.(${crewIds.join(",")})&user_id=neq.${jwt.sub}&select=user_id`);
+        crewMemberIds = (crewMembers || []).map((m: any) => m.user_id);
+      }
+
+      const allPeopleIds = [...new Set([...friendIds, ...crewMemberIds])];
+      if (!allPeopleIds.length) return { destinations: [], upcoming_events: [] };
+
+      const inClause = allPeopleIds.map((id: string) => `"${id}"`).join(",");
+
+      // 2. Look at destination_city values
+      const sessions = await sbFetch<any[]>(cfg,
+        `flowb_sessions?user_id=in.(${inClause})&destination_city=not.is.null&location_visibility=neq.hidden&select=user_id,danz_username,destination_city`);
+
+      // Group by destination city
+      const destMap = new Map<string, string[]>();
+      for (const s of sessions || []) {
+        if (!s.destination_city) continue;
+        const list = destMap.get(s.destination_city) || [];
+        list.push(s.danz_username || "Someone");
+        destMap.set(s.destination_city, list);
+      }
+
+      const destinations = [...destMap.entries()]
+        .map(([city, people]) => ({ city, people, count: people.length }))
+        .sort((a, b) => b.count - a.count);
+
+      // 3. Events happening later today or tomorrow that friends/crew are going to
+      const todayEnd = new Date();
+      todayEnd.setHours(23, 59, 59, 999);
+      const tomorrowEnd = new Date(todayEnd.getTime() + 24 * 3600_000);
+      const now = new Date().toISOString();
+
+      const attendance = await sbFetch<any[]>(cfg,
+        `flowb_event_attendance?user_id=in.(${inClause})&status=eq.going&select=user_id,event_id`);
+
+      let upcomingEvents: any[] = [];
+      if (attendance?.length) {
+        const eventIds = [...new Set(attendance.map((a: any) => a.event_id))];
+        const eventIdClause = eventIds.map((id: string) => `"${id}"`).join(",");
+        const events = await sbFetch<any[]>(cfg,
+          `flowb_events?id=in.(${eventIdClause})&starts_at=gte.${now}&starts_at=lte.${tomorrowEnd.toISOString()}&select=id,title,starts_at,venue_name&order=starts_at.asc&limit=15`);
+
+        // Resolve names
+        const nameRows = await sbFetch<any[]>(cfg,
+          `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username`);
+        const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+
+        const attendanceByEvent = new Map<string, string[]>();
+        for (const a of attendance) {
+          const list = attendanceByEvent.get(a.event_id) || [];
+          const name = nameMap.get(a.user_id) || "Someone";
+          if (!list.includes(name)) list.push(name);
+          attendanceByEvent.set(a.event_id, list);
+        }
+
+        upcomingEvents = (events || [])
+          .filter((e: any) => (attendanceByEvent.get(e.id)?.length || 0) > 0)
+          .map((e: any) => ({
+            event_id: e.id,
+            title: e.title,
+            starts_at: e.starts_at,
+            venue: e.venue_name,
+            people_going: attendanceByEvent.get(e.id) || [],
+          }));
+      }
+
+      return {
+        destinations,
+        upcoming_events: upcomingEvents,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // SOCIAL AWARENESS: Who's here — at an event or in a city
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { event_id?: string; city?: string } }>(
+    "/api/v1/flow/whos-here",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { crew: [], friends: [], others: [] };
+
+      const q = request.query as any;
+      const eventId = q.event_id;
+      let city = q.city;
+
+      // Get friend IDs
+      const connections = await sbFetch<any[]>(cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+      const friendIdSet = new Set((connections || []).map((c: any) => c.friend_id));
+
+      // Get crew member IDs
+      const myMemberships = await sbFetch<any[]>(cfg,
+        `flowb_group_members?user_id=eq.${jwt.sub}&select=group_id`);
+      const crewIds = (myMemberships || []).map((m: any) => m.group_id);
+
+      const crewMemberIdSet = new Set<string>();
+      if (crewIds.length) {
+        const crewMembers = await sbFetch<any[]>(cfg,
+          `flowb_group_members?group_id=in.(${crewIds.join(",")})&user_id=neq.${jwt.sub}&select=user_id`);
+        for (const m of crewMembers || []) crewMemberIdSet.add(m.user_id);
+      }
+
+      // --- Event mode: who RSVPed or checked in ---
+      if (eventId) {
+        const goingRows = await sbFetch<any[]>(cfg,
+          `flowb_event_attendance?event_id=eq.${encodeURIComponent(eventId)}&status=in.(going,maybe)&select=user_id,status`);
+
+        // Also check for recent check-ins at this event's venue
+        let eventVenue: string | null = null;
+        const eventRows = await sbFetch<any[]>(cfg,
+          `flowb_events?id=eq.${encodeURIComponent(eventId)}&select=title,venue_name&limit=1`);
+        eventVenue = eventRows?.[0]?.venue_name || null;
+
+        const cutoff2h = new Date(Date.now() - 2 * 3600_000).toISOString();
+        let venueCheckins: any[] = [];
+        if (eventVenue) {
+          venueCheckins = await sbFetch<any[]>(cfg,
+            `flowb_checkins?venue_name=eq.${encodeURIComponent(eventVenue)}&created_at=gte.${cutoff2h}&select=user_id`) || [];
+        }
+
+        // Merge attendees and check-in users
+        const allUserIds = new Set<string>();
+        const statusMap = new Map<string, string>();
+        for (const r of goingRows || []) {
+          allUserIds.add(r.user_id);
+          statusMap.set(r.user_id, r.status);
+        }
+        for (const c of venueCheckins) {
+          allUserIds.add(c.user_id);
+          if (!statusMap.has(c.user_id)) statusMap.set(c.user_id, "checked-in");
+        }
+        allUserIds.delete(jwt.sub);
+
+        // Resolve names
+        const userIdArr = [...allUserIds];
+        let nameMap = new Map<string, string>();
+        if (userIdArr.length) {
+          const nameRows = await sbFetch<any[]>(cfg,
+            `flowb_sessions?user_id=in.(${userIdArr.map((id) => `"${id}"`).join(",")})&select=user_id,danz_username`);
+          nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+        }
+
+        // Group by relationship
+        const crew: any[] = [];
+        const friends: any[] = [];
+        const others: any[] = [];
+        for (const uid of userIdArr) {
+          const person = {
+            user_id: uid,
+            display_name: nameMap.get(uid) || "Someone",
+            status: statusMap.get(uid) || "going",
+          };
+          if (crewMemberIdSet.has(uid)) crew.push(person);
+          else if (friendIdSet.has(uid)) friends.push(person);
+          else others.push(person);
+        }
+
+        return {
+          mode: "event",
+          event_id: eventId,
+          event_title: eventRows?.[0]?.title || null,
+          venue: eventVenue,
+          crew,
+          friends,
+          others,
+        };
+      }
+
+      // --- City mode: who's in this city ---
+      if (!city) {
+        // Auto-detect from session
+        const meRows = await sbFetch<any[]>(cfg,
+          `flowb_sessions?user_id=eq.${jwt.sub}&select=current_city&limit=1`);
+        city = meRows?.[0]?.current_city;
+      }
+      if (!city) return { mode: "city", city: null, crew: [], friends: [], others: [] };
+
+      const cityEncoded = encodeURIComponent(city);
+      const allPeopleIds = [...new Set([...friendIdSet, ...crewMemberIdSet])];
+      if (!allPeopleIds.length) return { mode: "city", city, crew: [], friends: [], others: [] };
+
+      const inClause = allPeopleIds.map((id: string) => `"${id}"`).join(",");
+      const cityPeople = await sbFetch<any[]>(cfg,
+        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${cityEncoded}&location_visibility=neq.hidden&select=user_id,danz_username`);
+
+      const crew: any[] = [];
+      const friends: any[] = [];
+      for (const p of cityPeople || []) {
+        if (p.user_id === jwt.sub) continue;
+        const person = { user_id: p.user_id, display_name: p.danz_username || "Someone" };
+        if (crewMemberIdSet.has(p.user_id)) crew.push(person);
+        else if (friendIdSet.has(p.user_id)) friends.push(person);
+      }
+
+      return {
+        mode: "city",
+        city,
+        crew,
+        friends,
+        others: [], // City mode doesn't show non-friends for privacy
+      };
+    },
+  );
+
 } // end registerMiniAppRoutes
 
 // ============================================================================

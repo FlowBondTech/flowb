@@ -82,6 +82,7 @@ import {
 } from "./cards.js";
 import { sbQuery } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
+import { signJwt } from "../server/auth.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -1397,6 +1398,74 @@ export function startTelegramBot(
       reply_markup: buildGroupRegisterKeyboard(danzConnectUrl, botUsername),
     });
   });
+
+  // ========================================================================
+  // Social awareness commands
+  // ========================================================================
+
+  bot.command("whatsup", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/whats-happening`, {
+        headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+      });
+      if (!res.ok) {
+        await ctx.reply("Could not load social feed right now. Try again later!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        return;
+      }
+      const data = await res.json() as any;
+      await ctx.reply(formatWhatsHappeningHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    } catch (err: any) {
+      console.error("[flowb-telegram] /whatsup error:", err.message);
+      await ctx.reply("Something went wrong fetching updates. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    }
+  });
+
+  bot.command("afterparty", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/after-party`, {
+        headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+      });
+      if (!res.ok) {
+        await ctx.reply("Could not load after-party info right now. Try again later!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        return;
+      }
+      const data = await res.json() as any;
+      await ctx.reply(formatAfterPartyHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    } catch (err: any) {
+      console.error("[flowb-telegram] /afterparty error:", err.message);
+      await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    }
+  });
+
+  bot.command("whoshere", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+
+    try {
+      const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/whos-here`, {
+        headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+      });
+      if (!res.ok) {
+        await ctx.reply("Could not check who's here. Try again later!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        return;
+      }
+      const data = await res.json() as any;
+      await ctx.reply(formatWhosHereHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    } catch (err: any) {
+      console.error("[flowb-telegram] /whoshere error:", err.message);
+      await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+    }
+  });
+
 
   // ========================================================================
   // New member welcome (auto-detect group joins)
@@ -3071,12 +3140,76 @@ export function startTelegramBot(
         `<b>Where's my crew</b> — locate crew members\n` +
         `<b>Share</b> — get your invite link\n` +
         `<b>Points</b> — see your score\n` +
-        `<b>Rewards</b> — view challenges\n\n` +
+        `<b>Rewards</b> — view challenges\n` +
+        `<b>What's up</b> — social feed from your crew\n` +
+        `<b>After party</b> — where is everyone heading\n` +
+        `<b>Who's here</b> — who's at this event or city\n\n` +
         `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
         { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
       return;
     }
+
+    // What's happening / what's up
+    if (/^(what.?s happening|what.?s up|whats going on|what.?s? new|what.?s? the vibe)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      try {
+        const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/whats-happening`, {
+          headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+        });
+        if (res.ok) {
+          const data = await res.json() as any;
+          await ctx.reply(formatWhatsHappeningHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        } else {
+          await ctx.reply("Could not load updates right now. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        }
+      } catch {
+        await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+      }
+      return;
+    }
+
+    // After party / where's everyone going
+    if (/^(after ?party|where.?s everyone going|what.?s next|where did everyone go|where.?s? the party|next moves?)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      try {
+        const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/after-party`, {
+          headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+        });
+        if (res.ok) {
+          const data = await res.json() as any;
+          await ctx.reply(formatAfterPartyHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        } else {
+          await ctx.reply("Could not load after-party info. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        }
+      } catch {
+        await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+      }
+      return;
+    }
+
+    // Who's here / anyone here / anyone around
+    if (/^(who.?s here|who is here|anyone here|anyone around|who.?s? nearby|who.?s? around)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      try {
+        const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/flow/whos-here`, {
+          headers: { Authorization: `Bearer ${signJwtForBot(tgId)}` },
+        });
+        if (res.ok) {
+          const data = await res.json() as any;
+          await ctx.reply(formatWhosHereHtml(data), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        } else {
+          await ctx.reply("Could not check who's around. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        }
+      } catch {
+        await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+      }
+      return;
+    }
+
 
     // ---- Awaiting crew name (conversational crew creation) ----
     {
@@ -3181,6 +3314,189 @@ export function startTelegramBot(
 // ==========================================================================
 
 /** Call FlowB chat completions API (same backend as Farcaster miniapp) */
+
+// ============================================================================
+// Social awareness helpers
+// ============================================================================
+
+/** Sign a JWT for bot-originated API calls (same-process, same secret) */
+function signJwtForBot(tgId: number): string {
+  return signJwt({
+    sub: `telegram_${tgId}`,
+    platform: "telegram",
+    tg_id: tgId,
+  });
+}
+
+/** Format the "what's happening" response for Telegram HTML */
+function formatWhatsHappeningHtml(data: any): string {
+  const lines: string[] = [];
+  lines.push("<b>What's Happening</b>");
+  lines.push("");
+
+  if (data.city) {
+    const friendCount = data.friends_nearby || 0;
+    const crewCount = data.crew_nearby || 0;
+    if (friendCount > 0 || crewCount > 0) {
+      lines.push(`In <b>${escapeHtml(data.city)}</b>:`);
+      if (friendCount > 0) lines.push(`  ${friendCount} friend${friendCount === 1 ? "" : "s"} nearby`);
+      if (crewCount > 0) lines.push(`  ${crewCount} crew member${crewCount === 1 ? "" : "s"} nearby`);
+      lines.push("");
+    } else {
+      lines.push(`You're in <b>${escapeHtml(data.city)}</b> — no friends or crew spotted yet.`);
+      lines.push("");
+    }
+  }
+
+  if (data.friend_events?.length) {
+    lines.push("<b>Friends' upcoming events:</b>");
+    for (const e of data.friend_events.slice(0, 5)) {
+      const time = formatShortTime(e.starts_at);
+      const who = (e.friends_going || []).slice(0, 3).join(", ");
+      const extra = (e.friends_going?.length || 0) > 3 ? ` +${e.friends_going.length - 3} more` : "";
+      lines.push(`  ${escapeHtml(e.title)}`);
+      lines.push(`  ${time}${e.venue ? " @ " + escapeHtml(e.venue) : ""}`);
+      lines.push(`  ${escapeHtml(who)}${extra}`);
+      lines.push("");
+    }
+  }
+
+  if (data.crew_checkins?.length) {
+    lines.push("<b>Recent crew activity:</b>");
+    for (const c of data.crew_checkins.slice(0, 5)) {
+      const crewLabel = c.crew?.emoji ? `${c.crew.emoji} ${c.crew.name}` : c.crew?.name || "";
+      lines.push(`  ${escapeHtml(c.user)} checked in at <b>${escapeHtml(c.venue || "somewhere")}</b>`);
+      if (crewLabel) lines.push(`  ${escapeHtml(crewLabel)} — ${formatShortTime(c.when)}`);
+      lines.push("");
+    }
+  }
+
+  if (!data.friend_events?.length && !data.crew_checkins?.length && !data.friends_nearby && !data.crew_nearby) {
+    lines.push("Nothing to report yet. Connect with friends and join a crew to see the vibe!");
+  }
+
+  return lines.join("\n");
+}
+
+/** Format the "after party" response for Telegram HTML */
+function formatAfterPartyHtml(data: any): string {
+  const lines: string[] = [];
+  lines.push("<b>Where's everyone heading?</b>");
+  lines.push("");
+
+  if (data.destinations?.length) {
+    lines.push("<b>Destinations:</b>");
+    for (const d of data.destinations.slice(0, 5)) {
+      const who = d.people.slice(0, 3).join(", ");
+      const extra = d.people.length > 3 ? ` +${d.people.length - 3} more` : "";
+      lines.push(`  <b>${escapeHtml(d.city)}</b> — ${d.count} ${d.count === 1 ? "person" : "people"}`);
+      lines.push(`  ${escapeHtml(who)}${extra}`);
+      lines.push("");
+    }
+  }
+
+  if (data.upcoming_events?.length) {
+    lines.push("<b>Next up:</b>");
+    for (const e of data.upcoming_events.slice(0, 5)) {
+      const time = formatShortTime(e.starts_at);
+      const who = (e.people_going || []).slice(0, 3).join(", ");
+      const extra = (e.people_going?.length || 0) > 3 ? ` +${e.people_going.length - 3} more` : "";
+      lines.push(`  ${escapeHtml(e.title)}`);
+      lines.push(`  ${time}${e.venue ? " @ " + escapeHtml(e.venue) : ""}`);
+      lines.push(`  ${escapeHtml(who)}${extra}`);
+      lines.push("");
+    }
+  }
+
+  if (!data.destinations?.length && !data.upcoming_events?.length) {
+    lines.push("No movement yet. Check back later to see where the crew is heading!");
+  }
+
+  return lines.join("\n");
+}
+
+/** Format the "who's here" response for Telegram HTML */
+function formatWhosHereHtml(data: any): string {
+  const lines: string[] = [];
+
+  if (data.mode === "event") {
+    lines.push(`<b>Who's at ${escapeHtml(data.event_title || "this event")}?</b>`);
+    if (data.venue) lines.push(`@ ${escapeHtml(data.venue)}`);
+  } else {
+    lines.push(`<b>Who's in ${escapeHtml(data.city || "your city")}?</b>`);
+  }
+  lines.push("");
+
+  const crewList = data.crew || [];
+  const friendList = data.friends || [];
+  const otherList = data.others || [];
+
+  if (crewList.length) {
+    lines.push(`<b>Crew</b> (${crewList.length}):`);
+    for (const p of crewList.slice(0, 10)) {
+      const status = p.status && p.status !== "going" ? ` (${p.status})` : "";
+      lines.push(`  ${escapeHtml(p.display_name)}${status}`);
+    }
+    if (crewList.length > 10) lines.push(`  +${crewList.length - 10} more`);
+    lines.push("");
+  }
+
+  if (friendList.length) {
+    lines.push(`<b>Friends</b> (${friendList.length}):`);
+    for (const p of friendList.slice(0, 10)) {
+      const status = p.status && p.status !== "going" ? ` (${p.status})` : "";
+      lines.push(`  ${escapeHtml(p.display_name)}${status}`);
+    }
+    if (friendList.length > 10) lines.push(`  +${friendList.length - 10} more`);
+    lines.push("");
+  }
+
+  if (otherList.length) {
+    lines.push(`<b>Others</b> (${otherList.length}):`);
+    for (const p of otherList.slice(0, 8)) {
+      const status = p.status && p.status !== "going" ? ` (${p.status})` : "";
+      lines.push(`  ${escapeHtml(p.display_name)}${status}`);
+    }
+    if (otherList.length > 8) lines.push(`  +${otherList.length - 8} more`);
+    lines.push("");
+  }
+
+  if (!crewList.length && !friendList.length && !otherList.length) {
+    if (data.mode === "event") {
+      lines.push("No friends or crew spotted at this event yet.");
+    } else if (!data.city) {
+      lines.push("Set your current city in settings to see who's around!");
+    } else {
+      lines.push("No friends or crew in this city right now.");
+    }
+  }
+
+  return lines.join("\n");
+}
+
+/** Format a short time string from ISO (e.g. "Today 7pm", "Tomorrow 2pm") */
+function formatShortTime(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const tomorrow = new Date(today.getTime() + 86400_000);
+  const eventDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+  let dayLabel: string;
+  if (eventDay.getTime() === today.getTime()) dayLabel = "Today";
+  else if (eventDay.getTime() === tomorrow.getTime()) dayLabel = "Tomorrow";
+  else dayLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  const hours = d.getHours();
+  const mins = d.getMinutes();
+  const ampm = hours >= 12 ? "pm" : "am";
+  const h12 = hours % 12 || 12;
+  const timeStr = mins > 0 ? `${h12}:${String(mins).padStart(2, "0")}${ampm}` : `${h12}${ampm}`;
+
+  return `${dayLabel} ${timeStr}`;
+}
+
 async function sendFlowBChat(
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
   userMessage: string,
