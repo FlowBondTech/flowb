@@ -36,6 +36,7 @@ import {
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
 import { sbFetch, sbPost, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
+import { alertAdmins } from "../services/admin-alerts.js";
 
 
 // ============================================================================
@@ -91,9 +92,20 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Look up locale from session or fallback to Telegram language_code
       let locale = user.language_code || 'en';
+      let isNewTgUser = true;
       if (cfg) {
-        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale,created_at&limit=1`);
         if (sessions?.[0]?.locale) locale = sessions[0].locale;
+        // If session was created more than 60s ago, it's a returning user
+        if (sessions?.[0]?.created_at) {
+          const created = new Date(sessions[0].created_at).getTime();
+          if (Date.now() - created > 60_000) isNewTgUser = false;
+        }
+      }
+
+      if (isNewTgUser) {
+        const who = user.username ? `@${user.username}` : user.first_name || `User ${user.id}`;
+        alertAdmins(`New user: <b>${who}</b> on telegram`, "info");
       }
 
       const token = signJwt({
@@ -208,6 +220,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           if (fcCfg) {
             const sessions = await sbFetch<any[]>(fcCfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
             if (sessions?.[0]?.locale) locale = sessions[0].locale;
+          }
+
+          // Alert admins for new Farcaster users
+          {
+            const fcCfgAlert = getSupabaseConfig();
+            let isNewFcUser = true;
+            if (fcCfgAlert) {
+              const existing = await sbFetch<any[]>(fcCfgAlert, `flowb_sessions?user_id=eq.${userId}&select=created_at&limit=1`);
+              if (existing?.[0]?.created_at) {
+                const created = new Date(existing[0].created_at).getTime();
+                if (Date.now() - created > 60_000) isNewFcUser = false;
+              }
+            }
+            if (isNewFcUser) {
+              const who = username ? `@${username}` : displayName || `FID ${fid}`;
+              alertAdmins(`New user: <b>${who}</b> on farcaster`, "info");
+            }
           }
 
           const token = signJwt({
@@ -377,6 +406,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         } catch {}
       }
 
+      // Alert admins for new web users
+      {
+        const webCfg = getSupabaseConfig();
+        let isNewWebUser = true;
+        if (webCfg) {
+          const existing = await sbFetch<any[]>(webCfg, `flowb_sessions?user_id=eq.${userId}&select=created_at&limit=1`);
+          if (existing?.[0]?.created_at) {
+            const created = new Date(existing[0].created_at).getTime();
+            if (Date.now() - created > 60_000) isNewWebUser = false;
+          }
+        }
+        if (isNewWebUser) {
+          const who = displayName || privyUserId;
+          alertAdmins(`New user: <b>${who}</b> on web`, "info");
+        }
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "web" as any,
@@ -389,6 +435,81 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           id: userId,
           platform: "web",
           username: displayName,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: WhatsApp Mini App (HMAC-based phone verification)
+  // Bot sends CTA URL: wa.flowb.me?phone={phone}&ts={timestamp}&sig={hmac}
+  // ------------------------------------------------------------------
+  app.post<{ Body: { phone: string; ts: string; sig: string } }>(
+    "/api/v1/auth/whatsapp",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["phone", "ts", "sig"],
+          properties: {
+            phone: { type: "string" },
+            ts: { type: "string" },
+            sig: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { phone, ts, sig } = request.body;
+
+      // Verify HMAC signature
+      const secret = process.env.WHATSAPP_APP_SECRET || process.env.FLOWB_JWT_SECRET || "";
+      if (!secret) {
+        return reply.status(500).send({ error: "WhatsApp auth not configured" });
+      }
+
+      const crypto = await import("node:crypto");
+      const expectedSig = crypto.createHmac("sha256", secret)
+        .update(`${phone}:${ts}`)
+        .digest("hex");
+
+      if (sig !== expectedSig) {
+        return reply.status(401).send({ error: "Invalid signature" });
+      }
+
+      // Check timestamp freshness (5 minute window)
+      const tsNum = parseInt(ts, 10);
+      if (isNaN(tsNum) || Math.abs(Date.now() - tsNum) > 5 * 60 * 1000) {
+        return reply.status(401).send({ error: "Link expired" });
+      }
+
+      const userId = `whatsapp_${phone}`;
+
+      // Ensure user in points table
+      fireAndForget(core.awardPoints(userId, "whatsapp", "miniapp_open"), "award points");
+
+      // Upsert session
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+          user_id: userId,
+          wa_profile_name: phone,
+        }, "return=minimal,resolution=merge-duplicates"), "upsert wa session");
+      }
+
+      const token = signJwt({
+        sub: userId,
+        platform: "whatsapp",
+        username: phone,
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "whatsapp",
+          username: phone,
         },
       };
     },
@@ -5225,7 +5346,15 @@ Claim yours in the app now. Only 8 slots available.`;
         );
       }
 
-      // 3. Award points for giving feedback
+      // 3. Alert admins for feature requests and bug reports
+      if (type === "feature" || type === "bug") {
+        const who = userId || "anonymous";
+        const preview = message.length > 200 ? message.slice(0, 197) + "..." : message;
+        const label = type === "bug" ? "Bug report" : "Feature request";
+        alertAdmins(`${label} from <b>${who}</b> (${platform}):\n\n${preview}`, type === "bug" ? "urgent" : "important");
+      }
+
+      // 4. Award points for giving feedback
       if (userId) {
         fireAndForget(core.awardPoints(userId, platform, "feedback_submitted"), "award feedback points");
       }

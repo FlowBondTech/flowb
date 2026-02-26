@@ -10,8 +10,10 @@ import { registerMiniAppRoutes } from "./routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 import { runContextNotifications } from "../services/context-notifications.js";
+import { alertDaily } from "../services/admin-alerts.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
+import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
 
 export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
@@ -26,6 +28,11 @@ export async function buildApp(core: FlowBCore) {
 
   // Register mini app API routes (auth, events, flow, notifications)
   registerMiniAppRoutes(app, core);
+
+  // Register WhatsApp webhook (conditional on env vars)
+  if (process.env.WHATSAPP_ACCESS_TOKEN) {
+    registerWhatsAppWebhook(app, core);
+  }
 
   // ==========================================================================
   // Scheduled Tasks: Farcaster Poster + Event Scanner
@@ -124,6 +131,41 @@ export async function buildApp(core: FlowBCore) {
     }, 2 * 60 * 1000);
 
     console.log("[scheduler] Context notifications scheduled (every 30 min)");
+
+    // ========================================================================
+    // Admin Daily Summary: once per day at ~9am MST
+    // Piggybacks on the 30-min interval, checks if it's the right time
+    // ========================================================================
+    const dailySummaryFired: Record<string, boolean> = {};
+
+    setInterval(() => {
+      try {
+        const now = new Date();
+        const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
+        const parts = mstStr.split(",")[1]?.trim().split(":");
+        if (!parts) return;
+
+        const hour = parseInt(parts[0], 10);
+        const dateKey = now.toISOString().slice(0, 10);
+
+        // Send daily summary between 9-10am MST, once per day
+        if (hour === 9 && !dailySummaryFired[dateKey]) {
+          dailySummaryFired[dateKey] = true;
+          alertDaily({ supabaseUrl, supabaseKey }).catch(
+            (err) => console.error("[scheduler] Daily admin summary error:", err),
+          );
+
+          // Clean up old date keys
+          for (const key of Object.keys(dailySummaryFired)) {
+            if (key !== dateKey) delete dailySummaryFired[key];
+          }
+        }
+      } catch (err) {
+        console.error("[scheduler] Daily summary check error:", err);
+      }
+    }, CTX_NOTIFY_INTERVAL); // Reuse the 30-min interval
+
+    console.log("[scheduler] Admin daily summary scheduled (9am MST)");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
@@ -456,6 +498,13 @@ export async function buildApp(core: FlowBCore) {
         return reply.redirect(fcUrl);
       }
 
+      // WhatsApp in-app browser detection
+      if (ua.includes("whatsapp")) {
+        const waMiniAppUrl = process.env.FLOWB_WA_MINIAPP_URL || "https://wa.flowb.me";
+        const waUrl = `${waMiniAppUrl}?event=${encodeURIComponent(id)}`;
+        return reply.redirect(waUrl);
+      }
+
       // Default: redirect to web app with event context
       const eventWebUrl = `${webUrl}?event=${encodeURIComponent(id)}`;
       return reply.redirect(eventWebUrl);
@@ -480,8 +529,19 @@ export async function buildApp(core: FlowBCore) {
     app.get<{ Params: { code: string } }>(
       `/${path}/:code`,
       async (request, reply) => {
+        const ua = (request.headers["user-agent"] || "").toLowerCase();
         const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
         const code = request.params.code;
+
+        // WhatsApp users: redirect to wa.me deep link
+        if (ua.includes("whatsapp")) {
+          const waNumber = process.env.WHATSAPP_PHONE_NUMBER || "";
+          if (waNumber) {
+            const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(`join ${prefix}_${code}`)}`;
+            return reply.redirect(waUrl);
+          }
+        }
+
         const telegramUrl = `https://t.me/${botUser}?start=${prefix}_${code}`;
         return reply.redirect(telegramUrl);
       },

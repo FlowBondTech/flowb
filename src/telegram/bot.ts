@@ -83,6 +83,7 @@ import {
 import { sbQuery } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
+import { alertAdmins } from "../services/admin-alerts.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -115,6 +116,8 @@ interface TgSession {
   awaitingProofPhoto?: boolean;
   danceMoveForProof?: string;
   awaitingCrewName?: boolean;
+  awaitingSuggestion?: boolean;
+  awaitingBugReport?: boolean;
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -272,6 +275,8 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingProofPhoto: partial.awaitingProofPhoto ?? existing?.awaitingProofPhoto,
     danceMoveForProof: partial.danceMoveForProof ?? existing?.danceMoveForProof,
     awaitingCrewName: partial.awaitingCrewName ?? existing?.awaitingCrewName,
+    awaitingSuggestion: partial.awaitingSuggestion ?? existing?.awaitingSuggestion,
+    awaitingBugReport: partial.awaitingBugReport ?? existing?.awaitingBugReport,
   };
   sessions.set(userId, session);
 
@@ -432,6 +437,148 @@ async function completeOnboarding(
       parse_mode: "HTML",
       reply_markup: buildMenuKeyboard(miniAppUrl || undefined),
     },
+  );
+}
+
+// ============================================================================
+// Feature Suggestion & Bug Report Helpers
+// ============================================================================
+
+async function handleFeatureSuggestion(
+  ctx: any,
+  core: FlowBCore,
+  tgId: number,
+  suggestion: string,
+): Promise<void> {
+  if (!suggestion) {
+    await ctx.reply("Please type your suggestion.");
+    return;
+  }
+
+  const who = ctx.from?.username
+    ? `@${ctx.from.username}`
+    : ctx.from?.first_name || `User ${tgId}`;
+
+  // Save to flowb_feedback table
+  const sbUrl = process.env.DANZ_SUPABASE_URL;
+  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  if (sbUrl && sbKey) {
+    fetch(`${sbUrl}/rest/v1/flowb_feedback`, {
+      method: "POST",
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: userId(tgId),
+        platform: "telegram",
+        type: "feature",
+        message: suggestion,
+      }),
+    }).catch((err) => log.warn("[bot]", "feature suggestion save failed", { error: String(err) }));
+  }
+
+  // DM admins
+  alertAdmins(
+    `Feature request from <b>${who}</b>:\n\n${escapeHtml(suggestion)}`,
+    "important",
+  );
+
+  // Forward to feedback channel too
+  const channelId = process.env.FLOWB_FEEDBACK_CHANNEL_ID;
+  const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+  if (channelId && botToken) {
+    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: channelId,
+        text: `\u{1F4A1} <b>Feature Request</b> (via bot)\n\n${escapeHtml(suggestion)}\n\n<i>From: ${who} (telegram_${tgId})</i>`,
+        parse_mode: "HTML",
+      }),
+    }).catch(() => {});
+  }
+
+  // Award points
+  fireAndForget(
+    core.awardPoints(userId(tgId), "telegram", "feature_suggested"),
+    "award feature suggestion points",
+  );
+
+  await ctx.reply(
+    "\u2705 Thanks! Your suggestion has been sent to the team.",
+    { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
+  );
+}
+
+async function handleBugReport(
+  ctx: any,
+  core: FlowBCore,
+  tgId: number,
+  report: string,
+): Promise<void> {
+  if (!report) {
+    await ctx.reply("Please describe the bug.");
+    return;
+  }
+
+  const who = ctx.from?.username
+    ? `@${ctx.from.username}`
+    : ctx.from?.first_name || `User ${tgId}`;
+
+  // Save to flowb_feedback table
+  const sbUrl = process.env.DANZ_SUPABASE_URL;
+  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  if (sbUrl && sbKey) {
+    fetch(`${sbUrl}/rest/v1/flowb_feedback`, {
+      method: "POST",
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        user_id: userId(tgId),
+        platform: "telegram",
+        type: "bug",
+        message: report,
+      }),
+    }).catch((err) => log.warn("[bot]", "bug report save failed", { error: String(err) }));
+  }
+
+  // DM admins
+  alertAdmins(
+    `Bug report from <b>${who}</b>:\n\n${escapeHtml(report)}`,
+    "urgent",
+  );
+
+  // Forward to feedback channel too
+  const channelId = process.env.FLOWB_FEEDBACK_CHANNEL_ID;
+  const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+  if (channelId && botToken) {
+    fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: channelId,
+        text: `\u{1F41B} <b>Bug Report</b> (via bot)\n\n${escapeHtml(report)}\n\n<i>From: ${who} (telegram_${tgId})</i>`,
+        parse_mode: "HTML",
+      }),
+    }).catch(() => {});
+  }
+
+  // Award points
+  fireAndForget(
+    core.awardPoints(userId(tgId), "telegram", "bug_reported"),
+    "award bug report points",
+  );
+
+  await ctx.reply(
+    "\u2705 Thanks for reporting! The team has been notified.",
+    { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
   );
 }
 
@@ -990,6 +1137,10 @@ export function startTelegramBot(
       });
       await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
       fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_created"), "award points");
+      {
+        const crewCreator = ctx.from?.username || ctx.from?.first_name || String(tgId);
+        alertAdmins(`New crew created: <b>${name}</b> by @${crewCreator}`, "info");
+      }
       return;
     }
 
@@ -1464,6 +1615,44 @@ export function startTelegramBot(
       console.error("[flowb-telegram] /whoshere error:", err.message);
       await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
     }
+  });
+
+  // ========================================================================
+  // Feedback & Bug Report commands
+  // ========================================================================
+
+  bot.command(["suggestfeature", "addfeature"], async (ctx) => {
+    const tgId = ctx.from!.id;
+    const args = ctx.match?.trim();
+
+    if (args) {
+      // Inline suggestion: /suggestfeature <text>
+      await handleFeatureSuggestion(ctx, core, tgId, args);
+      return;
+    }
+
+    setSession(tgId, { awaitingSuggestion: true, awaitingBugReport: false });
+    await ctx.reply(
+      "\u{1F4A1} <b>Feature Suggestion</b>\n\nWhat feature would you like to see? Type your suggestion:",
+      { parse_mode: "HTML" },
+    );
+  });
+
+  bot.command("reportbug", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const args = ctx.match?.trim();
+
+    if (args) {
+      // Inline bug report: /reportbug <text>
+      await handleBugReport(ctx, core, tgId, args);
+      return;
+    }
+
+    setSession(tgId, { awaitingBugReport: true, awaitingSuggestion: false });
+    await ctx.reply(
+      "\u{1F41B} <b>Bug Report</b>\n\nDescribe the bug you found:",
+      { parse_mode: "HTML" },
+    );
   });
 
 
@@ -3048,6 +3237,10 @@ export function startTelegramBot(
       const result = await core.execute("crew-create", { action: "crew-create", user_id: userId(tgId), platform: "telegram", query: name });
       await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
       fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_created"), "award points");
+      {
+        const crewCreator = ctx.from?.username || ctx.from?.first_name || String(tgId);
+        alertAdmins(`New crew created: <b>${name}</b> by @${crewCreator}`, "info");
+      }
       return;
     }
 
@@ -3125,6 +3318,26 @@ export function startTelegramBot(
       return;
     }
 
+    // Feature suggestion triggers
+    if (/^(suggest a feature|feature request|i wish|it would be cool if|feature idea|i have a suggestion)/i.test(lower)) {
+      setSession(tgId, { awaitingSuggestion: true, awaitingBugReport: false });
+      await ctx.reply(
+        "\u{1F4A1} <b>Feature Suggestion</b>\n\nGreat, I'd love to hear it! Type your suggestion:",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    // Bug report triggers
+    if (/^(report a bug|found a bug|something.?s broken|there.?s a bug|bug report)/i.test(lower)) {
+      setSession(tgId, { awaitingBugReport: true, awaitingSuggestion: false });
+      await ctx.reply(
+        "\u{1F41B} <b>Bug Report</b>\n\nSorry about that! Please describe what went wrong:",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
     // Help
     if (/^(help|commands|what can you do|how does this work)$/i.test(lower)) {
       await ctx.reply(
@@ -3143,7 +3356,9 @@ export function startTelegramBot(
         `<b>Rewards</b> — view challenges\n` +
         `<b>What's up</b> — social feed from your crew\n` +
         `<b>After party</b> — where is everyone heading\n` +
-        `<b>Who's here</b> — who's at this event or city\n\n` +
+        `<b>Who's here</b> — who's at this event or city\n` +
+        `<b>Suggest a feature</b> — send us an idea\n` +
+        `<b>Report a bug</b> — let us know what's broken\n\n` +
         `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
         { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
@@ -3211,6 +3426,26 @@ export function startTelegramBot(
     }
 
 
+    // ---- Awaiting feature suggestion ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingSuggestion) {
+        setSession(tgId, { awaitingSuggestion: false });
+        await handleFeatureSuggestion(ctx, core, tgId, text.trim());
+        return;
+      }
+    }
+
+    // ---- Awaiting bug report ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingBugReport) {
+        setSession(tgId, { awaitingBugReport: false });
+        await handleBugReport(ctx, core, tgId, text.trim());
+        return;
+      }
+    }
+
     // ---- Awaiting crew name (conversational crew creation) ----
     {
       const session = getSession(tgId);
@@ -3230,6 +3465,8 @@ export function startTelegramBot(
         });
         await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
         core.awardPoints(userId(tgId), "telegram", "crew_created").catch(() => {});
+        const crewCreator = ctx.from?.username || ctx.from?.first_name || String(tgId);
+        alertAdmins(`New crew created: <b>${name}</b> by @${crewCreator}`, "info");
         return;
       }
     }
