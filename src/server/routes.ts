@@ -2557,12 +2557,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at&limit=1`,
       );
 
       const pref = rows?.[0] || {};
       return {
         preferences: {
+          notifications_enabled: pref.notifications_enabled ?? true,
           quiet_hours_enabled: pref.quiet_hours_enabled || false,
           timezone: pref.timezone || "America/Denver",
           arrival_date: pref.arrival_date || null,
@@ -2606,6 +2607,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       notify_crew_messages?: boolean;
       notify_event_reminders?: boolean;
       notify_daily_digest?: boolean;
+      notifications_enabled?: boolean;
       daily_notification_limit?: number;
       quiet_hours_start?: number;
       quiet_hours_end?: number;
@@ -2641,6 +2643,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.notify_crew_messages !== undefined) updates.notify_crew_messages = body.notify_crew_messages;
       if (body.notify_event_reminders !== undefined) updates.notify_event_reminders = body.notify_event_reminders;
       if (body.notify_daily_digest !== undefined) updates.notify_daily_digest = body.notify_daily_digest;
+      if (body.notifications_enabled !== undefined) updates.notifications_enabled = body.notifications_enabled;
       if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
       if (body.quiet_hours_start !== undefined) updates.quiet_hours_start = Math.max(0, Math.min(23, body.quiet_hours_start));
       if (body.quiet_hours_end !== undefined) updates.quiet_hours_end = Math.max(0, Math.min(23, body.quiet_hours_end));

@@ -9,6 +9,7 @@ import {
 import { registerMiniAppRoutes } from "./routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
+import { runContextNotifications } from "../services/context-notifications.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
 
@@ -101,6 +102,28 @@ export async function buildApp(core: FlowBCore) {
     } else {
       console.log("[scheduler] SocialB poller skipped (missing NEYNAR_API_KEY or social config)");
     }
+
+    // ========================================================================
+    // Context Notifications: proactive push notifications every 30 minutes
+    // ========================================================================
+    const CTX_NOTIFY_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+    setInterval(() => {
+      runContextNotifications({
+        supabase: { supabaseUrl, supabaseKey },
+        botToken: process.env.FLOWB_TELEGRAM_BOT_TOKEN,
+      }).catch((err) => console.error("[scheduler] Context notifications error:", err));
+    }, CTX_NOTIFY_INTERVAL);
+
+    // Initial run after 2 minutes (let other services warm up first)
+    setTimeout(() => {
+      runContextNotifications({
+        supabase: { supabaseUrl, supabaseKey },
+        botToken: process.env.FLOWB_TELEGRAM_BOT_TOKEN,
+      }).catch((err) => console.error("[scheduler] Initial context notifications error:", err));
+    }, 2 * 60 * 1000);
+
+    console.log("[scheduler] Context notifications scheduled (every 30 min)");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
