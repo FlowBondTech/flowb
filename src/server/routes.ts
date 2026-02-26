@@ -89,6 +89,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }, "return=minimal,resolution=merge-duplicates"), "upsert session");
       }
 
+      // Look up locale from session or fallback to Telegram language_code
+      let locale = user.language_code || 'en';
+      if (cfg) {
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+        if (sessions?.[0]?.locale) locale = sessions[0].locale;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "telegram",
@@ -98,6 +105,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       return {
         token,
+        locale,
         user: {
           id: userId,
           platform: "telegram",
@@ -194,6 +202,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             } catch {}
           }
 
+          // Look up locale from session
+          let locale = 'en';
+          const fcCfg = getSupabaseConfig();
+          if (fcCfg) {
+            const sessions = await sbFetch<any[]>(fcCfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+            if (sessions?.[0]?.locale) locale = sessions[0].locale;
+          }
+
           const token = signJwt({
             sub: userId,
             platform: "farcaster",
@@ -204,6 +220,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
           return {
             token,
+            locale,
             user: {
               id: userId,
               platform: "farcaster",
@@ -235,6 +252,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       fireAndForget(core.awardPoints(userId, "farcaster", "miniapp_open"), "award points");
 
+      // Look up locale from session
+      let fcLegacyLocale = 'en';
+      const fcLegacyCfg = getSupabaseConfig();
+      if (fcLegacyCfg) {
+        const sessions = await sbFetch<any[]>(fcLegacyCfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+        if (sessions?.[0]?.locale) fcLegacyLocale = sessions[0].locale;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "farcaster",
@@ -244,6 +269,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       return {
         token,
+        locale: fcLegacyLocale,
         user: {
           id: userId,
           platform: "farcaster",
@@ -2226,7 +2252,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -2247,6 +2273,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           daily_notification_limit: pref.daily_notification_limit ?? 10,
           quiet_hours_start: pref.quiet_hours_start ?? 22,
           quiet_hours_end: pref.quiet_hours_end ?? 8,
+          home_city: pref.home_city || null,
+          home_country: pref.home_country || null,
+          current_city: pref.current_city || null,
+          current_country: pref.current_country || null,
+          destination_city: pref.destination_city || null,
+          destination_country: pref.destination_country || null,
+          locale: pref.locale || 'en',
+          location_visibility: pref.location_visibility || 'city',
+          location_updated_at: pref.location_updated_at || null,
         },
       };
     },
@@ -2269,6 +2304,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       daily_notification_limit?: number;
       quiet_hours_start?: number;
       quiet_hours_end?: number;
+      home_city?: string;
+      home_country?: string;
+      current_city?: string;
+      current_country?: string;
+      destination_city?: string;
+      destination_country?: string;
+      locale?: string;
+      location_visibility?: string;
     };
   }>(
     "/api/v1/me/preferences",
@@ -2296,6 +2339,19 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
       if (body.quiet_hours_start !== undefined) updates.quiet_hours_start = Math.max(0, Math.min(23, body.quiet_hours_start));
       if (body.quiet_hours_end !== undefined) updates.quiet_hours_end = Math.max(0, Math.min(23, body.quiet_hours_end));
+      if (body.home_city !== undefined) updates.home_city = body.home_city;
+      if (body.home_country !== undefined) updates.home_country = body.home_country;
+      if (body.current_city !== undefined) updates.current_city = body.current_city;
+      if (body.current_country !== undefined) updates.current_country = body.current_country;
+      if (body.destination_city !== undefined) updates.destination_city = body.destination_city;
+      if (body.destination_country !== undefined) updates.destination_country = body.destination_country;
+      if (body.locale) updates.locale = body.locale;
+      if (body.location_visibility) updates.location_visibility = body.location_visibility;
+      // Auto-set location_updated_at when any geo field changes
+      if (body.home_city !== undefined || body.current_city !== undefined || body.destination_city !== undefined ||
+          body.home_country !== undefined || body.current_country !== undefined || body.destination_country !== undefined) {
+        updates.location_updated_at = new Date().toISOString();
+      }
 
       // Upsert: create session row if it doesn't exist yet
       fireAndForget(fetch(
@@ -2321,6 +2377,115 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // DISCOVERY: Location-based friend & user discovery
+  // ------------------------------------------------------------------
+
+  // GET /api/v1/flow/friends/map - friends grouped by location
+  app.get(
+    "/api/v1/flow/friends/map",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { friends: [] };
+
+      // Get friend IDs
+      const connections = await sbFetch<any[]>(cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+      if (!connections?.length) return { friends: [] };
+
+      const friendIds = connections.map((c: any) => c.friend_id);
+      const inClause = friendIds.map((id: string) => `"${id}"`).join(",");
+
+      // Get friend locations (respecting privacy)
+      const friends = await sbFetch<any[]>(cfg,
+        `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility`);
+
+      // Filter by visibility
+      const visible = (friends || []).map((f: any) => {
+        const vis = f.location_visibility || 'city';
+        if (vis === 'hidden') return { user_id: f.user_id, display_name: f.danz_username };
+        if (vis === 'country') return {
+          user_id: f.user_id, display_name: f.danz_username,
+          home_country: f.home_country, current_country: f.current_country, destination_country: f.destination_country,
+        };
+        return {
+          user_id: f.user_id, display_name: f.danz_username,
+          home_city: f.home_city, home_country: f.home_country,
+          current_city: f.current_city, current_country: f.current_country,
+          destination_city: f.destination_city, destination_country: f.destination_country,
+        };
+      });
+
+      return { friends: visible };
+    },
+  );
+
+  // GET /api/v1/flow/friends/nearby - friends in same city
+  app.get<{ Querystring: { city?: string } }>(
+    "/api/v1/flow/friends/nearby",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { nearby: [] };
+
+      // Get user's current city or use query param
+      let city = (request.query as any)?.city;
+      if (!city) {
+        const me = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${jwt.sub}&select=current_city&limit=1`);
+        city = me?.[0]?.current_city;
+      }
+      if (!city) return { nearby: [], city: null };
+
+      // Get friend IDs
+      const connections = await sbFetch<any[]>(cfg,
+        `flowb_connections?user_id=eq.${jwt.sub}&status=eq.active&select=friend_id`);
+      if (!connections?.length) return { nearby: [], city };
+
+      const friendIds = connections.map((c: any) => c.friend_id);
+      const inClause = friendIds.map((id: string) => `"${id}"`).join(",");
+
+      const nearby = await sbFetch<any[]>(cfg,
+        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${encodeURIComponent(city)}&location_visibility=neq.hidden&select=user_id,danz_username,current_city,current_country`);
+
+      return { nearby: nearby || [], city };
+    },
+  );
+
+  // GET /api/v1/discover/people - discover users by location (public discovery)
+  app.get<{ Querystring: { city?: string; country?: string; limit?: string } }>(
+    "/api/v1/discover/people",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { people: [] };
+
+      const q = request.query as any;
+      const limit = Math.min(parseInt(q.limit || "50"), 100);
+
+      let filter = `location_visibility=neq.hidden&user_id=neq.${jwt.sub}`;
+      if (q.city) filter += `&or=(current_city.eq.${encodeURIComponent(q.city)},home_city.eq.${encodeURIComponent(q.city)},destination_city.eq.${encodeURIComponent(q.city)})`;
+      else if (q.country) filter += `&or=(current_country.eq.${encodeURIComponent(q.country)},home_country.eq.${encodeURIComponent(q.country)},destination_country.eq.${encodeURIComponent(q.country)})`;
+      else return { people: [], error: "Provide city or country" };
+
+      const rows = await sbFetch<any[]>(cfg,
+        `flowb_sessions?${filter}&select=user_id,danz_username,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility&limit=${limit}`);
+
+      // Respect privacy: if visibility=country, strip city fields
+      const people = (rows || []).map((r: any) => {
+        if (r.location_visibility === 'country') {
+          return { user_id: r.user_id, display_name: r.danz_username, home_country: r.home_country, current_country: r.current_country, destination_country: r.destination_country };
+        }
+        return { user_id: r.user_id, display_name: r.danz_username, home_city: r.home_city, home_country: r.home_country, current_city: r.current_city, current_country: r.current_country, destination_city: r.destination_city, destination_country: r.destination_country };
+      });
+
+      return { people };
     },
   );
 
@@ -5240,7 +5405,7 @@ Claim yours in the app now. Only 8 slots available.`;
         }
       }
 
-      const event = request.body;
+      const event = request.body as any;
       if (event?.type !== "cast.created") {
         return { ok: true, skipped: true };
       }

@@ -1,14 +1,7 @@
 import { useState, useCallback } from "react";
 import { updatePreferences } from "../api/client";
+import { searchCities, type City } from "../../../shared/data/cities";
 
-
-const ARRIVAL_OPTIONS = [
-  { value: "already-here", label: "I'm already here", emoji: "\uD83C\uDFD4\uFE0F" },
-  { value: "feb-17", label: "Feb 17 (Opening Day)", emoji: "\uD83C\uDF89" },
-  { value: "feb-18-20", label: "Feb 18-20 (Main Event)", emoji: "\uD83D\uDCC5" },
-  { value: "feb-21-plus", label: "Feb 21+ (Late arrival)", emoji: "\uD83D\uDE80" },
-  { value: "remote", label: "Attending remotely", emoji: "\uD83C\uDF10" },
-];
 
 const INTEREST_CATEGORIES = [
   { id: "defi", label: "DeFi", emoji: "\uD83D\uDCB0" },
@@ -39,15 +32,47 @@ interface Props {
 }
 
 export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
-  const [step, setStep] = useState(0); // 0=welcome, 1=when, 2=interests, 3=crew, 4=share, 5=done
-  const [arrivalDate, setArrivalDate] = useState<string>("");
+  const [step, setStep] = useState(0); // 0=welcome, 1=where-based, 2=where-now, 3=interests, 4=crew, 5=share, 6=done
+  const [homeCity, setHomeCity] = useState("");
+  const [homeCountry, setHomeCountry] = useState("");
+  const [currentCity, setCurrentCity] = useState("");
+  const [currentCountry, setCurrentCountry] = useState("");
+  const [destinationCity, setDestinationCity] = useState("");
+  const [destinationCountry, setDestinationCountry] = useState("");
+  const [citySearch, setCitySearch] = useState("");
+  const [cityResults, setCityResults] = useState<City[]>([]);
+  const [activeField, setActiveField] = useState<"home" | "current" | "destination">("home");
   const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const totalSteps = 5;
+  const totalSteps = 6;
   const progressPercent = Math.min((step / totalSteps) * 100, 100);
   const tg = (window as any).Telegram?.WebApp;
+
+  const handleCitySearch = useCallback((query: string) => {
+    setCitySearch(query);
+    if (query.length >= 2) {
+      setCityResults(searchCities(query, 8));
+    } else {
+      setCityResults([]);
+    }
+  }, []);
+
+  const selectCity = useCallback((city: City) => {
+    if (activeField === "home") {
+      setHomeCity(city.name);
+      setHomeCountry(city.country);
+    } else if (activeField === "current") {
+      setCurrentCity(city.name);
+      setCurrentCountry(city.country);
+    } else {
+      setDestinationCity(city.name);
+      setDestinationCountry(city.country);
+    }
+    setCitySearch("");
+    setCityResults([]);
+  }, [activeField]);
 
   const toggleInterest = useCallback((id: string) => {
     setSelectedInterests((prev) =>
@@ -60,7 +85,12 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
       setSaving(true);
       try {
         await updatePreferences({
-          arrival_date: arrivalDate || undefined,
+          home_city: homeCity || undefined,
+          home_country: homeCountry || undefined,
+          current_city: currentCity || undefined,
+          current_country: currentCountry || undefined,
+          destination_city: destinationCity || undefined,
+          destination_country: destinationCountry || undefined,
           interest_categories: selectedInterests.length > 0 ? selectedInterests : undefined,
           onboarding_complete: true,
         });
@@ -79,7 +109,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
         onNavigateCrew(crewAction);
       }
     },
-    [arrivalDate, selectedInterests, onComplete, onNavigateCrew],
+    [homeCity, homeCountry, currentCity, currentCountry, destinationCity, destinationCountry, selectedInterests, onComplete, onNavigateCrew],
   );
 
   const handleShareTelegram = () => {
@@ -169,43 +199,144 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
       </div>
 
       <div className="onboarding-content">
-        {/* Step 1: When are you arriving */}
+        {/* Step 1: Where are you based? */}
         {step === 1 && (
           <div className="onboarding-step">
             <div className="onboarding-step-header">
-              <div className="onboarding-step-emoji">{"\uD83D\uDCC5"}</div>
-              <h2 className="onboarding-step-title">When are you arriving?</h2>
+              <div className="onboarding-step-emoji">{"\uD83C\uDFE0"}</div>
+              <h2 className="onboarding-step-title">Where are you based?</h2>
               <p className="onboarding-step-desc">
-                We'll tailor your event feed to your schedule
+                Connect with people from your home city after events
               </p>
             </div>
 
-            <div className="onboarding-options">
-              {ARRIVAL_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  className={`onboarding-option ${arrivalDate === opt.value ? "onboarding-option-selected" : ""}`}
-                  onClick={() => setArrivalDate(opt.value)}
-                >
-                  <span className="onboarding-option-emoji">{opt.emoji}</span>
-                  <span className="onboarding-option-label">{opt.label}</span>
-                  {arrivalDate === opt.value && (
-                    <span className="onboarding-option-check">{"\u2713"}</span>
-                  )}
-                </button>
-              ))}
+            <div style={{ position: "relative" }}>
+              <input
+                type="text"
+                className="onboarding-input"
+                placeholder="Search your city..."
+                value={citySearch || homeCity}
+                onChange={(e) => {
+                  handleCitySearch(e.target.value);
+                  if (!e.target.value) { setHomeCity(""); setHomeCountry(""); }
+                }}
+                onFocus={() => { setActiveField("home"); setCitySearch(homeCity); }}
+                style={{
+                  width: "100%", padding: "12px 16px", borderRadius: 12,
+                  border: "1px solid var(--border, #333)", background: "var(--bg-secondary, #1a1a2e)",
+                  color: "var(--text, #fff)", fontSize: 15, outline: "none",
+                }}
+              />
+              {cityResults.length > 0 && (
+                <div style={{
+                  position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
+                  background: "var(--bg-secondary, #1a1a2e)", borderRadius: 12,
+                  border: "1px solid var(--border, #333)", maxHeight: 200, overflowY: "auto",
+                  marginTop: 4,
+                }}>
+                  {cityResults.map((city) => (
+                    <button
+                      key={`${city.name}-${city.country}`}
+                      onClick={() => selectCity(city)}
+                      style={{
+                        display: "block", width: "100%", padding: "10px 16px",
+                        background: "none", border: "none", color: "var(--text, #fff)",
+                        textAlign: "left", cursor: "pointer", fontSize: 14,
+                      }}
+                    >
+                      {city.name}, {city.countryName}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
+            {homeCity && (
+              <div style={{ marginTop: 12, padding: "8px 16px", borderRadius: 8, background: "var(--bg-tertiary, #252547)", fontSize: 14, color: "var(--accent-light, #3b82f6)" }}>
+                {"\uD83D\uDCCD"} {homeCity}, {homeCountry}
+              </div>
+            )}
+
             <div className="onboarding-actions">
-              <button className="btn btn-primary btn-block" onClick={() => setStep(2)}>
-                {arrivalDate ? "Next" : "Skip"}
+              <button className="btn btn-primary btn-block" onClick={() => { setCitySearch(""); setCityResults([]); setStep(2); }}>
+                {homeCity ? "Next" : "Skip"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 2: Interests (multi-select) */}
+        {/* Step 2: Where are you now / heading? */}
         {step === 2 && (
+          <div className="onboarding-step">
+            <div className="onboarding-step-header">
+              <div className="onboarding-step-emoji">{"\u2708\uFE0F"}</div>
+              <h2 className="onboarding-step-title">Where are you now?</h2>
+              <p className="onboarding-step-desc">
+                Find events and people wherever you go
+              </p>
+            </div>
+
+            {/* Current city */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 13, color: "var(--hint)", marginBottom: 4, display: "block" }}>Current city</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="text"
+                  className="onboarding-input"
+                  placeholder="Where are you right now?"
+                  value={activeField === "current" ? (citySearch || currentCity) : currentCity}
+                  onChange={(e) => { handleCitySearch(e.target.value); if (!e.target.value) { setCurrentCity(""); setCurrentCountry(""); } }}
+                  onFocus={() => { setActiveField("current"); setCitySearch(currentCity); }}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border, #333)", background: "var(--bg-secondary, #1a1a2e)", color: "var(--text, #fff)", fontSize: 15, outline: "none" }}
+                />
+                {activeField === "current" && cityResults.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10, background: "var(--bg-secondary, #1a1a2e)", borderRadius: 12, border: "1px solid var(--border, #333)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                    {cityResults.map((city) => (
+                      <button key={`${city.name}-${city.country}`} onClick={() => selectCity(city)} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", color: "var(--text, #fff)", textAlign: "left", cursor: "pointer", fontSize: 14 }}>
+                        {city.name}, {city.countryName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Destination city */}
+            <div>
+              <label style={{ fontSize: 13, color: "var(--hint)", marginBottom: 4, display: "block" }}>Where are you heading next?</label>
+              <div style={{ position: "relative" }}>
+                <input
+                  type="text"
+                  className="onboarding-input"
+                  placeholder="Next destination (optional)"
+                  value={activeField === "destination" ? (citySearch || destinationCity) : destinationCity}
+                  onChange={(e) => { handleCitySearch(e.target.value); if (!e.target.value) { setDestinationCity(""); setDestinationCountry(""); } }}
+                  onFocus={() => { setActiveField("destination"); setCitySearch(destinationCity); }}
+                  style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: "1px solid var(--border, #333)", background: "var(--bg-secondary, #1a1a2e)", color: "var(--text, #fff)", fontSize: 15, outline: "none" }}
+                />
+                {activeField === "destination" && cityResults.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10, background: "var(--bg-secondary, #1a1a2e)", borderRadius: 12, border: "1px solid var(--border, #333)", maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                    {cityResults.map((city) => (
+                      <button key={`${city.name}-${city.country}`} onClick={() => selectCity(city)} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", color: "var(--text, #fff)", textAlign: "left", cursor: "pointer", fontSize: 14 }}>
+                        {city.name}, {city.countryName}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="onboarding-actions">
+              <button className="btn btn-secondary" onClick={() => { setCitySearch(""); setCityResults([]); setStep(1); }}>Back</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => { setCitySearch(""); setCityResults([]); setStep(3); }}>
+                {currentCity || destinationCity ? "Next" : "Skip"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Interests (multi-select) */}
+        {step === 3 && (
           <div className="onboarding-step">
             <div className="onboarding-step-header">
               <div className="onboarding-step-emoji">{"\uD83C\uDFAF"}</div>
@@ -238,18 +369,18 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             )}
 
             <div className="onboarding-actions">
-              <button className="btn btn-secondary" onClick={() => setStep(1)}>
+              <button className="btn btn-secondary" onClick={() => setStep(2)}>
                 Back
               </button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(3)}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(4)}>
                 {selectedInterests.length > 0 ? "Next" : "Skip"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 3: Crew */}
-        {step === 3 && (
+        {/* Step 4: Crew */}
+        {step === 4 && (
           <div className="onboarding-step">
             <div className="onboarding-step-header">
               <div className="onboarding-step-emoji">{"\uD83D\uDC65"}</div>
@@ -266,7 +397,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
                   className="onboarding-option"
                   onClick={() => {
                     if (opt.value === "skip") {
-                      setStep(4);
+                      setStep(5);
                     } else {
                       finishOnboarding(opt.value as "browse" | "create");
                     }
@@ -283,15 +414,15 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             </div>
 
             <div className="onboarding-actions">
-              <button className="btn btn-secondary" onClick={() => setStep(2)}>
+              <button className="btn btn-secondary" onClick={() => setStep(3)}>
                 Back
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 4: Share & Invite */}
-        {step === 4 && (
+        {/* Step 5: Share & Invite */}
+        {step === 5 && (
           <div className="onboarding-step">
             <div className="onboarding-step-header">
               <div className="onboarding-step-emoji">{"\uD83D\uDCE3"}</div>
@@ -324,18 +455,18 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             </div>
 
             <div className="onboarding-actions">
-              <button className="btn btn-secondary" onClick={() => setStep(3)}>
+              <button className="btn btn-secondary" onClick={() => setStep(4)}>
                 Back
               </button>
-              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(5)}>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={() => setStep(6)}>
                 {linkCopied ? "Next" : "Skip"}
               </button>
             </div>
           </div>
         )}
 
-        {/* Step 5: Done */}
-        {step === 5 && (
+        {/* Step 6: Done */}
+        {step === 6 && (
           <div className="onboarding-step" style={{ textAlign: "center" }}>
             <div className="onboarding-step-header">
               <div className="onboarding-done-emoji">{"\uD83C\uDF89"}</div>
@@ -346,9 +477,19 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             </div>
 
             <div className="onboarding-done-summary">
-              {arrivalDate && (
+              {homeCity && (
                 <div className="onboarding-done-item">
-                  {"\uD83D\uDCC5"} {ARRIVAL_OPTIONS.find((o) => o.value === arrivalDate)?.label || arrivalDate}
+                  {"\uD83C\uDFE0"} Based in {homeCity}
+                </div>
+              )}
+              {currentCity && (
+                <div className="onboarding-done-item">
+                  {"\uD83D\uDCCD"} Currently in {currentCity}
+                </div>
+              )}
+              {destinationCity && (
+                <div className="onboarding-done-item">
+                  {"\u2708\uFE0F"} Heading to {destinationCity}
                 </div>
               )}
               {selectedInterests.length > 0 && (

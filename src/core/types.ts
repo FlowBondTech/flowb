@@ -234,6 +234,15 @@ export interface UserIdentity {
   privyId?: string;
   displayName?: string;
   avatarUrl?: string;
+  // Location & i18n fields
+  homeCity?: string;
+  homeCountry?: string;
+  currentCity?: string;
+  currentCountry?: string;
+  destinationCity?: string;
+  destinationCountry?: string;
+  locale?: string;
+  locationVisibility?: 'city' | 'country' | 'hidden';
   linkedAt: string;
 }
 

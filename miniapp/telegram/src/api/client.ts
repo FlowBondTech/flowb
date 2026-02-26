@@ -234,6 +234,14 @@ export async function updatePreferences(data: {
   arrival_date?: string;
   interest_categories?: string[];
   onboarding_complete?: boolean;
+  home_city?: string;
+  home_country?: string;
+  current_city?: string;
+  current_country?: string;
+  destination_city?: string;
+  destination_country?: string;
+  locale?: string;
+  location_visibility?: string;
 }): Promise<any> {
   return patch("/api/v1/me/preferences", data);
 }
