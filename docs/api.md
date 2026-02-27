@@ -154,6 +154,8 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/whats-happening` | Yes |  |
 | `GET` | `/api/v1/flow/after-party` | Yes |  |
 | `GET` | `/api/v1/flow/whos-here` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `PATCH` | `unknown` | No |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## DISCOVERY
@@ -270,6 +272,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/socialb/config` | Yes | Auto-repost Farcaster casts to all platforms |
 
+## TODOS
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `unknown` | No | Project task tracking (admin + authenticated users) |
+
 ## NOTE
 
 | Method | Path | Auth | Description |
@@ -338,4 +346,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-27 16:08:30 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-27 16:08:55 UTC*
