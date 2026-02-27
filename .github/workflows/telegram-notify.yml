@@ -3,6 +3,7 @@ name: Telegram Push Notify
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   notify:
