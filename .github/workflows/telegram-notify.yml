@@ -9,6 +9,10 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
       - name: Send Telegram notification
         env:
           BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -21,12 +25,34 @@ jobs:
         run: |
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
           FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
-          TEXT="<b>${REPO}</b>
 
-          <code>${SHORT_SHA}</code> ${FIRST_LINE}
-          by ${AUTHOR}
+          # Detect commit type for icon
+          case "$FIRST_LINE" in
+            fix*|Fix*|bug*|Bug*)     ICON="🐛" ;;
+            feat*|add*|Add*|new*)    ICON="✨" ;;
+            docs*|doc*)              ICON="📝" ;;
+            refactor*|Refactor*)     ICON="♻️" ;;
+            perf*|Perf*|optim*)      ICON="⚡" ;;
+            test*|Test*)             ICON="🧪" ;;
+            style*|Style*|ui*|UI*)   ICON="🎨" ;;
+            chore*|Chore*|dep*)      ICON="🔧" ;;
+            deploy*|Deploy*|ship*)   ICON="🚀" ;;
+            security*|Security*)     ICON="🔒" ;;
+            *)                       ICON="📦" ;;
+          esac
 
-          <a href=\"${COMMIT_URL}\">View commit</a>"
+          # Get changed file stats
+          STATS=$(git diff --shortstat HEAD~1 HEAD 2>/dev/null || echo "")
+          FILES=$(echo "$STATS" | grep -oP '\d+ file' | grep -oP '\d+' || echo "0")
+          ADDS=$(echo "$STATS" | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
+          DELS=$(echo "$STATS" | grep -oP '\d+ deletion' | grep -oP '\d+' || echo "0")
+
+          TEXT="${ICON} <b>${FIRST_LINE}</b>
+
+<code>${SHORT_SHA}</code>  ·  ${AUTHOR}
+${FILES} files  ·  <code>+${ADDS}</code>  <code>-${DELS}</code>
+
+<a href=\"${COMMIT_URL}\">View diff →</a>"
 
           curl -s -X POST "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
             -d chat_id="${CHAT_ID}" \
