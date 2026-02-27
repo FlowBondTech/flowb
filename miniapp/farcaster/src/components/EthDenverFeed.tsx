@@ -238,7 +238,7 @@ export function EthDenverFeed({ authed }: Props) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: "-0.01em" }}>
-            EthDenver Feed
+            Community Feed
           </h1>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
             Live posts from the Farcaster community
@@ -285,7 +285,7 @@ export function EthDenverFeed({ authed }: Props) {
             <div className="empty-state-emoji">{"\uD83D\uDCE1"}</div>
             <div className="empty-state-title">No posts yet</div>
             <div className="empty-state-text">
-              EthDenver posts from Farcaster will appear here as they're shared.
+              Community posts from Farcaster will appear here as they're shared.
             </div>
           </div>
         </div>

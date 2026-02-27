@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>About FlowB -- ETHDenver 2026</title>
-  <meta name="description" content="FlowB helps you navigate ETHDenver like a local. Discover events, form crews, earn points.">
+  <title>About FlowB -- Get in the Flow</title>
+  <meta name="description" content="FlowB helps you discover events, form crews, and earn points. Get in the Flow and Just B.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -176,13 +176,17 @@
       <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
         <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
         <a href="/flow" class="header-nav-link">My Flow</a>
         <a href="/agents" class="header-nav-link">Agents</a>
         <a href="/about" class="header-nav-link active">About</a>
       </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-meta">
-        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
       </div>
     </div>
   </header>
@@ -191,7 +195,7 @@
   <section class="about-hero">
     <div class="container">
       <h1><span class="gradient-text">About FlowB</span></h1>
-      <p>Your companion for navigating ETHDenver. Discover events, form crews, earn points, and never miss the best side events.</p>
+      <p>Your companion for discovering events. Form crews, earn points, and never miss what matters.</p>
     </div>
   </section>
 
@@ -199,7 +203,7 @@
   <div class="container">
     <div class="about-mission">
       <h2>Our Mission</h2>
-      <p>ETHDenver is massive -- hundreds of side events, hackathons, parties, and meetups spread across Denver. It's easy to miss the best ones or lose track of your friends.</p>
+      <p>Events are everywhere -- hundreds of side events, hackathons, parties, and meetups happening all the time. It's easy to miss the best ones or lose track of your crew.</p>
       <p>FlowB solves this. We aggregate every side event into one place, let you form crews with your friends, and reward you for exploring. Whether you're a first-timer or a Denver veteran, FlowB helps you make the most of the week.</p>
       <p>Built by the community, for the community. Free and open.</p>
     </div>
@@ -323,7 +327,7 @@
           <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="faq-answer"><div class="faq-answer-inner">
-          FlowB is your ETHDenver companion app. We aggregate 100+ side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore Denver together.
+          FlowB is your event discovery companion. We aggregate side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore together.
         </div></div>
       </div>
 
@@ -343,7 +347,7 @@
           <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="faq-answer"><div class="faq-answer-inner">
-          Crews are groups of friends exploring ETHDenver together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points. Crews compete on the leaderboard for bragging rights.
+          Crews are groups of friends exploring events together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points. Crews compete on the leaderboard for bragging rights.
         </div></div>
       </div>
 
@@ -383,7 +387,7 @@
           <svg class="faq-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
         <div class="faq-answer"><div class="faq-answer-inner">
-          FlowB is built by a small team of ETHDenver regulars who got tired of missing great events and connecting with their friends. Event data is powered by eGator. We're open source and community-driven.
+          FlowB is built by a small team who got tired of missing great events and losing track of friends. Event data is powered by FlowBond Tech. We're open source and community-driven.
         </div></div>
       </div>
     </div>
@@ -396,7 +400,7 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
@@ -465,6 +469,6 @@
       selectFeedbackType('feedback');
     }
   </script>
-
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

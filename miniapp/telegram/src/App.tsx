@@ -119,7 +119,7 @@ export default function App() {
             </div>
             <h1 className="web-landing-title gradient-text">FlowB</h1>
             <p className="web-landing-subtitle">
-              Coordinate your crew, discover events, and earn points at EthDenver.
+              Get in the Flow and Just B. Discover events, form crews, and earn points.
             </p>
             <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
               Open in the Telegram app on your phone

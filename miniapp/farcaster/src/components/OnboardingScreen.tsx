@@ -117,14 +117,14 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
 
   const handleShareFarcaster = () => {
     composeCast(
-      "I'm using FlowB for EthDenver! Find events, build your crew, earn points.",
+      "I'm using FlowB! Get in the Flow and Just B. Find events, build your crew, earn points.",
       [MINIAPP_URL],
     );
   };
 
   const handleShareX = () => {
     shareToX(
-      "I'm using FlowB for EthDenver! Find events, build your crew, earn points.",
+      "I'm using FlowB! Get in the Flow and Just B. Find events, build your crew, earn points.",
       MINIAPP_URL,
     );
   };
@@ -144,7 +144,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
         <div className="onboarding-content">
           <div className="onboarding-hero">
             <div className="onboarding-logo">FlowB</div>
-            <div className="onboarding-tagline">Your EthDenver companion</div>
+            <div className="onboarding-tagline">Get in the Flow and Just B</div>
           </div>
 
           <div className="onboarding-highlights">
@@ -391,7 +391,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
               <div className="onboarding-step-emoji">{"\uD83D\uDC65"}</div>
               <h2 className="onboarding-step-title">Find your crew</h2>
               <p className="onboarding-step-desc">
-                Crews help you coordinate with friends at EthDenver
+                Crews help you coordinate with friends at events
               </p>
             </div>
 
@@ -433,7 +433,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
               <div className="onboarding-step-emoji">{"\uD83D\uDCE3"}</div>
               <h2 className="onboarding-step-title">Tell your crew</h2>
               <p className="onboarding-step-desc">
-                Let your friends know you're on FlowB for EthDenver
+                Let your friends know you're on FlowB
               </p>
             </div>
 
@@ -477,7 +477,7 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
               <div className="onboarding-done-emoji">{"\uD83C\uDF89"}</div>
               <h2 className="onboarding-step-title">You're all set!</h2>
               <p className="onboarding-step-desc">
-                Your FlowB experience is ready. Explore events, join a crew, and earn points at EthDenver.
+                Your FlowB experience is ready. Explore events, join a crew, and earn points. Get in the Flow and Just B.
               </p>
             </div>
 

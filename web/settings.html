@@ -388,13 +388,17 @@
       <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
         <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
         <a href="/flow" class="header-nav-link">My Flow</a>
         <a href="/agents" class="header-nav-link">Agents</a>
         <a href="/about" class="header-nav-link">About</a>
       </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-meta">
-        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
             <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
@@ -613,7 +617,7 @@
           </div>
 
           <div class="settings-encourage">
-            <p class="settings-encourage-title">Crews make ETHDenver better</p>
+            <p class="settings-encourage-title">Crews make everything better</p>
             <p class="settings-encourage-msg">Form a crew with your friends to coordinate events, check in together, and climb the leaderboard. Everyone in your crew can see shared RSVPs so nobody misses the move.</p>
             <div class="settings-encourage-actions">
               <a href="https://t.me/Flow_b_bot" target="_blank" class="settings-encourage-btn">Create a Crew on Telegram</a>
@@ -684,6 +688,43 @@
             </div>
           </div>
 
+          <div class="settings-section" id="emailNotifSection">
+            <h3 class="settings-section-title">Email Notifications</h3>
+            <p class="settings-section-desc" id="emailNotifDesc">Receive updates via email. Connect an email in the Accounts tab to enable.</p>
+            <div id="emailNotifStatus" style="display:none;margin-bottom:12px;padding:8px 12px;background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:8px;">
+              <span style="font-size:0.82rem;color:var(--accent-light);" id="emailNotifAddress"></span>
+            </div>
+
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Email notifications</div>
+                <div class="settings-toggle-hint">Master toggle for all email notifications</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifEmail" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Daily digest email</div>
+                <div class="settings-toggle-hint">Morning summary of today's events and crew activity</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifEmailDigest" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Event reminder emails</div>
+                <div class="settings-toggle-hint">Email reminders before events you RSVP'd to</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifEmailEvents" checked><span class="switch-slider"></span></label>
+            </div>
+            <div class="settings-toggle">
+              <div class="settings-toggle-info">
+                <div class="settings-toggle-label">Crew update emails</div>
+                <div class="settings-toggle-hint">Crew joins, checkins, and RSVP summaries</div>
+              </div>
+              <label class="switch"><input type="checkbox" id="notifEmailCrew" checked><span class="switch-slider"></span></label>
+            </div>
+          </div>
+
           <div class="settings-section">
             <h3 class="settings-section-title">Quiet Hours</h3>
             <div class="settings-toggle">
@@ -733,7 +774,7 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
@@ -1185,6 +1226,45 @@
       document.getElementById('quietHoursStart').value = p.quiet_hours_start ?? 22;
       document.getElementById('quietHoursEnd').value = p.quiet_hours_end ?? 8;
       document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+
+      // Email notification settings
+      document.getElementById('notifEmail').checked = p.notify_email ?? true;
+      document.getElementById('notifEmailDigest').checked = p.notify_email_digest ?? true;
+      document.getElementById('notifEmailEvents').checked = p.notify_email_events ?? true;
+      document.getElementById('notifEmailCrew').checked = p.notify_email_crew ?? true;
+
+      // Show linked email address if available
+      const emailAddr = p.email;
+      const emailStatus = document.getElementById('emailNotifStatus');
+      const emailAddrEl = document.getElementById('emailNotifAddress');
+      const emailDesc = document.getElementById('emailNotifDesc');
+      if (emailAddr) {
+        emailStatus.style.display = 'block';
+        emailAddrEl.textContent = 'Sending to: ' + emailAddr;
+        emailDesc.textContent = 'Receive updates and digests via email.';
+      } else {
+        // Check linked accounts for email
+        const hasEmail = privyLinkedAccounts.some(a => a.type === 'email');
+        if (hasEmail) {
+          const emailAccount = privyLinkedAccounts.find(a => a.type === 'email');
+          emailStatus.style.display = 'block';
+          emailAddrEl.textContent = 'Sending to: ' + (emailAccount?.address || emailAccount?.email || '');
+          emailDesc.textContent = 'Receive updates and digests via email.';
+        } else {
+          emailDesc.innerHTML = 'Receive updates via email. <a href="/settings?tab=accounts" style="color:var(--accent-light);">Connect an email</a> in the Accounts tab to enable.';
+        }
+      }
+
+      // Disable email toggles if no email is linked
+      const hasAnyEmail = emailAddr || privyLinkedAccounts.some(a => a.type === 'email');
+      ['notifEmail', 'notifEmailDigest', 'notifEmailEvents', 'notifEmailCrew'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !hasAnyEmail) {
+          el.disabled = true;
+          el.checked = false;
+          el.closest('.settings-toggle').style.opacity = '0.5';
+        }
+      });
     }
 
     // ===== Save All =====
@@ -1227,6 +1307,10 @@
           quiet_hours_start: parseInt(document.getElementById('quietHoursStart').value, 10),
           quiet_hours_end: parseInt(document.getElementById('quietHoursEnd').value, 10),
           timezone: document.getElementById('notifTimezone').value,
+          notify_email: document.getElementById('notifEmail').checked,
+          notify_email_digest: document.getElementById('notifEmailDigest').checked,
+          notify_email_events: document.getElementById('notifEmailEvents').checked,
+          notify_email_crew: document.getElementById('notifEmailCrew').checked,
         }),
       });
 
@@ -1278,5 +1362,6 @@
       }
     })();
   </script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

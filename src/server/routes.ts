@@ -2747,7 +2747,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at,notify_email,notify_email_digest,notify_email_events,notify_email_crew,email&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -2778,6 +2778,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           locale: pref.locale || 'en',
           location_visibility: pref.location_visibility || 'city',
           location_updated_at: pref.location_updated_at || null,
+          notify_email: pref.notify_email ?? true,
+          notify_email_digest: pref.notify_email_digest ?? true,
+          notify_email_events: pref.notify_email_events ?? true,
+          notify_email_crew: pref.notify_email_crew ?? true,
+          email: pref.email || null,
         },
       };
     },
@@ -2809,6 +2814,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       destination_country?: string;
       locale?: string;
       location_visibility?: string;
+      notify_email?: boolean;
+      notify_email_digest?: boolean;
+      notify_email_events?: boolean;
+      notify_email_crew?: boolean;
+      email?: string;
     };
   }>(
     "/api/v1/me/preferences",
@@ -2845,6 +2855,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.destination_country !== undefined) updates.destination_country = body.destination_country;
       if (body.locale) updates.locale = body.locale;
       if (body.location_visibility) updates.location_visibility = body.location_visibility;
+      if (body.notify_email !== undefined) updates.notify_email = body.notify_email;
+      if (body.notify_email_digest !== undefined) updates.notify_email_digest = body.notify_email_digest;
+      if (body.notify_email_events !== undefined) updates.notify_email_events = body.notify_email_events;
+      if (body.notify_email_crew !== undefined) updates.notify_email_crew = body.notify_email_crew;
+      if (body.email) updates.email = body.email;
       // Auto-set location_updated_at when any geo field changes
       if (body.home_city !== undefined || body.current_city !== undefined || body.destination_city !== undefined ||
           body.home_country !== undefined || body.current_country !== undefined || body.destination_country !== undefined) {

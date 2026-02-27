@@ -621,7 +621,7 @@ export default function FarcasterApp() {
             <div>
               <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                EthDenver - Denver{username ? ` | @${username}` : ""}
+                Denver{username ? ` | @${username}` : ""}
               </div>
             </div>
             <button
@@ -721,7 +721,7 @@ export default function FarcasterApp() {
                         <span className={`badge ${feat.isFree ? "badge-green" : "badge-yellow"}`}>
                           {feat.isFree ? "Free" : "Paid"}
                         </span>
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>EthDenver 2026</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>FlowB</span>
                       </div>
                     </div>
                   </div>

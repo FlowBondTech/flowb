@@ -16,6 +16,7 @@
 import { sendFarcasterNotification } from "./farcaster-notify.js";
 import { sendWhatsAppNotification } from "../whatsapp/templates.js";
 import { sendSignalNotification } from "../signal/api.js";
+import { sendEmailNotification } from "./email.js";
 import { sbQuery, sbFetch, type SbConfig } from "../utils/supabase.js";
 import { log } from "../utils/logger.js";
 
@@ -600,6 +601,19 @@ async function sendToUser(
       const appUrl = process.env.FLOWB_FC_APP_URL || "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
       return sendFarcasterNotification(ctx.supabase, fid, "FlowB", message, appUrl);
     }
+  }
+
+  // Email users
+  if (userId.startsWith("email_")) {
+    return sendEmailNotification(ctx.supabase, userId, "FlowB Notification", message);
+  }
+
+  // Fallback: try email for any user that has one linked (secondary channel)
+  try {
+    const emailSent = await sendEmailNotification(ctx.supabase, userId, "FlowB Notification", message);
+    if (emailSent) return true;
+  } catch {
+    // Email fallback is best-effort
   }
 
   return false;

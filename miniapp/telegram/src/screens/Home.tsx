@@ -366,7 +366,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
       <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
-          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>EthDenver - Denver</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Denver</div>
         </div>
         <button
           onClick={() => onNavigate({ name: "about" })}

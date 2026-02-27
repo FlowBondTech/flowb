@@ -7,15 +7,15 @@
   "miniapp": {
     "version": "1",
     "name": "FlowB",
-    "subtitle": "Join the Flow at EthDenver",
-    "description": "Coordinate your crew, discover events, check in live, and earn points at EthDenver 2026.",
+    "subtitle": "Get in the Flow and Just B",
+    "description": "Coordinate your crew, discover events, check in live, and earn points. Get in the Flow and Just B.",
     "homeUrl": "https://flowb-farcaster.netlify.app",
     "iconUrl": "https://flowb-farcaster.netlify.app/icon.png",
     "splashImageUrl": "https://flowb-farcaster.netlify.app/splash.png",
     "splashBackgroundColor": "#0a0a0a",
     "webhookUrl": "https://flowb.fly.dev/api/v1/notifications/farcaster/webhook",
     "primaryCategory": "social",
-    "tags": ["ethdenver", "events", "crews", "checkin", "web3"],
+    "tags": ["events", "crews", "checkin", "web3", "discovery"],
     "requiredChains": ["eip155:8453"]
   }
 }

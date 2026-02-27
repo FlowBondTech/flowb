@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Flow -- FlowB</title>
-  <meta name="description" content="Your personal ETHDenver 2026 dashboard. Track your schedule, crews, points, and connections.">
+  <meta name="description" content="Your personal FlowB dashboard. Track your schedule, crews, points, and connections.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -25,13 +25,17 @@
       <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
         <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
         <a href="/flow" class="header-nav-link active">My Flow</a>
         <a href="/agents" class="header-nav-link">Agents</a>
         <a href="/about" class="header-nav-link">About</a>
       </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-meta">
-        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
             <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
@@ -95,7 +99,7 @@
             </svg>
           </div>
           <h2 class="flow-signin-title">Sign in to see My Flow</h2>
-          <p class="flow-signin-msg">Track your schedule, manage crews, earn points, and connect with friends at ETHDenver 2026.</p>
+          <p class="flow-signin-msg">Track your schedule, manage crews, earn points, and connect with friends.</p>
           <button class="flow-signin-btn" id="flowSigninBtn">Sign In</button>
           <div class="flow-signin-links">
             <span>Or use FlowB on</span>
@@ -113,7 +117,7 @@
         <div class="page-header">
           <div class="page-header-text">
             <h1 class="page-title">My Flow</h1>
-            <p class="page-subtitle" id="flowGreeting">Your ETHDenver 2026 dashboard</p>
+            <p class="page-subtitle" id="flowGreeting">Your personal dashboard</p>
           </div>
           <div class="page-header-actions">
             <a href="/settings" class="page-action-btn">
@@ -264,7 +268,7 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
@@ -751,5 +755,6 @@
       }
     })();
   </script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

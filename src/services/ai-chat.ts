@@ -37,7 +37,7 @@ const TOOLS = [
     function: {
       name: "search_events",
       description:
-        "Search live ETHDenver 2026 events from Luma by keyword, date, or venue. Use when user asks about events, parties, meetups, hackathons, or what's happening. Returns real-time data from lu.ma.",
+        "Search live events from Luma by keyword, date, or venue. Use when user asks about events, parties, meetups, hackathons, or what's happening. Returns real-time data from lu.ma.",
       parameters: {
         type: "object",
         properties: {
@@ -714,7 +714,7 @@ function buildSystemPrompt(user: UserContext): string {
     minute: "2-digit",
   });
 
-  return `You are FlowB, the ETHDenver 2026 crew coordinator AI (Feb 15–27 in Denver, CO).
+  return `You are FlowB, a crew coordinator and event discovery AI.
 
 You help people find events, locate friends & crew, manage crews, RSVP, share locations, and check points.
 

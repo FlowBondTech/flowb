@@ -11,6 +11,8 @@ let activeCategory = 'all';
 let activeFilter = null;
 let activePlatform = 'all';
 let searchQuery = '';
+let activeCity = localStorage.getItem('flowb-city') || '';
+let activeCityLabel = localStorage.getItem('flowb-city-label') || 'Anywhere';
 let displayCount = 12;
 let chatHistory = [];
 let isStreaming = false;
@@ -94,7 +96,9 @@ async function fetchEvents(params = {}) {
     if (params.startDate) qp.set('from', params.startDate + 'T00:00:00');
     if (params.endDate) qp.set('to', params.endDate + 'T23:59:59');
     if (params.freeOnly) qp.set('free', 'true');
-    if (params.city) qp.set('city', params.city);
+    // Use explicit city param, or fall back to active location
+    const city = params.city || activeCity;
+    if (city) qp.set('city', city);
 
     const res = await fetch(`${API}/api/v1/events?${qp}`);
     const data = await res.json();
@@ -609,7 +613,7 @@ async function loadNotificationSettings() {
   document.getElementById('notifDailyLimit').value = p.daily_notification_limit ?? 10;
 
   // Timezone
-  document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+  document.getElementById('notifTimezone').value = p.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Denver';
 }
 
 document.getElementById('notifSaveBtn').addEventListener('click', async () => {
@@ -924,6 +928,185 @@ searchClear.addEventListener('click', () => {
   selectCategory(activeCategory);
 });
 
+// ===== Location Picker =====
+const POPULAR_CITIES = [
+  { city: '', label: 'Anywhere', icon: '🌍', region: 'Global' },
+  { city: 'Denver', label: 'Denver', icon: '🏔️', region: 'Colorado, USA' },
+  { city: 'New York', label: 'New York', icon: '🗽', region: 'New York, USA' },
+  { city: 'San Francisco', label: 'San Francisco', icon: '🌉', region: 'California, USA' },
+  { city: 'Los Angeles', label: 'Los Angeles', icon: '🌴', region: 'California, USA' },
+  { city: 'Austin', label: 'Austin', icon: '🤠', region: 'Texas, USA' },
+  { city: 'Miami', label: 'Miami', icon: '🌊', region: 'Florida, USA' },
+  { city: 'Chicago', label: 'Chicago', icon: '🏙️', region: 'Illinois, USA' },
+  { city: 'London', label: 'London', icon: '🇬🇧', region: 'United Kingdom' },
+  { city: 'Berlin', label: 'Berlin', icon: '🇩🇪', region: 'Germany' },
+  { city: 'Paris', label: 'Paris', icon: '🇫🇷', region: 'France' },
+  { city: 'Lisbon', label: 'Lisbon', icon: '🇵🇹', region: 'Portugal' },
+  { city: 'Singapore', label: 'Singapore', icon: '🇸🇬', region: 'Singapore' },
+  { city: 'Tokyo', label: 'Tokyo', icon: '🇯🇵', region: 'Japan' },
+  { city: 'Seoul', label: 'Seoul', icon: '🇰🇷', region: 'South Korea' },
+  { city: 'Dubai', label: 'Dubai', icon: '🇦🇪', region: 'UAE' },
+  { city: 'Bangkok', label: 'Bangkok', icon: '🇹🇭', region: 'Thailand' },
+  { city: 'Buenos Aires', label: 'Buenos Aires', icon: '🇦🇷', region: 'Argentina' },
+];
+
+const locationPicker = document.getElementById('locationPicker');
+const locationModal = document.getElementById('locationModal');
+const locationModalClose = document.getElementById('locationModalClose');
+const locationNearMe = document.getElementById('locationNearMe');
+const locationSearch = document.getElementById('locationSearch');
+const locationList = document.getElementById('locationList');
+const locationLabelEl = document.getElementById('locationLabel');
+
+// Set initial label from stored value
+if (locationLabelEl) locationLabelEl.textContent = activeCityLabel;
+if (activeCity && locationPicker) locationPicker.classList.add('active');
+
+function renderLocationList(filter = '') {
+  if (!locationList) return;
+  const q = filter.toLowerCase();
+  const filtered = q
+    ? POPULAR_CITIES.filter(c => c.label.toLowerCase().includes(q) || c.region.toLowerCase().includes(q))
+    : POPULAR_CITIES;
+
+  locationList.innerHTML = filtered.map(c => `
+    <div class="location-item${c.city === activeCity ? ' active' : ''}" data-city="${c.city}" data-label="${c.label}">
+      <span class="location-item-icon">${c.icon}</span>
+      <div>
+        <div class="location-item-name">${c.label}</div>
+        <div class="location-item-region">${c.region}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // If user typed a city not in the list, show it as a custom option
+  if (q && !filtered.some(c => c.label.toLowerCase() === q)) {
+    const capCity = filter.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    locationList.innerHTML += `
+      <div class="location-item" data-city="${capCity}" data-label="${capCity}">
+        <span class="location-item-icon">📍</span>
+        <div>
+          <div class="location-item-name">${capCity}</div>
+          <div class="location-item-region">Search for events here</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Attach click handlers
+  locationList.querySelectorAll('.location-item').forEach(item => {
+    item.addEventListener('click', () => selectLocation(item.dataset.city, item.dataset.label));
+  });
+}
+
+function selectLocation(city, label) {
+  activeCity = city;
+  activeCityLabel = label || 'Anywhere';
+  localStorage.setItem('flowb-city', city);
+  localStorage.setItem('flowb-city-label', activeCityLabel);
+
+  if (locationLabelEl) locationLabelEl.textContent = activeCityLabel;
+  if (locationPicker) locationPicker.classList.toggle('active', !!city);
+
+  // Update search placeholder contextually
+  if (searchInput) {
+    searchInput.placeholder = city
+      ? `Search events in ${activeCityLabel}...`
+      : 'Search events, organizers, venues...';
+  }
+
+  closeLocationModal();
+
+  // Re-fetch events with new location
+  displayCount = 12;
+  showLoading();
+  const params = {};
+  if (activeCategory !== 'all') params.mainCategory = activeCategory;
+  if (searchQuery) params.query = searchQuery;
+  if (activeCity) params.city = activeCity;
+  fetchEvents(params).then(events => {
+    allEvents = events;
+    renderEvents(allEvents);
+  });
+}
+
+function openLocationModal() {
+  if (!locationModal) return;
+  locationModal.classList.add('open');
+  renderLocationList();
+  setTimeout(() => locationSearch && locationSearch.focus(), 200);
+}
+
+function closeLocationModal() {
+  if (!locationModal) return;
+  locationModal.classList.remove('open');
+  if (locationSearch) locationSearch.value = '';
+}
+
+if (locationPicker) locationPicker.addEventListener('click', openLocationModal);
+if (locationModalClose) locationModalClose.addEventListener('click', closeLocationModal);
+
+// Close on backdrop click
+if (locationModal) {
+  locationModal.addEventListener('click', (e) => {
+    if (e.target === locationModal) closeLocationModal();
+  });
+}
+
+// Location search filtering
+if (locationSearch) {
+  locationSearch.addEventListener('input', () => {
+    renderLocationList(locationSearch.value.trim());
+  });
+}
+
+// Near Me geolocation
+if (locationNearMe) {
+  locationNearMe.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    locationNearMe.classList.add('locating');
+    const nearMeLabel = locationNearMe.querySelector('span');
+    if (nearMeLabel) nearMeLabel.textContent = 'Locating';
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        locationNearMe.classList.remove('locating');
+        if (nearMeLabel) nearMeLabel.textContent = 'Near Me';
+
+        // Reverse geocode to city name
+        try {
+          const { latitude, longitude } = pos.coords;
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`);
+          const geoData = await geoRes.json();
+          const city = geoData.address?.city || geoData.address?.town || geoData.address?.county || 'My Area';
+          selectLocation(city, `${city}`);
+        } catch {
+          // Fallback: just use coordinates label
+          selectLocation('', 'Near Me');
+        }
+      },
+      (err) => {
+        locationNearMe.classList.remove('locating');
+        if (nearMeLabel) nearMeLabel.textContent = 'Near Me';
+        if (err.code === err.PERMISSION_DENIED) {
+          alert('Location access denied. Please enable location in your browser settings.');
+        } else {
+          alert('Could not determine your location. Please try again or pick a city.');
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: false }
+    );
+  });
+}
+
+// Set placeholder on load if city is set
+if (activeCity && searchInput) {
+  searchInput.placeholder = `Search events in ${activeCityLabel}...`;
+}
+
 // ===== Filter pills =====
 document.querySelectorAll('.filter-pill:not(.platform-trigger)').forEach(btn => {
   btn.addEventListener('click', () => applyFilter(btn.dataset.filter));
@@ -1080,13 +1263,13 @@ async function handleMyCrewAction() {
   removeTypingIndicator();
 
   if (!data || !data.crews || !data.crews.length) {
-    addChatMessage('You haven\'t joined any crews yet. Open FlowB on Telegram or Farcaster to create or join a crew!', 'bot');
+    addChatMessage('You haven\'t joined any crews yet. Head to the [Crews page](/crews) to create or join a crew!', 'bot');
   } else {
     let text = `**Your Crews** (${data.crews.length})\n\n`;
     for (const crew of data.crews) {
       text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
     }
-    text += '\nManage your crews in the Telegram or Farcaster mini app!';
+    text += '\nManage your crews on the [Crews page](/crews)!';
     addChatMessage(text, 'bot');
   }
 
@@ -1367,11 +1550,11 @@ async function processSingleCommand(lower) {
 
   // Handle "flowb" / "what is flowb" questions
   if (/^(?:flowb|flow\s?b|flow\s?bond)/i.test(lower)) {
-    return `**FlowB** is your AI-powered assistant for discovering events and connecting with communities. I can help you find ETHDenver 2026 side events, hackathons, parties, and meetups.\n\nI'm part of the FlowBond ecosystem, which includes DANZ.Now (dance community) and the eGator event aggregator.\n\nTry "categories" to browse events or "tonight" to see what's happening!`;
+    return `**FlowB** is your AI-powered assistant for discovering events and connecting with your crew. I help you find hackathons, parties, meetups, and more -- all curated and in one place.\n\nTry "categories" to browse events or "tonight" to see what's happening!`;
   }
 
   if (lower === 'help') {
-    return `Here's what I can help with:\n\n**categories** — browse by type\n**browse [type]** — events in a category (defi, ai, infra, build, capital, social, wellness, privacy, art)\n**tonight** — tonight's events\n**week** — this week's events\n**free** — free events only\n**search [query]** — search events\n**points** — check your points\n\nOr just ask me anything about ETHDenver!`;
+    return `Here's what I can help with:\n\n**categories** — browse by type\n**browse [type]** — events in a category (defi, ai, infra, build, capital, social, wellness, privacy, art)\n**tonight** — tonight's events\n**week** — this week's events\n**free** — free events only\n**search [query]** — search events\n**points** — check your points\n\nOr just ask me anything!`;
   }
 
   if (lower === 'points' || lower === 'my points') {
@@ -1577,8 +1760,277 @@ async function checkLumaHealth() {
   }
 }
 
+// ===== FlowB First-Visit Intro =====
+
+function initFlowbIntro() {
+  const intro = document.getElementById('flowbIntro');
+  const introClose = document.getElementById('flowbIntroClose');
+  const introMessages = document.getElementById('flowbIntroMessages');
+  const introCats = document.getElementById('flowbIntroCats');
+  const introGo = document.getElementById('flowbIntroGo');
+  const introFooter = document.getElementById('flowbIntroFooter');
+
+  if (!intro) return;
+
+  // Check if user already saw intro
+  const seen = localStorage.getItem('flowb-intro-seen');
+  if (seen) {
+    intro.style.display = 'none';
+    return;
+  }
+
+  let selectedCats = new Set();
+
+  // Show intro after a short delay
+  setTimeout(() => {
+    intro.classList.add('visible');
+    runIntroSequence();
+  }, 1500);
+
+  // Close handler
+  introClose.addEventListener('click', () => {
+    dismissIntro();
+  });
+
+  let introStep = 'categories'; // 'categories' | 'location' | 'done'
+  let introLocationEl = null;
+
+  // Apply all selected categories to event filter
+  async function applySelectedCats() {
+    if (selectedCats.size === 0) return;
+    const catStr = [...selectedCats].join(',');
+    displayCount = 12;
+    showLoading();
+    const params = { mainCategory: catStr };
+    if (activeCity) params.city = activeCity;
+    allEvents = await fetchEvents(params);
+    renderEvents(allEvents);
+
+    // Highlight matching chips on the main page
+    activeCategory = catStr;
+    if (catRow) {
+      catRow.querySelectorAll('.cat-chip').forEach(btn => {
+        btn.classList.toggle('active', selectedCats.has(btn.dataset.cat));
+      });
+    }
+  }
+
+  // Go button — first press applies categories, subsequent presses update
+  introGo.addEventListener('click', async () => {
+    if (selectedCats.size === 0) return;
+
+    localStorage.setItem('flowb-user-cats', JSON.stringify([...selectedCats]));
+
+    introGo.disabled = true;
+    introGo.textContent = 'Updating...';
+
+    await applySelectedCats();
+
+    if (introStep === 'categories') {
+      // First time: show confirmation + location step
+      introStep = 'location';
+      const names = [...selectedCats].map(id => {
+        const cat = categories.find(c => c.id === id);
+        return cat ? cat.label : id;
+      });
+      const nameStr = names.length <= 2 ? names.join(' & ') : names.slice(0, 2).join(', ') + ' & more';
+
+      addTypingDots();
+      await wait(500);
+      addMessage("Nice -- <strong>" + nameStr + "</strong>. I've filtered the events for you.");
+
+      // Keep Go button visible for future category updates
+      introGo.textContent = 'Update results';
+      introGo.disabled = selectedCats.size === 0;
+
+      // Show location step
+      await wait(400);
+      addTypingDots();
+      await wait(700);
+      addMessage("Where are you headed?");
+      await wait(200);
+      renderIntroLocations();
+    } else {
+      // Subsequent updates
+      introGo.textContent = 'Update results';
+      introGo.disabled = selectedCats.size === 0;
+    }
+  });
+
+  function renderIntroLocations() {
+    if (introLocationEl) return; // already rendered
+    introLocationEl = document.createElement('div');
+    introLocationEl.className = 'flowb-intro-cats'; // reuse same chip grid style
+
+    const topCities = [
+      { city: 'Denver', icon: '🏔️', label: 'Denver' },
+      { city: 'New York', icon: '🗽', label: 'New York' },
+      { city: 'San Francisco', icon: '🌉', label: 'SF' },
+      { city: 'Austin', icon: '🤠', label: 'Austin' },
+      { city: 'Miami', icon: '🌊', label: 'Miami' },
+      { city: 'London', icon: '🇬🇧', label: 'London' },
+      { city: 'Berlin', icon: '🇩🇪', label: 'Berlin' },
+      { city: 'Lisbon', icon: '🇵🇹', label: 'Lisbon' },
+      { city: '', icon: '🌍', label: 'Anywhere' },
+    ];
+
+    for (const c of topCities) {
+      const chip = document.createElement('button');
+      chip.className = 'flowb-intro-cat';
+      if (c.city === activeCity || (!c.city && !activeCity)) chip.classList.add('selected');
+      chip.innerHTML = `<span class="intro-cat-emoji">${c.icon}</span> ${c.label}`;
+      chip.addEventListener('click', async () => {
+        introLocationEl.querySelectorAll('.flowb-intro-cat').forEach(el => el.classList.remove('selected'));
+        chip.classList.add('selected');
+
+        // Apply location
+        selectLocation(c.city, c.label === 'Anywhere' ? 'Anywhere' : c.label);
+
+        // Re-fetch with new city + selected cats
+        if (selectedCats.size > 0) {
+          showLoading();
+          const params = { mainCategory: [...selectedCats].join(',') };
+          if (c.city) params.city = c.city;
+          allEvents = await fetchEvents(params);
+          renderEvents(allEvents);
+        }
+
+        // Show footer
+        if (introStep !== 'done') {
+          introStep = 'done';
+          addTypingDots();
+          await wait(400);
+          addMessage("You're all set! Browse events below, or tap the FlowB chat anytime to ask me anything.");
+          setTimeout(() => {
+            introFooter.classList.remove('hidden');
+          }, 300);
+        }
+      });
+      introLocationEl.appendChild(chip);
+    }
+
+    introMessages.parentNode.insertBefore(introLocationEl, introGo);
+  }
+
+  function addTypingDots() {
+    const dots = document.createElement('div');
+    dots.className = 'flowb-intro-typing';
+    dots.id = 'introTyping';
+    dots.innerHTML = '<span></span><span></span><span></span>';
+    introMessages.appendChild(dots);
+    return dots;
+  }
+
+  function removeTypingDots() {
+    const dots = document.getElementById('introTyping');
+    if (dots) dots.remove();
+  }
+
+  function addMessage(text, cls) {
+    removeTypingDots();
+    const p = document.createElement('p');
+    p.className = 'flowb-intro-msg' + (cls ? ' ' + cls : '');
+    p.innerHTML = text;
+    introMessages.appendChild(p);
+  }
+
+  async function runIntroSequence() {
+    // Step 1: typing dots
+    addTypingDots();
+    await wait(800);
+
+    // Step 2: greeting
+    addMessage("Hey! I'm <strong>FlowB</strong>", 'greeting');
+    await wait(600);
+
+    // Step 3: typing again
+    addTypingDots();
+    await wait(1000);
+
+    // Step 4: description
+    addMessage("I help you discover events and find what's happening around you.");
+    await wait(500);
+
+    // Step 5: typing
+    addTypingDots();
+    await wait(700);
+
+    // Step 6: question
+    addMessage("What kind of events are you into?");
+    await wait(300);
+
+    // Step 7: show category chips (use already-fetched categories, or fetch)
+    await renderIntroCats();
+  }
+
+  async function renderIntroCats() {
+    // Use the global categories if already loaded, otherwise fetch
+    let cats = categories;
+    if (!cats || !cats.length) {
+      try {
+        const res = await fetch(`${API}/api/v1/categories`);
+        const data = await res.json();
+        cats = (data.categories || []).map(c => ({
+          id: c.slug || c.id,
+          emoji: CATEGORY_ICONS[c.icon] || CATEGORY_ICONS[c.slug] || '',
+          label: c.name || c.slug,
+        }));
+      } catch {
+        cats = [];
+      }
+    }
+
+    if (!cats.length) {
+      // Fallback if no categories
+      addMessage("Browse the events below or open the chat anytime!");
+      introFooter.classList.remove('hidden');
+      return;
+    }
+
+    introCats.innerHTML = '';
+    for (const cat of cats) {
+      const chip = document.createElement('button');
+      chip.className = 'flowb-intro-cat';
+      chip.dataset.cat = cat.id;
+      chip.innerHTML = `<span class="intro-cat-emoji">${cat.emoji}</span> ${cat.label}`;
+      chip.addEventListener('click', () => {
+        chip.classList.toggle('selected');
+        if (chip.classList.contains('selected')) {
+          selectedCats.add(cat.id);
+        } else {
+          selectedCats.delete(cat.id);
+        }
+        introGo.disabled = selectedCats.size === 0;
+        // After first apply, show update hint
+        if (introStep !== 'categories' && selectedCats.size > 0) {
+          introGo.textContent = 'Update results';
+          introGo.style.display = '';
+        }
+      });
+      introCats.appendChild(chip);
+    }
+
+    introCats.classList.remove('hidden');
+    introGo.classList.remove('hidden');
+    introGo.disabled = true;
+  }
+
+  function dismissIntro() {
+    localStorage.setItem('flowb-intro-seen', '1');
+    intro.classList.add('dismissed');
+    setTimeout(() => { intro.style.display = 'none'; }, 300);
+  }
+
+  function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
 // ===== Init =====
 (async () => {
+  // FlowB first-visit intro popup (fire immediately, don't wait for API)
+  initFlowbIntro();
+
   awardPoints(1, 'Daily visit', 'info');
   awardFirstAction('first_visit', 5, 'Welcome to FlowB!');
 
@@ -1662,13 +2114,4 @@ async function checkLumaHealth() {
 
   // Check Luma API health
   checkLumaHealth();
-
-  // FlowB nudge popup - stays visible until user closes it
-  const nudge = document.getElementById('flowbNudge');
-  const nudgeClose = document.getElementById('flowbNudgeClose');
-
-  nudgeClose.addEventListener('click', () => {
-    nudge.classList.add('dismissed');
-    setTimeout(() => { nudge.style.display = 'none'; }, 300);
-  });
 })();

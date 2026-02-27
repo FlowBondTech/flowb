@@ -17,7 +17,7 @@ const QUICK_ACTIONS = [
 
 const SYSTEM_MESSAGE = {
   role: "system",
-  content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events. You help users discover events, hackathons, parties, meetups, and summits happening during ETHDenver week (Feb 15-27, 2026) in Denver.
+  content: `You are FlowB, a friendly crew coordinator and event guide. You help users discover events, hackathons, parties, meetups, and summits happening in their city.
 
 You have access to a tool called "flowb" that can search events, browse categories, check tonight's events, find free events, and more. Use it when users ask about events.
 
@@ -159,7 +159,7 @@ export function Chat({ onNavigate }: Props) {
           FlowB
         </h1>
         <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-          Your EthDenver AI assistant
+          Your AI event guide
         </div>
       </div>
 
@@ -177,8 +177,8 @@ export function Chat({ onNavigate }: Props) {
                 lineHeight: 1.5,
               }}
             >
-              Ask me about events, venues, or anything EthDenver. I can help you
-              find what's happening and plan your day.
+              Ask me about events, venues, or what's happening nearby. I can help you
+              find what's going on and plan your day.
             </div>
           </div>
         )}

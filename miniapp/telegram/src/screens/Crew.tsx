@@ -646,7 +646,7 @@ export function Crew({ crewId, checkinCode }: Props) {
             <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
             <div className="empty-state-title">No crews yet</div>
             <div className="empty-state-text">
-              Create a crew to coordinate with friends at EthDenver
+              Create a crew to coordinate with friends at events
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn btn-primary" onClick={() => setShowCreate(true)}>

@@ -39,7 +39,7 @@ interface Friend {
   connected_at?: string;
 }
 
-// ── Friend row ──────────────────────────────────────────────────────
+// -- Friend row ---------------------------------------------------------------
 
 function FriendRow({ item }: { item: Friend }) {
   const name = item.displayName || item.username || item.user_id;
@@ -66,7 +66,7 @@ function FriendRow({ item }: { item: Friend }) {
   );
 }
 
-// ── Main screen ─────────────────────────────────────────────────────
+// -- Main screen --------------------------------------------------------------
 
 export function FriendsScreen({ navigation }: Props) {
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -74,7 +74,7 @@ export function FriendsScreen({ navigation }: Props) {
   const [connectCode, setConnectCode] = useState('');
   const [connecting, setConnecting] = useState(false);
 
-  // ── Load friends ────────────────────────────────────────────────────
+  // -- Load friends -----------------------------------------------------------
 
   const loadFriends = useCallback(async () => {
     setLoading(true);
@@ -92,7 +92,7 @@ export function FriendsScreen({ navigation }: Props) {
     loadFriends();
   }, [loadFriends]);
 
-  // ── Connect by code ─────────────────────────────────────────────────
+  // -- Connect by code --------------------------------------------------------
 
   const handleConnect = useCallback(async () => {
     const code = connectCode.trim();
@@ -113,21 +113,21 @@ export function FriendsScreen({ navigation }: Props) {
     }
   }, [connectCode, loadFriends]);
 
-  // ── Share invite link ───────────────────────────────────────────────
+  // -- Share invite link ------------------------------------------------------
 
   const handleShareInvite = useCallback(async () => {
     haptics.tap();
     try {
       const link = await api.getInviteLink();
       await Share.share({
-        message: `Join me on FlowB for EthDenver! ${link}`,
+        message: `Join me on FlowB! Get in the Flow and Just B. ${link}`,
       });
     } catch {
       Alert.alert('Error', 'Could not generate invite link.');
     }
   }, []);
 
-  // ── Render ──────────────────────────────────────────────────────────
+  // -- Render -----------------------------------------------------------------
 
   return (
     <View style={styles.root}>
@@ -141,7 +141,7 @@ export function FriendsScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* ── Connect by code ──────────────────────────── */}
+            {/* -- Connect by code ---------------------------------------- */}
             <GlassCard variant="medium" style={styles.connectCard}>
               <Text style={styles.connectTitle}>Connect with a friend</Text>
               <Text style={styles.connectCaption}>
@@ -174,7 +174,7 @@ export function FriendsScreen({ navigation }: Props) {
               </View>
             </GlassCard>
 
-            {/* ── Share invite ──────────────────────────────── */}
+            {/* -- Share invite -------------------------------------------- */}
             <GlassButton
               title="Share Invite Link"
               onPress={handleShareInvite}
@@ -190,7 +190,7 @@ export function FriendsScreen({ navigation }: Props) {
               style={styles.shareButton}
             />
 
-            {/* ── Friends header ────────────────────────────── */}
+            {/* -- Friends header ------------------------------------------ */}
             <Text style={styles.sectionTitle}>
               Your Friends ({friends.length})
             </Text>
@@ -220,7 +220,7 @@ export function FriendsScreen({ navigation }: Props) {
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────────
+// -- Styles -------------------------------------------------------------------
 
 const AVATAR_SIZE = 40;
 

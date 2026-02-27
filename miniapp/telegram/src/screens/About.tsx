@@ -9,7 +9,7 @@ interface Props {
 const FAQ_ITEMS = [
   {
     q: "What is FlowB?",
-    a: "FlowB is your ETHDenver companion app. We aggregate 100+ side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore Denver together.",
+    a: "FlowB is your event discovery companion. We aggregate side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore together.",
   },
   {
     q: "How do I earn points?",
@@ -17,7 +17,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What are crews?",
-    a: "Crews are groups of friends exploring ETHDenver together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
+    a: "Crews are groups of friends exploring events together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
   },
   {
     q: "Is FlowB free?",
@@ -93,14 +93,14 @@ export function About({ onNavigate }: Props) {
     <div className="screen" style={{ paddingBottom: 100 }}>
       <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>About FlowB</h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
-        Your companion for navigating ETHDenver. Discover events, form crews, earn points.
+        Get in the Flow and Just B. Discover events, form crews, earn points.
       </p>
 
       {/* Mission */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Our Mission</div>
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 8 }}>
-          ETHDenver is massive -- hundreds of side events spread across Denver. It's easy to miss the best ones or lose track of your friends.
+          Events are everywhere -- hundreds of side events spread across the city. It's easy to miss the best ones or lose track of your friends.
         </p>
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
           FlowB aggregates every side event into one place, lets you form crews with friends, and rewards you for exploring. Built by the community, for the community.

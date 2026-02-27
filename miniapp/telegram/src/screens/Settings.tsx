@@ -12,7 +12,7 @@ interface Props {
 const FAQ_ITEMS = [
   {
     q: "What is FlowB?",
-    a: "FlowB is your ETHDenver companion app. We aggregate 100+ side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore Denver together.",
+    a: "FlowB is your event discovery companion. We aggregate side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore together.",
   },
   {
     q: "How do I earn points?",
@@ -20,7 +20,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What are crews?",
-    a: "Crews are groups of friends exploring ETHDenver together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
+    a: "Crews are groups of friends exploring events together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
   },
   {
     q: "Is FlowB free?",
@@ -378,7 +378,7 @@ export function Settings({ onNavigate }: Props) {
         </div>
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span style={{ fontSize: 13, color: "var(--text-muted)" }}>{t("events.category")}</span>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>ETHDenver 2026</span>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>FlowB</span>
         </div>
       </div>
 

@@ -69,7 +69,7 @@ Fields:
 - description: One-line summary of what's happening
 - confidence: 0.0-1.0 (0.7+ = likely event mention)
 
-Today is ${today}, ${dateStr}. ETHDenver week: Feb 15-27, 2026.`;
+Today is ${today}, ${dateStr}.`;
 
   try {
     const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {

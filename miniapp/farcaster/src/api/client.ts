@@ -232,7 +232,7 @@ export async function submitFeedback(data: {
   return result;
 }
 
-// EthDenver Feed
+// Community Feed
 export async function getEthDenverFeed(cursor?: string): Promise<{ casts: FeedCast[]; nextCursor?: string }> {
   let url = "/api/v1/feed/ethdenver";
   if (cursor) url += `?cursor=${encodeURIComponent(cursor)}`;

@@ -38,7 +38,7 @@ import * as api from '../../api/client';
 import { useAuthStore } from '../../stores/useAuthStore';
 import type { RootStackParamList } from '../../navigation/types';
 
-// ── Types ────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -51,7 +51,7 @@ const ATTENDANCE_OPTIONS = [
   { id: 'virtual', label: 'Virtual' },
 ] as const;
 
-// ── Component ────────────────────────────────────────────────────────
+// -- Component ----------------------------------------------------------------
 
 export function OnboardingScreen() {
   const navigation = useNavigation<Nav>();
@@ -64,7 +64,7 @@ export function OnboardingScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Circle toggle ─────────────────────────────────────────────────
+  // -- Circle toggle ----------------------------------------------------------
 
   const toggleCircle = useCallback((id: string) => {
     setSelectedCircles((prev) =>
@@ -72,7 +72,7 @@ export function OnboardingScreen() {
     );
   }, []);
 
-  // ── Navigation ────────────────────────────────────────────────────
+  // -- Navigation -------------------------------------------------------------
 
   const canAdvance =
     step === 0
@@ -88,7 +88,7 @@ export function OnboardingScreen() {
       return;
     }
 
-    // Final step — save and proceed
+    // Final step -- save and proceed
     setIsSubmitting(true);
     setError(null);
     try {
@@ -125,16 +125,16 @@ export function OnboardingScreen() {
   const handleSkip = useCallback(() => {
     haptics.tap();
     if (step === TOTAL_STEPS - 1) {
-      // Skip invite code — save what we have
+      // Skip invite code -- save what we have
       handleNext();
     }
   }, [step, handleNext]);
 
-  // ── Step renderers ────────────────────────────────────────────────
+  // -- Step renderers ---------------------------------------------------------
 
   const renderStep0 = () => (
     <GlassCard variant="subtle" style={styles.stepCard}>
-      <Text style={styles.stepTitle}>When are you at EthDenver?</Text>
+      <Text style={styles.stepTitle}>When are you attending?</Text>
       <View style={styles.optionsColumn}>
         {ATTENDANCE_OPTIONS.map((opt) => (
           <GlassPill
@@ -198,7 +198,7 @@ export function OnboardingScreen() {
 
   const stepRenderers = [renderStep0, renderStep1, renderStep2];
 
-  // ── Render ────────────────────────────────────────────────────────
+  // -- Render -----------------------------------------------------------------
 
   return (
     <LinearGradient
@@ -216,7 +216,7 @@ export function OnboardingScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {/* ── Header ────────────────────────────────────── */}
+            {/* -- Header -------------------------------------------------- */}
             <View style={styles.header}>
               <Text style={styles.heroTitle}>Welcome</Text>
               <Text style={styles.heroSubtitle}>
@@ -224,10 +224,10 @@ export function OnboardingScreen() {
               </Text>
             </View>
 
-            {/* ── Active step ───────────────────────────────── */}
+            {/* -- Active step --------------------------------------------- */}
             {stepRenderers[step]()}
 
-            {/* ── Error ─────────────────────────────────────── */}
+            {/* -- Error --------------------------------------------------- */}
             {error ? (
               <View style={styles.errorRow}>
                 <Ionicons
@@ -240,7 +240,7 @@ export function OnboardingScreen() {
             ) : null}
           </ScrollView>
 
-          {/* ── Bottom bar: dots + button ────────────────────── */}
+          {/* -- Bottom bar: dots + button --------------------------------- */}
           <View style={styles.bottomBar}>
             {/* Step indicator dots */}
             <View style={styles.dots}>
@@ -271,7 +271,7 @@ export function OnboardingScreen() {
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────────
+// -- Styles -------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   gradient: {
@@ -299,7 +299,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
 
-  // ── Step cards ──────────────────────────────────────────────────
+  // -- Step cards -------------------------------------------------------------
   stepCard: {
     padding: spacing.lg,
   },
@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
   },
 
-  // ── Error ─────────────────────────────────────────────────────
+  // -- Error ------------------------------------------------------------------
   errorRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  // ── Bottom bar ────────────────────────────────────────────────
+  // -- Bottom bar -------------------------------------------------------------
   bottomBar: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
