@@ -365,9 +365,9 @@ async function startOnboarding(ctx: any, tgId: number): Promise<void> {
 
   await ctx.reply(
     [
-      "<b>Welcome to FlowB!</b> Let's get you set up for EthDenver.",
+      "<b>Welcome to FlowB!</b> Let's get you set up.",
       "",
-      "When will you be at EthDenver?",
+      "What kind of events are you into?",
     ].join("\n"),
     {
       parse_mode: "HTML",
@@ -1527,6 +1527,167 @@ export function startTelegramBot(
 
   bot.command("help", async (ctx) => {
     await sendCoreAction(ctx, core, "help");
+  });
+
+  // /todo - View and manage project todos
+  // Usage: /todo (list) | /todo add <title> | /todo done <number>
+  bot.command("todo", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const session = await ensureVerified(tgId);
+    const text = ctx.match?.trim() || "";
+
+    const sbUrl = process.env.DANZ_SUPABASE_URL;
+    const sbKey = process.env.DANZ_SUPABASE_KEY;
+
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Todo system not configured.", { parse_mode: "HTML" });
+      return;
+    }
+
+    // /todo add <title> — create a new todo
+    if (text.startsWith("add ")) {
+      const title = text.slice(4).trim();
+      if (!title) {
+        await ctx.reply("Usage: <code>/todo add Fix the login bug</code>", { parse_mode: "HTML" });
+        return;
+      }
+
+      try {
+        const res = await fetch(`${sbUrl}/rest/v1/flowb_todos`, {
+          method: "POST",
+          headers: {
+            apikey: sbKey,
+            Authorization: `Bearer ${sbKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            title,
+            status: "open",
+            priority: "medium",
+            category: "general",
+            created_by: userId(tgId),
+            source: "bot",
+          }),
+        });
+
+        if (!res.ok) {
+          await ctx.reply("Failed to create todo. Try again.", { parse_mode: "HTML" });
+          return;
+        }
+
+        const created = await res.json();
+        const todo = Array.isArray(created) ? created[0] : created;
+        const who = session.danzUsername || ctx.from?.first_name || `${tgId}`;
+
+        alertAdmins(
+          `New TODO from <b>${who}</b>: ${title}`,
+          "info",
+        );
+
+        await ctx.reply(
+          `\u2705 Todo added: <b>${title}</b>`,
+          { parse_mode: "HTML" },
+        );
+
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "todo_added"), "award points");
+      } catch {
+        await ctx.reply("Error creating todo.", { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // /todo done <number> — mark a todo as completed
+    if (text.startsWith("done ")) {
+      const num = parseInt(text.replace("done ", ""), 10);
+      if (isNaN(num) || num < 1) {
+        await ctx.reply("Usage: <code>/todo done 3</code>", { parse_mode: "HTML" });
+        return;
+      }
+
+      try {
+        // Fetch open todos to find the one by index
+        const listRes = await fetch(
+          `${sbUrl}/rest/v1/flowb_todos?status=eq.open&order=priority.desc,created_at.desc&limit=20&select=id,title`,
+          { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+        );
+        const todos: any[] = listRes.ok ? await listRes.json() : [];
+
+        if (num > todos.length) {
+          await ctx.reply(`Only ${todos.length} open todos. Use <code>/todo</code> to see the list.`, { parse_mode: "HTML" });
+          return;
+        }
+
+        const target = todos[num - 1];
+        await fetch(`${sbUrl}/rest/v1/flowb_todos?id=eq.${target.id}`, {
+          method: "PATCH",
+          headers: {
+            apikey: sbKey,
+            Authorization: `Bearer ${sbKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            status: "done",
+            completed_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }),
+        });
+
+        const who = session.danzUsername || ctx.from?.first_name || `${tgId}`;
+        alertAdmins(`TODO completed by <b>${who}</b>: ${target.title}`, "info");
+
+        await ctx.reply(
+          `\u2705 Done: <b>${target.title}</b>`,
+          { parse_mode: "HTML" },
+        );
+      } catch {
+        await ctx.reply("Error updating todo.", { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // /todo — list open todos
+    try {
+      const listRes = await fetch(
+        `${sbUrl}/rest/v1/flowb_todos?status=eq.open&order=priority.desc,created_at.desc&limit=20&select=id,title,priority,category,assigned_to`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+      );
+      const todos: any[] = listRes.ok ? await listRes.json() : [];
+
+      if (!todos.length) {
+        await ctx.reply("\u2705 No open todos! All clear.", { parse_mode: "HTML" });
+        return;
+      }
+
+      const priorityIcon: Record<string, string> = {
+        critical: "\ud83d\udea8",
+        high: "\ud83d\udd34",
+        medium: "\ud83d\udfe1",
+        low: "\u26aa",
+      };
+
+      const lines = [
+        `<b>Open Todos</b> (${todos.length})`,
+        "",
+      ];
+
+      for (let i = 0; i < todos.length; i++) {
+        const t = todos[i];
+        const icon = priorityIcon[t.priority] || "\u26aa";
+        const cat = t.category && t.category !== "general" ? ` [${t.category}]` : "";
+        const assigned = t.assigned_to ? ` \u2192 ${t.assigned_to}` : "";
+        lines.push(`${i + 1}. ${icon} ${t.title}${cat}${assigned}`);
+      }
+
+      lines.push("");
+      lines.push("<code>/todo add &lt;title&gt;</code> \u2014 add");
+      lines.push("<code>/todo done &lt;number&gt;</code> \u2014 complete");
+
+      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+    } catch {
+      await ctx.reply("Error loading todos.", { parse_mode: "HTML" });
+    }
   });
 
   // /register - works in groups & DMs, shows connect button
@@ -3341,7 +3502,7 @@ export function startTelegramBot(
     // Help
     if (/^(help|commands|what can you do|how does this work)$/i.test(lower)) {
       await ctx.reply(
-        `<b>FlowB</b> — your ETHDenver crew coordinator\n\n` +
+        `<b>FlowB</b> — your crew coordinator and event guide\n\n` +
         `Just type naturally! Here's what I can do:\n\n` +
         `<b>Events</b> — browse events\n` +
         `<b>Search defi</b> — find specific events\n` +
@@ -3741,7 +3902,7 @@ async function sendFlowBChat(
 ): Promise<string> {
   const systemMessage = {
     role: "system",
-    content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events. You help users discover events, hackathons, parties, meetups, and summits happening during ETHDenver week (Feb 15-27, 2026) in Denver.
+    content: `You are FlowB, a friendly AI assistant for discovering side events. You help users discover events, hackathons, parties, meetups, and summits happening in your city.
 
 You have access to a tool called "flowb" that can search events, browse categories, check tonight's events, find free events, and more. Use it when users ask about events.
 

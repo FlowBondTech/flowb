@@ -346,6 +346,14 @@ async function routeCommand(
     return;
   }
 
+  // Todos
+  if (cmd === "todo" || cmd === "todos" || cmd === "cmd:todo") {
+    return handleTodos(phone, userId);
+  }
+  if (cmd.startsWith("todo add ")) {
+    return handleTodoAdd(phone, userId, command.slice(9).trim());
+  }
+
   // Default: show menu hint
   await wa.sendText(
     phone,
@@ -831,6 +839,91 @@ async function handleDeepLinkJoin(
     }
   } catch (err: any) {
     await wa.sendText(phone, `Couldn't process invite: ${err.message}`);
+  }
+}
+
+// ============================================================================
+// Todo Handlers
+// ============================================================================
+
+async function handleTodos(phone: string, userId: string): Promise<void> {
+  const sbUrl = process.env.DANZ_SUPABASE_URL;
+  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  if (!sbUrl || !sbKey) {
+    await wa.sendText(phone, "Todos not available.");
+    return;
+  }
+
+  try {
+    const res = await fetch(
+      `${sbUrl}/rest/v1/flowb_todos?status=eq.open&order=priority.desc,created_at.desc&limit=15&select=id,title,priority,category`,
+      { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+    );
+    const todos: any[] = res.ok ? await res.json() : [];
+
+    if (!todos.length) {
+      await wa.sendText(phone, "No open todos! All clear.");
+      return;
+    }
+
+    const priorityIcon: Record<string, string> = { critical: "\ud83d\udea8", high: "\ud83d\udd34", medium: "\ud83d\udfe1", low: "\u26aa" };
+    const lines = [`*Open Todos* (${todos.length})`, ""];
+    for (let i = 0; i < todos.length; i++) {
+      const t = todos[i];
+      const icon = priorityIcon[t.priority] || "\u26aa";
+      const cat = t.category && t.category !== "general" ? ` [${t.category}]` : "";
+      lines.push(`${i + 1}. ${icon} ${t.title}${cat}`);
+    }
+    lines.push("");
+    lines.push("Type *todo add <title>* to add a new todo.");
+
+    await wa.sendText(phone, lines.join("\n"));
+  } catch {
+    await wa.sendText(phone, "Error loading todos.");
+  }
+}
+
+async function handleTodoAdd(phone: string, userId: string, title: string): Promise<void> {
+  if (!title) {
+    await wa.sendText(phone, "Usage: *todo add Fix the login bug*");
+    return;
+  }
+
+  const sbUrl = process.env.DANZ_SUPABASE_URL;
+  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  if (!sbUrl || !sbKey) {
+    await wa.sendText(phone, "Todos not available.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`${sbUrl}/rest/v1/flowb_todos`, {
+      method: "POST",
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        title,
+        status: "open",
+        priority: "medium",
+        category: "general",
+        created_by: userId,
+        source: "bot",
+      }),
+    });
+
+    if (res.ok) {
+      const { alertAdmins: alert } = await import("../services/admin-alerts.js");
+      alert(`New TODO from WhatsApp user: ${title}`, "info");
+      await wa.sendText(phone, `Todo added: *${title}*`);
+    } else {
+      await wa.sendText(phone, "Failed to create todo.");
+    }
+  } catch {
+    await wa.sendText(phone, "Error creating todo.");
   }
 }
 

@@ -5282,7 +5282,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const blastMessage = message || `First Flow, First Bond
 
-FlowB is giving away 8 personal AI agents at EthDenver!
+FlowB is giving away 8 personal AI agents!
 
 Your agent gets a wallet, discovers events, earns USDC, and trades skills with other agents.
 
@@ -6350,6 +6350,183 @@ Claim yours in the app now. Only 8 slots available.`;
         friends,
         others: [], // City mode doesn't show non-friends for privacy
       };
+    },
+  );
+
+  // ==================================================================
+  // TODOS: Project task tracking (admin + authenticated users)
+  // ==================================================================
+
+  // GET /api/v1/todos - List todos with optional filters
+  app.get<{
+    Querystring: {
+      status?: string;
+      category?: string;
+      priority?: string;
+      assigned_to?: string;
+      limit?: string;
+    };
+  }>(
+    "/api/v1/todos",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { todos: [] };
+
+      const { status, category, priority, assigned_to, limit } = request.query;
+
+      let query = "flowb_todos?select=*&order=created_at.desc";
+      if (status) query += `&status=eq.${status}`;
+      else query += `&status=neq.wontfix`; // default: hide wontfix
+      if (category) query += `&category=eq.${category}`;
+      if (priority) query += `&priority=eq.${priority}`;
+      if (assigned_to) query += `&assigned_to=eq.${encodeURIComponent(assigned_to)}`;
+      query += `&limit=${limit || "50"}`;
+
+      const rows = await sbFetch<any[]>(cfg, query);
+      return { todos: rows || [] };
+    },
+  );
+
+  // POST /api/v1/todos - Create a todo (admin key or authenticated user)
+  app.post<{
+    Body: {
+      title: string;
+      description?: string;
+      category?: string;
+      priority?: string;
+      assigned_to?: string;
+      file_ref?: string;
+      source?: string;
+    };
+  }>(
+    "/api/v1/todos",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      // Allow admin key OR JWT auth
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      const isAdmin = adminKey && request.headers["x-admin-key"] === adminKey;
+      const jwt = extractJwt(request);
+
+      if (!isAdmin && !jwt) {
+        return reply.status(401).send({ error: "Auth required" });
+      }
+
+      const { title, description, category, priority, assigned_to, file_ref, source } = request.body;
+      if (!title) return reply.status(400).send({ error: "title required" });
+
+      const createdBy = jwt?.sub || "admin";
+
+      const res = await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_todos`, {
+        method: "POST",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({
+          title,
+          description: description || null,
+          category: category || "general",
+          priority: priority || "medium",
+          status: "open",
+          assigned_to: assigned_to || null,
+          created_by: createdBy,
+          source: source || "api",
+          file_ref: file_ref || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return reply.status(res.status).send({ error: errText });
+      }
+
+      const created = await res.json();
+      const todo = Array.isArray(created) ? created[0] : created;
+
+      // Alert admins about new todo
+      alertAdmins(
+        `New TODO [${(priority || "medium").toUpperCase()}]: <b>${title}</b>${category ? ` (${category})` : ""}${assigned_to ? `\nAssigned: ${assigned_to}` : ""}`,
+        priority === "critical" || priority === "high" ? "important" : "info",
+      );
+
+      return { todo };
+    },
+  );
+
+  // PATCH /api/v1/todos/:id - Update a todo
+  app.patch<{
+    Params: { id: string };
+    Body: {
+      status?: string;
+      priority?: string;
+      assigned_to?: string;
+      title?: string;
+      description?: string;
+      category?: string;
+    };
+  }>(
+    "/api/v1/todos/:id",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      const isAdmin = adminKey && request.headers["x-admin-key"] === adminKey;
+      const jwt = extractJwt(request);
+
+      if (!isAdmin && !jwt) {
+        return reply.status(401).send({ error: "Auth required" });
+      }
+
+      const { id } = request.params;
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+
+      for (const field of ["status", "priority", "assigned_to", "title", "description", "category"] as const) {
+        if (request.body[field] !== undefined) {
+          updates[field] = request.body[field];
+        }
+      }
+
+      // Auto-set completed_at
+      if (updates.status === "done") {
+        updates.completed_at = new Date().toISOString();
+      }
+
+      const res = await fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_todos?id=eq.${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            "Content-Type": "application/json",
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify(updates),
+        },
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        return reply.status(res.status).send({ error: errText });
+      }
+
+      const patched = await res.json();
+      const todo = Array.isArray(patched) ? patched[0] : patched;
+
+      // Alert admins when todo is completed
+      if (updates.status === "done" && todo) {
+        alertAdmins(
+          `TODO completed: <b>${todo.title}</b>`,
+          "info",
+        );
+      }
+
+      return { todo };
     },
   );
 
