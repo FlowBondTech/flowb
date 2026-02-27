@@ -12,6 +12,7 @@ Backend services that power FlowB's cross-platform features.
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
+| email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail` |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
@@ -55,6 +56,14 @@ Contextual Push Notification Engine
 **Source**: `src/services/context-notifications.ts`
 
 **Exports**: `runContextNotifications()`
+
+### email
+
+FlowB Email Notification Service
+
+**Source**: `src/services/email.ts`
+
+**Exports**: `sendEmail()`, `sendEmailNotification()`, `sendWelcomeEmail()`, `sendVerificationEmail()`, `sendDigestEmail()`
 
 ### event scanner
 
@@ -144,4 +153,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-02-27 17:09:56 UTC*
+*Auto-generated on 2026-02-27 17:49:20 UTC*
