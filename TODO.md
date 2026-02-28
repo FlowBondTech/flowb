@@ -92,6 +92,23 @@ AboutScreen.tsx has "Coming soon" placeholder:
 
 ---
 
+## eGator Multi-Source Scraping (added 2026-02-28)
+
+All adapters re-enabled in code. Current status:
+
+- [x] Luma - active, 26 events synced
+- [ ] Tavily - **key hit usage limit (432)** - upgrade plan or get new key at tavily.com
+- [ ] Resident Advisor - enabled but returns 0 for Denver (European/dance focus)
+- [ ] Eventbrite - set `EVENTBRITE_API_KEY` on Fly.io
+- [ ] Brave Search - set `BRAVE_API_KEY` on Fly.io
+- [ ] Lemonade - set `EGATOR_LEMONADE=true` on Fly.io
+- [ ] Sheeets (Google Spreadsheet) - set `SHEEETS_SPREADSHEET_ID` on Fly.io
+- [ ] Google Places - set `GOOGLE_PLACES_API_KEY` on Fly.io
+
+Trigger scan: `curl -X POST https://flowb.fly.dev/api/v1/admin/scan-events -H "x-admin-key: $KEY" -H "Content-Type: application/json" -d '{}'`
+
+---
+
 ## Todo System (added 2026-02-26)
 
 - [ ] Run migration `011_todos.sql` against Supabase

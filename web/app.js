@@ -96,7 +96,8 @@ async function fetchEvents(params = {}) {
     if (params.endDate) qp.set('to', params.endDate + 'T23:59:59');
     if (params.freeOnly) qp.set('free', 'true');
     // Use explicit city param, or fall back to active location
-    const city = params.city || activeCity;
+    // Pass city: '' to explicitly skip city filtering
+    const city = params.city !== undefined ? params.city : activeCity;
     if (city) qp.set('city', city);
 
     const res = await fetch(`${API}/api/v1/events?${qp}`);
@@ -1622,9 +1623,18 @@ async function processSingleCommand(lower) {
       art: 'art', nft: 'art', culture: 'art',
     };
     const mainCat = aliases[cat] || cat;
-    const events = await fetchEvents({ mainCategory: mainCat, limit: 10 });
+    const label = mainCat.charAt(0).toUpperCase() + mainCat.slice(1);
+    let events = await fetchEvents({ mainCategory: mainCat, limit: 10 });
+    if (!events.length && activeCity) {
+      events = await fetchEvents({ mainCategory: mainCat, limit: 10, city: '' });
+      if (events.length) {
+        return formatChatEvents(events, `${label} Events (all cities)`) +
+          `\n\n*No ${label} events in ${activeCityLabel} -- showing all cities.*`;
+      }
+    }
     if (!events.length) return `No events in "${cat}". Try "categories" to see options.`;
-    return formatChatEvents(events, `${mainCat.charAt(0).toUpperCase() + mainCat.slice(1)} Events`);
+    const suffix = activeCity ? ` in ${activeCityLabel}` : '';
+    return formatChatEvents(events, `${label} Events${suffix}`);
   }
 
   if (lower.startsWith('search ')) {
@@ -1648,8 +1658,19 @@ async function processSingleCommand(lower) {
   };
   for (const [pattern, cat] of Object.entries(catKeywords)) {
     if (new RegExp(pattern, 'i').test(lower)) {
-      const events = await fetchEvents({ mainCategory: cat, limit: 10 });
-      if (events.length) return formatChatEvents(events, `${cat.charAt(0).toUpperCase() + cat.slice(1)} Events`);
+      const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+      let events = await fetchEvents({ mainCategory: cat, limit: 10 });
+      if (!events.length && activeCity) {
+        events = await fetchEvents({ mainCategory: cat, limit: 10, city: '' });
+        if (events.length) {
+          return formatChatEvents(events, `${catLabel} Events (all cities)`) +
+            `\n\n*No ${catLabel} events in ${activeCityLabel} -- showing all cities.*`;
+        }
+      }
+      if (events.length) {
+        const suffix = activeCity ? ` in ${activeCityLabel}` : '';
+        return formatChatEvents(events, `${catLabel} Events${suffix}`);
+      }
     }
   }
 
@@ -1800,8 +1821,17 @@ async function runIntroInChat() {
   await renderIntroCatMessage();
 }
 
+// Intro category groups mapping API slugs to higher-level groups
+const INTRO_GROUPS = [
+  { label: 'Tech & Dev',   icon: '\uD83D\uDCBB', cats: ['ai', 'infrastructure', 'developer', 'depin', 'hackathon'] },
+  { label: 'DeFi & Money', icon: '\uD83D\uDCB0', cats: ['defi', 'stablecoins', 'rwa', 'governance'] },
+  { label: 'Social & Fun', icon: '\uD83C\uDF89', cats: ['party', 'social', 'networking', 'food-drink', 'brunch', 'poker'] },
+  { label: 'Culture',      icon: '\uD83C\uDFA8', cats: ['nft', 'gaming', 'wellness', 'sports'] },
+  { label: 'Learn',        icon: '\uD83D\uDCDA', cats: ['workshop', 'panel', 'demo-day', 'privacy', 'identity'] },
+];
+
 async function renderIntroCatMessage() {
-  // Use global categories or fetch
+  // Use global categories for label lookups
   let cats = categories;
   if (!cats || !cats.length) {
     try {
@@ -1823,47 +1853,104 @@ async function renderIntroCatMessage() {
     return;
   }
 
-  const selectedCats = new Set();
+  // Track which groups and sub-cats are active
+  const activeGroups = new Set();
+  const activeSubs = new Set();
 
-  // Create bot message with chip grid
   const div = document.createElement('div');
   div.className = 'flowb-msg bot';
   div.innerHTML = `
     <div class="flowb-msg-avatar">F</div>
     <div class="flowb-msg-content">
-      <div class="flowb-intro-chips"></div>
+      <div class="flowb-intro-groups"></div>
       <button class="flowb-intro-go-btn" disabled>Show me events</button>
     </div>
   `;
   chatMessages.appendChild(div);
 
-  const chipsEl = div.querySelector('.flowb-intro-chips');
+  const groupsEl = div.querySelector('.flowb-intro-groups');
   const goBtn = div.querySelector('.flowb-intro-go-btn');
 
-  for (const cat of cats) {
-    const chip = document.createElement('button');
-    chip.className = 'flowb-intro-chip';
-    chip.innerHTML = `<span class="intro-chip-emoji">${cat.emoji}</span> ${cat.label}`;
-    chip.addEventListener('click', () => {
-      chip.classList.toggle('selected');
-      if (chip.classList.contains('selected')) {
-        selectedCats.add(cat.id);
+  function updateGoBtn() {
+    goBtn.disabled = activeSubs.size === 0;
+  }
+
+  for (const group of INTRO_GROUPS) {
+    // Group chip
+    const groupWrap = document.createElement('div');
+    groupWrap.className = 'flowb-intro-group-wrap';
+
+    const groupChip = document.createElement('button');
+    groupChip.className = 'flowb-intro-group';
+    groupChip.innerHTML = `<span class="intro-group-icon">${group.icon}</span> ${group.label}`;
+
+    // Sub-category container (hidden initially)
+    const subsEl = document.createElement('div');
+    subsEl.className = 'flowb-intro-subcats';
+    subsEl.style.display = 'none';
+
+    // Build sub-cat chips
+    const subChips = [];
+    for (const slug of group.cats) {
+      const catInfo = cats.find(c => c.id === slug);
+      const subChip = document.createElement('button');
+      subChip.className = 'flowb-intro-chip selected'; // default selected when group is active
+      const emoji = catInfo ? catInfo.emoji : '';
+      const label = catInfo ? catInfo.label : slug;
+      subChip.innerHTML = `<span class="intro-chip-emoji">${emoji}</span> ${label}`;
+      subChip.dataset.slug = slug;
+      subChip.addEventListener('click', () => {
+        subChip.classList.toggle('selected');
+        if (subChip.classList.contains('selected')) {
+          activeSubs.add(slug);
+        } else {
+          activeSubs.delete(slug);
+        }
+        // If all subs in group deselected, deselect group
+        const groupActive = group.cats.some(s => activeSubs.has(s));
+        groupChip.classList.toggle('selected', groupActive);
+        if (!groupActive) activeGroups.delete(group.label);
+        updateGoBtn();
+      });
+      subChips.push(subChip);
+      subsEl.appendChild(subChip);
+    }
+
+    groupChip.addEventListener('click', () => {
+      const isActive = activeGroups.has(group.label);
+      if (isActive) {
+        // Deselect group + all its subs
+        activeGroups.delete(group.label);
+        groupChip.classList.remove('selected');
+        subsEl.style.display = 'none';
+        group.cats.forEach(s => activeSubs.delete(s));
+        subChips.forEach(sc => sc.classList.remove('selected'));
       } else {
-        selectedCats.delete(cat.id);
+        // Select group + all its subs
+        activeGroups.add(group.label);
+        groupChip.classList.add('selected');
+        subsEl.style.display = 'flex';
+        group.cats.forEach(s => activeSubs.add(s));
+        subChips.forEach(sc => sc.classList.add('selected'));
       }
-      goBtn.disabled = selectedCats.size === 0;
+      updateGoBtn();
+      scrollChatToBottom();
     });
-    chipsEl.appendChild(chip);
+
+    groupWrap.appendChild(groupChip);
+    groupWrap.appendChild(subsEl);
+    groupsEl.appendChild(groupWrap);
   }
 
   goBtn.addEventListener('click', async () => {
-    if (selectedCats.size === 0) return;
+    if (activeSubs.size === 0) return;
     goBtn.disabled = true;
     goBtn.textContent = 'Loading...';
 
     // Apply categories to main page
-    localStorage.setItem('flowb-user-cats', JSON.stringify([...selectedCats]));
-    const catStr = [...selectedCats].join(',');
+    const selectedSlugs = [...activeSubs];
+    localStorage.setItem('flowb-user-cats', JSON.stringify(selectedSlugs));
+    const catStr = selectedSlugs.join(',');
     displayCount = 18;
     showLoading();
     const params = { mainCategory: catStr };
@@ -1873,20 +1960,17 @@ async function renderIntroCatMessage() {
     activeCategory = catStr;
     if (catRow) {
       catRow.querySelectorAll('.cat-chip').forEach(btn => {
-        btn.classList.toggle('active', selectedCats.has(btn.dataset.cat));
+        btn.classList.toggle('active', activeSubs.has(btn.dataset.cat));
       });
     }
 
-    // Disable chip interactions
-    chipsEl.querySelectorAll('.flowb-intro-chip').forEach(c => { c.style.pointerEvents = 'none'; });
+    // Disable interactions
+    groupsEl.querySelectorAll('button').forEach(b => { b.style.pointerEvents = 'none'; });
     goBtn.style.display = 'none';
 
     // Confirmation
-    const names = [...selectedCats].map(id => {
-      const cat = categories.find(c => c.id === id);
-      return cat ? cat.label : id;
-    });
-    const nameStr = names.length <= 2 ? names.join(' & ') : names.slice(0, 2).join(', ') + ' & more';
+    const groupNames = [...activeGroups];
+    const nameStr = groupNames.length <= 2 ? groupNames.join(' & ') : groupNames.slice(0, 2).join(', ') + ' & more';
 
     addTypingIndicator();
     await introWait(500);
@@ -1897,17 +1981,140 @@ async function renderIntroCatMessage() {
     addTypingIndicator();
     await introWait(700);
     removeTypingIndicator();
-    addChatMessage("Where are you headed?", 'bot');
+    addChatMessage("How do you want to explore?", 'bot');
     await introWait(200);
 
-    // Location chips
-    renderIntroLocationMessage(selectedCats);
+    // Discovery paths
+    renderIntroDiscoveryPaths(activeSubs);
   });
 
   scrollChatToBottom();
 }
 
-function renderIntroLocationMessage(selectedCats) {
+function renderIntroDiscoveryPaths(selectedCats) {
+  const paths = [
+    { id: 'near-me',   icon: '\uD83D\uDCCD', label: 'Find near me',      desc: 'Use my location' },
+    { id: 'plan-trip', icon: '\u2708\uFE0F',  label: 'Plan for a trip',   desc: 'Pick a destination' },
+    { id: 'crew',      icon: '\uD83D\uDC65',  label: "Where's my crew",   desc: 'See crew activity' },
+  ];
+
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-paths"></div>
+    </div>
+  `;
+  chatMessages.appendChild(div);
+
+  const pathsEl = div.querySelector('.flowb-intro-paths');
+  let pathPicked = false;
+
+  for (const p of paths) {
+    const chip = document.createElement('button');
+    chip.className = 'flowb-intro-path';
+    chip.innerHTML = `<span class="intro-path-icon">${p.icon}</span><span class="intro-path-text"><span class="intro-path-label">${p.label}</span><span class="intro-path-desc">${p.desc}</span></span>`;
+    chip.addEventListener('click', async () => {
+      if (pathPicked) return;
+      pathPicked = true;
+      pathsEl.querySelectorAll('.flowb-intro-path').forEach(el => { el.style.pointerEvents = 'none'; });
+      chip.classList.add('selected');
+
+      if (p.id === 'near-me') {
+        await handleIntroNearMe(selectedCats);
+      } else if (p.id === 'plan-trip') {
+        addTypingIndicator();
+        await introWait(400);
+        removeTypingIndicator();
+        addChatMessage("Where are you headed?", 'bot');
+        await introWait(200);
+        renderIntroCityPicker(selectedCats);
+      } else if (p.id === 'crew') {
+        await handleIntroCrew(selectedCats);
+      }
+    });
+    pathsEl.appendChild(chip);
+  }
+
+  scrollChatToBottom();
+}
+
+async function handleIntroNearMe(selectedCats) {
+  if (!navigator.geolocation) {
+    addChatMessage("Your browser doesn't support geolocation. Try picking a city instead!", 'bot');
+    await introWait(300);
+    renderIntroCityPicker(selectedCats);
+    return;
+  }
+
+  addTypingIndicator();
+
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false });
+    });
+    const { latitude, longitude } = pos.coords;
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`);
+    const geoData = await geoRes.json();
+    const city = geoData.address?.city || geoData.address?.town || geoData.address?.county || 'My Area';
+
+    selectLocation(city, city);
+
+    // Re-fetch with location + selected cats
+    if (selectedCats.size > 0) {
+      showLoading();
+      const params = { mainCategory: [...selectedCats].join(','), city };
+      allEvents = await fetchEvents(params);
+      renderEvents(allEvents);
+    }
+
+    removeTypingIndicator();
+    addChatMessage(`Found you in **${city}**! Events updated.`, 'bot');
+  } catch (err) {
+    removeTypingIndicator();
+    if (err.code === 1) {
+      addChatMessage("Location access denied. Let's pick a city instead!", 'bot');
+    } else {
+      addChatMessage("Couldn't get your location. Let's pick a city instead!", 'bot');
+    }
+    await introWait(300);
+    renderIntroCityPicker(selectedCats);
+    return;
+  }
+
+  await introWait(300);
+  addChatMessage("You're all set! Browse events below, or ask me anything here.", 'bot');
+  localStorage.setItem('flowb-intro-seen', '1');
+}
+
+async function handleIntroCrew(selectedCats) {
+  addTypingIndicator();
+  await introWait(500);
+  removeTypingIndicator();
+
+  if (!Auth.isAuthenticated) {
+    addChatMessage("Sign in to see your crew! Click the **Sign In** button at the top, then come back to chat.", 'bot');
+    localStorage.setItem('flowb-intro-seen', '1');
+    return;
+  }
+
+  const data = await fetchAuthed('/api/v1/flow/crews');
+  if (!data || !data.crews || !data.crews.length) {
+    addChatMessage("You haven't joined any crews yet. Head to the [Crews page](/crews) to create or join one!\n\nMeanwhile, browse events below or ask me anything.", 'bot');
+  } else {
+    let text = `**Your Crews** (${data.crews.length})\n\n`;
+    for (const crew of data.crews) {
+      text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
+    }
+    text += '\nBrowse events below, or ask me anything here!';
+    addChatMessage(text, 'bot');
+  }
+
+  localStorage.setItem('flowb-intro-seen', '1');
+}
+
+function renderIntroCityPicker(selectedCats) {
   const topCities = [
     { city: 'Denver', icon: '\uD83C\uDFD4\uFE0F', label: 'Denver' },
     { city: 'New York', icon: '\uD83D\uDDFD', label: 'New York' },

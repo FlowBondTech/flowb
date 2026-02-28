@@ -2471,6 +2471,124 @@ a:hover { text-decoration: underline; }
 .flowb-intro-go-btn:hover { filter: brightness(1.1); }
 .flowb-intro-go-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* Grouped category intro */
+.flowb-intro-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.flowb-intro-group-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flowb-intro-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  width: 100%;
+}
+
+.flowb-intro-group:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.2);
+}
+
+.flowb-intro-group.selected {
+  background: rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #a3c4fd;
+}
+
+.intro-group-icon {
+  font-size: 1rem;
+}
+
+.flowb-intro-subcats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 2px 0 4px 20px;
+  animation: subcatsIn 0.2s ease-out;
+}
+
+@keyframes subcatsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Discovery path chips */
+.flowb-intro-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.flowb-intro-path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+  text-align: left;
+  width: 100%;
+}
+
+.flowb-intro-path:hover {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+.flowb-intro-path.selected {
+  background: rgba(37, 99, 235, 0.18);
+  border-color: rgba(37, 99, 235, 0.4);
+  color: #a3c4fd;
+}
+
+.intro-path-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.intro-path-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.intro-path-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.intro-path-desc {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
 /* Messages */
 .flowb-messages {
   padding: 16px 14px;
