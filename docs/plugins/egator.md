@@ -1,8 +1,8 @@
 ---
-title: "Luma Events Plugin"
+title: "eGator Events Plugin"
 ---
 
-# Luma Events Plugin
+# eGator Events Plugin
 
 **Class**: `EGatorPlugin` | **Source**: `src/plugins/egator/index.ts`
 
@@ -14,7 +14,7 @@ title: "Luma Events Plugin"
 | `event-tickets` | Get ticket types and pricing for an event |
 | `event-guests` | See who's going to an event |
 | `event-rsvp` | RSVP to a Luma event |
-| `event-link` | Look up event details from a lu.ma URL |
+| `event-link` | Look up event details from a URL |
 
 ## Event Sources
 
@@ -31,4 +31,4 @@ title: "Luma Events Plugin"
 
 ---
 
-*Auto-generated on 2026-02-28 22:02:32 UTC*
+*Auto-generated on 2026-02-28 22:15:44 UTC*

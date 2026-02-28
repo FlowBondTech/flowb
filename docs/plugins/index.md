@@ -10,10 +10,10 @@ FlowB is built on a modular plugin architecture. Each plugin provides a set of a
 |--------|-------|---------|
 | [Flow](/plugins/flow) | `FlowPlugin` | 25 |
 | [FlowB Points](/plugins/points) | `PointsPlugin` | 3 |
-| [Luma Events](/plugins/egator) | `EGatorPlugin` | 5 |
+| [eGator Events](/plugins/egator) | `EGatorPlugin` | 5 |
 | [Farcaster](/plugins/neynar) | `NeynarPlugin` | 4 |
 | [DANZ.Now](/plugins/danz) | `DANZPlugin` | 8 |
 
 ---
 
-*Auto-generated on 2026-02-28 22:02:32 UTC*
+*Auto-generated on 2026-02-28 22:15:44 UTC*

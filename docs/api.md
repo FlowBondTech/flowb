@@ -38,6 +38,7 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/events` | No | DB-first discovery |
 | `GET` | `/api/v1/events/cities` | No | Distinct cities (for city picker UI) |
+| `POST` | `unknown` | No | Community submit (anyone can add an event link) |
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
@@ -346,4 +347,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-28 22:02:32 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-02-28 22:15:44 UTC*
