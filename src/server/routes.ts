@@ -34,7 +34,7 @@ import {
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
-import { sbFetch, sbPost, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
+import { sbFetch, sbPost, sbInsert, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { alertAdmins } from "../services/admin-alerts.js";
 
@@ -104,7 +104,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       if (isNewTgUser) {
-        const who = user.username ? `@${user.username}` : user.first_name || `User ${user.id}`;
+        const who = user.username
+          ? `<a href="https://t.me/${user.username}">@${user.username}</a>`
+          : user.first_name || `User ${user.id}`;
         alertAdmins(`New user: <b>${who}</b> on telegram`, "info");
       }
 
@@ -234,7 +236,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               }
             }
             if (isNewFcUser) {
-              const who = username ? `@${username}` : displayName || `FID ${fid}`;
+              const who = username
+                ? `<a href="https://warpcast.com/${username}">@${username}</a>`
+                : displayName || `FID ${fid}`;
               alertAdmins(`New user: <b>${who}</b> on farcaster`, "info");
             }
           }
@@ -998,6 +1002,83 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const cities = [...citySet].sort((a, b) => a.localeCompare(b));
       return { cities, total: cities.length };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Community submit (anyone can add an event link)
+  // ------------------------------------------------------------------
+  app.post<{
+    Body: {
+      url?: string;
+      title?: string;
+      startTime?: string;
+      endTime?: string;
+      venue?: string;
+      city?: string;
+      description?: string;
+      isFree?: boolean;
+      submitterName?: string;
+    };
+  }>(
+    "/api/v1/events/submit",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { url, title, startTime, endTime, venue, city, description, isFree, submitterName } = request.body || {};
+
+      // Require at least a title or URL
+      if (!title && !url) {
+        return reply.status(400).send({ error: "Please provide an event title or URL" });
+      }
+
+      const eventTitle = title || url || "Community Event";
+      const titleSlug = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
+
+      // Check for duplicates
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_events?source=eq.community&title_slug=eq.${encodeURIComponent(titleSlug)}&limit=1`,
+      );
+      if (existing?.length) {
+        return { ok: true, message: "Event already listed!", eventId: existing[0].id };
+      }
+
+      // Get user info if authenticated
+      const jwt = extractJwt(request);
+      const submitter = submitterName || (jwt?.sub ? jwt.sub : "anonymous");
+
+      const inserted = await sbInsert<any>(cfg, "flowb_events", {
+        source: "community",
+        title: eventTitle,
+        title_slug: titleSlug,
+        description: description || null,
+        url: url || null,
+        starts_at: startTime || null,
+        ends_at: endTime || null,
+        venue_name: venue || null,
+        city: city || "Denver",
+        is_free: isFree ?? null,
+        organizer_name: submitter,
+        quality_score: 0.3,
+        stale: false,
+        tags: ["community-submitted"],
+      });
+
+      if (!inserted?.id) {
+        return reply.status(500).send({ error: "Failed to save event" });
+      }
+
+      // Award points if authenticated
+      if (jwt?.sub) {
+        fireAndForget(
+          core.awardPoints(jwt.sub, jwt.platform || "web", "event_submitted"),
+          "award event submit points",
+        );
+      }
+
+      return { ok: true, message: "Event submitted!", eventId: inserted.id };
     },
   );
 

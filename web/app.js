@@ -13,7 +13,7 @@ let activePlatform = 'all';
 let searchQuery = '';
 let activeCity = localStorage.getItem('flowb-city') || '';
 let activeCityLabel = localStorage.getItem('flowb-city-label') || 'Anywhere';
-let displayCount = 12;
+let displayCount = 18;
 let chatHistory = [];
 let isStreaming = false;
 
@@ -38,13 +38,12 @@ const loadMoreWrap = document.getElementById('loadMoreWrap');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const emptyState = document.getElementById('emptyState');
 
-// DOM - Chat
-const chatBtn = document.getElementById('chatWithFlowB');
-const chatModal = document.getElementById('flowbChatModal');
-const chatBackdrop = document.getElementById('flowbChatBackdrop');
-const chatClose = document.getElementById('flowbChatClose');
+// DOM - Chat Widget
+const widget = document.getElementById('flowbWidget');
+const widgetFab = document.getElementById('flowbWidgetFab');
+const widgetPanel = document.getElementById('flowbWidgetPanel');
+const panelMinimize = document.getElementById('flowbPanelMinimize');
 const chatBody = document.getElementById('flowbChatBody');
-const chatWelcome = document.getElementById('flowbWelcome');
 const chatMessages = document.getElementById('flowbMessages');
 const chatForm = document.getElementById('flowbChatForm');
 const chatInput = document.getElementById('flowbChatInput');
@@ -418,7 +417,7 @@ document.getElementById('eventModalShare').addEventListener('click', () => {
 document.getElementById('shareToFlow').addEventListener('click', () => {
   // Open chat with pre-filled share message
   closeEventModal();
-  openChat();
+  expandChat();
   const msg = `Check out: ${currentModalEvent.title} ${currentModalEvent.url || ''}`;
   chatInput.value = msg;
   chatInput.focus();
@@ -829,7 +828,7 @@ function escapeHtml(s) {
 async function selectCategory(catId) {
   activeCategory = catId;
   activeFilter = null;
-  displayCount = 12;
+  displayCount = 18;
 
   catRow.querySelectorAll('.cat-chip').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.cat === catId);
@@ -858,7 +857,7 @@ async function applyFilter(filter) {
   }
 
   activeFilter = filter;
-  displayCount = 12;
+  displayCount = 18;
 
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);
@@ -906,7 +905,7 @@ searchInput.addEventListener('input', () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(async () => {
     searchQuery = val;
-    displayCount = 12;
+    displayCount = 18;
     showLoading();
     const params = {};
     if (val) params.query = val;
@@ -1018,7 +1017,7 @@ function selectLocation(city, label) {
   closeLocationModal();
 
   // Re-fetch events with new location
-  displayCount = 12;
+  displayCount = 18;
   showLoading();
   const params = {};
   if (activeCategory !== 'all') params.mainCategory = activeCategory;
@@ -1131,7 +1130,7 @@ document.querySelectorAll('.platform-option').forEach(btn => {
     e.stopPropagation();
     const platform = btn.dataset.platform;
     activePlatform = platform;
-    displayCount = 12;
+    displayCount = 18;
 
     document.querySelectorAll('.platform-option').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -1153,7 +1152,7 @@ catRow.querySelector('[data-cat="all"]').addEventListener('click', () => selectC
 
 // ===== Load More =====
 loadMoreBtn.addEventListener('click', () => {
-  displayCount += 12;
+  displayCount += 18;
   renderEvents(allEvents);
 });
 
@@ -1161,26 +1160,41 @@ loadMoreBtn.addEventListener('click', () => {
 // FlowB Chat
 // ===================================================================
 
-function openChat() {
-  chatModal.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+let introStarted = false;
+
+function expandChat() {
+  widget.dataset.state = 'expanded';
+  // Lock body scroll on mobile only
+  if (window.innerWidth <= 480) document.body.style.overflow = 'hidden';
   chatInput.focus();
   awardFirstAction('first_chat_open', 3, 'Chat opened!');
 }
 
-function closeChat() {
-  chatModal.classList.add('hidden');
+function minimizeChat() {
+  widget.dataset.state = 'minimized';
   document.body.style.overflow = '';
 }
 
-chatBtn.addEventListener('click', openChat);
-chatBackdrop.addEventListener('click', closeChat);
-chatClose.addEventListener('click', closeChat);
+widgetFab.addEventListener('click', () => {
+  expandChat();
+  // First expand with no messages: run intro or show greeting
+  if (chatMessages.children.length === 0 && !introStarted) {
+    const seen = localStorage.getItem('flowb-intro-seen');
+    if (!seen) {
+      introStarted = true;
+      runIntroInChat();
+    } else {
+      addChatMessage("Hey! What can I help you find?", 'bot');
+    }
+  }
+});
 
-// Escape key closes chat
+panelMinimize.addEventListener('click', minimizeChat);
+
+// Escape key minimizes chat
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !chatModal.classList.contains('hidden')) {
-    closeChat();
+  if (e.key === 'Escape' && widget.dataset.state === 'expanded') {
+    minimizeChat();
   }
 });
 
@@ -1206,11 +1220,6 @@ document.querySelectorAll('.flowb-quick-chip[data-msg]').forEach(btn => {
 // Flow-aware quick action chips (data-action)
 document.querySelectorAll('.flowb-quick-chip[data-action]').forEach(btn => {
   btn.addEventListener('click', () => handleFlowAction(btn.dataset.action));
-});
-
-// Suggestion buttons
-document.querySelectorAll('.flowb-suggestion').forEach(btn => {
-  btn.addEventListener('click', () => sendChatMessage(btn.dataset.msg));
 });
 
 chatForm.addEventListener('submit', (e) => {
@@ -1382,11 +1391,6 @@ async function handleLeaderboardAction() {
 // ===== Chat Message Rendering =====
 
 function addChatMessage(text, type) {
-  // Hide welcome on first message
-  if (chatWelcome) {
-    chatWelcome.classList.add('hidden-welcome');
-  }
-
   const div = document.createElement('div');
   div.className = `flowb-msg ${type}`;
 
@@ -1404,8 +1408,6 @@ function addChatMessage(text, type) {
 }
 
 function addTypingIndicator() {
-  if (chatWelcome) chatWelcome.classList.add('hidden-welcome');
-
   const div = document.createElement('div');
   div.className = 'flowb-msg bot';
   div.id = 'flowbTyping';
@@ -1723,7 +1725,7 @@ function handleEventUrlParam() {
     // Event linked from smart short link (/e/:id)
     // Open chat with context about this event
     setTimeout(() => {
-      openChat();
+      expandChat();
       sendChatMessage(`Tell me about event ${eventParam}`);
     }, 1500);
 
@@ -1760,282 +1762,234 @@ async function checkLumaHealth() {
   }
 }
 
-// ===== FlowB First-Visit Intro =====
+// ===== FlowB In-Chat Intro (first-visit onboarding) =====
 
-function initFlowbIntro() {
-  const intro = document.getElementById('flowbIntro');
-  const introClose = document.getElementById('flowbIntroClose');
-  const introMessages = document.getElementById('flowbIntroMessages');
-  const introCats = document.getElementById('flowbIntroCats');
-  const introGo = document.getElementById('flowbIntroGo');
-  const introFooter = document.getElementById('flowbIntroFooter');
+function introWait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-  if (!intro) return;
+async function runIntroInChat() {
+  // Step 1: typing
+  addTypingIndicator();
+  await introWait(800);
+  removeTypingIndicator();
 
-  // Check if user already saw intro
-  const seen = localStorage.getItem('flowb-intro-seen');
-  if (seen) {
-    intro.style.display = 'none';
+  // Step 2: greeting
+  addChatMessage("Hey! I'm **FlowB**", 'bot');
+  await introWait(600);
+
+  // Step 3: typing
+  addTypingIndicator();
+  await introWait(1000);
+  removeTypingIndicator();
+
+  // Step 4: description
+  addChatMessage("I help you discover events and find what's happening around you.", 'bot');
+  await introWait(500);
+
+  // Step 5: typing
+  addTypingIndicator();
+  await introWait(700);
+  removeTypingIndicator();
+
+  // Step 6: question
+  addChatMessage("What kind of events are you into?", 'bot');
+  await introWait(300);
+
+  // Step 7: category chips as interactive message
+  await renderIntroCatMessage();
+}
+
+async function renderIntroCatMessage() {
+  // Use global categories or fetch
+  let cats = categories;
+  if (!cats || !cats.length) {
+    try {
+      const res = await fetch(`${API}/api/v1/categories`);
+      const data = await res.json();
+      cats = (data.categories || []).map(c => ({
+        id: c.slug || c.id,
+        emoji: CATEGORY_ICONS[c.icon] || CATEGORY_ICONS[c.slug] || '',
+        label: c.name || c.slug,
+      }));
+    } catch {
+      cats = [];
+    }
+  }
+
+  if (!cats.length) {
+    addChatMessage("Browse the events below or ask me anything!", 'bot');
+    localStorage.setItem('flowb-intro-seen', '1');
     return;
   }
 
-  let selectedCats = new Set();
+  const selectedCats = new Set();
 
-  // Show intro after a short delay
-  setTimeout(() => {
-    intro.classList.add('visible');
-    runIntroSequence();
-  }, 1500);
+  // Create bot message with chip grid
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-chips"></div>
+      <button class="flowb-intro-go-btn" disabled>Show me events</button>
+    </div>
+  `;
+  chatMessages.appendChild(div);
 
-  // Close handler
-  introClose.addEventListener('click', () => {
-    dismissIntro();
-  });
+  const chipsEl = div.querySelector('.flowb-intro-chips');
+  const goBtn = div.querySelector('.flowb-intro-go-btn');
 
-  let introStep = 'categories'; // 'categories' | 'location' | 'done'
-  let introLocationEl = null;
+  for (const cat of cats) {
+    const chip = document.createElement('button');
+    chip.className = 'flowb-intro-chip';
+    chip.innerHTML = `<span class="intro-chip-emoji">${cat.emoji}</span> ${cat.label}`;
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('selected');
+      if (chip.classList.contains('selected')) {
+        selectedCats.add(cat.id);
+      } else {
+        selectedCats.delete(cat.id);
+      }
+      goBtn.disabled = selectedCats.size === 0;
+    });
+    chipsEl.appendChild(chip);
+  }
 
-  // Apply all selected categories to event filter
-  async function applySelectedCats() {
+  goBtn.addEventListener('click', async () => {
     if (selectedCats.size === 0) return;
+    goBtn.disabled = true;
+    goBtn.textContent = 'Loading...';
+
+    // Apply categories to main page
+    localStorage.setItem('flowb-user-cats', JSON.stringify([...selectedCats]));
     const catStr = [...selectedCats].join(',');
-    displayCount = 12;
+    displayCount = 18;
     showLoading();
     const params = { mainCategory: catStr };
     if (activeCity) params.city = activeCity;
     allEvents = await fetchEvents(params);
     renderEvents(allEvents);
-
-    // Highlight matching chips on the main page
     activeCategory = catStr;
     if (catRow) {
       catRow.querySelectorAll('.cat-chip').forEach(btn => {
         btn.classList.toggle('active', selectedCats.has(btn.dataset.cat));
       });
     }
-  }
 
-  // Go button — first press applies categories, subsequent presses update
-  introGo.addEventListener('click', async () => {
-    if (selectedCats.size === 0) return;
+    // Disable chip interactions
+    chipsEl.querySelectorAll('.flowb-intro-chip').forEach(c => { c.style.pointerEvents = 'none'; });
+    goBtn.style.display = 'none';
 
-    localStorage.setItem('flowb-user-cats', JSON.stringify([...selectedCats]));
+    // Confirmation
+    const names = [...selectedCats].map(id => {
+      const cat = categories.find(c => c.id === id);
+      return cat ? cat.label : id;
+    });
+    const nameStr = names.length <= 2 ? names.join(' & ') : names.slice(0, 2).join(', ') + ' & more';
 
-    introGo.disabled = true;
-    introGo.textContent = 'Updating...';
+    addTypingIndicator();
+    await introWait(500);
+    removeTypingIndicator();
+    addChatMessage(`Nice -- **${nameStr}**. I've filtered the events for you.`, 'bot');
 
-    await applySelectedCats();
+    await introWait(400);
+    addTypingIndicator();
+    await introWait(700);
+    removeTypingIndicator();
+    addChatMessage("Where are you headed?", 'bot');
+    await introWait(200);
 
-    if (introStep === 'categories') {
-      // First time: show confirmation + location step
-      introStep = 'location';
-      const names = [...selectedCats].map(id => {
-        const cat = categories.find(c => c.id === id);
-        return cat ? cat.label : id;
-      });
-      const nameStr = names.length <= 2 ? names.join(' & ') : names.slice(0, 2).join(', ') + ' & more';
-
-      addTypingDots();
-      await wait(500);
-      addMessage("Nice -- <strong>" + nameStr + "</strong>. I've filtered the events for you.");
-
-      // Keep Go button visible for future category updates
-      introGo.textContent = 'Update results';
-      introGo.disabled = selectedCats.size === 0;
-
-      // Show location step
-      await wait(400);
-      addTypingDots();
-      await wait(700);
-      addMessage("Where are you headed?");
-      await wait(200);
-      renderIntroLocations();
-    } else {
-      // Subsequent updates
-      introGo.textContent = 'Update results';
-      introGo.disabled = selectedCats.size === 0;
-    }
+    // Location chips
+    renderIntroLocationMessage(selectedCats);
   });
 
-  function renderIntroLocations() {
-    if (introLocationEl) return; // already rendered
-    introLocationEl = document.createElement('div');
-    introLocationEl.className = 'flowb-intro-cats'; // reuse same chip grid style
+  scrollChatToBottom();
+}
 
-    const topCities = [
-      { city: 'Denver', icon: '🏔️', label: 'Denver' },
-      { city: 'New York', icon: '🗽', label: 'New York' },
-      { city: 'San Francisco', icon: '🌉', label: 'SF' },
-      { city: 'Austin', icon: '🤠', label: 'Austin' },
-      { city: 'Miami', icon: '🌊', label: 'Miami' },
-      { city: 'London', icon: '🇬🇧', label: 'London' },
-      { city: 'Berlin', icon: '🇩🇪', label: 'Berlin' },
-      { city: 'Lisbon', icon: '🇵🇹', label: 'Lisbon' },
-      { city: '', icon: '🌍', label: 'Anywhere' },
-    ];
+function renderIntroLocationMessage(selectedCats) {
+  const topCities = [
+    { city: 'Denver', icon: '\uD83C\uDFD4\uFE0F', label: 'Denver' },
+    { city: 'New York', icon: '\uD83D\uDDFD', label: 'New York' },
+    { city: 'San Francisco', icon: '\uD83C\uDF09', label: 'SF' },
+    { city: 'Austin', icon: '\uD83E\uDD20', label: 'Austin' },
+    { city: 'Miami', icon: '\uD83C\uDF0A', label: 'Miami' },
+    { city: 'London', icon: '\uD83C\uDDEC\uD83C\uDDE7', label: 'London' },
+    { city: 'Berlin', icon: '\uD83C\uDDE9\uD83C\uDDEA', label: 'Berlin' },
+    { city: 'Lisbon', icon: '\uD83C\uDDF5\uD83C\uDDF9', label: 'Lisbon' },
+    { city: '', icon: '\uD83C\uDF0D', label: 'Anywhere' },
+  ];
 
-    for (const c of topCities) {
-      const chip = document.createElement('button');
-      chip.className = 'flowb-intro-cat';
-      if (c.city === activeCity || (!c.city && !activeCity)) chip.classList.add('selected');
-      chip.innerHTML = `<span class="intro-cat-emoji">${c.icon}</span> ${c.label}`;
-      chip.addEventListener('click', async () => {
-        introLocationEl.querySelectorAll('.flowb-intro-cat').forEach(el => el.classList.remove('selected'));
-        chip.classList.add('selected');
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-chips"></div>
+    </div>
+  `;
+  chatMessages.appendChild(div);
 
-        // Apply location
-        selectLocation(c.city, c.label === 'Anywhere' ? 'Anywhere' : c.label);
+  const chipsEl = div.querySelector('.flowb-intro-chips');
+  let locationPicked = false;
 
-        // Re-fetch with new city + selected cats
-        if (selectedCats.size > 0) {
-          showLoading();
-          const params = { mainCategory: [...selectedCats].join(',') };
-          if (c.city) params.city = c.city;
-          allEvents = await fetchEvents(params);
-          renderEvents(allEvents);
-        }
+  for (const c of topCities) {
+    const chip = document.createElement('button');
+    chip.className = 'flowb-intro-chip';
+    if (c.city === activeCity || (!c.city && !activeCity)) chip.classList.add('selected');
+    chip.innerHTML = `<span class="intro-chip-emoji">${c.icon}</span> ${c.label}`;
+    chip.addEventListener('click', async () => {
+      if (locationPicked) return;
+      locationPicked = true;
 
-        // Show footer
-        if (introStep !== 'done') {
-          introStep = 'done';
-          addTypingDots();
-          await wait(400);
-          addMessage("You're all set! Browse events below, or tap the FlowB chat anytime to ask me anything.");
-          setTimeout(() => {
-            introFooter.classList.remove('hidden');
-          }, 300);
-        }
-      });
-      introLocationEl.appendChild(chip);
-    }
+      chipsEl.querySelectorAll('.flowb-intro-chip').forEach(el => el.classList.remove('selected'));
+      chip.classList.add('selected');
+      chipsEl.querySelectorAll('.flowb-intro-chip').forEach(el => { el.style.pointerEvents = 'none'; });
 
-    introMessages.parentNode.insertBefore(introLocationEl, introGo);
-  }
+      // Apply location
+      selectLocation(c.city, c.label === 'Anywhere' ? 'Anywhere' : c.label);
 
-  function addTypingDots() {
-    const dots = document.createElement('div');
-    dots.className = 'flowb-intro-typing';
-    dots.id = 'introTyping';
-    dots.innerHTML = '<span></span><span></span><span></span>';
-    introMessages.appendChild(dots);
-    return dots;
-  }
-
-  function removeTypingDots() {
-    const dots = document.getElementById('introTyping');
-    if (dots) dots.remove();
-  }
-
-  function addMessage(text, cls) {
-    removeTypingDots();
-    const p = document.createElement('p');
-    p.className = 'flowb-intro-msg' + (cls ? ' ' + cls : '');
-    p.innerHTML = text;
-    introMessages.appendChild(p);
-  }
-
-  async function runIntroSequence() {
-    // Step 1: typing dots
-    addTypingDots();
-    await wait(800);
-
-    // Step 2: greeting
-    addMessage("Hey! I'm <strong>FlowB</strong>", 'greeting');
-    await wait(600);
-
-    // Step 3: typing again
-    addTypingDots();
-    await wait(1000);
-
-    // Step 4: description
-    addMessage("I help you discover events and find what's happening around you.");
-    await wait(500);
-
-    // Step 5: typing
-    addTypingDots();
-    await wait(700);
-
-    // Step 6: question
-    addMessage("What kind of events are you into?");
-    await wait(300);
-
-    // Step 7: show category chips (use already-fetched categories, or fetch)
-    await renderIntroCats();
-  }
-
-  async function renderIntroCats() {
-    // Use the global categories if already loaded, otherwise fetch
-    let cats = categories;
-    if (!cats || !cats.length) {
-      try {
-        const res = await fetch(`${API}/api/v1/categories`);
-        const data = await res.json();
-        cats = (data.categories || []).map(c => ({
-          id: c.slug || c.id,
-          emoji: CATEGORY_ICONS[c.icon] || CATEGORY_ICONS[c.slug] || '',
-          label: c.name || c.slug,
-        }));
-      } catch {
-        cats = [];
+      // Re-fetch with new city + selected cats
+      if (selectedCats.size > 0) {
+        showLoading();
+        const params = { mainCategory: [...selectedCats].join(',') };
+        if (c.city) params.city = c.city;
+        allEvents = await fetchEvents(params);
+        renderEvents(allEvents);
       }
-    }
 
-    if (!cats.length) {
-      // Fallback if no categories
-      addMessage("Browse the events below or open the chat anytime!");
-      introFooter.classList.remove('hidden');
-      return;
-    }
+      // Final message
+      addTypingIndicator();
+      await introWait(400);
+      removeTypingIndicator();
+      addChatMessage("You're all set! Browse events below, or ask me anything here.", 'bot');
 
-    introCats.innerHTML = '';
-    for (const cat of cats) {
-      const chip = document.createElement('button');
-      chip.className = 'flowb-intro-cat';
-      chip.dataset.cat = cat.id;
-      chip.innerHTML = `<span class="intro-cat-emoji">${cat.emoji}</span> ${cat.label}`;
-      chip.addEventListener('click', () => {
-        chip.classList.toggle('selected');
-        if (chip.classList.contains('selected')) {
-          selectedCats.add(cat.id);
-        } else {
-          selectedCats.delete(cat.id);
-        }
-        introGo.disabled = selectedCats.size === 0;
-        // After first apply, show update hint
-        if (introStep !== 'categories' && selectedCats.size > 0) {
-          introGo.textContent = 'Update results';
-          introGo.style.display = '';
-        }
-      });
-      introCats.appendChild(chip);
-    }
-
-    introCats.classList.remove('hidden');
-    introGo.classList.remove('hidden');
-    introGo.disabled = true;
+      localStorage.setItem('flowb-intro-seen', '1');
+    });
+    chipsEl.appendChild(chip);
   }
 
-  function dismissIntro() {
-    localStorage.setItem('flowb-intro-seen', '1');
-    intro.classList.add('dismissed');
-    setTimeout(() => { intro.style.display = 'none'; }, 300);
-  }
-
-  function wait(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
+  scrollChatToBottom();
 }
 
 // ===== Init =====
 (async () => {
-  // FlowB first-visit intro popup (fire immediately, don't wait for API)
-  initFlowbIntro();
-
   awardPoints(1, 'Daily visit', 'info');
   awardFirstAction('first_visit', 5, 'Welcome to FlowB!');
 
   // Handle event URL parameter from smart short links
   handleEventUrlParam();
+
+  // First-visit: auto-expand chat panel after 1.5s
+  if (!localStorage.getItem('flowb-intro-seen')) {
+    setTimeout(() => {
+      if (widget.dataset.state === 'minimized') {
+        introStarted = true;
+        expandChat();
+        runIntroInChat();
+      }
+    }, 1500);
+  }
 
   // Read URL params (from FlowB web links)
   const urlParams = new URLSearchParams(window.location.search);
@@ -2043,6 +1997,12 @@ function initFlowbIntro() {
   const paramCategory = urlParams.get('category');
   const paramFilter = urlParams.get('filter');
   const paramCity = urlParams.get('city');
+  const paramAll = urlParams.get('all') === 'true';
+
+  // If "All Events" mode, show everything
+  if (paramAll) {
+    displayCount = 999;
+  }
 
   if (paramSearch) {
     searchInput.value = paramSearch;
@@ -2068,6 +2028,7 @@ function initFlowbIntro() {
   if (paramSearch) initParams.query = paramSearch;
   if (paramCategory && paramCategory !== 'all') initParams.mainCategory = paramCategory;
   if (paramCity) initParams.city = paramCity;
+  if (paramAll) initParams.limit = 200;
 
   // Apply filter from URL (tonight/week/free)
   if (paramFilter === 'tonight') {
@@ -2114,4 +2075,133 @@ function initFlowbIntro() {
 
   // Check Luma API health
   checkLumaHealth();
+})();
+
+// ===================================================================
+// Submit Event Modal
+// ===================================================================
+
+(function initSubmitEvent() {
+  const btn = document.getElementById('submitEventBtn');
+  const modal = document.getElementById('submitModal');
+  const backdrop = document.getElementById('submitModalBackdrop');
+  const closeBtn = document.getElementById('submitModalClose');
+  const form = document.getElementById('submitEventForm');
+  if (!btn || !modal) return;
+
+  function openSubmitModal() {
+    modal.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // Auto-fill city from current selection
+    const cityInput = document.getElementById('submitCity');
+    if (cityInput && activeCity) cityInput.value = activeCity;
+  }
+
+  function closeSubmitModal() {
+    modal.classList.add('hidden');
+    backdrop.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  btn.addEventListener('click', openSubmitModal);
+  closeBtn.addEventListener('click', closeSubmitModal);
+  backdrop.addEventListener('click', closeSubmitModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeSubmitModal();
+    }
+  });
+
+  // When URL is pasted, auto-fill title hint
+  const urlInput = document.getElementById('submitUrl');
+  const titleInput = document.getElementById('submitTitle');
+  if (urlInput && titleInput) {
+    urlInput.addEventListener('input', () => {
+      if (urlInput.value.trim()) {
+        titleInput.removeAttribute('required');
+        titleInput.placeholder = 'Optional if URL provided';
+      } else {
+        titleInput.setAttribute('required', '');
+        titleInput.placeholder = 'My awesome event';
+      }
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('submitBtn');
+    const url = document.getElementById('submitUrl').value.trim();
+    const title = document.getElementById('submitTitle').value.trim();
+    const date = document.getElementById('submitDate').value;
+    const time = document.getElementById('submitTime').value;
+    const venue = document.getElementById('submitVenue').value.trim();
+    const city = document.getElementById('submitCity').value.trim();
+    const desc = document.getElementById('submitDesc').value.trim();
+    const isFree = document.getElementById('submitFree').checked;
+    const name = document.getElementById('submitName').value.trim();
+
+    if (!url && !title) {
+      alert('Please provide an event URL or title.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    let startTime = null;
+    if (date) {
+      startTime = time ? `${date}T${time}:00` : `${date}T00:00:00`;
+    }
+
+    const body = {
+      url: url || undefined,
+      title: title || undefined,
+      startTime,
+      venue: venue || undefined,
+      city: city || 'Denver',
+      description: desc || undefined,
+      isFree,
+      submitterName: name || undefined,
+    };
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getAuthToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API}/api/v1/events/submit`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        submitBtn.textContent = 'Submitted!';
+        submitBtn.style.background = 'var(--green)';
+        awardPoints(5, 'Event submitted');
+        setTimeout(() => {
+          closeSubmitModal();
+          form.reset();
+          submitBtn.textContent = 'Submit Event';
+          submitBtn.style.background = '';
+          submitBtn.disabled = false;
+          // Refresh events to show the new one
+          selectCategory(activeCategory);
+        }, 1500);
+      } else {
+        alert(data.error || 'Something went wrong. Please try again.');
+        submitBtn.textContent = 'Submit Event';
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      console.error('Submit failed:', err);
+      alert('Network error. Please try again.');
+      submitBtn.textContent = 'Submit Event';
+      submitBtn.disabled = false;
+    }
+  });
 })();

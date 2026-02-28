@@ -79,12 +79,45 @@ export function loadSignalConfig(): SignalConfig | undefined {
 }
 
 function buildEgatorConfig(): EGatorPluginConfig | undefined {
-  // Luma-only: all event discovery and management via Luma
-  if (!process.env.LUMA_API_KEY) return undefined;
+  const sources: EGatorPluginConfig["sources"] = {};
+  let hasAny = false;
 
-  return {
-    sources: {
-      luma: { apiKey: process.env.LUMA_API_KEY },
-    },
-  };
+  if (process.env.LUMA_API_KEY) {
+    sources.luma = { apiKey: process.env.LUMA_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.TAVILY_API_KEY) {
+    sources.tavily = { apiKey: process.env.TAVILY_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.EVENTBRITE_API_KEY) {
+    sources.eventbrite = { apiKey: process.env.EVENTBRITE_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.BRAVE_API_KEY) {
+    sources.brave = { apiKey: process.env.BRAVE_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.EGATOR_RA_ENABLED === "true" || process.env.EGATOR_RA === "true") {
+    sources.ra = { enabled: true };
+    hasAny = true;
+  }
+  if (process.env.EGATOR_LEMONADE_ENABLED === "true" || process.env.EGATOR_LEMONADE === "true") {
+    sources.lemonade = { enabled: true };
+    hasAny = true;
+  }
+  if (process.env.SHEEETS_SPREADSHEET_ID) {
+    sources.sheeets = {
+      spreadsheetId: process.env.SHEEETS_SPREADSHEET_ID,
+      apiKey: process.env.GOOGLE_SHEETS_API_KEY,
+    };
+    hasAny = true;
+  }
+  if (process.env.GOOGLE_PLACES_API_KEY) {
+    sources.googlePlaces = { apiKey: process.env.GOOGLE_PLACES_API_KEY };
+    hasAny = true;
+  }
+
+  if (!hasAny) return undefined;
+  return { sources };
 }

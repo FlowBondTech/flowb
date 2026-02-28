@@ -74,13 +74,8 @@ function initAuth() {
     refreshPointsBadge();
   });
 
-  // Wire up buttons - Privy may not be loaded yet (lazy), so check first
-  document.getElementById('authBtn')?.addEventListener('click', () => {
-    if (window.flowbPrivy) {
-      window.flowbPrivy.login();
-    }
-    // If Privy isn't loaded yet, the lazy loader in index.html handles it
-  });
+  // Sign In click is handled by the inline script in index.html
+  // which manages Privy lazy-loading + login with visual feedback
 
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
     // Clear local state immediately for responsive UI

@@ -25,6 +25,13 @@ export interface DANZPluginConfig {
 export interface EGatorPluginConfig {
   sources?: {
     luma?: { apiKey: string };
+    tavily?: { apiKey: string };
+    eventbrite?: { apiKey: string };
+    brave?: { apiKey: string };
+    ra?: { enabled: boolean };
+    lemonade?: { enabled: boolean };
+    sheeets?: { spreadsheetId: string; apiKey?: string };
+    googlePlaces?: { apiKey: string };
   };
 }
 

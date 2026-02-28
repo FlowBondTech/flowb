@@ -39,8 +39,8 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   poker: ["poker", "texas hold", "tournament poker"],
 };
 
-// Luma is the sole trusted source
-const TRUSTED_SOURCES = new Set(["luma"]);
+// Trusted sources get a quality score bonus
+const TRUSTED_SOURCES = new Set(["luma", "eventbrite", "ra", "lemonade", "sheeets"]);
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
