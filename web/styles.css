@@ -151,6 +151,67 @@ a:hover { text-decoration: underline; }
   font-weight: 600;
 }
 
+/* ===== Nav More Dropdown ===== */
+.nav-more {
+  position: relative;
+}
+.nav-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.nav-more-btn svg {
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.nav-more-btn:hover svg,
+.nav-more.open .nav-more-btn svg {
+  opacity: 1;
+}
+.nav-more-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 160px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 12px);
+  padding: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: all 0.15s ease;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.nav-more.open .nav-more-dropdown {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.nav-more-item {
+  display: block;
+  padding: 8px 14px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: var(--radius-sm, 8px);
+  transition: all 0.15s;
+}
+.nav-more-item:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.06);
+  text-decoration: none;
+}
+.nav-more-item.active {
+  color: var(--accent-light);
+}
+
 /* ===== Page Layout (shared by leaderboard + flow) ===== */
 .page-content {
   padding: 32px 0 48px;
@@ -563,6 +624,7 @@ a:hover { text-decoration: underline; }
   z-index: 150;
   transform: translateY(-100%);
   opacity: 0;
+  pointer-events: none;
   transition: transform 0.3s ease, opacity 0.3s ease;
   padding: 12px 0 20px;
   max-height: calc(100vh - 56px);
@@ -571,6 +633,7 @@ a:hover { text-decoration: underline; }
 .mobile-menu.open {
   transform: translateY(0);
   opacity: 1;
+  pointer-events: auto;
 }
 .mobile-menu-backdrop {
   position: fixed;
@@ -609,11 +672,11 @@ a:hover { text-decoration: underline; }
 
 /* ===== Responsive (nav + pages) ===== */
 @media (max-width: 768px) {
-  .hamburger { display: flex; }
+  .hamburger { display: flex; order: 99; }
   .header-nav { display: none; }
   .event-badge { display: none; }
   .luma-status { display: none; }
-  .header-meta { gap: 6px; }
+  .header-meta { gap: 6px; margin-left: auto; }
   .points-streak { display: none; }
 }
 
