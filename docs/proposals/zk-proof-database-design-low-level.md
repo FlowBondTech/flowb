@@ -1202,3 +1202,1542 @@ circuits/
 | Did user X already check in today? | Query by user_id + date | Query by nullifier — no user_id involved |
 | How many users total? | COUNT(*) on any user table | Merkle tree leaf_count — same answer, no PII |
 | What's the most popular action? | GROUP BY action on ledger | GROUP BY action_type on zk_actions — same answer, no user linkage |
+
+---
+
+## 13. Wearable Device Attestation Schema
+
+### 13.1 Device Identity and Registration
+
+Each FlowBond wearable has a factory-provisioned Ed25519 keypair stored in its secure element. The device never reveals its public key directly — instead, a commitment is registered.
+
+```sql
+-- Device identity registry
+-- Each wearable's public key is committed, not stored in cleartext
+CREATE TABLE IF NOT EXISTS flowb_zk_devices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Poseidon(device_pubkey_x, device_pubkey_y, manufacture_nonce)
+  device_commitment BYTEA NOT NULL UNIQUE,
+
+  -- Manufacture batch (public — useful for firmware update targeting)
+  batch_id TEXT NOT NULL,
+
+  -- Device is registered in this Merkle tree
+  device_tree_id TEXT NOT NULL DEFAULT 'devices'
+    REFERENCES flowb_zk_merkle_trees(tree_id),
+  merkle_leaf_index INTEGER NOT NULL,
+
+  -- Binding to a user identity (optional — set when device is paired)
+  -- This is a commitment to the pairing, not a cleartext link
+  -- Poseidon(user_identity_commitment, device_commitment, pairing_nonce)
+  pairing_commitment BYTEA,
+
+  registered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  paired_at TIMESTAMPTZ,
+
+  CONSTRAINT chk_device_commitment_length CHECK (octet_length(device_commitment) = 32),
+  CONSTRAINT chk_pairing_commitment_length CHECK (
+    pairing_commitment IS NULL OR octet_length(pairing_commitment) = 32
+  )
+);
+
+CREATE INDEX idx_zk_devices_batch ON flowb_zk_devices (batch_id);
+CREATE INDEX idx_zk_devices_pairing ON flowb_zk_devices (pairing_commitment)
+  WHERE pairing_commitment IS NOT NULL;
+
+ALTER TABLE flowb_zk_devices ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zk_devices_service ON flowb_zk_devices
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_devices IS
+  'Device identity commitments. The actual device public key and serial number never enter the database.';
+```
+
+### 13.2 Attestation Storage
+
+Raw attestations from the wearable are stored as commitments. The full attestation data is signed by the device and optionally stored as an encrypted blob by the user.
+
+```sql
+-- Device attestations: movement/presence claims signed by wearable hardware
+CREATE TABLE IF NOT EXISTS flowb_zk_attestations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Device that produced this attestation (committed, not cleartext)
+  device_commitment BYTEA NOT NULL,
+
+  -- Poseidon hash of the attestation payload
+  -- H(activity_type, intensity, duration_bucket, timestamp_bucket, peer_count)
+  attestation_hash BYTEA NOT NULL,
+
+  -- Ed25519 signature from the device over the attestation payload
+  -- This proves a genuine FlowBond device produced the claim
+  device_signature BYTEA NOT NULL,
+
+  -- Activity type (public — needed for routing to correct verification circuit)
+  activity_type SMALLINT NOT NULL,
+  -- 0 = unknown, 1 = dancing, 2 = walking, 3 = running, 4 = still
+
+  -- Timestamp bucket (5-minute granularity, public)
+  timestamp_bucket BIGINT NOT NULL,
+
+  -- BLE proximity peer count (public — needed for social proof threshold)
+  proximity_peer_count SMALLINT NOT NULL DEFAULT 0,
+
+  -- Merkle leaf index in the attestation tree for this time period
+  merkle_leaf_index INTEGER,
+  attestation_tree_id TEXT REFERENCES flowb_zk_merkle_trees(tree_id),
+
+  -- Processing status
+  verified BOOLEAN NOT NULL DEFAULT false,
+  verified_at TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_attestation_hash_length CHECK (octet_length(attestation_hash) = 32),
+  CONSTRAINT chk_device_sig_length CHECK (octet_length(device_signature) = 64),
+  CONSTRAINT chk_activity_type CHECK (activity_type BETWEEN 0 AND 4)
+);
+
+CREATE INDEX idx_zk_attestations_device ON flowb_zk_attestations (device_commitment, timestamp_bucket DESC);
+CREATE INDEX idx_zk_attestations_activity ON flowb_zk_attestations (activity_type, timestamp_bucket DESC);
+CREATE INDEX idx_zk_attestations_unverified ON flowb_zk_attestations (verified)
+  WHERE verified = false;
+
+ALTER TABLE flowb_zk_attestations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zk_attestations_service ON flowb_zk_attestations
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_attestations IS
+  'Wearable device attestations. Intensity, duration, and biometric details are committed — only activity type and timestamp bucket are public.';
+```
+
+### 13.3 BLE Proximity Proof Storage
+
+When two wearables detect each other via BLE ranging, both devices produce co-attestations. This enables "Merge Conflict" partner dance challenges and social presence proofs.
+
+```sql
+-- BLE proximity co-attestations: two devices confirm mutual proximity
+CREATE TABLE IF NOT EXISTS flowb_zk_proximity_proofs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Both devices' commitments
+  device_a_commitment BYTEA NOT NULL,
+  device_b_commitment BYTEA NOT NULL,
+
+  -- Mutual attestation hash: Poseidon(device_a_commitment, device_b_commitment, timestamp_bucket)
+  -- Both devices independently produce the same hash (commutative)
+  proximity_hash BYTEA NOT NULL UNIQUE,
+
+  -- Signatures from both devices over the proximity_hash
+  device_a_signature BYTEA NOT NULL,
+  device_b_signature BYTEA NOT NULL,
+
+  -- Timestamp bucket (5-min granularity)
+  timestamp_bucket BIGINT NOT NULL,
+
+  -- Estimated distance bucket (not exact — privacy preserving)
+  -- 0 = <1m, 1 = 1-3m, 2 = 3-10m
+  distance_bucket SMALLINT NOT NULL DEFAULT 0,
+
+  verified BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_proximity_hash_length CHECK (octet_length(proximity_hash) = 32),
+  CONSTRAINT chk_device_a_sig_length CHECK (octet_length(device_a_signature) = 64),
+  CONSTRAINT chk_device_b_sig_length CHECK (octet_length(device_b_signature) = 64)
+);
+
+CREATE INDEX idx_zk_proximity_timestamp ON flowb_zk_proximity_proofs (timestamp_bucket DESC);
+
+ALTER TABLE flowb_zk_proximity_proofs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zk_proximity_service ON flowb_zk_proximity_proofs
+  FOR ALL USING (true) WITH CHECK (true);
+```
+
+### 13.4 Device Attestation Verification (Server-Side)
+
+```typescript
+import { ed25519 } from "@noble/curves/ed25519";
+
+interface DeviceAttestation {
+  deviceCommitment: Uint8Array;  // 32 bytes
+  activityType: number;          // 0-4
+  intensity: number;             // 0-3 (low/med/high/extreme)
+  durationBucket: number;        // enum index
+  timestampBucket: bigint;       // floor(unix_ts / 300)
+  peerCount: number;
+  signature: Uint8Array;         // 64 bytes Ed25519
+}
+
+async function verifyDeviceAttestation(
+  attestation: DeviceAttestation,
+  devicePubkeyEncrypted: Uint8Array,  // from user's encrypted blob
+  userEncryptionKey: Uint8Array       // user decrypts on client, sends pubkey for verification
+): Promise<boolean> {
+  // 1. Verify the device commitment matches the provided pubkey
+  const devicePubkey = attestation.deviceCommitment; // simplified — actual flow decrypts
+
+  // 2. Reconstruct the attestation payload that was signed
+  const payload = encodeAttestationPayload(attestation);
+
+  // 3. Verify Ed25519 signature
+  const sigValid = ed25519.verify(attestation.signature, payload, devicePubkey);
+  if (!sigValid) return false;
+
+  // 4. Verify device is in the device registry Merkle tree
+  const deviceInTree = await verifyDeviceMembership(attestation.deviceCommitment);
+  if (!deviceInTree) return false;
+
+  // 5. Verify timestamp is recent (within last 24 hours)
+  const now = BigInt(Math.floor(Date.now() / 1000 / 300));
+  if (now - attestation.timestampBucket > 288n) return false; // 288 * 5min = 24h
+
+  return true;
+}
+
+function encodeAttestationPayload(att: DeviceAttestation): Uint8Array {
+  // Deterministic encoding: activity_type || intensity || duration || timestamp || peers
+  const buf = new ArrayBuffer(20);
+  const view = new DataView(buf);
+  view.setUint8(0, att.activityType);
+  view.setUint8(1, att.intensity);
+  view.setUint8(2, att.durationBucket);
+  view.setBigUint64(3, att.timestampBucket, false);
+  view.setUint16(11, att.peerCount, false);
+  return new Uint8Array(buf);
+}
+```
+
+---
+
+## 14. DANZ Movement Verification Circuits
+
+### 14.1 Dance Attestation Proof
+
+**Purpose**: Prove "a valid FlowBond device detected authentic dancing by me" without revealing the device, the biometric data, or the exact timing.
+
+```
+Circuit: DanceAttestation
+
+Private inputs:
+  - sk: field                          // user's secret key
+  - nonce: field                       // registration nonce
+  - device_pubkey_x: field             // device Ed25519 pubkey (x coordinate)
+  - device_pubkey_y: field             // device Ed25519 pubkey (y coordinate)
+  - device_manufacture_nonce: field
+  - attestation_intensity: field       // 0-3
+  - attestation_duration: field        // bucket index
+  - identityPathElements[20]: field[]
+  - identityPathIndices[20]: int[]
+  - devicePathElements[20]: field[]
+  - devicePathIndices[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - deviceMerkleRoot: field
+  - activityType: field                // 1 = dancing (public)
+  - timestampBucket: field             // 5-min bucket (public)
+  - minIntensity: field                // required minimum (e.g., "medium")
+  - minDuration: field                 // required minimum bucket
+  - pairingCommitment: field           // proves this user owns this device
+  - nullifier: field
+
+Constraints:
+  1.  identityCommitment = Poseidon(sk, nonce)
+  2.  MerkleProof(identityCommitment, identityPath...) == identityMerkleRoot
+  3.  deviceCommitment = Poseidon(device_pubkey_x, device_pubkey_y, device_manufacture_nonce)
+  4.  MerkleProof(deviceCommitment, devicePath...) == deviceMerkleRoot
+  5.  pairingCommitment == Poseidon(identityCommitment, deviceCommitment, pairing_nonce)
+  6.  activityType == 1   // must be dancing
+  7.  attestation_intensity >= minIntensity
+  8.  attestation_duration >= minDuration
+  9.  nullifier == Poseidon(Poseidon(sk, "dance_attestation"), timestampBucket)
+```
+
+**Constraint count**: ~25,000 (two Merkle proofs + Ed25519 verification dominate)
+**Proof size**: 128 bytes (Groth16)
+
+### 14.2 Partner Dance Proof (Merge Conflict Challenge)
+
+**Purpose**: Prove "two different users with two different devices danced together in proximity" without revealing either identity.
+
+```
+Circuit: PartnerDance
+
+Private inputs:
+  - sk_a: field                        // user A's secret key
+  - nonce_a: field
+  - sk_b: field                        // user B's secret key (B provides to A for joint proof)
+  - nonce_b: field                     // ALTERNATIVE: each user proves separately, combined off-circuit
+  - device_a_pubkey: field[2]
+  - device_b_pubkey: field[2]
+  - proximity_distance_bucket: field   // 0 = <1m (required for partner dance)
+  - pathElements_a[20]: field[]
+  - pathIndices_a[20]: int[]
+  - pathElements_b[20]: field[]
+  - pathIndices_b[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - proximityHash: field               // Poseidon(device_a_commitment, device_b_commitment, ts)
+  - timestampBucket: field
+  - nullifier_a: field
+  - nullifier_b: field
+
+Constraints:
+  1.  commitment_a = Poseidon(sk_a, nonce_a)
+  2.  commitment_b = Poseidon(sk_b, nonce_b)
+  3.  commitment_a != commitment_b     // different users
+  4.  Both in identity Merkle tree
+  5.  device_a_commitment = Poseidon(device_a_pubkey[0], device_a_pubkey[1], ...)
+  6.  device_b_commitment = Poseidon(device_b_pubkey[0], device_b_pubkey[1], ...)
+  7.  proximityHash == Poseidon(device_a_commitment, device_b_commitment, timestampBucket)
+  8.  proximity_distance_bucket == 0   // must be <1m for partner dance
+  9.  nullifier_a == Poseidon(Poseidon(sk_a, "partner_dance"), timestampBucket)
+  10. nullifier_b == Poseidon(Poseidon(sk_b, "partner_dance"), timestampBucket)
+```
+
+**Constraint count**: ~35,000
+**Note**: In practice, this circuit is too complex for a single proof with both users' secrets. The recommended approach is a **two-phase proof**: each user proves their side independently, and the server verifies both proofs reference the same `proximityHash`.
+
+### 14.3 Dance Challenge Completion Proof
+
+**Purpose**: Prove "I completed a specific dance challenge (e.g., The Git Push) with sufficient intensity and duration."
+
+```
+Circuit: ChallengeCompletion
+
+Private inputs:
+  - sk: field
+  - nonce: field
+  - attestation_intensity: field
+  - attestation_duration: field
+  - attestation_activity_subtype: field  // specific move classifier output
+  - pathElements[20]: field[]
+  - pathIndices[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - challengeId: field                    // e.g., hash("the_git_push")
+  - challengeMinIntensity: field          // from challenge definition
+  - challengeMinDuration: field           // from challenge definition
+  - challengeRequiredSubtype: field       // move pattern classifier ID
+  - rewardDeltaCommitment: field[2]       // Pedersen commitment to reward amount
+  - nullifier: field
+
+Constraints:
+  1.  identityCommitment = Poseidon(sk, nonce)
+  2.  MerkleProof(identityCommitment, ...) == identityMerkleRoot
+  3.  attestation_intensity >= challengeMinIntensity
+  4.  attestation_duration >= challengeMinDuration
+  5.  attestation_activity_subtype == challengeRequiredSubtype
+  6.  nullifier == Poseidon(Poseidon(sk, "challenge"), challengeId)
+```
+
+**Constraint count**: ~12,000
+**Nullifier scope**: Per-challenge — prevents completing the same challenge twice (except DAILY/WEEKLY types which include a time component in the nullifier)
+
+### 14.4 DANZ-Specific Database Tables
+
+```sql
+-- DANZ challenge definitions with ZK verification parameters
+CREATE TABLE IF NOT EXISTS flowb_zk_danz_challenges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Public challenge metadata
+  challenge_name TEXT NOT NULL,
+  challenge_type TEXT NOT NULL CHECK (challenge_type IN (
+    'DAILY', 'WEEKLY', 'SPECIAL', 'EVENT', 'MASTERY', 'EXPLORATION', 'STREAK'
+  )),
+  description TEXT,
+  difficulty TEXT NOT NULL CHECK (difficulty IN ('Easy', 'Medium', 'Hard', 'Extreme')),
+
+  -- ZK verification parameters (public — needed by the proving circuit)
+  required_activity_type SMALLINT NOT NULL DEFAULT 1,  -- 1 = dancing
+  required_min_intensity SMALLINT NOT NULL DEFAULT 1,  -- 0=low, 1=med, 2=high, 3=extreme
+  required_min_duration SMALLINT NOT NULL DEFAULT 1,   -- duration bucket index
+  required_activity_subtype SMALLINT,                  -- specific move pattern (null = any)
+  requires_proximity_peer BOOLEAN NOT NULL DEFAULT false,  -- partner required?
+  min_proximity_peers SMALLINT DEFAULT 0,
+
+  -- Reward parameters (public — encoded in the reward circuit)
+  xp_reward INTEGER NOT NULL,
+  points_reward INTEGER NOT NULL,
+  usdc_reward_cents INTEGER DEFAULT 0,  -- $1.00 = 100
+
+  -- Reward commitment (Pedersen commitment to the reward amount, for verification)
+  reward_commitment BYTEA,
+
+  -- Repeatable?
+  is_repeatable BOOLEAN NOT NULL DEFAULT false,
+  repeat_interval TEXT CHECK (repeat_interval IN ('daily', 'weekly', NULL)),
+
+  -- Challenge-specific nullifier includes time component for repeatable challenges
+  -- Non-repeatable: nullifier = Poseidon(sk, "challenge", challenge_id)
+  -- Daily: nullifier = Poseidon(sk, "challenge", challenge_id, date)
+  -- Weekly: nullifier = Poseidon(sk, "challenge", challenge_id, week_number)
+
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at TIMESTAMPTZ,
+
+  CONSTRAINT chk_reward_commitment_length CHECK (
+    reward_commitment IS NULL OR octet_length(reward_commitment) = 33
+  )
+);
+
+-- ZK challenge completions: each completion is a verified proof
+CREATE TABLE IF NOT EXISTS flowb_zk_danz_completions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  challenge_id UUID NOT NULL REFERENCES flowb_zk_danz_challenges(id),
+
+  -- Nullifier prevents double-completion
+  completion_nullifier BYTEA NOT NULL UNIQUE REFERENCES flowb_zk_nullifiers(nullifier),
+
+  -- The attestation that was used (links to device attestation)
+  attestation_id UUID REFERENCES flowb_zk_attestations(id),
+
+  -- ZK proof that challenge requirements were met
+  proof BYTEA NOT NULL,
+  public_inputs BYTEA NOT NULL,
+  merkle_root_used BYTEA NOT NULL,
+
+  -- Reward delta commitment (Pedersen commitment to XP/points earned)
+  reward_delta_commitment BYTEA NOT NULL,
+
+  completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_reward_delta_length CHECK (octet_length(reward_delta_commitment) = 33),
+  CONSTRAINT chk_merkle_root_length CHECK (octet_length(merkle_root_used) = 32)
+);
+
+CREATE INDEX idx_zk_danz_completions_challenge ON flowb_zk_danz_completions (challenge_id, completed_at DESC);
+
+ALTER TABLE flowb_zk_danz_challenges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flowb_zk_danz_completions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zk_danz_challenges_service ON flowb_zk_danz_challenges
+  FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY zk_danz_completions_service ON flowb_zk_danz_completions
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_danz_challenges IS
+  'DANZ dance challenge definitions with ZK verification parameters. All parameters are public (needed by proving circuits).';
+COMMENT ON TABLE flowb_zk_danz_completions IS
+  'Verified challenge completions. Each row proves a challenge was completed without revealing who completed it.';
+```
+
+---
+
+## 15. Key Rotation and Revocation — Low-Level Protocol
+
+### 15.1 Key Rotation Circuit
+
+```
+Circuit: KeyRotation
+
+Private inputs:
+  - sk_old: field                    // old secret key being rotated away
+  - nonce_old: field                 // old registration nonce
+  - sk_new: field                    // new secret key
+  - nonce_new: field                 // new registration nonce (freshly random)
+  - old_balance: field               // current point balance
+  - old_blinding: field              // current Pedersen blinding factor
+  - new_blinding: field              // fresh blinding factor for new commitment
+  - pathElements[20]: field[]        // Merkle proof for old commitment
+  - pathIndices[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - oldCommitment: field             // Poseidon(sk_old, nonce_old)
+  - newCommitment: field             // Poseidon(sk_new, nonce_new)
+  - oldBalanceCommitment: field[2]   // Pedersen(old_balance, old_blinding)
+  - newBalanceCommitment: field[2]   // Pedersen(old_balance, new_blinding) — SAME balance
+  - rotationNullifier: field         // prevents replaying rotation
+
+Constraints:
+  1.  Poseidon(sk_old, nonce_old) == oldCommitment
+  2.  MerkleProof(oldCommitment, pathElements, pathIndices) == identityMerkleRoot
+  3.  Poseidon(sk_new, nonce_new) == newCommitment
+  4.  oldCommitment != newCommitment        // must actually rotate
+  5.  PedersenCommit(old_balance, old_blinding) == oldBalanceCommitment
+  6.  PedersenCommit(old_balance, new_blinding) == newBalanceCommitment
+  7.  rotationNullifier == Poseidon(sk_old, "ROTATE", nonce_new)
+```
+
+**Constraint count**: ~20,000
+**Critical property**: Constraint 6 ensures the balance carries over — the user can't inflate their balance during rotation.
+
+### 15.2 Revocation Tree Schema
+
+```sql
+-- Revoked identity commitments — a separate Merkle tree
+-- All verification circuits must check non-membership in this tree
+CREATE TABLE IF NOT EXISTS flowb_zk_revocations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- The revoked identity commitment
+  revoked_commitment BYTEA NOT NULL UNIQUE,
+
+  -- The replacement commitment (after rotation)
+  replacement_commitment BYTEA,
+
+  -- Revocation proof (KeyRotation or EmergencyRevoke proof)
+  revocation_proof BYTEA NOT NULL,
+  revocation_nullifier BYTEA NOT NULL UNIQUE,
+
+  -- Reason (for audit — not cryptographically enforced)
+  reason TEXT NOT NULL CHECK (reason IN ('rotation', 'compromise', 'admin_revoke')),
+
+  -- Merkle leaf index in the revocation tree
+  revocation_tree_id TEXT NOT NULL DEFAULT 'revocations'
+    REFERENCES flowb_zk_merkle_trees(tree_id),
+  merkle_leaf_index INTEGER NOT NULL,
+
+  -- Cooldown: new commitment not active until this time
+  -- Prevents attacker from immediately rotating a stolen key
+  cooldown_until TIMESTAMPTZ,
+
+  revoked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_revoked_commitment_length CHECK (octet_length(revoked_commitment) = 32)
+);
+
+CREATE INDEX idx_zk_revocations_commitment ON flowb_zk_revocations (revoked_commitment);
+CREATE INDEX idx_zk_revocations_replacement ON flowb_zk_revocations (replacement_commitment)
+  WHERE replacement_commitment IS NOT NULL;
+
+ALTER TABLE flowb_zk_revocations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY zk_revocations_service ON flowb_zk_revocations
+  FOR ALL USING (true) WITH CHECK (true);
+```
+
+### 15.3 Rotation Execution Flow (Server-Side)
+
+```typescript
+async function executeKeyRotation(
+  rotationProof: ZKProofRequest,
+  oldCommitment: Uint8Array,
+  newCommitment: Uint8Array,
+  oldBalanceCommitment: Uint8Array,
+  newBalanceCommitment: Uint8Array
+): Promise<void> {
+  // 1. Verify the rotation proof
+  const vkey = await loadVerificationKey("key_rotation_v1");
+  const valid = await snarkjs.groth16.verify(vkey, rotationProof.publicInputs, rotationProof.proof);
+  if (!valid) throw new Error("Invalid rotation proof");
+
+  // 2. Check rotation nullifier not spent (prevents replay)
+  const spent = await isNullifierSpent(rotationProof.nullifier);
+  if (spent) throw new Error("Rotation already processed");
+
+  // 3. Atomic transaction: revoke old + register new
+  await db.transaction(async (tx) => {
+    // Record nullifier
+    await tx.insert("flowb_zk_nullifiers", {
+      nullifier: rotationProof.nullifier,
+      scope: "key_rotation",
+      proof_hash: sha256(rotationProof.proof),
+    });
+
+    // Add old commitment to revocation tree
+    const revocationLeaf = await insertIntoMerkleTree(tx, "revocations", oldCommitment);
+    await tx.insert("flowb_zk_revocations", {
+      revoked_commitment: oldCommitment,
+      replacement_commitment: newCommitment,
+      revocation_proof: rotationProof.proof,
+      revocation_nullifier: rotationProof.nullifier,
+      reason: "rotation",
+      revocation_tree_id: "revocations",
+      merkle_leaf_index: revocationLeaf,
+      cooldown_until: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24h cooldown
+    });
+
+    // Add new commitment to identity tree
+    await insertIntoMerkleTree(tx, "identity", newCommitment);
+
+    // Migrate balance commitment
+    await tx.update("flowb_zk_balances", {
+      identity_commitment: newCommitment,
+      balance_commitment: newBalanceCommitment,
+      update_nonce: 0, // reset nonce for new identity
+    }).where({ identity_commitment: oldCommitment });
+
+    // Migrate crew memberships: re-insert into each crew tree
+    const crewMemberships = await getCrewMembershipsForCommitment(tx, oldCommitment);
+    for (const crew of crewMemberships) {
+      const newLeaf = poseidonHash(newCommitment, crew.crewId);
+      await insertIntoMerkleTree(tx, crew.treeId, newLeaf);
+    }
+
+    // Migrate encrypted blobs
+    await tx.update("flowb_zk_encrypted_blobs", {
+      identity_commitment: newCommitment,
+    }).where({ identity_commitment: oldCommitment });
+  });
+}
+```
+
+### 15.4 Social Recovery Schema
+
+```sql
+-- Guardian shares for social recovery
+-- Each user can designate N guardians; threshold M-of-N required for recovery
+CREATE TABLE IF NOT EXISTS flowb_zk_recovery_guardians (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- The user who set up recovery (by identity commitment)
+  protected_commitment BYTEA NOT NULL,
+
+  -- Guardian's identity commitment
+  guardian_commitment BYTEA NOT NULL,
+
+  -- Encrypted Shamir share: AES-256-GCM(guardian_derived_key, share_bytes)
+  -- Only the guardian can decrypt their share
+  encrypted_share BYTEA NOT NULL,
+
+  -- Share index (1-based, needed for Shamir reconstruction)
+  share_index SMALLINT NOT NULL,
+
+  -- Recovery parameters (public)
+  threshold SMALLINT NOT NULL,     -- M required
+  total_shares SMALLINT NOT NULL,  -- N total
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_protected_length CHECK (octet_length(protected_commitment) = 32),
+  CONSTRAINT chk_guardian_length CHECK (octet_length(guardian_commitment) = 32),
+  UNIQUE (protected_commitment, guardian_commitment)
+);
+
+CREATE INDEX idx_recovery_protected ON flowb_zk_recovery_guardians (protected_commitment);
+CREATE INDEX idx_recovery_guardian ON flowb_zk_recovery_guardians (guardian_commitment);
+
+ALTER TABLE flowb_zk_recovery_guardians ENABLE ROW LEVEL SECURITY;
+CREATE POLICY recovery_guardians_service ON flowb_zk_recovery_guardians
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_recovery_guardians IS
+  'Shamir secret sharing for social recovery. Each guardian holds an encrypted share of a recovery secret. M-of-N guardians can authorize a key rotation without the original sk.';
+```
+
+---
+
+## 16. Selective Disclosure — Low-Level Protocol
+
+### 16.1 Selective Disclosure Circuit
+
+**Purpose**: Prove a specific attribute of committed data without revealing the full data.
+
+```
+Circuit: SelectiveReveal
+
+Private inputs:
+  - sk: field
+  - nonce: field
+  - full_data: field[8]            // up to 8 fields of committed data
+  - blinding: field                // Pedersen blinding for the committed data
+  - reveal_mask: field             // bitmask: which fields to reveal
+  - pathElements[20]: field[]
+  - pathIndices[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - dataCommitment: field          // Poseidon hash of full_data
+  - revealedFields: field[8]       // values for revealed fields; 0 for hidden
+  - revealMask: field              // which fields are revealed (bitmask)
+  - nullifier: field               // optional: prevents re-disclosure
+
+Constraints:
+  1.  identityCommitment = Poseidon(sk, nonce)
+  2.  MerkleProof(identityCommitment, ...) == identityMerkleRoot
+  3.  Poseidon(full_data[0..7]) == dataCommitment
+  4.  For each bit i in revealMask:
+        if bit i == 1: revealedFields[i] == full_data[i]
+        if bit i == 0: revealedFields[i] == 0
+  5.  nullifier == Poseidon(sk, "selective_reveal", dataCommitment)
+```
+
+**Constraint count**: ~10,000
+
+### 16.2 Range Proof Circuit (Detailed)
+
+For proving "my balance is at least X" or "my heart rate was between A and B":
+
+```
+Circuit: RangeProof
+
+Private inputs:
+  - value: field                    // the actual value
+  - blinding: field                 // Pedersen blinding factor
+  - value_bits[64]: field[]         // bit decomposition of value
+
+Public inputs:
+  - commitment: field[2]           // Pedersen commitment to value
+  - lower_bound: field             // minimum (inclusive)
+  - upper_bound: field             // maximum (inclusive)
+
+Constraints:
+  1.  // Bit decomposition is valid
+      For i in 0..63:
+        value_bits[i] * (value_bits[i] - 1) == 0  // each bit is 0 or 1
+      Sum(value_bits[i] * 2^i) == value
+
+  2.  PedersenCommit(value, blinding) == commitment
+
+  3.  // Range check: lower_bound <= value <= upper_bound
+      value - lower_bound >= 0       // via bit decomposition
+      upper_bound - value >= 0       // via bit decomposition
+```
+
+**Constraint count**: ~8,000 (bit decomposition is the expensive part)
+
+### 16.3 Leaderboard Opt-In Schema
+
+```sql
+-- Leaderboard opt-in: users who choose to reveal their score publicly
+CREATE TABLE IF NOT EXISTS flowb_zk_leaderboard_optins (
+  identity_commitment BYTEA PRIMARY KEY REFERENCES flowb_zk_identities(identity_commitment),
+
+  -- User's chosen display name (optional, stored as cleartext by choice)
+  display_name TEXT,
+
+  -- Revealed balance (user's choice to disclose)
+  revealed_balance BIGINT NOT NULL,
+
+  -- Proof that revealed_balance matches the Pedersen commitment
+  -- (commitment opening: blinding factor is included in the proof)
+  balance_proof BYTEA NOT NULL,
+
+  -- The Pedersen commitment this opening corresponds to
+  balance_commitment BYTEA NOT NULL,
+
+  -- When the user opted in (for ranking tiebreakers)
+  opted_in_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Auto-expire: user must re-opt-in periodically
+  expires_at TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '30 days'),
+
+  CONSTRAINT chk_balance_commitment_length CHECK (octet_length(balance_commitment) = 33)
+);
+
+CREATE INDEX idx_leaderboard_balance ON flowb_zk_leaderboard_optins (revealed_balance DESC);
+
+ALTER TABLE flowb_zk_leaderboard_optins ENABLE ROW LEVEL SECURITY;
+CREATE POLICY leaderboard_service ON flowb_zk_leaderboard_optins
+  FOR ALL USING (true) WITH CHECK (true);
+```
+
+### 16.4 Designated Verifier Proof
+
+For proving something to a specific party without that party being able to forward the proof:
+
+```typescript
+// Designated verifier proof using Chaum's technique
+// The proof is indistinguishable from a simulation the verifier could create
+
+interface DesignatedVerifierProof {
+  // Standard Groth16 proof
+  proof: Uint8Array;
+  publicInputs: bigint[];
+
+  // Designated verifier binding
+  verifierCommitment: Uint8Array;   // the intended verifier's identity commitment
+  binding: Uint8Array;              // Poseidon(proof_hash, verifier_sk) — only verifier can create
+}
+
+// The verifier can verify the proof is genuine (they know the binding matches)
+// but they cannot prove to a third party that the prover made this proof
+// (because the verifier could have simulated it using their own sk)
+```
+
+---
+
+## 17. Multi-Device Sync — Low-Level Protocol
+
+### 17.1 Master Key Derivation Hierarchy
+
+```typescript
+// Full key derivation tree
+const BN254_ORDER = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+
+interface FlowBKeyTree {
+  // Root secret: 256-bit random, generated on first-ever interaction
+  skMaster: bigint;
+
+  // Identity commitment (same across all platforms)
+  identityCommitment: Uint8Array;  // Poseidon(skMaster, registrationNonce)
+
+  // Platform-specific derived keys (for blob encryption per platform)
+  platformKeys: Map<string, Uint8Array>;  // platform → AES-256 key
+
+  // Device binding keys
+  deviceBindingKeys: Map<string, bigint>;  // device_commitment → binding_sk
+}
+
+function deriveFullKeyTree(skMaster: bigint, registrationNonce: bigint): FlowBKeyTree {
+  const identityCommitment = poseidonHash(skMaster, registrationNonce);
+
+  const platforms = ["telegram", "farcaster", "whatsapp", "web", "signal"];
+  const platformKeys = new Map<string, Uint8Array>();
+
+  for (const platform of platforms) {
+    const info = new TextEncoder().encode(`flowb:${platform}:blob-encryption:v1`);
+    const key = hkdf(sha256, bigIntToBytes(skMaster), new Uint8Array(32), info, 32);
+    platformKeys.set(platform, key);
+  }
+
+  return {
+    skMaster,
+    identityCommitment,
+    platformKeys,
+    deviceBindingKeys: new Map(),
+  };
+}
+```
+
+### 17.2 Cross-Platform Sync Table
+
+```sql
+-- Cross-platform sync metadata
+-- Tracks which platforms a commitment has been linked to
+-- (does NOT store platform identifiers — those are encrypted blobs)
+CREATE TABLE IF NOT EXISTS flowb_zk_platform_links (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- The user's identity commitment
+  identity_commitment BYTEA NOT NULL REFERENCES flowb_zk_identities(identity_commitment),
+
+  -- Platform type (public — needed for routing)
+  platform TEXT NOT NULL CHECK (platform IN (
+    'telegram', 'farcaster', 'whatsapp', 'web', 'signal', 'wearable'
+  )),
+
+  -- Platform-specific commitment: Poseidon(skMaster, platform_nonce)
+  -- Different from the identity commitment — prevents cross-platform correlation
+  -- if the link table is breached
+  platform_commitment BYTEA NOT NULL UNIQUE,
+
+  -- ZK proof that this platform_commitment shares the same skMaster
+  -- as identity_commitment (IdentityLink circuit proof)
+  link_proof BYTEA NOT NULL,
+
+  -- When this link was established
+  linked_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_identity_length CHECK (octet_length(identity_commitment) = 32),
+  CONSTRAINT chk_platform_commitment_length CHECK (octet_length(platform_commitment) = 32),
+  UNIQUE (identity_commitment, platform)
+);
+
+CREATE INDEX idx_platform_links_identity ON flowb_zk_platform_links (identity_commitment);
+
+ALTER TABLE flowb_zk_platform_links ENABLE ROW LEVEL SECURITY;
+CREATE POLICY platform_links_service ON flowb_zk_platform_links
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_platform_links IS
+  'Cross-platform identity links. Each row proves a platform commitment shares the same master key as the identity commitment, verified by a ZK proof.';
+```
+
+### 17.3 Device Pairing Protocol
+
+```typescript
+// BLE pairing flow between phone app and wearable
+
+interface PairingSession {
+  devicePubkey: Uint8Array;         // received from wearable over BLE
+  deviceCommitment: Uint8Array;     // Poseidon(device_pubkey_x, device_pubkey_y, manufacture_nonce)
+  pairingNonce: bigint;             // freshly random
+  pairingCommitment: Uint8Array;    // Poseidon(identityCommitment, deviceCommitment, pairingNonce)
+}
+
+async function pairWearable(
+  skMaster: bigint,
+  registrationNonce: bigint,
+  devicePubkey: Uint8Array,
+  deviceManufactureNonce: bigint
+): Promise<PairingSession> {
+  const identityCommitment = poseidonHash(skMaster, registrationNonce);
+
+  // Compute device commitment (matching what's in the device registry)
+  const [x, y] = decompressEd25519Point(devicePubkey);
+  const deviceCommitment = poseidonHash(
+    BigInt("0x" + Buffer.from(x).toString("hex")),
+    BigInt("0x" + Buffer.from(y).toString("hex")),
+    deviceManufactureNonce
+  );
+
+  // Generate fresh pairing nonce
+  const pairingNonce = bytesToBigInt(randomBytes(32)) % BN254_ORDER;
+
+  // Compute pairing commitment
+  const pairingCommitment = poseidonHash(identityCommitment, deviceCommitment, pairingNonce);
+
+  // Store pairing locally
+  await localStore.set("device_pairing", {
+    devicePubkey,
+    deviceCommitment,
+    pairingNonce,
+    pairingCommitment,
+  });
+
+  // Submit pairing commitment to server
+  await api.post("/zk/device/pair", {
+    identityCommitment,
+    pairingCommitment,
+    // Note: device identity NOT sent — server only sees the pairing commitment
+  });
+
+  return { devicePubkey, deviceCommitment, pairingNonce, pairingCommitment };
+}
+```
+
+---
+
+## 18. Proof Aggregation and Batching — Low-Level
+
+### 18.1 SnarkPack Batch Verification
+
+For batch-verifying multiple Groth16 proofs with the same verification key:
+
+```typescript
+import { groth16 } from "snarkjs";
+
+interface BatchVerificationResult {
+  allValid: boolean;
+  invalidIndices: number[];
+  verificationTimeMs: number;
+}
+
+async function batchVerifyGroth16(
+  vkey: any,
+  proofs: { proof: any; publicInputs: bigint[] }[]
+): Promise<BatchVerificationResult> {
+  const start = Date.now();
+
+  // SnarkPack: random linear combination of pairing checks
+  // Instead of N independent pairing checks, do 1 combined check
+  // with random coefficients (Schwartz-Zippel lemma ensures soundness)
+
+  const randomCoeffs = proofs.map(() =>
+    bytesToBigInt(randomBytes(16)) % BN254_ORDER
+  );
+
+  // Aggregate A points: A_agg = sum(coeff_i * A_i)
+  // Aggregate B points: B_agg = sum(coeff_i * B_i)
+  // Aggregate C points: C_agg = sum(coeff_i * C_i)
+  // Single pairing check: e(A_agg, B_agg) == e(C_agg, delta) * e(public_agg, gamma)
+
+  // Fallback: if batch fails, verify individually to find invalid proofs
+  let allValid = true;
+  const invalidIndices: number[] = [];
+
+  // For now (before SnarkPack library integration), parallel individual verification
+  const results = await Promise.all(
+    proofs.map(async ({ proof, publicInputs }, i) => {
+      const valid = await groth16.verify(vkey, publicInputs, proof);
+      return { index: i, valid };
+    })
+  );
+
+  for (const { index, valid } of results) {
+    if (!valid) {
+      allValid = false;
+      invalidIndices.push(index);
+    }
+  }
+
+  return {
+    allValid,
+    invalidIndices,
+    verificationTimeMs: Date.now() - start,
+  };
+}
+```
+
+### 18.2 Nova Folding for Wearable Streams
+
+Wearable attestations arrive as a continuous stream (one every 5 minutes during an active session). Rather than verifying each independently:
+
+```typescript
+// Nova Incremental Verifiable Computation (IVC)
+// Each new attestation "folds" into a running proof
+
+interface NovaAccumulator {
+  // The folded proof so far
+  accumulator: Uint8Array;
+  // Number of attestations folded
+  stepCount: number;
+  // Current "running hash" of all folded attestations
+  runningHash: Uint8Array;  // Poseidon(prev_hash, new_attestation_hash)
+}
+
+// The step circuit: verifies one attestation and folds it into the accumulator
+// Circuit: NovaStep
+//   Input: previous_accumulator_state, new_attestation
+//   Output: new_accumulator_state
+//   Constraints:
+//     1. new_attestation is well-formed (activity type, intensity, duration valid)
+//     2. new_attestation.timestamp > previous_attestation.timestamp (ordering)
+//     3. running_hash = Poseidon(prev_running_hash, hash(new_attestation))
+
+// After N attestations, produce a single "compressed" proof:
+// "N valid attestations were produced in chronological order by a valid device"
+// Verification cost: O(1) regardless of N
+```
+
+### 18.3 Batch Verification Queue Table
+
+```sql
+-- Proof verification queue for batch processing
+-- Proofs are queued and verified in batches for efficiency
+CREATE TABLE IF NOT EXISTS flowb_zk_verification_queue (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Circuit type (determines which verification key to use)
+  circuit_id TEXT NOT NULL,
+
+  -- Proof data
+  proof BYTEA NOT NULL,
+  public_inputs BYTEA NOT NULL,
+  nullifier BYTEA NOT NULL,
+
+  -- Metadata for routing the result
+  action_type TEXT NOT NULL,
+  action_payload BYTEA,  -- additional data needed after verification
+
+  -- Queue management
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'verifying', 'verified', 'failed', 'executed')),
+  batch_id UUID,  -- set when proof is assigned to a batch
+  error_message TEXT,
+
+  queued_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  verified_at TIMESTAMPTZ,
+  executed_at TIMESTAMPTZ,
+
+  -- Priority: 0 = normal, 1 = high (financial operations), 2 = critical (revocations)
+  priority SMALLINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_verification_queue_pending
+  ON flowb_zk_verification_queue (priority DESC, queued_at ASC)
+  WHERE status = 'pending';
+CREATE INDEX idx_verification_queue_batch
+  ON flowb_zk_verification_queue (batch_id)
+  WHERE batch_id IS NOT NULL;
+
+ALTER TABLE flowb_zk_verification_queue ENABLE ROW LEVEL SECURITY;
+CREATE POLICY verification_queue_service ON flowb_zk_verification_queue
+  FOR ALL USING (true) WITH CHECK (true);
+
+COMMENT ON TABLE flowb_zk_verification_queue IS
+  'Proof verification queue. Proofs are batched by circuit_id for efficient batch verification via SnarkPack.';
+```
+
+### 18.4 Batch Processor (Server-Side)
+
+```typescript
+// Batch verification worker: runs on a timer or when queue reaches threshold
+const BATCH_SIZE = 100;
+const BATCH_INTERVAL_MS = 5000;  // 5 seconds
+
+async function processBatchQueue(): Promise<void> {
+  // Group pending proofs by circuit_id
+  const { data: pending } = await supabase
+    .from("flowb_zk_verification_queue")
+    .select("*")
+    .eq("status", "pending")
+    .order("priority", { ascending: false })
+    .order("queued_at", { ascending: true })
+    .limit(BATCH_SIZE);
+
+  if (!pending || pending.length === 0) return;
+
+  // Group by circuit for batch verification
+  const byCircuit = new Map<string, typeof pending>();
+  for (const proof of pending) {
+    const group = byCircuit.get(proof.circuit_id) || [];
+    group.push(proof);
+    byCircuit.set(proof.circuit_id, group);
+  }
+
+  for (const [circuitId, proofs] of byCircuit) {
+    const batchId = crypto.randomUUID();
+
+    // Mark as verifying
+    await supabase
+      .from("flowb_zk_verification_queue")
+      .update({ status: "verifying", batch_id: batchId })
+      .in("id", proofs.map(p => p.id));
+
+    // Batch verify
+    const vkey = await loadVerificationKey(circuitId);
+    const result = await batchVerifyGroth16(
+      vkey,
+      proofs.map(p => ({
+        proof: deserializeProof(p.proof),
+        publicInputs: deserializePublicInputs(p.public_inputs),
+      }))
+    );
+
+    // Update results
+    for (let i = 0; i < proofs.length; i++) {
+      const isValid = !result.invalidIndices.includes(i);
+      await supabase
+        .from("flowb_zk_verification_queue")
+        .update({
+          status: isValid ? "verified" : "failed",
+          verified_at: new Date().toISOString(),
+          error_message: isValid ? null : "Proof verification failed",
+        })
+        .eq("id", proofs[i].id);
+
+      // Execute verified actions
+      if (isValid) {
+        await executeVerifiedAction(proofs[i]);
+      }
+    }
+  }
+}
+```
+
+---
+
+## 19. Compliance Threshold Decryption — Low-Level
+
+### 19.1 Shamir Secret Sharing Implementation
+
+```typescript
+import { randomBytes } from "crypto";
+
+const PRIME = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+
+interface ShamirShare {
+  index: number;       // 1-based share index
+  value: bigint;       // share value (field element)
+}
+
+// Split a secret into N shares with threshold T
+function shamirSplit(secret: bigint, threshold: number, totalShares: number): ShamirShare[] {
+  // Generate random polynomial coefficients: a[0] = secret, a[1..t-1] = random
+  const coefficients: bigint[] = [secret];
+  for (let i = 1; i < threshold; i++) {
+    coefficients.push(bytesToBigInt(randomBytes(32)) % PRIME);
+  }
+
+  // Evaluate polynomial at points 1..N
+  const shares: ShamirShare[] = [];
+  for (let x = 1; x <= totalShares; x++) {
+    let y = 0n;
+    for (let j = 0; j < coefficients.length; j++) {
+      y = (y + coefficients[j] * modPow(BigInt(x), BigInt(j), PRIME)) % PRIME;
+    }
+    shares.push({ index: x, value: y });
+  }
+
+  return shares;
+}
+
+// Reconstruct secret from T shares using Lagrange interpolation
+function shamirReconstruct(shares: ShamirShare[]): bigint {
+  let secret = 0n;
+
+  for (let i = 0; i < shares.length; i++) {
+    let numerator = 1n;
+    let denominator = 1n;
+
+    for (let j = 0; j < shares.length; j++) {
+      if (i === j) continue;
+      numerator = (numerator * BigInt(-shares[j].index)) % PRIME;
+      denominator = (denominator * BigInt(shares[i].index - shares[j].index)) % PRIME;
+    }
+
+    // Normalize to positive field element
+    numerator = ((numerator % PRIME) + PRIME) % PRIME;
+    denominator = ((denominator % PRIME) + PRIME) % PRIME;
+
+    const lagrangeCoeff = (numerator * modInverse(denominator, PRIME)) % PRIME;
+    secret = (secret + shares[i].value * lagrangeCoeff) % PRIME;
+  }
+
+  return ((secret % PRIME) + PRIME) % PRIME;
+}
+
+function modPow(base: bigint, exp: bigint, mod: bigint): bigint {
+  let result = 1n;
+  base = base % mod;
+  while (exp > 0n) {
+    if (exp % 2n === 1n) result = (result * base) % mod;
+    exp = exp / 2n;
+    base = (base * base) % mod;
+  }
+  return result;
+}
+
+function modInverse(a: bigint, mod: bigint): bigint {
+  return modPow(a, mod - 2n, mod); // Fermat's little theorem (mod is prime)
+}
+```
+
+### 19.2 Compliance Key Management Schema
+
+```sql
+-- Compliance key metadata and trustee registry
+-- The actual shares are distributed off-band to trustees (NOT stored here)
+CREATE TABLE IF NOT EXISTS flowb_zk_compliance_config (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Key generation parameters
+  threshold SMALLINT NOT NULL,         -- M required to decrypt
+  total_trustees SMALLINT NOT NULL,    -- N total shares
+  key_version INTEGER NOT NULL DEFAULT 1,
+
+  -- Public commitment to the compliance key
+  -- Allows verification that a reconstructed key matches
+  key_commitment BYTEA NOT NULL,  -- Poseidon(K_compliance, generation_nonce)
+
+  -- Key ceremony timestamp
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- Revoked when key is rotated (all trustees must participate in rotation)
+  revoked_at TIMESTAMPTZ,
+
+  CONSTRAINT chk_threshold CHECK (threshold >= 2),
+  CONSTRAINT chk_trustees CHECK (total_trustees >= threshold),
+  CONSTRAINT chk_key_commitment_length CHECK (octet_length(key_commitment) = 32)
+);
+
+-- Compliance identity mappings: encrypted with the compliance key
+CREATE TABLE IF NOT EXISTS flowb_zk_compliance_mappings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- The identity commitment this mapping resolves
+  identity_commitment BYTEA NOT NULL UNIQUE,
+
+  -- AES-256-GCM(K_compliance, { platform, platform_user_id, registration_ts })
+  encrypted_mapping BYTEA NOT NULL,
+
+  -- When this mapping was created
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_identity_length CHECK (octet_length(identity_commitment) = 32)
+);
+
+CREATE INDEX idx_compliance_mappings_commitment
+  ON flowb_zk_compliance_mappings (identity_commitment);
+
+-- Compliance audit log: records every deanonymization event
+CREATE TABLE IF NOT EXISTS flowb_zk_compliance_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Which key version was used
+  key_version INTEGER NOT NULL,
+
+  -- Hash of the legal order / justification document
+  legal_order_hash BYTEA NOT NULL,
+
+  -- Which trustees participated (by index, not identity)
+  participating_trustee_indices SMALLINT[] NOT NULL,
+
+  -- The target commitment that was deanonymized
+  -- (stored as a hash to prevent the audit log itself from being a lookup table)
+  target_commitment_hash BYTEA NOT NULL,  -- SHA-256(identity_commitment)
+
+  -- Result: was the mapping successfully decrypted?
+  decryption_successful BOOLEAN NOT NULL,
+
+  -- Timestamp
+  executed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  -- User notification scheduled for (90 days later by default)
+  user_notification_at TIMESTAMPTZ,
+
+  -- Gag order? (if true, user_notification_at is null)
+  notification_suppressed BOOLEAN NOT NULL DEFAULT false,
+
+  CONSTRAINT chk_legal_order_hash_length CHECK (octet_length(legal_order_hash) = 32),
+  CONSTRAINT chk_target_hash_length CHECK (octet_length(target_commitment_hash) = 32),
+  CONSTRAINT chk_min_trustees CHECK (array_length(participating_trustee_indices, 1) >= 2)
+);
+
+ALTER TABLE flowb_zk_compliance_config ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flowb_zk_compliance_mappings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE flowb_zk_compliance_audit_log ENABLE ROW LEVEL SECURITY;
+
+-- Compliance tables use stricter policies: read-only for service role
+-- Write access only through stored procedures with audit logging
+CREATE POLICY compliance_config_read ON flowb_zk_compliance_config
+  FOR SELECT USING (true);
+CREATE POLICY compliance_mappings_read ON flowb_zk_compliance_mappings
+  FOR SELECT USING (true);
+CREATE POLICY compliance_audit_read ON flowb_zk_compliance_audit_log
+  FOR SELECT USING (true);
+
+COMMENT ON TABLE flowb_zk_compliance_config IS
+  'Compliance key parameters. The actual key material is distributed via Shamir shares to trustees and NEVER stored in the database.';
+COMMENT ON TABLE flowb_zk_compliance_mappings IS
+  'Encrypted identity mappings. Decryptable only with M-of-N trustee cooperation. Maps identity commitments to platform user IDs.';
+COMMENT ON TABLE flowb_zk_compliance_audit_log IS
+  'Immutable audit log of every deanonymization event. Includes legal justification hash and participating trustees.';
+```
+
+### 19.3 Deanonymization Procedure
+
+```sql
+-- Stored procedure for compliance deanonymization
+-- This is the ONLY way to create an audit log entry
+CREATE OR REPLACE FUNCTION flowb_zk_compliance_deanonymize(
+  p_target_commitment BYTEA,
+  p_legal_order_hash BYTEA,
+  p_trustee_indices SMALLINT[],
+  p_reconstructed_key BYTEA,        -- the M-of-N reconstructed compliance key
+  p_key_version INTEGER
+) RETURNS JSONB AS $$
+DECLARE
+  v_config flowb_zk_compliance_config%ROWTYPE;
+  v_mapping flowb_zk_compliance_mappings%ROWTYPE;
+  v_key_commitment BYTEA;
+  v_result JSONB;
+BEGIN
+  -- 1. Load compliance config for this key version
+  SELECT * INTO v_config
+  FROM flowb_zk_compliance_config
+  WHERE key_version = p_key_version AND revoked_at IS NULL;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid or revoked key version');
+  END IF;
+
+  -- 2. Verify threshold met
+  IF array_length(p_trustee_indices, 1) < v_config.threshold THEN
+    RETURN jsonb_build_object('success', false, 'error',
+      format('Insufficient trustees: %s provided, %s required',
+        array_length(p_trustee_indices, 1), v_config.threshold));
+  END IF;
+
+  -- 3. Verify reconstructed key matches commitment
+  -- (Application layer computes Poseidon(reconstructed_key, generation_nonce)
+  --  and passes it here for verification)
+  -- NOTE: actual Poseidon verification done in application layer
+
+  -- 4. Record audit log entry BEFORE attempting decryption
+  INSERT INTO flowb_zk_compliance_audit_log (
+    key_version, legal_order_hash, participating_trustee_indices,
+    target_commitment_hash, decryption_successful,
+    user_notification_at
+  ) VALUES (
+    p_key_version, p_legal_order_hash, p_trustee_indices,
+    sha256(p_target_commitment), false,
+    now() + INTERVAL '90 days'
+  );
+
+  -- 5. Look up encrypted mapping
+  SELECT * INTO v_mapping
+  FROM flowb_zk_compliance_mappings
+  WHERE identity_commitment = p_target_commitment;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No mapping found for commitment');
+  END IF;
+
+  -- 6. Update audit log with success
+  UPDATE flowb_zk_compliance_audit_log
+  SET decryption_successful = true
+  WHERE target_commitment_hash = sha256(p_target_commitment)
+    AND legal_order_hash = p_legal_order_hash;
+
+  -- 7. Return encrypted mapping (decryption happens in application layer with the key)
+  RETURN jsonb_build_object(
+    'success', true,
+    'encrypted_mapping', encode(v_mapping.encrypted_mapping, 'base64'),
+    'created_at', v_mapping.created_at
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Restrict direct access to this function
+REVOKE EXECUTE ON FUNCTION flowb_zk_compliance_deanonymize FROM PUBLIC;
+-- Only the compliance service role can call this
+```
+
+---
+
+## 20. Unlock Protocol + ZK Composability — Low-Level
+
+### 20.1 NFT Ownership Proof Circuit
+
+**Purpose**: Prove "I own an Unlock Protocol key (NFT) for a specific Lock" without revealing the wallet address.
+
+```
+Circuit: UnlockOwnership
+
+Private inputs:
+  - sk: field                          // user's ZK secret key
+  - nonce: field                       // registration nonce
+  - wallet_address: field              // Ethereum address (20 bytes as field)
+  - wallet_blinding: field             // Pedersen blinding for wallet commitment
+  - nft_token_id: field                // the specific Unlock key token ID
+  - pathElements[20]: field[]
+  - pathIndices[20]: int[]
+
+Public inputs:
+  - identityMerkleRoot: field
+  - walletCommitment: field[2]         // Pedersen(wallet_address, wallet_blinding)
+  - lockAddress: field                 // the Unlock Lock contract address
+  - lockChainId: field                 // chain ID (8453 for Base)
+  - ownershipMerkleRoot: field         // Merkle root of all key holders (from Unlock subgraph)
+  - nullifier: field
+
+Constraints:
+  1.  identityCommitment = Poseidon(sk, nonce)
+  2.  MerkleProof(identityCommitment, ...) == identityMerkleRoot
+  3.  PedersenCommit(wallet_address, wallet_blinding) == walletCommitment
+  4.  ownershipLeaf = Poseidon(wallet_address, lockAddress, nft_token_id)
+  5.  MerkleProof(ownershipLeaf, ...) == ownershipMerkleRoot
+  6.  nullifier == Poseidon(Poseidon(sk, "unlock_ownership"), lockAddress)
+```
+
+**Constraint count**: ~18,000
+
+### 20.2 Unlock Ownership Tree Sync
+
+The server periodically snapshots Unlock Lock key holders into a Merkle tree for ZK proofs:
+
+```sql
+-- Unlock Protocol ownership snapshots
+-- Periodically synced from on-chain data via Unlock subgraph
+CREATE TABLE IF NOT EXISTS flowb_zk_unlock_snapshots (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Which Lock contract
+  lock_address TEXT NOT NULL,
+  chain_id INTEGER NOT NULL DEFAULT 8453,
+
+  -- Snapshot Merkle tree
+  -- Leaves: Poseidon(wallet_address, lock_address, token_id)
+  snapshot_tree_id TEXT NOT NULL REFERENCES flowb_zk_merkle_trees(tree_id),
+  snapshot_root BYTEA NOT NULL,
+
+  -- Block number this snapshot was taken at
+  block_number BIGINT NOT NULL,
+
+  -- Key holder count at snapshot time
+  key_count INTEGER NOT NULL,
+
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT chk_snapshot_root_length CHECK (octet_length(snapshot_root) = 32)
+);
+
+CREATE INDEX idx_unlock_snapshots_lock ON flowb_zk_unlock_snapshots (lock_address, block_number DESC);
+
+ALTER TABLE flowb_zk_unlock_snapshots ENABLE ROW LEVEL SECURITY;
+CREATE POLICY unlock_snapshots_service ON flowb_zk_unlock_snapshots
+  FOR ALL USING (true) WITH CHECK (true);
+```
+
+---
+
+## 21. Updated Circuit Directory Structure
+
+```
+circuits/
+├── identity/
+│   ├── identity_membership.circom     // Prove "I'm a registered user"
+│   ├── identity_link.circom           // Prove two commitments share the same sk
+│   └── key_rotation.circom            // Prove key rotation is valid
+│
+├── balance/
+│   ├── balance_range_proof.circom     // Prove "my balance >= threshold"
+│   ├── balance_update.circom          // Prove "old + delta = new" for committed balances
+│   └── selective_reveal.circom        // Prove specific fields of committed data
+│
+├── membership/
+│   ├── crew_membership.circom         // Prove "I'm in crew X"
+│   └── revocation_check.circom        // Prove "my commitment is NOT revoked"
+│
+├── danz/
+│   ├── dance_attestation.circom       // Prove "a device detected me dancing"
+│   ├── partner_dance.circom           // Prove "two users danced together"
+│   └── challenge_completion.circom    // Prove "I completed challenge X"
+│
+├── device/
+│   ├── device_membership.circom       // Prove "this is a valid FlowBond device"
+│   └── device_pairing.circom          // Prove "I own this device"
+│
+├── unlock/
+│   └── unlock_ownership.circom        // Prove "I hold an Unlock NFT key"
+│
+├── lib/
+│   ├── poseidon.circom                // Poseidon hash (imported from circomlib)
+│   ├── pedersen.circom                // Pedersen commitment
+│   ├── merkle_proof.circom            // Sparse Merkle Tree inclusion proof
+│   ├── range_check.circom             // Bit decomposition range check
+│   └── ed25519_verify.circom          // Ed25519 signature verification
+│
+└── build/
+    ├── *.wasm                         // compiled circuits (WASM for browser proving)
+    ├── *.r1cs                         // R1CS constraint systems
+    ├── *.zkey                         // proving keys (Groth16)
+    ├── *.vkey.json                    // verification keys
+    └── powers_of_tau/                 // trusted setup ceremony files
+        ├── pot12_final.ptau
+        └── pot16_final.ptau           // for larger circuits (>16K constraints)
+```
+
+---
+
+## 22. Updated Dependencies
+
+```jsonc
+{
+  "dependencies": {
+    // ZK core
+    "circomlibjs": "^0.1.7",          // Poseidon hash, Pedersen commitment (in-JS)
+    "snarkjs": "^0.7.4",              // Groth16/PLONK prover + verifier
+
+    // Cryptographic primitives
+    "@noble/hashes": "^1.4.0",        // HKDF, SHA-256, HMAC
+    "@noble/ciphers": "^0.6.0",       // AES-256-GCM for blob/compliance encryption
+    "@noble/curves": "^1.4.0",        // BN254, Ed25519 curve operations
+
+    // Shamir secret sharing (compliance)
+    "secrets.js-grempe": "^2.0.0",    // Shamir's Secret Sharing Scheme
+
+    // Existing (unchanged)
+    "@supabase/supabase-js": "^2.95.3",
+    "@coinbase/agentkit": "^0.10.4"
+  },
+  "devDependencies": {
+    "circom": "^2.1.9",               // Circuit compiler (build-time only)
+    "mocha": "^10.7.0",               // Circuit test runner
+    "@iden3/snarkjs": "^0.7.4"        // Alternative snarkjs with Nova support
+  }
+}
+```
+
+---
+
+## 23. Updated Summary: Complete Data Knowledge Matrix
+
+| Question | Before | After (ZK) | Who Can Answer? |
+|----------|--------|------------|-----------------|
+| Who is user X? | Cleartext platform ID | 32B commitment | Only the user (or 3-of-5 trustees with court order) |
+| How many points? | Exact integer | 33B Pedersen commitment | Only the user (can selectively reveal) |
+| Who are user X's friends? | Explicit edge list | Commitment pairs | Only the two connected users |
+| Which events attended? | Explicit RSVP list | Attendance nullifiers | Only the user |
+| Wallet address? | Cleartext | AES-256-GCM encrypted blob | Only the user |
+| Daily check-in done? | Query by user_id + date | Query by nullifier | Anyone (nullifier is public) |
+| Is user dancing right now? | Self-reported check-in | Device attestation commitment | The device (via ZK proof) |
+| How intense was the dance? | Photo proof (manual review) | Device attestation with intensity commitment | Only the user (can prove "intensity >= medium") |
+| Heart rate during dance? | N/A (not collected) | Never leaves device | Only the device/user |
+| Are two users dancing together? | N/A | BLE proximity co-attestation | The two devices (via ZK proof) |
+| Which dance challenges completed? | Cleartext ledger | Challenge completion nullifiers | Anyone (completion count is public, identity is not) |
+| Is user a DANZ subscriber? | Unlock NFT wallet check (reveals address) | ZK proof of Unlock key ownership | Only the user (proves without revealing wallet) |
+| Who's in crew X? | Explicit member list | Crew Merkle tree (root public, members hidden) | Only each member (via Merkle witness) |
+| What did user X earn in $DANZ? | Trade history cleartext | Encrypted blob + committed balance | Only the user |
+| How many users total? | COUNT(*) | Merkle tree leaf_count | Anyone (aggregate is public) |
+| Can user be identified under court order? | Yes (cleartext) | Yes (3-of-5 threshold decryption) | Only with valid legal process + 3 independent trustees |
