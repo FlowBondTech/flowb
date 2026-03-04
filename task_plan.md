@@ -26,7 +26,7 @@ Transform FlowB from an event discovery tool into a **full-stack AI-powered busi
            |          |           |               |
      +-----+----------+-----------+-------+-------+
      |                |                   |
-  Mobile App      flowb.me           flowb.biz
+  Mobile App      flowb.me           biz.flowb.me
   (Expo/RN)      (Personal)         (Business)
   iOS + Android   Social tier        Pro/Team tier
 ```
@@ -36,7 +36,7 @@ Transform FlowB from an event discovery tool into a **full-stack AI-powered busi
 | Surface | URL | Audience | Features |
 |---------|-----|----------|----------|
 | **FlowB** | flowb.me + mobile app | Individuals, creators, community | Events, schedule, crews, friends, points, AI chat |
-| **FlowB.biz** | flowb.biz (or app toggle) | Teams, agencies, freelancers | Meetings, kanban, leads, automation, CRM, analytics |
+| **FlowB Biz** | biz.flowb.me (+ app toggle) | Teams, agencies, freelancers | Meetings, kanban, leads, automation, CRM, analytics |
 
 ---
 
@@ -196,8 +196,36 @@ Reuses the existing crew chat infrastructure (`flowb_group_messages` pattern) bu
 - **Real-time** via Supabase Realtime subscriptions
 - **Persistent** -- chat history lives forever as meeting record
 - **AI participant** -- FlowB bot can post reminders, briefings, follow-ups into the chat
-- **Cross-platform**: TG users get DM thread, FC users get DC, web/app users get in-app chat
 - **Notification routing**: New message -> push to attendees via their preferred channel
+
+**Unified chat across ALL surfaces** -- one conversation, every platform can participate:
+
+| Surface | Chat Experience | How It Works |
+|---------|----------------|-------------|
+| **Mobile app** | Native chat screen in meeting detail | Supabase Realtime subscription |
+| **biz.flowb.me** | Web chat panel in meeting/CRM view | Supabase Realtime (same channel) |
+| **flowb.me** | Chat widget on meeting link page | Supabase Realtime (same channel) |
+| **Telegram** | DM thread from FlowB bot | Bot forwards messages, user replies go back to chat |
+| **Farcaster** | DC notification + reply | Cast/DC integration via Neynar |
+| **Email** | Digest of unread messages + reply-to | Inbound email parsing -> chat message |
+| **Shared link** (`flowb.me/m/{code}`) | Chat embedded in meeting page | Guest access with name+email |
+
+**How cross-platform chat works:**
+```
+Sarah sends message in biz.flowb.me meeting chat
+  → Supabase Realtime: all connected clients see it instantly
+  → koH sees it in mobile app (Realtime subscription)
+  → Mike gets TG DM from FlowB bot with the message
+  → Mike replies to the TG DM
+  → Bot posts Mike's reply back to the meeting chat
+  → Sarah and koH see Mike's reply in their respective apps
+  → All messages stored in flowb_meeting_messages
+```
+
+**Same pattern extends to:**
+- **Crew chat**: Already works in mobile app, now also accessible from biz.flowb.me
+- **Lead conversations**: CRM users on biz.flowb.me can message leads, who receive on their platform
+- **Referral crew chat**: Event discussion in crew chat drives engagement weight for commissions
 
 ### Leads-to-Meetings Pipeline
 
@@ -350,15 +378,30 @@ LAUNCH
 [Friends Active] - Who's nearby / at events
 ```
 
-**Business Mode:**
+**Business Mode (mobile app + biz.flowb.me):**
 ```
 [Greeting] "Good morning, koH" + business badge
-[KPIs] - Meetings today (3) | Tasks due (7) | Leads (12)
+[KPIs] - Meetings today (3) | Tasks due (7) | Leads (12) | Crew earnings ($45)
 [Quick Actions] - Schedule meeting | Add lead | Create task
 [Today's Timeline] - Meetings + tasks chronologically
+[Messages] - Unified inbox: meeting chats, lead conversations, crew threads
 [Recent Activity] - Team activity feed
 [AI Suggestions] - "Follow up with Sarah" / "Schedule investor call"
 ```
+
+**biz.flowb.me Web Dashboard** (mirrors business mode, desktop-optimized):
+```
++--sidebar--+------------------main---------------------+--chat-panel--+
+| Meetings  | Today's Timeline                          | Active Chats |
+| Leads     | [Meeting cards + task cards chronological] | [Meeting A]  |
+| Boards    |                                           | [Lead B]     |
+| Contacts  | KPI cards row                             | [Crew C]     |
+| Referrals | [Meetings: 3] [Tasks: 7] [Leads: 12]     |              |
+| Analytics |                                           | Chat messages|
+| Settings  | Recent Activity feed                      | [Type here]  |
++-----------+-------------------------------------------+--------------+
+```
+Chat panel is always-visible on desktop -- you can message meeting attendees, leads, and crew members without leaving the dashboard.
 
 ### Design System Upgrade
 - Keep glassmorphism foundation (it's distinctive)
@@ -842,10 +885,11 @@ Feedback (user can approve, modify, or disable)
 - Annual discount (2 months free)
 
 ### Domain & Routing
-- `flowb.biz` -> Business landing page + login
-- `app.flowb.biz` -> Business web dashboard (kanban, CRM, analytics)
+- `biz.flowb.me` -> Business landing page + login + web dashboard (kanban, CRM, meetings, analytics)
+- `flowb.me` -> Personal/social tier (events, crews, friends, points)
 - Mobile app: mode toggle in profile (personal <-> business)
 - Shared auth: same account works on both surfaces
+- Same Netlify DNS zone (`6990f5f30daa0fd5f0996c82`), new site for `biz.flowb.me`
 
 **Deliverable**: Complete business tier with clear value prop, pricing, and seamless upgrade path.
 
@@ -997,7 +1041,7 @@ GET    /api/v1/billing/usage               Usage stats vs limits
 ### Deployment Targets
 - **flowb.fly.dev** - Updated backend with all new plugins
 - **flowb.me** - Updated web app with meeting links
-- **flowb.biz** - New business landing + web dashboard
+- **biz.flowb.me** - New business landing + web dashboard
 - **Mobile app** - App Store + Play Store submission
 - **docs.flowb.me** - Updated documentation
 
@@ -1008,7 +1052,7 @@ GET    /api/v1/billing/usage               Usage stats vs limits
 - [ ] Billing plugin deployed with Stripe
 - [ ] iOS app submitted to App Store review
 - [ ] Android app submitted to Play Store
-- [ ] flowb.biz domain configured (Netlify)
+- [ ] biz.flowb.me subdomain configured (Netlify)
 - [ ] Landing page live with pricing
 - [ ] Email sequences set up (welcome, onboarding, upgrade nudge)
 - [ ] Admin alerts updated for business metrics
@@ -1062,7 +1106,7 @@ Phase 9 (Deploy & Launch)
 
 ## Decision Points
 
-1. **flowb.biz domain**: Purchase and configure? Or use flowb.me/biz as subdirectory?
+1. ~~**flowb.biz domain**~~: **DECIDED** -- using `biz.flowb.me` subdomain on existing Netlify DNS
 2. **Calendar integration**: Google Calendar API (complex OAuth) vs simple iCal export?
 3. **Video meetings**: Generate Google Meet links? Integrate Zoom? Or just link field?
 4. **Stripe vs x402**: Subscriptions via Stripe, micropayments via x402? Or unified?

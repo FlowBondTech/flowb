@@ -54,7 +54,7 @@
 
 **Calendar Integration**: No Google Calendar, Apple Calendar, or iCal connections.
 
-**Business Tier (flowb.biz)**: No domain configured, no business-specific features, no pricing/billing.
+**Business Tier (biz.flowb.me)**: No domain configured, no business-specific features, no pricing/billing.
 
 **Stripe/Billing**: No subscription management. Only x402 micropayments for agents.
 
@@ -252,6 +252,27 @@ Next Meeting (if needed) -- threaded from same lead
 - Pin important messages (decisions, action items)
 - File sharing (links, docs)
 - Chat persists forever as meeting record
+
+### Unified Chat Architecture Decision
+
+**Decision**: One chat system powers ALL surfaces. No separate chat backends.
+
+Every chat message (meeting, crew, lead conversation) goes into Supabase, and every surface subscribes via Realtime:
+- Mobile app: native Supabase Realtime
+- biz.flowb.me: same Realtime subscription (web)
+- flowb.me: same (meeting link pages)
+- Telegram: bot bridges messages bidirectionally
+- Farcaster: Neynar DC integration
+- Email: digest + reply-to parsing
+
+**Key tables involved:**
+- `flowb_meeting_messages` -- meeting chat
+- `flowb_group_messages` -- crew chat (already exists)
+- Future: `flowb_lead_messages` -- lead conversations from CRM
+
+All three share the same pattern: `sender_id`, `content`, `created_at`, Supabase Realtime subscription by `meeting_id` / `group_id` / `lead_id`.
+
+**biz.flowb.me gets an always-visible chat panel** on desktop -- messaging is first-class in the business dashboard, not a separate screen. You can message a lead, reply to a meeting chat, and ping your crew without navigating away.
 
 ### Existing Infrastructure to Reuse
 | Need | Existing Asset | How to Reuse |

@@ -100,7 +100,7 @@
 ## Phase 6: FlowB.biz Business Tier
 - [ ] Tier definitions and feature gates (including referral tier limits)
 - [ ] Stripe integration (subscriptions)
-- [ ] flowb.biz domain and landing page
+- [ ] biz.flowb.me domain and landing page
 - [ ] Business web dashboard
 - [ ] In-app purchase integration (iOS/Android)
 - [ ] Referral payout methods gated by tier (free: points only, pro: all methods)
@@ -130,6 +130,6 @@
 - [ ] Production migrations
 - [ ] All services deployed
 - [ ] App Store submissions
-- [ ] flowb.biz live
+- [ ] biz.flowb.me live
 - [ ] Referral system live with pilot event organizers
 - [ ] Go-to-market execution
