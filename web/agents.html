@@ -22,14 +22,21 @@
         <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
-      <nav class="header-nav">
+            <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
-        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
         <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
-        <a href="/flow" class="header-nav-link">My Flow</a>
-        <a href="/agents" class="header-nav-link active">Agents</a>
-        <a href="/about" class="header-nav-link">About</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item active">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
       </nav>
       <button class="hamburger" id="navToggle" aria-label="Menu">
         <span></span><span></span><span></span>
@@ -291,10 +298,10 @@
         gridEl.innerHTML = agents.map((agent, i) => {
           const slotNum = agent.slot || agent.slot_number || (i + 1);
           const status = agent.status || 'open';
-          const name = agent.name || agent.agent_name || '';
+          const name = agent.agentName || agent.name || agent.agent_name || '';
           const skills = agent.skills || [];
           const skillCount = skills.length;
-          const owner = agent.owner_name || agent.claimed_by_name || '';
+          const owner = agent.displayName || agent.owner_name || '';
 
           return `
             <div class="agent-slot-card ${status === 'open' ? 'agent-slot-open' : ''}">
@@ -357,8 +364,8 @@
 
       // Agent Stats
       const balance = agent.balance ?? 0;
-      const earned = agent.total_earned ?? agent.earned ?? 0;
-      const spent = agent.total_spent ?? agent.spent ?? 0;
+      const earned = agent.totalEarned ?? agent.total_earned ?? 0;
+      const spent = agent.totalSpent ?? agent.total_spent ?? 0;
       const skills = agent.skills || [];
 
       cardEl.innerHTML = `
@@ -387,12 +394,15 @@
           <div style="margin-top:16px;">
             <p style="font-size:0.8rem;font-weight:600;color:var(--text-muted);margin-bottom:8px;">Active Skills</p>
             <div class="agent-skills-list">
-              ${skills.map(skill => `
+              ${skills.map(skill => {
+                const skillName = typeof skill === 'string' ? skill : (skill.name || skill.slug || '');
+                const skillLevel = typeof skill === 'object' && skill.level ? skill.level : null;
+                return `
                 <div class="agent-skill-tag">
-                  <span class="agent-skill-name">${escapeHtml(skill.name || skill.slug)}</span>
-                  ${skill.level ? `<span class="agent-skill-level">Lv${skill.level}</span>` : ''}
-                </div>
-              `).join('')}
+                  <span class="agent-skill-name">${escapeHtml(skillName)}</span>
+                  ${skillLevel ? `<span class="agent-skill-level">Lv${skillLevel}</span>` : ''}
+                </div>`;
+              }).join('')}
             </div>
           </div>
         ` : ''}
@@ -410,7 +420,7 @@
 
     async function loadSkillsMarketplace(ownedSkills) {
       const el = document.getElementById('skillsMarketplace');
-      const ownedSlugs = new Set((ownedSkills || []).map(s => s.slug || s.name));
+      const ownedSlugs = new Set((ownedSkills || []).map(s => typeof s === 'string' ? s : (s.slug || s.name)));
 
       try {
         // The /agents endpoint returns skills info; use it
@@ -503,7 +513,7 @@
 
       const result = await fetchAuthed('/api/v1/agents/claim', {
         method: 'POST',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ agentName: name }),
       });
 
       if (result && !result._error) {
@@ -535,7 +545,7 @@
 
       const result = await fetchAuthed('/api/v1/agents/skills/purchase', {
         method: 'POST',
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ skillSlug: slug }),
       });
 
       if (result && !result._error) {

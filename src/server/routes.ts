@@ -28,6 +28,7 @@ import {
   notifyCrewLocate,
   notifyCrewMessage,
 } from "../services/notifications.js";
+import { sendWelcomeEmail } from "../services/email.js";
 import { handleChat, type UserContext } from "../services/ai-chat.js";
 import {
   parseWebhookEvent,
@@ -224,6 +225,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             if (sessions?.[0]?.locale) locale = sessions[0].locale;
           }
 
+          // Upsert session row for Farcaster users
+          {
+            const fcCfgSession = getSupabaseConfig();
+            if (fcCfgSession) {
+              fireAndForget(sbPost(fcCfgSession, "flowb_sessions?on_conflict=user_id", {
+                user_id: userId,
+                danz_username: displayName || username || `FID ${fid}`,
+              }, "return=minimal,resolution=merge-duplicates"), "upsert fc session");
+            }
+          }
+
           // Alert admins for new Farcaster users
           {
             const fcCfgAlert = getSupabaseConfig();
@@ -408,6 +420,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           const { resolveCanonicalId } = await import("../services/identity.js");
           await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
         } catch {}
+      }
+
+      // Upsert session row for web users
+      {
+        const webCfgSession = getSupabaseConfig();
+        if (webCfgSession) {
+          fireAndForget(sbPost(webCfgSession, "flowb_sessions?on_conflict=user_id", {
+            user_id: userId,
+            danz_username: displayName || privyUserId,
+          }, "return=minimal,resolution=merge-duplicates"), "upsert web session");
+        }
       }
 
       // Alert admins for new web users
@@ -2053,6 +2076,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // POINTS: Global individual leaderboard (no auth required)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/flow/leaderboard/individuals",
+    async () => {
+      const individuals = await core.getGlobalIndividualRanking();
+      return { individuals };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // POINTS: Crew missions (requires auth)
   // ------------------------------------------------------------------
   app.get<{ Params: { id: string } }>(
@@ -3361,6 +3395,35 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
+      // Store email in session and send welcome email for newly linked emails
+      const emailEntry = linkedPlatformIds.find((e) => e.platform === "email");
+      if (emailEntry) {
+        const emailAddr = emailEntry.displayName; // email address
+        if (emailAddr) {
+          // Check if we already have this email stored (i.e. not a new link)
+          const existing = await sbFetch<any[]>(
+            cfg,
+            `flowb_sessions?user_id=eq.${encodeURIComponent(jwt.sub)}&select=email&limit=1`,
+          );
+          const hadEmail = existing?.[0]?.email;
+
+          // Store email in session row
+          fireAndForget(
+            sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+              user_id: jwt.sub,
+              email: emailAddr,
+            }, "return=minimal,resolution=merge-duplicates"),
+            "store email in session",
+          );
+
+          // Send welcome email if this is a newly linked email
+          if (!hadEmail || hadEmail !== emailAddr) {
+            const displayName = linkedPlatformIds.find((e) => e.displayName && e.platform !== "email")?.displayName || emailAddr.split("@")[0];
+            fireAndForget(sendWelcomeEmail(emailAddr, displayName), "send welcome email");
+          }
+        }
+      }
+
       console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts)`);
       return { ok: true, synced, canonical_id: canonicalId, merged_points: mergedPoints, platforms_linked: platformsLinked };
     },
@@ -3921,6 +3984,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           pushTokens: { active: pushActive },
         },
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Trigger email digest manually
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/admin/email-digest",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const { runEmailDigest } = await import("../services/email-digest.js");
+      const result = await runEmailDigest(cfg);
+      return { ok: true, ...result };
     },
   );
 
@@ -4707,7 +4787,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         })),
         skills: skills || [],
         stats: {
-          total: 10,
+          total: (agents || []).length,
           claimed: (agents || []).filter((a) => a.status === "claimed" || a.status === "active").length,
           open: (agents || []).filter((a) => a.status === "open").length,
           reserved: (agents || []).filter((a) => a.status === "reserved").length,
@@ -4771,9 +4851,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // AGENTS: Claim an open agent slot (requires auth)
+  // AGENTS: Claim an open agent slot (requires auth) — beta: unlimited slots
   // ------------------------------------------------------------------
-  app.post<{ Body: { agentName?: string } }>(
+  app.post<{ Body: { agentName?: string; name?: string } }>(
     "/api/v1/agents/claim",
     { preHandler: authMiddleware },
     async (request, reply) => {
@@ -4790,48 +4870,66 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         return reply.status(409).send({ error: "You already have an agent", slot: existing[0].slot_number });
       }
 
+      const agentName = (request.body?.agentName || request.body?.name || `${jwt.sub.replace(/^(telegram_|farcaster_|web_)/, "")}'s Agent`).slice(0, 50);
+
       // Find first open slot
       const openSlots = await sbFetch<any[]>(
         cfg,
         `flowb_agents?status=eq.open&select=id,slot_number&order=slot_number.asc&limit=1`,
       );
-      if (!openSlots?.length) {
-        return reply.status(410).send({ error: "No agent slots available" });
-      }
 
-      const slot = openSlots[0];
-      const agentName = (request.body?.agentName || `${jwt.sub.replace(/^(telegram_|farcaster_)/, "")}'s Agent`).slice(0, 50);
-
-      // Claim the slot
-      const res = await fetch(
-        `${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${slot.id}&status=eq.open`,
-        {
-          method: "PATCH",
-          headers: {
-            apikey: cfg.supabaseKey,
-            Authorization: `Bearer ${cfg.supabaseKey}`,
-            "Content-Type": "application/json",
-            Prefer: "return=representation",
+      let slot: any;
+      if (openSlots?.length) {
+        slot = openSlots[0];
+        // Claim existing open slot
+        const res = await fetch(
+          `${cfg.supabaseUrl}/rest/v1/flowb_agents?id=eq.${slot.id}&status=eq.open`,
+          {
+            method: "PATCH",
+            headers: {
+              apikey: cfg.supabaseKey,
+              Authorization: `Bearer ${cfg.supabaseKey}`,
+              "Content-Type": "application/json",
+              Prefer: "return=representation",
+            },
+            body: JSON.stringify({
+              user_id: jwt.sub,
+              agent_name: agentName,
+              status: "claimed",
+              claimed_at: new Date().toISOString(),
+              usdc_balance: 0.50,
+              skills: ["basic-search"],
+              metadata: { platform: jwt.platform, claimedFrom: "app" },
+              updated_at: new Date().toISOString(),
+            }),
           },
-          body: JSON.stringify({
-            user_id: jwt.sub,
-            agent_name: agentName,
-            status: "claimed",
-            claimed_at: new Date().toISOString(),
-            usdc_balance: 0.50, // seed balance
-            skills: ["basic-search"], // starter skill
-            metadata: { platform: jwt.platform, claimedFrom: "app" },
-            updated_at: new Date().toISOString(),
-          }),
-        },
-      );
-
-      if (!res.ok) {
-        return reply.status(500).send({ error: "Failed to claim agent" });
+        );
+        if (!res.ok) {
+          return reply.status(500).send({ error: "Failed to claim agent" });
+        }
+        const claimed = await res.json();
+        slot = Array.isArray(claimed) ? claimed[0] : claimed;
+      } else {
+        // Beta mode: auto-create a new slot for this user
+        const allSlots = await sbFetch<any[]>(cfg, `flowb_agents?select=slot_number&order=slot_number.desc&limit=1`);
+        const nextSlot = (allSlots?.[0]?.slot_number || 10) + 1;
+        const created = await sbPost(cfg, "flowb_agents", {
+          slot_number: nextSlot,
+          user_id: jwt.sub,
+          agent_name: agentName,
+          status: "claimed",
+          claimed_at: new Date().toISOString(),
+          usdc_balance: 0.50,
+          skills: ["basic-search"],
+          metadata: { platform: jwt.platform, claimedFrom: "app", beta: true },
+        });
+        slot = Array.isArray(created) ? created[0] : created;
+        if (!slot?.id) {
+          return reply.status(500).send({ error: "Failed to create agent slot" });
+        }
       }
 
-      const claimed = await res.json();
-      const agent = Array.isArray(claimed) ? claimed[0] : claimed;
+      const agent = slot;
 
       // Log the seed transaction
       await sbPost(cfg, "flowb_agent_transactions", {
