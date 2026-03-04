@@ -21,14 +21,18 @@ title: "eGator Events Plugin"
 | Adapter | Source File |
 |---------|-------------|
 | Brave Search | `src/plugins/egator/sources/brave.ts` |
+| Eventbrite (scraper) | `src/plugins/egator/sources/eventbrite-scraper.ts` |
 | Eventbrite | `src/plugins/egator/sources/eventbrite.ts` |
 | Google Places | `src/plugins/egator/sources/google-places.ts` |
 | Lemonade | `src/plugins/egator/sources/lemonade.ts` |
 | Luma | `src/plugins/egator/sources/luma.ts` |
+| Meetup (scraper) | `src/plugins/egator/sources/meetup-scraper.ts` |
+| parse-utils | `src/plugins/egator/sources/parse-utils.ts` |
 | Resident Advisor | `src/plugins/egator/sources/ra.ts` |
 | Sheeets | `src/plugins/egator/sources/sheeets.ts` |
+| SXSW Schedule (scraper) | `src/plugins/egator/sources/sxsw-scraper.ts` |
 | Tavily | `src/plugins/egator/sources/tavily.ts` |
 
 ---
 
-*Auto-generated on 2026-03-04 22:05:59 UTC*
+*Auto-generated on 2026-03-04 23:05:46 UTC*
