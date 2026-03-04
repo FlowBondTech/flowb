@@ -25,6 +25,9 @@ import { ResidentAdvisorAdapter } from "./sources/ra.js";
 import { LemonadeAdapter } from "./sources/lemonade.js";
 import { SheeetsAdapter } from "./sources/sheeets.js";
 import { GooglePlacesAdapter } from "./sources/google-places.js";
+import { EventbriteScraperAdapter } from "./sources/eventbrite-scraper.js";
+import { MeetupScraperAdapter } from "./sources/meetup-scraper.js";
+import { SxswScraperAdapter } from "./sources/sxsw-scraper.js";
 import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
@@ -89,6 +92,45 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     }
 
     console.log(`[egator] ${this.adapters.length} source(s) configured`);
+  }
+
+  /**
+   * Configure for keyless scraping mode (no API keys required).
+   * Used by the standalone scraper on IONOS VPS.
+   * Sets up all adapters that work without API keys.
+   */
+  configureKeyless(cities: string[] = ["austin"]) {
+    this.config = { sources: {} };
+    this.luma = null;
+    this.adapters = [];
+
+    // Keyless scrapers (always enabled)
+    this.adapters.push(new EventbriteScraperAdapter(cities));
+    console.log("[egator] Source: Eventbrite Scraper (keyless)");
+
+    this.adapters.push(new MeetupScraperAdapter(cities));
+    console.log("[egator] Source: Meetup Scraper (keyless)");
+
+    // Luma Discover API works without auth
+    this.luma = new LumaAdapter("");
+    this.adapters.push(this.luma);
+    console.log("[egator] Source: Luma Discover (keyless)");
+
+    // RA public GraphQL works without auth
+    this.adapters.push(new ResidentAdvisorAdapter());
+    console.log("[egator] Source: Resident Advisor (keyless)");
+
+    // Lemonade public GraphQL works without spaceId for search
+    this.adapters.push(new LemonadeAdapter(""));
+    console.log("[egator] Source: Lemonade (keyless)");
+
+    // SXSW scraper - enabled when any city is Austin
+    if (cities.some((c) => c.toLowerCase() === "austin")) {
+      this.adapters.push(new SxswScraperAdapter());
+      console.log("[egator] Source: SXSW Schedule Scraper (keyless, Austin)");
+    }
+
+    console.log(`[egator] ${this.adapters.length} keyless source(s) configured for cities: ${cities.join(", ")}`);
   }
 
   /** Expose LumaAdapter for direct use by bot/services */

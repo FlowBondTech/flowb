@@ -11,6 +11,7 @@ import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 import { runContextNotifications } from "../services/context-notifications.js";
 import { alertDaily } from "../services/admin-alerts.js";
+import { runEmailDigest } from "../services/email-digest.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
 import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
@@ -48,21 +49,8 @@ export async function buildApp(core: FlowBCore) {
   const supabaseKey = process.env.DANZ_SUPABASE_KEY;
 
   if (supabaseUrl && supabaseKey) {
-    // Event scanner: every 4 hours
-    setInterval(() => {
-      scanForNewEvents(
-        { supabaseUrl, supabaseKey },
-        (opts) => core.discoverEventsRaw(opts),
-      ).catch((err) => console.error("[scheduler] Event scanner error:", err));
-    }, 4 * 60 * 60 * 1000);
-
-    // Run initial scan after 30s startup delay
-    setTimeout(() => {
-      scanForNewEvents(
-        { supabaseUrl, supabaseKey },
-        (opts) => core.discoverEventsRaw(opts),
-      ).catch((err) => console.error("[scheduler] Initial scan error:", err));
-    }, 30_000);
+    // NOTE: Event scanner moved to standalone scraper on IONOS VPS (216.225.205.69)
+    // Manual scans still available via POST /api/v1/admin/scan-events
 
     // Time-slot based Farcaster posting: check every 5 minutes
     // Posts crew-focused content at 9am, 1pm, 4pm, 7pm MST
@@ -99,7 +87,7 @@ export async function buildApp(core: FlowBCore) {
       }
     }, 5 * 60 * 1000);
 
-    console.log("[scheduler] Farcaster time-slot poster + event scanner scheduled");
+    console.log("[scheduler] Farcaster time-slot poster scheduled (event scanner on IONOS VPS)");
 
     // SocialB poller: check for new Farcaster casts every 2 minutes
     const neynarApiKey = process.env.NEYNAR_API_KEY;
@@ -172,6 +160,41 @@ export async function buildApp(core: FlowBCore) {
     }, CTX_NOTIFY_INTERVAL); // Reuse the 30-min interval
 
     console.log("[scheduler] Admin daily summary scheduled (9am MST)");
+
+    // ========================================================================
+    // Email Digest: once per day at ~8am MST
+    // Piggybacks on the 30-min interval, checks if it's the right time
+    // ========================================================================
+    const emailDigestFired: Record<string, boolean> = {};
+
+    setInterval(() => {
+      try {
+        const now = new Date();
+        const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
+        const parts = mstStr.split(",")[1]?.trim().split(":");
+        if (!parts) return;
+
+        const hour = parseInt(parts[0], 10);
+        const dateKey = now.toISOString().slice(0, 10);
+
+        // Send email digest at 8am MST, once per day
+        if (hour === 8 && !emailDigestFired[dateKey]) {
+          emailDigestFired[dateKey] = true;
+          runEmailDigest({ supabaseUrl, supabaseKey }).catch(
+            (err) => console.error("[scheduler] Email digest error:", err),
+          );
+
+          // Clean up old date keys
+          for (const key of Object.keys(emailDigestFired)) {
+            if (key !== dateKey) delete emailDigestFired[key];
+          }
+        }
+      } catch (err) {
+        console.error("[scheduler] Email digest check error:", err);
+      }
+    }, CTX_NOTIFY_INTERVAL); // Reuse the 30-min interval
+
+    console.log("[scheduler] Email digest scheduled (8am MST)");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
