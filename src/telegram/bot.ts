@@ -98,6 +98,18 @@ import {
   formatEventSubmitDmFollowupHtml,
   buildEventSubmitDmFollowupKeyboard,
   type PendingEvent,
+  // Leads / CRM
+  formatLeadDetailHtml,
+  formatLeadListHtml,
+  formatPipelineHtml,
+  formatLeadCreatedHtml,
+  formatLeadUpdatedHtml,
+  buildLeadDetailKeyboard,
+  buildLeadListKeyboard,
+  buildLeadStageKeyboard,
+  buildPipelineKeyboard,
+  type LeadData,
+  type LeadStage,
 } from "./cards.js";
 import { sbQuery } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
@@ -129,7 +141,7 @@ interface TgSession {
   style?: string;
   lastActive: number;
   privyId?: string;
-  danzUsername?: string;
+  displayName?: string;
   verified: boolean;
   checkinEventId?: string;
   awaitingProofPhoto?: boolean;
@@ -139,6 +151,9 @@ interface TgSession {
   awaitingBugReport?: boolean;
   awaitingEventStep?: "title" | "date" | "time" | "venue" | "url" | "description" | "confirm";
   pendingEvent?: PendingEvent;
+  awaitingLeadName?: boolean;
+  awaitingLeadDetails?: string; // lead ID being edited
+  leadCache?: LeadData[];       // cached leads for callback resolution
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -160,8 +175,8 @@ const onboardingStates = new Map<number, OnboardingState>();
 
 // Supabase client for persistent session storage (survives restarts)
 const supabase: SupabaseClient | null =
-  process.env.DANZ_SUPABASE_URL && process.env.DANZ_SUPABASE_KEY
-    ? createClient(process.env.DANZ_SUPABASE_URL, process.env.DANZ_SUPABASE_KEY)
+  process.env.SUPABASE_URL && process.env.SUPABASE_KEY
+    ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
     : null;
 
 let sessionTableReady = false;
@@ -173,15 +188,15 @@ async function ensureSessionTable(): Promise<boolean> {
     const { error } = await supabase.from("flowb_sessions").select("user_id").limit(1);
     if (error && (error.message.includes("does not exist") || error.message.includes("Could not find"))) {
       // Try to create via raw REST (works with service role key)
-      const url = process.env.DANZ_SUPABASE_URL!;
-      const key = process.env.DANZ_SUPABASE_KEY!;
+      const url = process.env.SUPABASE_URL!;
+      const key = process.env.SUPABASE_KEY!;
       const res = await fetch(`${url}/rest/v1/rpc/`, {
         method: "POST",
         headers: { apikey: key, Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       });
       // If RPC endpoint doesn't help, log the SQL for manual creation
       console.warn("[flowb-telegram] flowb_sessions table not found. Create it with:");
-      console.warn(`  CREATE TABLE flowb_sessions (user_id TEXT PRIMARY KEY, verified BOOLEAN NOT NULL DEFAULT FALSE, privy_id TEXT, danz_username TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());`);
+      console.warn(`  CREATE TABLE flowb_sessions (user_id TEXT PRIMARY KEY, verified BOOLEAN NOT NULL DEFAULT FALSE, privy_id TEXT, display_name TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());`);
       return false;
     }
     sessionTableReady = true;
@@ -198,14 +213,14 @@ async function loadPersistent(tgId: number): Promise<Partial<TgSession> | null> 
   try {
     const { data } = await supabase
       .from("flowb_sessions")
-      .select("verified,privy_id,danz_username")
+      .select("verified,privy_id,display_name")
       .eq("user_id", `telegram_${tgId}`)
       .single();
     if (data) {
       return {
         verified: data.verified ?? false,
         privyId: data.privy_id ?? undefined,
-        danzUsername: data.danz_username ?? undefined,
+        displayName: data.display_name ?? undefined,
       };
     }
   } catch {}
@@ -221,7 +236,7 @@ function savePersistent(tgId: number, session: TgSession): void {
       user_id: `telegram_${tgId}`,
       verified: session.verified,
       privy_id: session.privyId || null,
-      danz_username: session.danzUsername || null,
+      display_name: session.displayName || null,
       updated_at: new Date().toISOString(),
     })
     .then(({ error }: { error: any }) => {
@@ -289,7 +304,7 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     style: partial.style ?? existing?.style,
     lastActive: Date.now(),
     privyId: partial.privyId ?? existing?.privyId,
-    danzUsername: partial.danzUsername ?? existing?.danzUsername,
+    displayName: partial.displayName ?? existing?.displayName,
     verified: partial.verified ?? existing?.verified ?? false,
     chatHistory: partial.chatHistory ?? existing?.chatHistory ?? [],
     checkinEventId: partial.checkinEventId ?? existing?.checkinEventId,
@@ -307,7 +322,7 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
   if (session.verified && (
     partial.verified !== undefined ||
     partial.privyId !== undefined ||
-    partial.danzUsername !== undefined
+    partial.displayName !== undefined
   )) {
     savePersistent(userId, session);
   }
@@ -452,7 +467,7 @@ async function completeOnboarding(
   onboardingStates.delete(tgId);
 
   const session = getSession(tgId);
-  const name = session?.danzUsername || ctx.from?.first_name || "friend";
+  const name = session?.displayName || ctx.from?.first_name || "friend";
 
   await ctx.reply(
     formatOnboardingDoneHtml(name),
@@ -483,8 +498,8 @@ async function handleFeatureSuggestion(
     : ctx.from?.first_name || `User ${tgId}`;
 
   // Save to flowb_feedback table
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (sbUrl && sbKey) {
     fetch(`${sbUrl}/rest/v1/flowb_feedback`, {
       method: "POST",
@@ -552,8 +567,8 @@ async function handleBugReport(
     : ctx.from?.first_name || `User ${tgId}`;
 
   // Save to flowb_feedback table
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (sbUrl && sbKey) {
     fetch(`${sbUrl}/rest/v1/flowb_feedback`, {
       method: "POST",
@@ -614,9 +629,8 @@ export function startTelegramBot(
   const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
   const miniAppUrl = process.env.FLOWB_MINIAPP_URL || "";
   // Prefer FlowB's own /connect page (serves Telegram Login Widget).
-  // Falls back to external DANZ connect URL or localhost for dev.
-  const danzConnectUrl =
-    process.env.DANZ_CONNECT_URL ||
+  // Falls back to FLOWB_CONNECT_URL env var or localhost for dev.
+  const connectUrl =
     process.env.FLOWB_CONNECT_URL ||
     `http://localhost:${process.env.PORT || "8080"}/connect`;
 
@@ -637,7 +651,7 @@ export function startTelegramBot(
     // Strategy 0: Load from DB (survives restarts)
     const persisted = await loadPersistent(tgId);
     if (persisted?.verified) {
-      console.log(`[flowb-telegram] Restored session from DB: ${persisted.danzUsername} (tg: ${tgId})`);
+      console.log(`[flowb-telegram] Restored session from DB: ${persisted.displayName} (tg: ${tgId})`);
       return setSession(tgId, persisted);
     }
 
@@ -647,16 +661,16 @@ export function startTelegramBot(
         const privyUser = await privy.lookupByTelegramId(String(tgId));
         if (privyUser) {
           const tgAccount = PrivyClient.getLinkedAccount(privyUser, "telegram");
-          const danzUsername = tgAccount?.username || tgAccount?.first_name || "DANZer";
+          const displayName = tgAccount?.username || tgAccount?.first_name || "Anon";
 
           const session = setSession(tgId, {
             verified: true,
             privyId: privyUser.id,
-            danzUsername,
+            displayName,
           });
 
           await core.awardPoints(userId(tgId), "telegram", "verification_complete");
-          console.log(`[flowb-telegram] Auto-verified via Privy: ${danzUsername} (privy: ${privyUser.id})`);
+          console.log(`[flowb-telegram] Auto-verified via Privy: ${displayName} (privy: ${privyUser.id})`);
           return session;
         }
       } catch (err) {
@@ -670,11 +684,11 @@ export function startTelegramBot(
       if (verified) {
         const session = setSession(tgId, {
           verified: true,
-          danzUsername: verified.username || verified.displayName || "DANZer",
+          displayName: verified.username || verified.displayName || "Anon",
         });
 
         await core.awardPoints(userId(tgId), "telegram", "verification_complete");
-        console.log(`[flowb-telegram] Auto-verified via widget: ${session.danzUsername} (tg: ${tgId})`);
+        console.log(`[flowb-telegram] Auto-verified via widget: ${session.displayName} (tg: ${tgId})`);
         return session;
       }
     } catch (err) {
@@ -690,7 +704,7 @@ export function startTelegramBot(
 
   core.onTelegramVerified(async (tgId, username) => {
     try {
-      setSession(tgId, { verified: true, danzUsername: username });
+      setSession(tgId, { verified: true, displayName: username });
       await bot.api.sendMessage(
         tgId,
         formatVerifiedHookHtml(username),
@@ -827,8 +841,8 @@ export function startTelegramBot(
       const locCode = args.slice(8);
       try {
         // Look up location
-        const sbUrl = process.env.DANZ_SUPABASE_URL;
-        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
         if (sbUrl && sbKey) {
           const locRes = await fetch(`${sbUrl}/rest/v1/flowb_locations?code=eq.${locCode}&active=eq.true&limit=1`, {
             headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
@@ -903,7 +917,7 @@ export function startTelegramBot(
     // Update daily streak
     const streakResult = await core.updateStreak(userId(tgId), "telegram");
 
-    if (session.verified && session.danzUsername) {
+    if (session.verified && session.displayName) {
       // Check if user has completed onboarding - if not, start it
       const onboarded = await hasCompletedOnboarding(tgId);
       if (!onboarded && !onboardingStates.has(tgId)) {
@@ -923,7 +937,7 @@ export function startTelegramBot(
       const totalPoints = pointsMatch ? parseInt(pointsMatch[1], 10) : 0;
 
       await ctx.reply(
-        formatVerifiedGreetingHtml(session.danzUsername, totalPoints, streakResult.streak),
+        formatVerifiedGreetingHtml(session.displayName, totalPoints, streakResult.streak),
         { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD },
       );
     } else {
@@ -936,7 +950,7 @@ export function startTelegramBot(
 
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
     }
   });
@@ -1004,7 +1018,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1067,7 +1081,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1096,7 +1110,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1131,7 +1145,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1165,7 +1179,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1270,7 +1284,7 @@ export function startTelegramBot(
     if (!session.verified) {
       await ctx.reply(formatConnectPromptHtml(), {
         parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(danzConnectUrl),
+        reply_markup: buildConnectKeyboard(connectUrl),
       });
       return;
     }
@@ -1344,8 +1358,8 @@ export function startTelegramBot(
   bot.command("wheremycrew", async (ctx) => {
     const tgId = ctx.from!.id;
     const uid = userId(tgId);
-    const sbUrl = process.env.DANZ_SUPABASE_URL;
-    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Get user's crews
@@ -1376,11 +1390,11 @@ export function startTelegramBot(
       const uids = [...new Set(checkins.map((c: any) => c.user_id))];
       let nameMap = new Map<string, string>();
       if (uids.length) {
-        const sRes = await fetch(`${sbUrl}/rest/v1/flowb_sessions?user_id=in.(${uids.join(",")})&select=user_id,danz_username`, {
+        const sRes = await fetch(`${sbUrl}/rest/v1/flowb_sessions?user_id=in.(${uids.join(",")})&select=user_id,display_name`, {
           headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
         });
         const sessions = sRes.ok ? await sRes.json() as any[] : [];
-        nameMap = new Map(sessions.map((s) => [s.user_id, s.danz_username]));
+        nameMap = new Map(sessions.map((s) => [s.user_id, s.display_name]));
       }
 
       const crewLabel = `${crew.emoji || ""} <b>${escapeHtml(crew.name)}</b>`;
@@ -1410,8 +1424,8 @@ export function startTelegramBot(
   // /onbooths - admin only, create QR booth locations
   bot.command("onbooths", async (ctx) => {
     const tgId = ctx.from!.id;
-    const sbUrl = process.env.DANZ_SUPABASE_URL;
-    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Parse: /onbooths <name> [floor] [zone]
@@ -1503,8 +1517,8 @@ export function startTelegramBot(
   // /sponsor - view your sponsorships or get wallet address
   bot.command("sponsor", async (ctx) => {
     const tgId = ctx.from!.id;
-    const sbUrl = process.env.DANZ_SUPABASE_URL;
-    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Fetch user's sponsorships
@@ -1550,8 +1564,8 @@ export function startTelegramBot(
 
   // /topsponsor - public leaderboard of top sponsored items
   bot.command("topsponsor", async (ctx) => {
-    const sbUrl = process.env.DANZ_SUPABASE_URL;
-    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
 
     // Get top sponsored locations (booths)
@@ -1770,8 +1784,8 @@ export function startTelegramBot(
     const session = await ensureVerified(tgId);
     const text = ctx.match?.trim() || "";
 
-    const sbUrl = process.env.DANZ_SUPABASE_URL;
-    const sbKey = process.env.DANZ_SUPABASE_KEY;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
 
     if (!sbUrl || !sbKey) {
       await ctx.reply("Todo system not configured.", { parse_mode: "HTML" });
@@ -1812,7 +1826,7 @@ export function startTelegramBot(
 
         const created = await res.json();
         const todo = Array.isArray(created) ? created[0] : created;
-        const who = session.danzUsername || ctx.from?.first_name || `${tgId}`;
+        const who = session.displayName || ctx.from?.first_name || `${tgId}`;
 
         alertAdmins(
           `New TODO from <b>${who}</b>: ${title}`,
@@ -1868,7 +1882,7 @@ export function startTelegramBot(
           }),
         });
 
-        const who = session.danzUsername || ctx.from?.first_name || `${tgId}`;
+        const who = session.displayName || ctx.from?.first_name || `${tgId}`;
         alertAdmins(`TODO completed by <b>${who}</b>: ${target.title}`, "info");
 
         await ctx.reply(
@@ -1933,7 +1947,7 @@ export function startTelegramBot(
       const pts = await core.awardPoints(userId(tgId), "telegram", "daily_login");
       const ptsText = pts.awarded ? ` (+${pts.points} pts)` : "";
       await ctx.reply(
-        `\u2705 You're already connected, <b>${session.danzUsername}</b>!${ptsText}`,
+        `\u2705 You're already connected, <b>${session.displayName}</b>!${ptsText}`,
         { parse_mode: "HTML" },
       );
       return;
@@ -1941,7 +1955,7 @@ export function startTelegramBot(
 
     await ctx.reply(formatGroupRegisterHtml(), {
       parse_mode: "HTML",
-      reply_markup: buildGroupRegisterKeyboard(danzConnectUrl, botUsername),
+      reply_markup: buildGroupRegisterKeyboard(connectUrl, botUsername),
     });
   });
 
@@ -2100,7 +2114,7 @@ export function startTelegramBot(
         formatGroupWelcomeHtml(firstName, groupName),
         {
           parse_mode: "HTML",
-          reply_markup: buildGroupWelcomeKeyboard(danzConnectUrl, botUsername),
+          reply_markup: buildGroupWelcomeKeyboard(connectUrl, botUsername),
         },
       );
 
@@ -3114,8 +3128,8 @@ export function startTelegramBot(
         const id8 = parts[2];
         const rsvpStatus = parts[3] || "accepted";
         // Find full meeting ID
-        const sbUrl = process.env.DANZ_SUPABASE_URL;
-        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
         if (sbUrl && sbKey) {
           const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
             select: "id,share_code",
@@ -3153,8 +3167,8 @@ export function startTelegramBot(
       // mt:share:{id8} - share meeting link
       if (action === "share") {
         const id8 = parts[2];
-        const sbUrl = process.env.DANZ_SUPABASE_URL;
-        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
         if (sbUrl && sbKey) {
           const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
             select: "id,title,share_code",
@@ -3178,8 +3192,8 @@ export function startTelegramBot(
       // mt:complete:{id8} - complete a meeting
       if (action === "complete") {
         const id8 = parts[2];
-        const sbUrl = process.env.DANZ_SUPABASE_URL;
-        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
         if (sbUrl && sbKey) {
           const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
             select: "id",
@@ -3199,8 +3213,8 @@ export function startTelegramBot(
       // mt:cancel:{id8} - cancel a meeting
       if (action === "cancel") {
         const id8 = parts[2];
-        const sbUrl = process.env.DANZ_SUPABASE_URL;
-        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
         if (sbUrl && sbKey) {
           const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
             select: "id",
@@ -3519,7 +3533,36 @@ export function startTelegramBot(
           friend_id: `telegram_${targetIdShort}`,
         });
 
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        try {
+          const parsed = JSON.parse(result);
+          if (parsed.type === "role_changed") {
+            await ctx.reply(
+              `<b>Promoted</b> ${parsed.targetId.replace("telegram_", "@")} to admin.`,
+              { parse_mode: "HTML" },
+            );
+            // Notify the promoted user
+            const targetTgId = targetIdShort;
+            if (targetTgId && !isNaN(Number(targetTgId))) {
+              try {
+                const crewRow = await sbQuery<any[]>(flowCfg, "flowb_groups", {
+                  select: "name,emoji",
+                  id: `eq.${parsed.groupId}`,
+                  limit: "1",
+                });
+                const crewName = crewRow?.[0] ? `${crewRow[0].emoji} ${crewRow[0].name}` : "the crew";
+                await bot.api.sendMessage(
+                  Number(targetTgId),
+                  `You've been promoted to <b>admin</b> in <b>${crewName}</b>! You can now approve join requests, remove members, and manage crew settings.`,
+                  { parse_mode: "HTML" },
+                );
+              } catch {}
+            }
+          } else {
+            await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+          }
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
         return;
       }
 
@@ -3537,7 +3580,36 @@ export function startTelegramBot(
           friend_id: `telegram_${targetIdShort}`,
         });
 
-        await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        try {
+          const parsed = JSON.parse(result);
+          if (parsed.type === "role_changed") {
+            await ctx.reply(
+              `<b>Demoted</b> ${parsed.targetId.replace("telegram_", "@")} to member.`,
+              { parse_mode: "HTML" },
+            );
+            // Notify the demoted user
+            const targetTgId = targetIdShort;
+            if (targetTgId && !isNaN(Number(targetTgId))) {
+              try {
+                const crewRow = await sbQuery<any[]>(flowCfg, "flowb_groups", {
+                  select: "name,emoji",
+                  id: `eq.${parsed.groupId}`,
+                  limit: "1",
+                });
+                const crewName = crewRow?.[0] ? `${crewRow[0].emoji} ${crewRow[0].name}` : "the crew";
+                await bot.api.sendMessage(
+                  Number(targetTgId),
+                  `Your role in <b>${crewName}</b> has been changed to <b>member</b>.`,
+                  { parse_mode: "HTML" },
+                );
+              } catch {}
+            }
+          } else {
+            await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+          }
+        } catch {
+          await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+        }
         return;
       }
 
@@ -3916,7 +3988,7 @@ export function startTelegramBot(
     if (/^(crew|my crew|crews|team|squad)$/i.test(lower)) {
       const session = await ensureVerified(tgId);
       if (!session.verified) {
-        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(connectUrl) });
         return;
       }
       const result = await core.execute("crew-list", { action: "crew-list", user_id: userId(tgId), platform: "telegram" });
@@ -3929,7 +4001,7 @@ export function startTelegramBot(
     if (crewCreateMatch) {
       const session = await ensureVerified(tgId);
       if (!session.verified) {
-        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(connectUrl) });
         return;
       }
       const name = crewCreateMatch[1].trim();
@@ -3958,7 +4030,7 @@ export function startTelegramBot(
     if (checkinMatch) {
       const session = await ensureVerified(tgId);
       if (!session.verified) {
-        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(danzConnectUrl) });
+        await ctx.reply(formatConnectPromptHtml(), { parse_mode: "HTML", reply_markup: buildConnectKeyboard(connectUrl) });
         return;
       }
       const venue = checkinMatch[1]?.trim();
@@ -4771,13 +4843,12 @@ async function resolveRequestId(
 ): Promise<string | null> {
   const rows = await sbQuery<any[]>(cfg, "flowb_crew_join_requests", {
     select: "id",
+    id: `like.${shortId}*`,
     status: "eq.pending",
-    limit: "10",
+    limit: "1",
   });
 
-  if (!rows?.length) return null;
-  const match = rows.find((r: any) => r.id.startsWith(shortId));
-  return match?.id || null;
+  return rows?.[0]?.id || null;
 }
 
 /**
@@ -4785,8 +4856,8 @@ async function resolveRequestId(
  * Uses the same slug dedup pattern as event-scanner.ts.
  */
 async function saveEventToDiscovered(event: EventResult): Promise<void> {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) return;
 
   const titleSlug = event.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);

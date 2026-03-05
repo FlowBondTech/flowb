@@ -148,7 +148,7 @@ export class FlowPlugin implements FlowBPlugin {
     "crew-request-join": { description: "Request to join an approval-mode crew", requiresAuth: true },
     "crew-approve":     { description: "Approve a pending join request (creator/admin)", requiresAuth: true },
     "crew-deny":        { description: "Deny a pending join request (creator/admin)", requiresAuth: true },
-    "crew-promote":     { description: "Promote a member to admin (creator only)", requiresAuth: true },
+    "crew-promote":     { description: "Promote a member to admin (creator or admin)", requiresAuth: true },
     "crew-demote":      { description: "Demote an admin to member (creator only)", requiresAuth: true },
     "crew-personal-invite": { description: "Generate a tracked personal invite link", requiresAuth: true },
     // Event attendance
@@ -812,6 +812,8 @@ export class FlowPlugin implements FlowBPlugin {
   async crewBrowse(cfg: FlowPluginConfig): Promise<string> {
     const crews = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
       select: "id,name,emoji,description,join_code,join_mode,created_at",
+      is_public: "eq.true",
+      join_mode: "neq.closed",
       order: "created_at.desc",
       limit: "50",
     });
@@ -1005,14 +1007,15 @@ export class FlowPlugin implements FlowBPlugin {
   }
 
   /**
-   * Promote a member to admin (creator only).
+   * Promote a member to admin.
+   * Creator or any admin can promote members to admin.
    */
   async crewPromote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
     if (!uid) return "User ID required.";
     if (!groupId || !targetId) return "Crew ID and member ID required.";
 
-    if (!await this.hasCrewPermission(cfg, uid, groupId, "creator")) {
-      return "Only the crew creator can promote members.";
+    if (!await this.hasCrewPermission(cfg, uid, groupId, "admin")) {
+      return "Only crew creators and admins can promote members.";
     }
 
     // Check target is a member
@@ -1032,11 +1035,19 @@ export class FlowPlugin implements FlowBPlugin {
       user_id: `eq.${targetId}`,
     }, { role: "admin" });
 
-    return `Promoted ${targetId.replace("telegram_", "@")} to admin.`;
+    return JSON.stringify({
+      type: "role_changed",
+      action: "promote",
+      groupId,
+      targetId,
+      newRole: "admin",
+      promotedBy: uid,
+    });
   }
 
   /**
    * Demote an admin to member (creator only).
+   * Only the creator can demote admins to prevent power struggles.
    */
   async crewDemote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
     if (!uid) return "User ID required.";
@@ -1062,7 +1073,14 @@ export class FlowPlugin implements FlowBPlugin {
       user_id: `eq.${targetId}`,
     }, { role: "member" });
 
-    return `Demoted ${targetId.replace("telegram_", "@")} to member.`;
+    return JSON.stringify({
+      type: "role_changed",
+      action: "demote",
+      groupId,
+      targetId,
+      newRole: "member",
+      demotedBy: uid,
+    });
   }
 
   /**
@@ -1567,12 +1585,12 @@ export class FlowPlugin implements FlowBPlugin {
   private async resolveNames(cfg: FlowPluginConfig, userIds: string[]): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>();
     if (!userIds.length) return nameMap;
-    const sessions = await sbQuery<{ user_id: string; danz_username: string }[]>(cfg, "flowb_sessions", {
-      select: "user_id,danz_username",
+    const sessions = await sbQuery<{ user_id: string; display_name: string }[]>(cfg, "flowb_sessions", {
+      select: "user_id,display_name",
       user_id: `in.(${userIds.join(",")})`,
     });
     for (const s of sessions || []) {
-      if (s.danz_username) nameMap.set(s.user_id, s.danz_username);
+      if (s.display_name) nameMap.set(s.user_id, s.display_name);
     }
     return nameMap;
   }

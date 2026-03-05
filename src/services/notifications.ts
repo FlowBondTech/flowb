@@ -301,7 +301,8 @@ export async function notifyCrewJoin(
   crewEmoji: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
-  if (await isUserQuietHours(ctx.supabase, userId)) return 0;
+  // NOTE: Don't check joiner's quiet hours here — each recipient's quiet hours
+  // are checked individually in the loop below.
 
   // Get crew members (excluding the person who joined)
   const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
@@ -503,24 +504,67 @@ export async function notifyCrewMessage(
     if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
     if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
 
-    // Check dedup
+    // Check dedup — use hourly bucket so the same sender can trigger notifications
+    // again after an hour, preventing spam while still allowing follow-up messages
+    const hourBucket = new Date().toISOString().slice(0, 13); // "2026-03-05T14"
     const alreadySent = await isAlreadyNotified(
       ctx.supabase,
       member.user_id,
       "crew_message",
-      `${crewId}:${userId}`,
+      `${crewId}:${userId}:${hourBucket}`,
       userId,
     );
     if (alreadySent) continue;
 
     const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage);
     if (didSend) {
-      await logNotification(ctx.supabase, member.user_id, "crew_message", `${crewId}:${userId}`, userId);
+      await logNotification(ctx.supabase, member.user_id, "crew_message", `${crewId}:${userId}:${hourBucket}`, userId);
       sent++;
     }
   }
 
   return sent;
+}
+
+// ============================================================================
+// Crew Role Change Notification
+// ============================================================================
+
+/**
+ * Notify a user when their crew role changes (promoted/demoted).
+ * Cross-platform: works for Telegram, Farcaster, WhatsApp, Signal, email users.
+ */
+export async function notifyRoleChange(
+  ctx: NotifyContext,
+  targetUserId: string,
+  changedByUserId: string,
+  crewId: string,
+  crewName: string,
+  crewEmoji: string,
+  newRole: "admin" | "member",
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<boolean> {
+  const changedByName = await resolveDisplayName(ctx.supabase, changedByUserId);
+
+  const message = newRole === "admin"
+    ? `${crewEmoji} You've been promoted to admin in ${crewName} by ${changedByName}! You can now approve join requests, remove members, and manage settings.`
+    : `${crewEmoji} Your role in ${crewName} has been changed to member by ${changedByName}.`;
+
+  // Check dedup
+  const alreadySent = await isAlreadyNotified(
+    ctx.supabase,
+    targetUserId,
+    "role_change",
+    `${crewId}:${newRole}`,
+    changedByUserId,
+  );
+  if (alreadySent) return false;
+
+  const didSend = await sendToUser(ctx, targetUserId, message, sendTelegramMessage);
+  if (didSend) {
+    await logNotification(ctx.supabase, targetUserId, "role_change", `${crewId}:${newRole}`, changedByUserId);
+  }
+  return didSend;
 }
 
 // ============================================================================
@@ -638,11 +682,11 @@ export async function notifyMeetingChat(
 /** Resolve a user ID (e.g. "telegram_123") to their display name from flowb_sessions */
 async function resolveDisplayName(cfg: SbConfig, userId: string): Promise<string> {
   const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
-    select: "display_name,danz_username",
+    select: "display_name",
     user_id: `eq.${userId}`,
     limit: "1",
   });
-  return rows?.[0]?.display_name || rows?.[0]?.danz_username || userId.replace(/^(telegram_|farcaster_)/, "");
+  return rows?.[0]?.display_name || userId.replace(/^(telegram_|farcaster_)/, "");
 }
 
 /** Send notification to a user via their primary platform */

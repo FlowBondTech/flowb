@@ -244,7 +244,7 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
           <div className="chat-messages" ref={chatContainerRef}>
             {messages.map((msg) => {
               const isOwn = msg.user_id === currentUserId;
-              const displayName = msg.display_name || msg.user_id.replace(/^(telegram_|farcaster_)/, "@");
+              const displayName = msg.display_name || msg.user_id;
               const initial = displayName.charAt(0).toUpperCase();
 
               return (
@@ -1236,7 +1236,11 @@ export function Crew({ crewId, checkinCode }: Props) {
   function renderMemberActionModal() {
     if (!showMemberAction || !selectedCrew) return null;
     const m = showMemberAction;
-    const displayName = m.display_name || m.user_id.replace(/^(telegram_|farcaster_)/, "@");
+    const displayName = m.display_name || m.user_id;
+    const isCreator = selectedCrew.role === "creator";
+    // Creators can promote/demote anyone. Admins can promote members but not demote other admins.
+    const canPromote = isCreator || (selectedCrew.role === "admin" && m.role === "member");
+    const canDemote = isCreator && m.role === "admin";
 
     return (
       <div className="modal-overlay" onClick={() => setShowMemberAction(null)}>
@@ -1247,9 +1251,16 @@ export function Crew({ crewId, checkinCode }: Props) {
               Role: {m.role}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
-                {m.role === "admin" ? "Demote to Member" : "Promote to Admin"}
-              </button>
+              {canPromote && m.role === "member" && (
+                <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
+                  Promote to Admin
+                </button>
+              )}
+              {canDemote && (
+                <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
+                  Demote to Member
+                </button>
+              )}
               <button
                 className="btn btn-block"
                 style={{ background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", border: "1px solid rgba(239, 68, 68, 0.2)" }}
