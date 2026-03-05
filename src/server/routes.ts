@@ -27,6 +27,7 @@ import {
   notifyCrewCheckin,
   notifyCrewLocate,
   notifyCrewMessage,
+  notifyMeetingChat,
 } from "../services/notifications.js";
 import { sendWelcomeEmail } from "../services/email.js";
 import { handleChat, type UserContext } from "../services/ai-chat.js";
@@ -328,7 +329,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // AUTH: Native App (hardcoded users for EthDenver)
+  // AUTH: Native App (hardcoded demo users)
   // ------------------------------------------------------------------
   app.post<{ Body: { username: string; password: string } }>(
     "/api/v1/auth/app",
@@ -655,18 +656,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // FEED: EthDenver Farcaster Feed (aggregates posts with keywords)
+  // FEED: Community Farcaster Feed (aggregates posts with keywords)
   // Searches multiple queries and deduplicates by cast hash.
+  // Also supports legacy /feed/ethdenver path.
   // ------------------------------------------------------------------
-  app.get<{ Querystring: { cursor?: string } }>(
-    "/api/v1/feed/ethdenver",
-    async (request) => {
+  const communityFeedHandler = async (request: any) => {
       const neynarKey = process.env.NEYNAR_API_KEY;
       if (!neynarKey) {
         return { casts: [], nextCursor: undefined };
       }
 
-      const queries = ["ethdenver", "eth denver", "#ethdenver", "buidlathon"];
+      const queries = ["sxsw", "south by southwest", "#sxsw", "sxsw2026", "flowb"];
       const { cursor } = request.query;
 
       // Fetch from Neynar cast search API for each keyword in parallel
@@ -693,12 +693,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }),
       );
 
-      // Merge, deduplicate by hash, filter from Feb 12
+      // Merge, deduplicate by hash, filter from Mar 1
       const seen = new Set<string>();
       const allCasts: any[] = [];
       let lastCursor: string | undefined;
 
-      const cutoffDate = new Date("2026-02-12T00:00:00Z").getTime();
+      const cutoffDate = new Date("2026-03-01T00:00:00Z").getTime();
 
       for (const r of results) {
         if (r.status !== "fulfilled") continue;
@@ -706,7 +706,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         if (next && !lastCursor) lastCursor = next;
         for (const cast of casts) {
           if (!cast.hash || seen.has(cast.hash)) continue;
-          // Filter: only posts from Feb 12 onwards
+          // Filter: only posts from Mar 1 onwards
           const ts = new Date(cast.timestamp).getTime();
           if (ts < cutoffDate) continue;
           seen.add(cast.hash);
@@ -740,8 +740,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         casts: allCasts.slice(0, 50),
         nextCursor: lastCursor,
       };
-    },
-  );
+  };
+  app.get("/api/v1/feed/community", communityFeedHandler);
+  app.get("/api/v1/feed/ethdenver", communityFeedHandler); // legacy alias
 
   // ------------------------------------------------------------------
   // FEED: Global activity feed — check-ins, crew messages, hot venues, trending events
@@ -1029,6 +1030,68 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // TRANSCRIBE: Social media video transcription via Supadata
+  // Accepts a video URL from YouTube, TikTok, Instagram, X, Facebook
+  // ------------------------------------------------------------------
+  app.post<{
+    Body: { url: string; lang?: string; mode?: "native" | "generate" | "auto" };
+  }>(
+    "/api/v1/transcribe",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["url"],
+          properties: {
+            url: { type: "string" },
+            lang: { type: "string" },
+            mode: { type: "string", enum: ["native", "generate", "auto"] },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const egator = core.getEGatorPlugin();
+      const supadata = egator?.getSupadataAdapter();
+      if (!supadata) {
+        return reply.status(503).send({ error: "Transcription service not configured" });
+      }
+
+      const { url, lang, mode } = request.body;
+
+      const { SupadataAdapter } = await import("../plugins/egator/sources/supadata.js");
+      if (!SupadataAdapter.isSupportedUrl(url)) {
+        return reply.status(400).send({
+          error: "Unsupported URL",
+          supported: ["YouTube", "TikTok", "Instagram", "X/Twitter", "Facebook"],
+        });
+      }
+
+      try {
+        const platform = SupadataAdapter.detectPlatform(url);
+        const result = await supadata.transcribe(url, {
+          lang,
+          mode: mode || "auto",
+          text: true,
+        });
+
+        return {
+          platform,
+          url: result.sourceUrl,
+          lang: result.lang,
+          availableLangs: result.availableLangs,
+          transcript: result.content,
+          async: result.async,
+        };
+      } catch (err: any) {
+        log("error", "transcribe", err.message);
+        return reply.status(502).send({ error: `Transcription failed: ${err.message}` });
+      }
+    },
+  );
+
+  // ------------------------------------------------------------------
   // EVENTS: Community submit (anyone can add an event link)
   // ------------------------------------------------------------------
   app.post<{
@@ -1081,7 +1144,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         starts_at: startTime || null,
         ends_at: endTime || null,
         venue_name: venue || null,
-        city: city || "Denver",
+        city: city || "Austin",
         is_free: isFree ?? null,
         organizer_name: submitter,
         quality_score: 0.3,
@@ -2625,6 +2688,250 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // MEETINGS: CRUD + share links
+  // ------------------------------------------------------------------
+
+  const meetingPlugin = core.getMeetingPlugin();
+  const meetingCfg = core.getMeetingConfig();
+
+  // Create meeting
+  app.post<{ Body: { title: string; description?: string; starts_at: string; duration_min?: number; location?: string; meeting_type?: string; notes?: string } }>(
+    "/api/v1/meetings",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Meetings not configured" });
+      const jwt = request.jwtPayload!;
+      const { title, description, starts_at, duration_min, location, meeting_type, notes } = request.body || {};
+      if (!title || !starts_at) return reply.status(400).send({ error: "title and starts_at required" });
+
+      const result = await meetingPlugin.create(meetingCfg, jwt.sub, {
+        action: "meeting-create",
+        user_id: jwt.sub,
+        meeting_title: title,
+        meeting_description: description,
+        meeting_starts_at: starts_at,
+        meeting_duration: duration_min,
+        meeting_location: location,
+        meeting_type: meeting_type,
+        meeting_notes: notes,
+      });
+
+      try {
+        const parsed = JSON.parse(result);
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "meeting_created"), "award points");
+        return parsed;
+      } catch {
+        return reply.status(500).send({ error: result });
+      }
+    },
+  );
+
+  // List meetings
+  app.get<{ Querystring: { filter?: string } }>(
+    "/api/v1/meetings",
+    { preHandler: authMiddleware },
+    async (request) => {
+      if (!meetingPlugin || !meetingCfg) return { meetings: [] };
+      const jwt = request.jwtPayload!;
+      const result = await meetingPlugin.list(meetingCfg, jwt.sub, {
+        action: "meeting-list",
+        meeting_filter: request.query.filter || "upcoming",
+      });
+      try {
+        return JSON.parse(result);
+      } catch {
+        return { meetings: [] };
+      }
+    },
+  );
+
+  // Meeting detail
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/meetings/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const result = await meetingPlugin.detail(meetingCfg, request.params.id);
+      try {
+        return JSON.parse(result);
+      } catch {
+        return reply.status(404).send({ error: result });
+      }
+    },
+  );
+
+  // Update meeting
+  app.patch<{ Params: { id: string }; Body: { title?: string; description?: string; starts_at?: string; duration_min?: number; location?: string; meeting_type?: string; notes?: string } }>(
+    "/api/v1/meetings/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = request.jwtPayload!;
+      const { title, description, starts_at, duration_min, location, meeting_type, notes } = request.body || {};
+      const result = await meetingPlugin.update(meetingCfg, jwt.sub, {
+        action: "meeting-update",
+        user_id: jwt.sub,
+        meeting_id: request.params.id,
+        meeting_title: title,
+        meeting_description: description,
+        meeting_starts_at: starts_at,
+        meeting_duration: duration_min,
+        meeting_location: location,
+        meeting_type: meeting_type,
+        meeting_notes: notes,
+      });
+      return { success: result === "Meeting updated.", message: result };
+    },
+  );
+
+  // Cancel meeting (soft delete)
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/meetings/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = request.jwtPayload!;
+      const result = await meetingPlugin.cancel(meetingCfg, jwt.sub, request.params.id);
+      return { success: !result.includes("not found"), message: result };
+    },
+  );
+
+  // Invite attendee
+  app.post<{ Params: { id: string }; Body: { user_id?: string; name?: string; email?: string } }>(
+    "/api/v1/meetings/:id/invite",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = request.jwtPayload!;
+      const { user_id: inviteeId, name, email } = request.body || {};
+      const result = await meetingPlugin.invite(meetingCfg, jwt.sub, {
+        action: "meeting-invite",
+        user_id: jwt.sub,
+        meeting_id: request.params.id,
+        friend_id: inviteeId,
+        attendee_name: name,
+        attendee_email: email,
+      });
+      try {
+        return JSON.parse(result);
+      } catch {
+        return reply.status(400).send({ error: result });
+      }
+    },
+  );
+
+  // Meeting messages - get
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; before?: string } }>(
+    "/api/v1/meetings/:id/messages",
+    { preHandler: authMiddleware },
+    async (request) => {
+      if (!meetingCfg) return { messages: [] };
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { messages: [] };
+
+      const limit = Math.min(parseInt(request.query.limit || "50", 10), 100);
+      let cursorFilter = "";
+      if (request.query.before) {
+        const cursorRow = await sbFetch<any[]>(cfg, `flowb_meeting_messages?id=eq.${request.query.before}&select=created_at&limit=1`);
+        if (cursorRow?.length) {
+          cursorFilter = `&created_at=lt.${cursorRow[0].created_at}`;
+        }
+      }
+
+      const query = `flowb_meeting_messages?meeting_id=eq.${request.params.id}&select=id,meeting_id,user_id,display_name,message,created_at&order=created_at.desc&limit=${limit}${cursorFilter}`;
+      const messages = await sbFetch<any[]>(cfg, query);
+      return { messages: messages || [] };
+    },
+  );
+
+  // Meeting messages - send
+  app.post<{ Params: { id: string }; Body: { message: string } }>(
+    "/api/v1/meetings/:id/messages",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = request.jwtPayload!;
+      const { message: text } = request.body || {};
+      const trimmed = (text || "").trim();
+      if (!trimmed || trimmed.length > 500) {
+        return reply.status(400).send({ error: "Message must be 1-500 characters" });
+      }
+
+      const result = await meetingPlugin.chat(meetingCfg, jwt.sub, {
+        action: "meeting-chat",
+        user_id: jwt.sub,
+        meeting_id: request.params.id,
+        message_content: trimmed,
+      });
+
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed.type === "meeting_message_sent") {
+          // Notify meeting attendees
+          const cfg = getSupabaseConfig();
+          if (cfg) {
+            const notifyCtx = { supabase: cfg, botToken: process.env.FLOWB_TELEGRAM_BOT_TOKEN };
+            const meeting = await meetingPlugin.getById(meetingCfg, request.params.id);
+            if (meeting) {
+              fireAndForget(
+                notifyMeetingChat(notifyCtx, jwt.sub, request.params.id, meeting.title, trimmed),
+                "notify meeting chat",
+              );
+            }
+          }
+          return parsed;
+        }
+        return reply.status(400).send({ error: result });
+      } catch {
+        return reply.status(400).send({ error: result });
+      }
+    },
+  );
+
+  // Public share link resolve (no auth)
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/m/:code",
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const result = await meetingPlugin.resolveLink(meetingCfg, request.params.code);
+      try {
+        return JSON.parse(result);
+      } catch {
+        return reply.status(404).send({ error: "Meeting not found" });
+      }
+    },
+  );
+
+  // Public RSVP via share code
+  app.post<{ Params: { code: string }; Body: { user_id?: string; name?: string; rsvp_status?: string } }>(
+    "/api/v1/m/:code/rsvp",
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const { user_id: uid, name, rsvp_status } = request.body || {};
+
+      if (uid) {
+        const result = await meetingPlugin.rsvpByCode(meetingCfg, uid, request.params.code, rsvp_status || "accepted");
+        if (result) {
+          return { success: true, meeting: { id: result.meeting.id, title: result.meeting.title } };
+        }
+      } else if (name) {
+        // Anonymous RSVP by name
+        const meeting = await meetingPlugin.getByCode(meetingCfg, request.params.code);
+        if (meeting) {
+          await sbInsert(meetingCfg, "flowb_meeting_attendees", {
+            meeting_id: meeting.id,
+            name,
+            rsvp_status: rsvp_status || "accepted",
+          });
+          return { success: true, meeting: { id: meeting.id, title: meeting.title } };
+        }
+      }
+
+      return reply.status(404).send({ error: "Meeting not found or invalid request" });
+    },
+  );
+
+  // ------------------------------------------------------------------
   // CHAT: AI Chat with tool calling (xAI Grok + FlowB tools)
   //
   // OpenAI-compatible /v1/chat/completions endpoint with function calling.
@@ -3742,7 +4049,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const ics = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//FlowB//ETHDenver 2026//EN",
+        "PRODID:-//FlowB//SXSW 2026//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         "BEGIN:VEVENT",
@@ -4938,7 +5245,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         amount_usdc: 0.50,
         tx_type: "seed",
         status: "completed",
-        metadata: { reason: "EthDenver launch seed" },
+        metadata: { reason: "SXSW launch seed" },
       }, "return=minimal");
 
       // Award points for claiming
