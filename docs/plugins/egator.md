@@ -29,6 +29,7 @@ title: "eGator Events Plugin"
 | Meetup (scraper) | `src/plugins/egator/sources/meetup-scraper.ts` |
 | parse-utils | `src/plugins/egator/sources/parse-utils.ts` |
 | Resident Advisor | `src/plugins/egator/sources/ra.ts` |
+| SerpAPI | `src/plugins/egator/sources/serpapi.ts` |
 | Sheeets | `src/plugins/egator/sources/sheeets.ts` |
 | supadata | `src/plugins/egator/sources/supadata.ts` |
 | SXSW Schedule (scraper) | `src/plugins/egator/sources/sxsw-scraper.ts` |
@@ -36,4 +37,4 @@ title: "eGator Events Plugin"
 
 ---
 
-*Auto-generated on 2026-03-05 00:10:27 UTC*
+*Auto-generated on 2026-03-05 00:11:53 UTC*
