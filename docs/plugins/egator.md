@@ -15,6 +15,7 @@ title: "eGator Events Plugin"
 | `event-guests` | See who's going to an event |
 | `event-rsvp` | RSVP to a Luma event |
 | `event-link` | Look up event details from a URL |
+| `web-search` | Search the web via Google (SerpAPI) |
 
 ## Event Sources
 
@@ -37,4 +38,4 @@ title: "eGator Events Plugin"
 
 ---
 
-*Auto-generated on 2026-03-05 00:11:53 UTC*
+*Auto-generated on 2026-03-05 00:14:03 UTC*
