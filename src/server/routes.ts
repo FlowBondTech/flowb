@@ -2240,11 +2240,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // FLOW: Discover public crews (requires auth)
+  // FLOW: Discover all crews (public, no auth required)
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/flow/crews/discover",
-    { preHandler: authMiddleware },
     async () => {
       if (!flowPlugin || !flowCfg) {
         return { crews: [] };

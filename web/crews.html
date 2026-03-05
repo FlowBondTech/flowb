@@ -851,7 +851,6 @@
     var discoverOpen = false;
 
     document.getElementById('btnDiscover').addEventListener('click', function() {
-      if (!requireAuth('discover crews')) return;
       var panel = document.getElementById('discoverPanel');
       discoverOpen = !discoverOpen;
       panel.classList.toggle('hidden', !discoverOpen);
@@ -867,11 +866,15 @@
       var el = document.getElementById('discoverList');
       el.innerHTML = '<div class="discover-empty">Loading crews...</div>';
 
-      var data = await fetchAuthed('/api/v1/flow/crews/discover');
+      var data;
+      try {
+        var res = await fetch(FLOWB_API + '/api/v1/flow/crews/discover');
+        data = res.ok ? await res.json() : null;
+      } catch { data = null; }
       var crews = (data && data.crews) ? data.crews : [];
 
       if (!crews.length) {
-        el.innerHTML = '<div class="discover-empty">No public crews found. Be the first to create one!</div>';
+        el.innerHTML = '<div class="discover-empty">No crews found. Be the first to create one!</div>';
         return;
       }
 
@@ -1037,6 +1040,10 @@
     loadStats();
     loadLeaderboard();
     updateCrewsPage();
+    // Auto-show discover panel with all crews on load
+    discoverOpen = true;
+    document.getElementById('discoverPanel').classList.remove('hidden');
+    loadDiscoverCrews();
   </script>
   <script>
     (function() {

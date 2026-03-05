@@ -807,18 +807,17 @@ export class FlowPlugin implements FlowBPlugin {
   }
 
   /**
-   * Browse public crews for discovery.
+   * Browse all crews for discovery (public).
    */
   async crewBrowse(cfg: FlowPluginConfig): Promise<string> {
     const crews = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
       select: "id,name,emoji,description,join_code,join_mode,created_at",
-      is_public: "eq.true",
       order: "created_at.desc",
-      limit: "20",
+      limit: "50",
     });
 
     if (!crews?.length) {
-      return "No public crews yet. Be the first to create one!";
+      return "No crews yet. Be the first to create one!";
     }
 
     return JSON.stringify(crews);

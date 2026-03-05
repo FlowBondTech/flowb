@@ -148,6 +148,11 @@ export async function getCrews(): Promise<CrewInfo[]> {
   return data.crews;
 }
 
+export async function discoverCrews(): Promise<any[]> {
+  const data = await get<{ crews: any[] }>("/api/v1/flow/crews/discover");
+  return data.crews;
+}
+
 export async function createCrew(name: string, emoji?: string) {
   return post("/api/v1/flow/crews", { name, emoji });
 }

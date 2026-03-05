@@ -141,6 +141,11 @@ export async function crewCheckin(crewId: string, venueName: string, opts?: { ev
   return result;
 }
 
+export async function discoverCrews(): Promise<any[]> {
+  const data = await get<{ crews: any[] }>("/api/v1/flow/crews/discover");
+  return data.crews;
+}
+
 export async function getCrewLeaderboard(crewId: string): Promise<LeaderboardEntry[]> {
   const data = await get<{ leaderboard: LeaderboardEntry[] }>(`/api/v1/flow/crews/${encodeURIComponent(crewId)}/leaderboard`);
   return data.leaderboard;

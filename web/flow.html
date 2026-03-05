@@ -510,11 +510,15 @@
       const el = document.getElementById('crewDiscoverList');
       el.innerHTML = '<div class="flow-loading">Loading crews...</div>';
 
-      const data = await fetchAuthed('/api/v1/flow/crews/discover');
+      let data;
+      try {
+        const res = await fetch(`${FLOWB_API}/api/v1/flow/crews/discover`);
+        data = res.ok ? await res.json() : null;
+      } catch { data = null; }
       const crews = (data && data.crews) ? data.crews : [];
 
       if (!crews.length) {
-        el.innerHTML = '<div class="dash-empty"><p>No public crews found</p><span>Be the first to create one!</span></div>';
+        el.innerHTML = '<div class="dash-empty"><p>No crews found</p><span>Be the first to create one!</span></div>';
         return;
       }
 

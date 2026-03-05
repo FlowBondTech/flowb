@@ -40,14 +40,19 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function CrewListScreen() {
   const navigation = useNavigation<Nav>();
   const crews = useCrewStore((s) => s.crews);
+  const discoveredCrews = useCrewStore((s) => s.discoveredCrews);
   const isLoading = useCrewStore((s) => s.isLoading);
+  const isDiscoverLoading = useCrewStore((s) => s.isDiscoverLoading);
   const fetchCrews = useCrewStore((s) => s.fetchCrews);
+  const fetchDiscoverCrews = useCrewStore((s) => s.fetchDiscoverCrews);
+  const joinCrewAction = useCrewStore((s) => s.joinCrew);
 
   const [search, setSearch] = useState('');
 
   useEffect(() => {
     fetchCrews();
-  }, [fetchCrews]);
+    fetchDiscoverCrews();
+  }, [fetchCrews, fetchDiscoverCrews]);
 
   // ── Filtered list ───────────────────────────────────────────────────
 
@@ -117,6 +122,60 @@ export function CrewListScreen() {
 
   const keyExtractor = useCallback((item: CrewInfo) => item.id, []);
 
+  // Discovered crews that user hasn't joined yet
+  const availableCrews = useMemo(() => {
+    const myIds = new Set(crews.map((c) => c.id));
+    return discoveredCrews.filter((dc) => !myIds.has(dc.id));
+  }, [crews, discoveredCrews]);
+
+  const handleJoinDiscovered = useCallback(
+    async (joinCode: string) => {
+      haptics.tap();
+      try {
+        await joinCrewAction(joinCode);
+        fetchDiscoverCrews();
+      } catch (err) {
+        console.error('Join failed:', err);
+      }
+    },
+    [joinCrewAction, fetchDiscoverCrews],
+  );
+
+  const renderFooter = useCallback(() => {
+    if (availableCrews.length === 0 && !isDiscoverLoading) return null;
+    return (
+      <View style={styles.discoverSection}>
+        <Text style={styles.discoverTitle}>Discover Crews</Text>
+        {isDiscoverLoading ? (
+          <Text style={styles.discoverLoading}>Loading...</Text>
+        ) : (
+          availableCrews.map((dc) => (
+            <GlassCard key={dc.id} variant="medium" style={styles.card}>
+              <View style={styles.discoverRow}>
+                <Text style={styles.emoji}>{dc.emoji}</Text>
+                <View style={styles.discoverInfo}>
+                  <Text style={styles.crewName} numberOfLines={1}>
+                    {dc.name}
+                  </Text>
+                  <Text style={styles.description} numberOfLines={1}>
+                    {dc.member_count} member{dc.member_count !== 1 ? 's' : ''}
+                    {dc.description ? ` - ${dc.description}` : ''}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={() => handleJoinDiscovered(dc.join_code || dc.id)}
+                  style={styles.joinButton}
+                >
+                  <Text style={styles.joinText}>Join</Text>
+                </Pressable>
+              </View>
+            </GlassCard>
+          ))
+        )}
+      </View>
+    );
+  }, [availableCrews, isDiscoverLoading, handleJoinDiscovered]);
+
   const renderEmpty = useCallback(
     () =>
       !isLoading ? (
@@ -177,6 +236,7 @@ export function CrewListScreen() {
         renderItem={renderItem}
         keyExtractor={keyExtractor}
         ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -266,5 +326,41 @@ const styles = StyleSheet.create({
     color: colors.text.tertiary,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
+  },
+  discoverSection: {
+    marginTop: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  discoverTitle: {
+    ...typography.headline,
+    color: colors.text.secondary,
+    marginBottom: spacing.sm,
+  },
+  discoverLoading: {
+    ...typography.caption,
+    color: colors.text.tertiary,
+    textAlign: 'center',
+    paddingVertical: spacing.md,
+  },
+  discoverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  discoverInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  joinButton: {
+    backgroundColor: colors.accent.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 8,
+  },
+  joinText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
 });
