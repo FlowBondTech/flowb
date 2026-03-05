@@ -1344,3 +1344,127 @@ export function buildFarcasterMenuKeyboard(): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
 }
+
+// ==========================================================================
+// Event Submission (Add My Event)
+// ==========================================================================
+
+type EventStep = "title" | "date" | "time" | "venue" | "url" | "description" | "confirm";
+
+export interface PendingEvent {
+  title?: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  url?: string;
+  description?: string;
+  city?: string;
+  isFree?: boolean;
+}
+
+export function formatEventSubmitPromptHtml(step: EventStep, pending: PendingEvent): string {
+  switch (step) {
+    case "title":
+      return [
+        "<b>List Your Event</b>",
+        "",
+        "What's the event called?",
+      ].join("\n");
+    case "date":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        "",
+        "When is it? <i>(e.g. Mar 15, tomorrow, Friday)</i>",
+      ].join("\n");
+    case "time":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}`,
+        "",
+        "What time? <i>(e.g. 7pm, 2:00 PM)</i>",
+      ].join("\n");
+    case "venue":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        "",
+        "Where's it at? <i>(venue name)</i>",
+      ].join("\n");
+    case "url":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        pending.venue ? `\ud83d\udccd ${escapeHtml(pending.venue)}` : "",
+        "",
+        "Got a link? <i>(event URL)</i>",
+      ].filter(Boolean).join("\n");
+    case "description":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        pending.venue ? `\ud83d\udccd ${escapeHtml(pending.venue)}` : "",
+        "",
+        "Short description? <i>(one or two lines)</i>",
+      ].filter(Boolean).join("\n");
+    default:
+      return "";
+  }
+}
+
+export function formatEventSubmitConfirmHtml(pending: PendingEvent): string {
+  const lines = [
+    "<b>Review Your Event</b>",
+    "",
+    `\ud83c\udfab <b>${escapeHtml(pending.title || "Untitled")}</b>`,
+  ];
+  if (pending.date) lines.push(`\ud83d\udcc5 ${escapeHtml(pending.date)}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`);
+  if (pending.venue) lines.push(`\ud83d\udccd ${escapeHtml(pending.venue)}`);
+  if (pending.url) lines.push(`\ud83d\udd17 ${escapeHtml(pending.url)}`);
+  if (pending.description) lines.push(`\n<i>${escapeHtml(pending.description)}</i>`);
+  lines.push("", "Look good?");
+  return lines.join("\n");
+}
+
+export function buildEventSubmitConfirmKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\u2705 Submit", "evt:submit:confirm")
+    .text("\u270f\ufe0f Edit", "evt:submit:edit")
+    .row()
+    .text("\u274c Cancel", "evt:submit:cancel");
+}
+
+export function buildEventSubmitSkipKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Skip \u25b6\ufe0f", "evt:submit:skip")
+    .text("\u274c Cancel", "evt:submit:cancel");
+}
+
+export function formatEventSubmittedHtml(title: string, eventId?: string): string {
+  return [
+    "\u2705 <b>Event Listed!</b>",
+    "",
+    `<b>${escapeHtml(title)}</b> has been added to FlowB.`,
+    "",
+    "Others can now discover it when browsing events.",
+    eventId ? `\nID: <code>${escapeHtml(eventId)}</code>` : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function formatEventSubmitGroupReplyHtml(title: string): string {
+  return `\u2705 Got it! I listed <b>${escapeHtml(title)}</b> \u2014 check your DMs for details.`;
+}
+
+export function formatEventSubmitDmFollowupHtml(title: string): string {
+  return [
+    `\u2705 <b>${escapeHtml(title)}</b> has been listed on FlowB!`,
+    "",
+    "Others can now discover it when browsing events.",
+    "Next time, use <b>/addmyevent</b> in DMs to add full details (date, time, venue, description).",
+  ].join("\n");
+}
+
+export function buildEventSubmitDmFollowupKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\udccd Browse Events", "mn:events")
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}

@@ -88,6 +88,16 @@ import {
   buildMeetingListKeyboard,
   buildMeetingRsvpKeyboard,
   buildMeetingCreateKeyboard,
+  // Event submission
+  formatEventSubmitPromptHtml,
+  formatEventSubmitConfirmHtml,
+  buildEventSubmitConfirmKeyboard,
+  buildEventSubmitSkipKeyboard,
+  formatEventSubmittedHtml,
+  formatEventSubmitGroupReplyHtml,
+  formatEventSubmitDmFollowupHtml,
+  buildEventSubmitDmFollowupKeyboard,
+  type PendingEvent,
 } from "./cards.js";
 import { sbQuery } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
@@ -127,6 +137,8 @@ interface TgSession {
   awaitingCrewName?: boolean;
   awaitingSuggestion?: boolean;
   awaitingBugReport?: boolean;
+  awaitingEventStep?: "title" | "date" | "time" | "venue" | "url" | "description" | "confirm";
+  pendingEvent?: PendingEvent;
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -286,6 +298,8 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingCrewName: partial.awaitingCrewName ?? existing?.awaitingCrewName,
     awaitingSuggestion: partial.awaitingSuggestion ?? existing?.awaitingSuggestion,
     awaitingBugReport: partial.awaitingBugReport ?? existing?.awaitingBugReport,
+    awaitingEventStep: partial.awaitingEventStep ?? existing?.awaitingEventStep,
+    pendingEvent: partial.pendingEvent ?? existing?.pendingEvent,
   };
   sessions.set(userId, session);
 
@@ -1999,6 +2013,34 @@ export function startTelegramBot(
   });
 
   // ========================================================================
+  // Add My Event command
+  // ========================================================================
+
+  bot.command(["addmyevent", "addevent", "submitevent", "listevent", "addthisevent"], async (ctx) => {
+    const tgId = ctx.from!.id;
+    const args = ctx.match?.trim();
+
+    if (args) {
+      // Inline: /addmyevent Cool Party
+      await submitEventQuick(ctx, core, tgId, args);
+      return;
+    }
+
+    // Start multi-step flow
+    setSession(tgId, {
+      awaitingEventStep: "title",
+      pendingEvent: {},
+      awaitingSuggestion: false,
+      awaitingBugReport: false,
+      awaitingCrewName: false,
+    });
+    await ctx.reply(
+      formatEventSubmitPromptHtml("title", {}),
+      { parse_mode: "HTML" },
+    );
+  });
+
+  // ========================================================================
   // Feedback & Bug Report commands
   // ========================================================================
 
@@ -3195,6 +3237,57 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Event submission callbacks: evt:* ----
+    if (data.startsWith("evt:")) {
+      const parts = data.split(":");
+      const action = parts[1]; // submit or edit
+      const subAction = parts[2]; // confirm, edit, cancel, skip, or field name
+
+      if (action === "submit" && subAction === "confirm") {
+        await ctx.answerCallbackQuery({ text: "Submitting..." });
+        const session = getSession(tgId);
+        const pending = session?.pendingEvent;
+        if (!pending?.title) {
+          await ctx.reply("No event to submit. Start over with /addmyevent");
+          return;
+        }
+        await submitEventFromPending(ctx, core, tgId, pending);
+        setSession(tgId, { awaitingEventStep: undefined, pendingEvent: undefined });
+        return;
+      }
+
+      if (action === "submit" && subAction === "edit") {
+        await ctx.answerCallbackQuery();
+        // Restart from title
+        const session = getSession(tgId);
+        setSession(tgId, { awaitingEventStep: "title", pendingEvent: session?.pendingEvent || {} });
+        await ctx.reply(
+          formatEventSubmitPromptHtml("title", session?.pendingEvent || {}),
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      if (action === "submit" && subAction === "cancel") {
+        await ctx.answerCallbackQuery({ text: "Cancelled" });
+        setSession(tgId, { awaitingEventStep: undefined, pendingEvent: undefined });
+        await ctx.reply("Event submission cancelled.", { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
+        return;
+      }
+
+      if (action === "submit" && subAction === "skip") {
+        await ctx.answerCallbackQuery();
+        const session = getSession(tgId);
+        if (session?.awaitingEventStep) {
+          advanceEventStep(ctx, tgId, session.awaitingEventStep, session.pendingEvent || {});
+        }
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     if (data.startsWith("cr:")) {
       const parts = data.split(":");
       const action = parts[1];
@@ -3676,6 +3769,19 @@ export function startTelegramBot(
       .trim() || rawText;
     const lower = text.toLowerCase();
 
+    // ---- Group one-liner: "add event <title>" ----
+    if (isGroup) {
+      const groupAddMatch = lower.match(/^add (?:my )?event\s+(.+)/i)
+        || lower.match(/^add this event\s+(.+)/i)
+        || lower.match(/^list (?:my )?event\s+(.+)/i)
+        || lower.match(/^new event\s+(.+)/i);
+      if (groupAddMatch) {
+        const title = text.slice(text.length - groupAddMatch[1].length).trim();
+        await submitEventFromGroup(ctx, core, bot, tgId, title);
+        return;
+      }
+    }
+
     // ---- Event URL detection (Luma) ----
     const EVENT_URL_REGEX = /https?:\/\/(?:lu\.ma|luma\.com)\/[^\s]+/gi;
     const eventUrlMatch = text.match(EVENT_URL_REGEX);
@@ -3931,6 +4037,32 @@ export function startTelegramBot(
       return;
     }
 
+    // Add my event triggers (DM)
+    if (/^(add (?:my )?event|add this event|list (?:my )?event|submit (?:an? )?event|i have an event|post (?:my )?event|new event|create (?:an? )?event)$/i.test(lower)) {
+      setSession(tgId, {
+        awaitingEventStep: "title",
+        pendingEvent: {},
+        awaitingSuggestion: false,
+        awaitingBugReport: false,
+        awaitingCrewName: false,
+      });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("title", {}),
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    // Add event with inline title: "add event Cool Party" / "list event My Meetup"
+    {
+      const addEventMatch = lower.match(/^(?:add (?:my )?event|add this event|list (?:my )?event|submit (?:an? )?event|post (?:my )?event|new event|create (?:an? )?event)\s+(.+)/i);
+      if (addEventMatch) {
+        const title = text.slice(text.length - addEventMatch[1].length); // preserve original casing
+        await submitEventQuick(ctx, core, tgId, title.trim());
+        return;
+      }
+    }
+
     // Help
     if (/^(help|commands|what can you do|how does this work)$/i.test(lower)) {
       await ctx.reply(
@@ -3950,6 +4082,7 @@ export function startTelegramBot(
         `<b>What's up</b> — social feed from your crew\n` +
         `<b>After party</b> — where is everyone heading\n` +
         `<b>Who's here</b> — who's at this event or city\n` +
+        `<b>Add my event</b> — list your own event\n` +
         `<b>Suggest a feature</b> — send us an idea\n` +
         `<b>Report a bug</b> — let us know what's broken\n\n` +
         `Or just ask me anything — I'll look up events, find people, and help you plan your day!`,
@@ -4018,6 +4151,15 @@ export function startTelegramBot(
       return;
     }
 
+
+    // ---- Awaiting event submission step ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingEventStep && session.awaitingEventStep !== "confirm") {
+        await handleEventStep(ctx, core, tgId, text.trim(), session);
+        return;
+      }
+    }
 
     // ---- Awaiting feature suggestion ----
     {
@@ -4814,5 +4956,300 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
 
     default:
       await ctx.answerCallbackQuery({ text: "Unknown action" });
+  }
+}
+
+// ============================================================================
+// Event Submission Helpers
+// ============================================================================
+
+/** Handle each step of the multi-step event submission flow */
+async function handleEventStep(
+  ctx: any,
+  core: FlowBCore,
+  tgId: number,
+  input: string,
+  session: TgSession,
+): Promise<void> {
+  const step = session.awaitingEventStep!;
+  const pending = { ...session.pendingEvent } as PendingEvent;
+
+  switch (step) {
+    case "title":
+      pending.title = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "date" });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("date", pending),
+        { parse_mode: "HTML" },
+      );
+      return;
+
+    case "date":
+      pending.date = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "time" });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("time", pending),
+        { parse_mode: "HTML", reply_markup: buildEventSubmitSkipKeyboard() },
+      );
+      return;
+
+    case "time":
+      pending.time = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "venue" });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("venue", pending),
+        { parse_mode: "HTML", reply_markup: buildEventSubmitSkipKeyboard() },
+      );
+      return;
+
+    case "venue":
+      pending.venue = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "url" });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("url", pending),
+        { parse_mode: "HTML", reply_markup: buildEventSubmitSkipKeyboard() },
+      );
+      return;
+
+    case "url":
+      pending.url = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "description" });
+      await ctx.reply(
+        formatEventSubmitPromptHtml("description", pending),
+        { parse_mode: "HTML", reply_markup: buildEventSubmitSkipKeyboard() },
+      );
+      return;
+
+    case "description":
+      pending.description = input;
+      setSession(tgId, { pendingEvent: pending, awaitingEventStep: "confirm" });
+      await ctx.reply(
+        formatEventSubmitConfirmHtml(pending),
+        { parse_mode: "HTML", reply_markup: buildEventSubmitConfirmKeyboard() },
+      );
+      return;
+  }
+}
+
+/** Advance to the next step when user taps "Skip" */
+function advanceEventStep(
+  ctx: any,
+  tgId: number,
+  currentStep: string,
+  pending: PendingEvent,
+): void {
+  const stepOrder: Array<TgSession["awaitingEventStep"]> = ["title", "date", "time", "venue", "url", "description", "confirm"];
+  const idx = stepOrder.indexOf(currentStep as any);
+  const nextStep = stepOrder[idx + 1];
+
+  if (!nextStep || nextStep === "confirm") {
+    setSession(tgId, { pendingEvent: pending, awaitingEventStep: "confirm" });
+    ctx.reply(
+      formatEventSubmitConfirmHtml(pending),
+      { parse_mode: "HTML", reply_markup: buildEventSubmitConfirmKeyboard() },
+    );
+    return;
+  }
+
+  setSession(tgId, { pendingEvent: pending, awaitingEventStep: nextStep });
+
+  const isOptional = ["time", "venue", "url", "description"].includes(nextStep);
+  ctx.reply(
+    formatEventSubmitPromptHtml(nextStep as any, pending),
+    { parse_mode: "HTML", reply_markup: isOptional ? buildEventSubmitSkipKeyboard() : undefined },
+  );
+}
+
+/** Build a startTime ISO string from date + time text */
+function parseEventDateTime(date?: string, time?: string): string | null {
+  if (!date) return null;
+  // Try to parse natural date text
+  const now = new Date();
+  let target: Date | null = null;
+
+  const lower = date.toLowerCase().trim();
+  if (lower === "today") {
+    target = now;
+  } else if (lower === "tomorrow") {
+    target = new Date(now);
+    target.setDate(target.getDate() + 1);
+  } else {
+    // Try direct Date parse
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) {
+      target = parsed;
+    } else {
+      // Try "Mar 15" style
+      const parsed2 = new Date(`${date} ${now.getFullYear()}`);
+      if (!isNaN(parsed2.getTime())) {
+        target = parsed2;
+      }
+    }
+  }
+
+  if (!target) return null;
+
+  if (time) {
+    // Parse time like "7pm", "2:00 PM", "14:00"
+    const timeMatch = time.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1], 10);
+      const mins = parseInt(timeMatch[2] || "0", 10);
+      const ampm = timeMatch[3]?.toLowerCase();
+      if (ampm === "pm" && hours < 12) hours += 12;
+      if (ampm === "am" && hours === 12) hours = 0;
+      target.setHours(hours, mins, 0, 0);
+    }
+  }
+
+  return target.toISOString();
+}
+
+/** Submit event from the pending state (multi-step or confirm) */
+async function submitEventFromPending(
+  ctx: any,
+  core: FlowBCore,
+  tgId: number,
+  pending: PendingEvent,
+): Promise<void> {
+  const startTime = parseEventDateTime(pending.date, pending.time);
+  const session = getSession(tgId);
+
+  try {
+    const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/events/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${signJwtForBot(tgId)}`,
+      },
+      body: JSON.stringify({
+        title: pending.title,
+        startTime: startTime || undefined,
+        venue: pending.venue || undefined,
+        url: pending.url || undefined,
+        description: pending.description || undefined,
+        city: session?.city || "Austin",
+        isFree: pending.isFree ?? undefined,
+      }),
+    });
+
+    const data = await res.json() as any;
+    if (data.ok) {
+      await ctx.reply(
+        formatEventSubmittedHtml(pending.title || "Event", data.eventId),
+        { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
+      );
+      const submitter = ctx.from?.username || ctx.from?.first_name || String(tgId);
+      alertAdmins(`New community event: <b>${escapeHtml(pending.title || "")}</b> by @${submitter}`, "info");
+    } else {
+      await ctx.reply(
+        `\u2139\ufe0f ${escapeHtml(data.message || data.error || "Something went wrong.")}`,
+        { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
+      );
+    }
+  } catch (err: any) {
+    console.error("[flowb-telegram] event submit error:", err.message);
+    await ctx.reply("Something went wrong submitting your event. Try again!", { parse_mode: "HTML" });
+  }
+}
+
+/** Quick submit — just a title, used for inline /addmyevent <title> or DM one-liner */
+async function submitEventQuick(
+  ctx: any,
+  core: FlowBCore,
+  tgId: number,
+  title: string,
+): Promise<void> {
+  await ctx.replyWithChatAction("typing");
+  const session = getSession(tgId);
+
+  try {
+    const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/events/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${signJwtForBot(tgId)}`,
+      },
+      body: JSON.stringify({
+        title,
+        city: session?.city || "Austin",
+      }),
+    });
+
+    const data = await res.json() as any;
+    if (data.ok) {
+      await ctx.reply(
+        formatEventSubmittedHtml(title, data.eventId),
+        { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
+      );
+      const submitter = ctx.from?.username || ctx.from?.first_name || String(tgId);
+      alertAdmins(`New community event: <b>${escapeHtml(title)}</b> by @${submitter}`, "info");
+    } else {
+      await ctx.reply(
+        `\u2139\ufe0f ${escapeHtml(data.message || data.error || "Something went wrong.")}`,
+        { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
+      );
+    }
+  } catch (err: any) {
+    console.error("[flowb-telegram] event quick submit error:", err.message);
+    await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML" });
+  }
+}
+
+/** Group one-liner: submit and reply in group, DM user with followup */
+async function submitEventFromGroup(
+  ctx: any,
+  core: FlowBCore,
+  bot: any,
+  tgId: number,
+  title: string,
+): Promise<void> {
+  const session = getSession(tgId) || setSession(tgId, {});
+
+  try {
+    const res = await fetch(`${FLOWB_CHAT_URL}/api/v1/events/submit`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${signJwtForBot(tgId)}`,
+      },
+      body: JSON.stringify({
+        title,
+        city: session.city || "Austin",
+      }),
+    });
+
+    const data = await res.json() as any;
+    if (data.ok) {
+      // Reply in group
+      await ctx.reply(
+        formatEventSubmitGroupReplyHtml(title),
+        { parse_mode: "HTML" },
+      );
+
+      // DM user with followup
+      try {
+        // Store the event in pending so user can add details via DM buttons
+        setSession(tgId, { pendingEvent: { title } });
+        await bot.api.sendMessage(
+          tgId,
+          formatEventSubmitDmFollowupHtml(title),
+          { parse_mode: "HTML", reply_markup: buildEventSubmitDmFollowupKeyboard() },
+        );
+      } catch {
+        // User may not have started DM with bot — that's ok
+      }
+
+      const submitter = ctx.from?.username || ctx.from?.first_name || String(tgId);
+      alertAdmins(`New community event (group): <b>${escapeHtml(title)}</b> by @${submitter}`, "info");
+    } else {
+      await ctx.reply(
+        `\u2139\ufe0f ${escapeHtml(data.message || data.error || "Could not list event.")}`,
+        { parse_mode: "HTML" },
+      );
+    }
+  } catch (err: any) {
+    console.error("[flowb-telegram] group event submit error:", err.message);
+    await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML" });
   }
 }
