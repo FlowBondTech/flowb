@@ -29,7 +29,7 @@ These require a valid user session.
 | `crew-request-join` | Request to join an approval-mode crew |
 | `crew-approve` | Approve a pending join request (creator/admin) |
 | `crew-deny` | Deny a pending join request (creator/admin) |
-| `crew-promote` | Promote a member to admin (creator only) |
+| `crew-promote` | Promote a member to admin (creator or admin) |
 | `crew-demote` | Demote an admin to member (creator only) |
 | `crew-personal-invite` | Generate a tracked personal invite link |
 | `going` | RSVP to an event (going/maybe) |
@@ -40,4 +40,4 @@ These require a valid user session.
 
 ---
 
-*Auto-generated on 2026-03-05 22:05:27 UTC*
+*Auto-generated on 2026-03-05 23:25:23 UTC*

@@ -76,6 +76,12 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/whos-here` | Yes |  |
 | `POST` | `unknown` | No |  |
 | `PATCH` | `unknown` | No |  |
+| `POST` | `unknown` | No |  |
+| `GET` | `/api/v1/leads` | Yes |  |
+| `GET` | `/api/v1/leads/pipeline` | Yes |  |
+| `GET` | `/api/v1/leads/:id` | Yes |  |
+| `PATCH` | `unknown` | No |  |
+| `DELETE` | `/api/v1/leads/:id` | Yes |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## EVENTS
@@ -361,4 +367,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 22:05:27 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 23:25:23 UTC*
