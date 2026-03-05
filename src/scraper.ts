@@ -8,14 +8,17 @@
  * Env vars:
  *   DANZ_SUPABASE_URL  - Supabase project URL (required)
  *   DANZ_SUPABASE_KEY  - Supabase anon/service key (required)
- *   SCAN_INTERVAL_HOURS - Hours between scans (default: 2)
- *   SCRAPER_CITIES      - Comma-separated city list (default: "austin")
- *   PORT                - Health server port (default: 8080)
+ *   SCAN_INTERVAL_HOURS      - Hours between scans (default: 2)
+ *   SCRAPER_CITIES           - Comma-separated city list (default: "austin")
+ *   PORT                     - Health server port (default: 8080)
+ *   FLOWB_TELEGRAM_BOT_TOKEN - Bot token for admin alerts (optional)
+ *   FLOWB_ADMIN_ALERT_IDS    - Comma-separated admin TG chat IDs (optional)
  */
 
 import { createServer } from "http";
 import { EGatorPlugin } from "./plugins/egator/index.js";
 import { scanForNewEvents } from "./services/event-scanner.js";
+import { alertAdmins } from "./services/admin-alerts.js";
 import type { SbConfig } from "./utils/supabase.js";
 
 // ============================================================================
@@ -83,8 +86,20 @@ async function runScan() {
     };
     scanCount++;
     console.log(`[scraper] Scan #${scanCount} complete: ${totalNew} new, ${totalUpdated} updated, ${totalSkipped} unchanged`);
+
+    // Notify admins when there are new or updated events
+    if (totalNew > 0 || totalUpdated > 0) {
+      const parts = [];
+      if (totalNew > 0) parts.push(`<b>${totalNew}</b> new`);
+      if (totalUpdated > 0) parts.push(`<b>${totalUpdated}</b> updated`);
+      alertAdmins(
+        `eGator scan #${scanCount}: ${parts.join(", ")} events (${CITIES.join(", ")})`,
+        totalNew >= 10 ? "important" : "info",
+      );
+    }
   } catch (err: any) {
     console.error("[scraper] Scan error:", err.message);
+    alertAdmins(`eGator scan error: ${err.message}`, "urgent");
     lastScan = { time: new Date().toISOString(), result: { error: err.message } };
   } finally {
     isScanning = false;

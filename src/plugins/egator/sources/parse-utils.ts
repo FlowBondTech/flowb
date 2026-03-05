@@ -10,7 +10,7 @@ import type { EventQuery, EventResult } from "../../../core/types.js";
 // HTML fetching with retry + rate limiting
 // ============================================================================
 
-const DEFAULT_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+const DEFAULT_UA = "FlowB-EventScanner/1.0 (https://flowb.me; events@flowb.me)";
 
 export interface FetchHtmlOpts {
   userAgent?: string;

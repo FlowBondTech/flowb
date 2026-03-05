@@ -17,6 +17,7 @@ COPY src/config.ts src/
 COPY src/core/types.ts src/core/
 COPY src/utils/ src/utils/
 COPY src/services/event-scanner.ts src/services/
+COPY src/services/admin-alerts.ts src/services/
 COPY src/plugins/egator/ src/plugins/egator/
 
 # Build TypeScript
