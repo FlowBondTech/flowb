@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { submitEvent } from "../api/client";
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
 }
 
 export function AddEventScreen({ onBack }: Props) {
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -128,6 +129,7 @@ export function AddEventScreen({ onBack }: Props) {
               className="input"
               type="date"
               value={date}
+              min={today}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>

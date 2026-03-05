@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Screen } from "../App";
 import { submitEvent } from "../api/client";
 
@@ -7,6 +7,7 @@ interface Props {
 }
 
 export function AddEvent({ onNavigate }: Props) {
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -120,6 +121,7 @@ export function AddEvent({ onNavigate }: Props) {
               className="input"
               type="date"
               value={date}
+              min={today}
               onChange={(e) => setDate(e.target.value)}
             />
           </div>
