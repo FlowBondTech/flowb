@@ -4,11 +4,11 @@ title: Features
 
 # FlowB Features
 
-FlowB is your SXSW companion for discovering events, coordinating with friends, and earning rewards.
+FlowB is your EthDenver companion for discovering events, coordinating with friends, and earning rewards.
 
 ## Events
 
-Browse hundreds of SXSW events aggregated from multiple sources including Luma, Eventbrite, Lemonade, and community spreadsheets.
+Browse hundreds of EthDenver events aggregated from multiple sources including Luma, Eventbrite, Lemonade, and community spreadsheets.
 
 - **Search & filter** by category, date, and keyword
 - **RSVP** going or maybe to track your schedule
@@ -69,4 +69,4 @@ Stay in the loop across platforms.
 
 ---
 
-*Auto-generated on 2026-03-05 00:14:44 UTC*
+*Auto-generated on 2026-03-05 00:21:42 UTC*

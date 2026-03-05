@@ -13,7 +13,7 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/start` | Begin or return to the main menu. Handles deep link invites. |
 | `/menu` | Show the main menu with all action buttons |
 | `/app` | Open the FlowB Telegram mini app |
-| `/events` | Browse SXSW events in swipeable card format |
+| `/events` | Browse EthDenver events in swipeable card format |
 | `/search` | Search events by keyword |
 | `/mylist` | View your saved events |
 | `/checkin` | Check in at a current event |
@@ -33,6 +33,9 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/onbooths` | — |
 | `/sponsor` | — |
 | `/topsponsor` | — |
+| `/leaderboard` | — |
+| `/meet` | — |
+| `/meetings` | — |
 | `/help` | Show available commands and help text |
 | `/todo` | — |
 | `/register` | Verify your account or check status |
@@ -50,6 +53,7 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 | `f_` | `flowb.me/f/{code}` | Personal flow invite — connects two users as friends |
 | `g_` | `flowb.me/g/{code}` | Crew join — joins a crew via its public code |
 | `gi_` | `flowb.me/gi/{code}` | Tracked crew invite — joins via personal invite link with attribution |
+| `m_` | `flowb.me/m/{code}` | — |
 | `checkin_` | `flowb.me/checkin/{code}` | — |
 | `ref_` | `flowb.me/ref/{code}` | Referral — tracks referral signup |
 
@@ -63,7 +67,13 @@ Inline keyboard callbacks used throughout the bot:
 
 **browse**: `browse`
 
+**cancel**: `cancel`
+
+**chat**: `chat`
+
 **claim**: `claim`
+
+**complete**: `complete`
 
 **copy-link**: `copy-link`
 
@@ -101,6 +111,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **menu**: `menu`
 
+**new**: `new`
+
 **next**: `next`
 
 **noop**: `noop`
@@ -110,6 +122,8 @@ Inline keyboard callbacks used throughout the bot:
 **profile**: `profile`
 
 **promote**: `promote`
+
+**rsvp**: `rsvp`
 
 **save**: `save`
 
@@ -127,10 +141,12 @@ Inline keyboard callbacks used throughout the bot:
 
 **trending**: `trending`
 
+**view**: `view`
+
 **whos**: `whos`
 
 **whos-going**: `whos-going`
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-05 00:14:44 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-05 00:21:42 UTC*
