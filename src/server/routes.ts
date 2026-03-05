@@ -1086,7 +1086,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           async: result.async,
         };
       } catch (err: any) {
-        log("error", "transcribe", err.message);
+        log.error("transcribe", err.message);
         return reply.status(502).send({ error: `Transcription failed: ${err.message}` });
       }
     },
@@ -1140,7 +1140,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           related_questions: data.related_questions || [],
         };
       } catch (err: any) {
-        log("error", "search", err.message);
+        log.error("search", err.message);
         return reply.status(502).send({ error: `Search failed: ${err.message}` });
       }
     },
