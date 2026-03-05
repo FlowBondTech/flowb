@@ -362,7 +362,7 @@ export function Agents({ onNavigate }: Props) {
                   </div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)" }}>
                     {agent.userId
-                      ? `${agent.displayName || agent.userId.replace(/^(telegram_|farcaster_)/, "@")}`
+                      ? `${agent.displayName || agent.userId}`
                       : agent.status === "reserved"
                         ? "Awarded to top points scorer + $25 USDC"
                         : "First flow, first bond"}

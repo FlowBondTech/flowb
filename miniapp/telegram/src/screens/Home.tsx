@@ -227,7 +227,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
 
       for (const { crew, members, checkins } of memberResults) {
         for (const checkin of checkins) {
-          const displayName = checkin.display_name || checkin.user_id.replace(/^(telegram_|farcaster_)/, "@");
+          const displayName = checkin.display_name || checkin.user_id;
           items.push({
             type: "checkin",
             user_id: checkin.user_id,
@@ -242,7 +242,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
         const recentJoinThreshold = Date.now() - 24 * 60 * 60 * 1000;
         for (const member of members) {
           if (new Date(member.joined_at).getTime() > recentJoinThreshold) {
-            const displayName = member.display_name || member.user_id.replace(/^(telegram_|farcaster_)/, "@");
+            const displayName = member.display_name || member.user_id;
             items.push({
               type: "join",
               user_id: member.user_id,
