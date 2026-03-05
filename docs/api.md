@@ -19,7 +19,7 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `/api/v1/auth/telegram` | No | Telegram Mini App |
 | `POST` | `/api/v1/auth/farcaster` | No | Farcaster Mini App (Quick Auth + legacy SIWF fallback) |
-| `POST` | `/api/v1/auth/app` | No | Native App (hardcoded users for EthDenver) |
+| `POST` | `/api/v1/auth/app` | No | Native App (hardcoded demo users) |
 | `POST` | `/api/v1/auth/web` | No | Web (Privy) - issues a FlowB JWT for web users |
 | `POST` | `/api/v1/auth/whatsapp` | No | WhatsApp Mini App (HMAC-based phone verification) |
 | `POST` | `/api/v1/auth/signal` | No | Signal Mini App (HMAC-based, same pattern as WhatsApp) |
@@ -29,8 +29,54 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/feed/ethdenver` | No | EthDenver Farcaster Feed (aggregates posts with keywords) |
+| `GET` | `/api/v1/feed/community` | No | Community Farcaster Feed (aggregates posts with keywords) |
 | `GET` | `/api/v1/feed/activity` | Yes | Global activity feed — check-ins, crew messages, hot venues, trending events |
+
+## Other
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/feed/ethdenver` | No |  |
+| `GET` | `/api/v1/meetings` | Yes |  |
+| `GET` | `/api/v1/meetings/:id` | No |  |
+| `PATCH` | `/api/v1/meetings/:id` | Yes |  |
+| `DELETE` | `/api/v1/meetings/:id` | Yes |  |
+| `POST` | `/api/v1/meetings/:id/invite` | Yes |  |
+| `GET` | `/api/v1/meetings/:id/messages` | No |  |
+| `POST` | `/api/v1/meetings/:id/messages` | Yes |  |
+| `GET` | `/api/v1/m/:code` | No |  |
+| `POST` | `/api/v1/m/:code/rsvp` | No |  |
+| `GET` | `/api/v1/me/preferences` | Yes |  |
+| `PATCH` | `unknown` | No |  |
+| `GET` | `/api/v1/flow/friends/nearby` | Yes |  |
+| `GET` | `/api/v1/discover/people` | Yes |  |
+| `GET` | `/api/v1/me/linked-accounts` | Yes |  |
+| `GET` | `/api/v1/me/link-status` | Yes |  |
+| `POST` | `/api/v1/me/sync-linked-accounts` | Yes |  |
+| `GET` | `/api/v1/me/privacy` | Yes |  |
+| `PATCH` | `unknown` | Yes |  |
+| `GET` | `/api/v1/me/crew-visibility` | Yes |  |
+| `GET` | `/api/v1/events/:id/social` | No |  |
+| `POST` | `/api/v1/social/orgs` | Yes |  |
+| `POST` | `/api/v1/social/orgs/:orgId/members` | No |  |
+| `POST` | `/api/v1/social/connect` | Yes |  |
+| `GET` | `/api/v1/social/accounts` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `POST` | `unknown` | No |  |
+| `DELETE` | `/api/v1/social/posts/:id` | Yes |  |
+| `GET` | `/api/v1/social/posts` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `POST` | `/api/v1/socialb/config/toggle` | Yes |  |
+| `DELETE` | `/api/v1/socialb/config` | Yes |  |
+| `GET` | `/api/v1/socialb/activity` | Yes |  |
+| `POST` | `/api/v1/socialb/webhook` | No |  |
+| `POST` | `/api/v1/socialb/chat` | Yes |  |
+| `GET` | `/api/v1/flow/whats-happening` | Yes |  |
+| `GET` | `/api/v1/flow/after-party` | Yes |  |
+| `GET` | `/api/v1/flow/whos-here` | Yes |  |
+| `POST` | `unknown` | No |  |
+| `PATCH` | `unknown` | No |  |
+| `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## EVENTS
 
@@ -42,6 +88,12 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
+
+## TRANSCRIBE
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `unknown` | No | Social media video transcription via Supadata |
 
 ## SCHEDULE
 
@@ -100,6 +152,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/locations/:code` | No | Resolve QR code (no auth) |
 
+## MEETINGS
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/meetings` | Yes | CRUD + share links |
+
 ## CHAT
 
 | Method | Path | Auth | Description |
@@ -123,42 +181,6 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/v1/webhooks/neynar` | No | Mention webhook (@flowb mentions on Farcaster) |
-
-## Other
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/me/preferences` | Yes |  |
-| `PATCH` | `unknown` | No |  |
-| `GET` | `/api/v1/flow/friends/nearby` | Yes |  |
-| `GET` | `/api/v1/discover/people` | Yes |  |
-| `GET` | `/api/v1/me/linked-accounts` | Yes |  |
-| `GET` | `/api/v1/me/link-status` | Yes |  |
-| `POST` | `/api/v1/me/sync-linked-accounts` | Yes |  |
-| `GET` | `/api/v1/me/privacy` | Yes |  |
-| `PATCH` | `unknown` | Yes |  |
-| `GET` | `/api/v1/me/crew-visibility` | Yes |  |
-| `GET` | `/api/v1/events/:id/social` | No |  |
-| `POST` | `/api/v1/social/orgs` | Yes |  |
-| `POST` | `/api/v1/social/orgs/:orgId/members` | No |  |
-| `POST` | `/api/v1/social/connect` | Yes |  |
-| `GET` | `/api/v1/social/accounts` | Yes |  |
-| `POST` | `unknown` | No |  |
-| `POST` | `unknown` | No |  |
-| `DELETE` | `/api/v1/social/posts/:id` | Yes |  |
-| `GET` | `/api/v1/social/posts` | Yes |  |
-| `POST` | `unknown` | No |  |
-| `POST` | `/api/v1/socialb/config/toggle` | Yes |  |
-| `DELETE` | `/api/v1/socialb/config` | Yes |  |
-| `GET` | `/api/v1/socialb/activity` | Yes |  |
-| `POST` | `/api/v1/socialb/webhook` | No |  |
-| `POST` | `/api/v1/socialb/chat` | Yes |  |
-| `GET` | `/api/v1/flow/whats-happening` | Yes |  |
-| `GET` | `/api/v1/flow/after-party` | Yes |  |
-| `GET` | `/api/v1/flow/whos-here` | Yes |  |
-| `POST` | `unknown` | No |  |
-| `PATCH` | `unknown` | No |  |
-| `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## DISCOVERY
 
@@ -349,4 +371,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 00:09:28 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 00:10:27 UTC*
