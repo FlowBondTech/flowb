@@ -82,7 +82,7 @@ export async function authWhatsApp(
 // ============================================================================
 
 export async function getEvents(
-  city = "Denver",
+  city = "Austin",
   limit = 50,
   categories?: string[],
 ): Promise<EventResult[]> {

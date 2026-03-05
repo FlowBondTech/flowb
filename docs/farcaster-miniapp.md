@@ -59,7 +59,7 @@ URLs are built accordingly:
 
 ## Feed Component
 
-`EthDenverFeed.tsx` renders the EthDenver Farcaster feed with per-cast action buttons:
+`CommunityFeed.tsx` renders the community Farcaster feed with per-cast action buttons:
 
 - **Reply** - opens native composer via `replyCast()`
 - **Recast** - opens composer with embedded cast URL via `quoteCast()`

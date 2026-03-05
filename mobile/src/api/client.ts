@@ -101,7 +101,7 @@ export async function authApp(
 
 // ── Events ────────────────────────────────────────────────────────────
 export async function getEvents(
-  city = "Denver",
+  city = "Austin",
   limit = 20,
   categories?: string
 ): Promise<EventResult[]> {
@@ -271,7 +271,7 @@ export async function getGlobalUserLeaderboard() {
 
 // ── Feed ─────────────────────────────────────────────────────────
 export async function getFeed(
-  channel = "ethdenver",
+  channel = "community",
   limit = 20
 ): Promise<FeedCast[]> {
   const data = await get<{ casts: FeedCast[] }>(

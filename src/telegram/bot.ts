@@ -79,6 +79,15 @@ import {
   // Event link (pasted URL)
   formatEventLinkCardHtml,
   buildEventLinkKeyboard,
+  // Meetings
+  formatMeetingCreatedHtml,
+  formatMeetingDetailHtml,
+  formatMeetingListHtml,
+  formatMeetingCreatePromptHtml,
+  buildMeetingDetailKeyboard,
+  buildMeetingListKeyboard,
+  buildMeetingRsvpKeyboard,
+  buildMeetingCreateKeyboard,
 } from "./cards.js";
 import { sbQuery } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
@@ -759,6 +768,43 @@ export function startTelegramBot(
           }
         }
       }
+      return;
+    }
+
+    // --- Meeting deep link: m_{code} ---
+    if (args?.startsWith("m_")) {
+      const meetingCode = args.slice(2);
+      const meetingPlugin = core.getMeetingPlugin();
+      const meetingCfg = core.getMeetingConfig();
+      if (meetingPlugin && meetingCfg) {
+        try {
+          const meeting = await meetingPlugin.getByCode(meetingCfg, meetingCode);
+          if (meeting) {
+            const attendees = await meetingPlugin.getAttendees(meetingCfg, meeting.id);
+            const isCreator = meeting.creator_id === userId(tgId);
+            await ctx.reply(
+              formatMeetingDetailHtml(
+                meeting.title,
+                meeting.starts_at,
+                meeting.duration_min,
+                meeting.meeting_type,
+                meeting.status,
+                meeting.location,
+                meeting.description,
+                attendees.length,
+              ),
+              {
+                parse_mode: "HTML",
+                reply_markup: buildMeetingDetailKeyboard(meeting.id, isCreator, meeting.share_code),
+              },
+            );
+            return;
+          }
+        } catch (err) {
+          console.error("[start] m_ deep link error:", err);
+        }
+      }
+      await ctx.reply("Meeting not found or expired.");
       return;
     }
 
@@ -1525,8 +1571,182 @@ export function startTelegramBot(
     await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
   });
 
+  // /leaderboard - global points leaderboard (crews + individuals)
+  bot.command("leaderboard", async (ctx) => {
+    await ctx.replyWithChatAction("typing");
+    const crews = await core.getGlobalCrewRanking();
+    const individuals = await core.getGlobalIndividualRanking();
+
+    const lines: string[] = ["<b>\ud83c\udfc6 FlowB Leaderboard</b>", ""];
+
+    // Crew rankings
+    lines.push("<b>Top Crews</b>");
+    if (crews.length > 0) {
+      crews.slice(0, 10).forEach((c, i) => {
+        const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}.`;
+        const emoji = c.emoji ? `${c.emoji} ` : "";
+        lines.push(`${medal} ${emoji}<b>${escapeHtml(c.name)}</b> \u2014 ${c.totalPoints} pts (${c.memberCount} members)`);
+      });
+    } else {
+      lines.push("<i>No crews yet. Create one with /crew</i>");
+    }
+
+    lines.push("");
+
+    // Individual rankings
+    lines.push("<b>Top Individuals</b>");
+    if (individuals.length > 0) {
+      individuals.slice(0, 10).forEach((p, i) => {
+        const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}.`;
+        const streak = p.currentStreak > 0 ? ` \ud83d\udd25${p.currentStreak}` : "";
+        lines.push(`${medal} <b>${escapeHtml(p.displayName)}</b> \u2014 ${p.totalPoints} pts${streak} (${p.milestoneTitle})`);
+      });
+    } else {
+      lines.push("<i>No points earned yet. Start exploring!</i>");
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() });
+  });
+
+  // ==========================================================================
+  // Meeting Commands
+  // ==========================================================================
+
+  bot.command("meet", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+
+    const text = ctx.match?.trim();
+    if (!text) {
+      await ctx.reply(formatMeetingCreatePromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildMeetingCreateKeyboard(),
+      });
+      return;
+    }
+
+    const meetingPlugin = core.getMeetingPlugin();
+    const meetingCfg = core.getMeetingConfig();
+    if (!meetingPlugin || !meetingCfg) {
+      await ctx.reply("Meetings are not configured.");
+      return;
+    }
+
+    const meeting = await meetingPlugin.createFromNaturalLanguage(meetingCfg, userId(tgId), text);
+    if (!meeting) {
+      await ctx.reply("Failed to create meeting. Try again.");
+      return;
+    }
+
+    const shareLink = meetingPlugin.getShareLink(meeting.share_code);
+    await ctx.reply(
+      formatMeetingCreatedHtml(
+        meeting.title,
+        meeting.starts_at,
+        meeting.duration_min,
+        meeting.meeting_type,
+        meeting.location,
+        shareLink,
+      ),
+      {
+        parse_mode: "HTML",
+        reply_markup: buildMeetingDetailKeyboard(meeting.id, true, meeting.share_code),
+      },
+    );
+
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_created"), "award points");
+  });
+
+  bot.command("meetings", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+
+    const meetingPlugin = core.getMeetingPlugin();
+    const meetingCfg = core.getMeetingConfig();
+    if (!meetingPlugin || !meetingCfg) {
+      await ctx.reply("Meetings are not configured.");
+      return;
+    }
+
+    const result = await meetingPlugin.list(meetingCfg, userId(tgId), {
+      action: "meeting-list",
+      meeting_filter: "upcoming",
+    });
+
+    try {
+      const parsed = JSON.parse(result);
+      if (parsed.type === "meeting_list") {
+        await ctx.reply(
+          formatMeetingListHtml(parsed.meetings, parsed.filter),
+          {
+            parse_mode: "HTML",
+            reply_markup: buildMeetingListKeyboard(parsed.meetings),
+          },
+        );
+        return;
+      }
+    } catch {
+      // fallback
+    }
+    await ctx.reply(result);
+  });
+
   bot.command("help", async (ctx) => {
-    await sendCoreAction(ctx, core, "help");
+    const help = [
+      "<b>FlowB Commands</b>",
+      "",
+      "<b>Events</b>",
+      "/events - Browse upcoming events",
+      "/search <i>keyword</i> - Search events",
+      "/checkin - Check in at an event",
+      "/going - RSVP or view your schedule",
+      "/schedule - Your event schedule",
+      "",
+      "<b>Flow & Crews</b>",
+      "/flow - Your connections & crews",
+      "/crew - Manage your crews",
+      "/share - Share your invite link",
+      "/whosgoing - See who's going",
+      "/wheremycrew - See where your crew is",
+      "",
+      "<b>Meetings</b>",
+      "/meet <i>description</i> - Create a meeting",
+      "/meetings - View upcoming meetings",
+      "",
+      "<b>Social</b>",
+      "/whatsup - What's happening in your flow",
+      "/whoshere - Who's checked in nearby",
+      "/afterparty - After-party info & vibes",
+      "",
+      "<b>Points & Rewards</b>",
+      "/points - View your points",
+      "/rewards - Rewards & claim tokens",
+      "/challenges - Active challenges & quests",
+      "/referral - Your referral link & stats",
+      "/wallet <i>0x...</i> - Link your Base wallet",
+      "",
+      "<b>More</b>",
+      "/moves - Browse dance moves",
+      "/sponsor - View or create sponsorships",
+      "/topsponsor - Top sponsored leaderboard",
+      "/leaderboard - Global points leaderboard",
+      "/todo - View or add project todos",
+      "",
+      "<b>Account</b>",
+      "/register - Connect your account",
+      "/app - Open the FlowB mini app",
+      "/menu - Main menu",
+      "",
+      "<b>Feedback</b>",
+      "/suggestfeature - Suggest a feature",
+      "/reportbug - Report a bug",
+    ];
+    await ctx.reply(help.join("\n"), {
+      parse_mode: "HTML",
+      reply_markup: buildBackToMenuKeyboard(),
+    });
   });
 
   // /todo - View and manage project todos
@@ -2800,6 +3020,181 @@ export function startTelegramBot(
     }
 
     // Crew management callbacks: cr:approve, cr:deny, cr:settings, cr:toggle-public, cr:join-mode, cr:promote, cr:demote, cr:browse, cr:join-request
+    // ---- Meeting callbacks: mt:* ----
+    if (data.startsWith("mt:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+      const meetingPlugin = core.getMeetingPlugin();
+      const meetingCfg = core.getMeetingConfig();
+
+      if (!meetingPlugin || !meetingCfg) {
+        await ctx.answerCallbackQuery({ text: "Meetings not configured" });
+        return;
+      }
+
+      // mt:view:{id8} - view meeting detail
+      if (action === "view") {
+        const id8 = parts[2];
+        // Find meeting by id prefix
+        const result = await meetingPlugin.execute("meeting-list", {
+          action: "meeting-list",
+          user_id: userId(tgId),
+          meeting_filter: "upcoming",
+        }, { userId: userId(tgId), platform: "telegram", config: {} as any });
+        try {
+          const parsed = JSON.parse(result);
+          const match = (parsed.meetings || []).find((m: any) => m.id.startsWith(id8));
+          if (match) {
+            const meeting = await meetingPlugin.getById(meetingCfg, match.id);
+            if (meeting) {
+              const attendees = await meetingPlugin.getAttendees(meetingCfg, meeting.id);
+              const isCreator = meeting.creator_id === userId(tgId);
+              await ctx.editMessageText(
+                formatMeetingDetailHtml(
+                  meeting.title, meeting.starts_at, meeting.duration_min,
+                  meeting.meeting_type, meeting.status, meeting.location,
+                  meeting.description, attendees.length,
+                ),
+                {
+                  parse_mode: "HTML",
+                  reply_markup: buildMeetingDetailKeyboard(meeting.id, isCreator, meeting.share_code),
+                },
+              );
+            }
+          }
+        } catch { /* ignore */ }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // mt:rsvp:{id8}:{status} - RSVP to a meeting
+      if (action === "rsvp") {
+        const id8 = parts[2];
+        const rsvpStatus = parts[3] || "accepted";
+        // Find full meeting ID
+        const sbUrl = process.env.DANZ_SUPABASE_URL;
+        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
+            select: "id,share_code",
+            id: `like.${id8}%`,
+            limit: "1",
+          });
+          if (meetings?.length) {
+            const result = await meetingPlugin.rsvpByCode(meetingCfg, userId(tgId), meetings[0].share_code, rsvpStatus);
+            if (result) {
+              const statusText = rsvpStatus === "accepted" ? "accepted" : rsvpStatus === "maybe" ? "tentatively accepted" : "declined";
+              await ctx.answerCallbackQuery({ text: `Meeting ${statusText}!` });
+              // Refresh the meeting detail
+              const attendees = await meetingPlugin.getAttendees(meetingCfg, result.meeting.id);
+              const isCreator = result.meeting.creator_id === userId(tgId);
+              await ctx.editMessageText(
+                formatMeetingDetailHtml(
+                  result.meeting.title, result.meeting.starts_at, result.meeting.duration_min,
+                  result.meeting.meeting_type, result.meeting.status, result.meeting.location,
+                  result.meeting.description, attendees.length,
+                ),
+                {
+                  parse_mode: "HTML",
+                  reply_markup: buildMeetingDetailKeyboard(result.meeting.id, isCreator, result.meeting.share_code),
+                },
+              );
+              fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_rsvp"), "award points");
+              return;
+            }
+          }
+        }
+        await ctx.answerCallbackQuery({ text: "Meeting not found" });
+        return;
+      }
+
+      // mt:share:{id8} - share meeting link
+      if (action === "share") {
+        const id8 = parts[2];
+        const sbUrl = process.env.DANZ_SUPABASE_URL;
+        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
+            select: "id,title,share_code",
+            id: `like.${id8}%`,
+            limit: "1",
+          });
+          if (meetings?.length) {
+            const link = meetingPlugin.getShareLink(meetings[0].share_code);
+            await ctx.answerCallbackQuery();
+            await ctx.reply(
+              `<b>Share this meeting</b>\n\n${escapeHtml(meetings[0].title)}\n\n${link}`,
+              { parse_mode: "HTML" },
+            );
+            return;
+          }
+        }
+        await ctx.answerCallbackQuery({ text: "Meeting not found" });
+        return;
+      }
+
+      // mt:complete:{id8} - complete a meeting
+      if (action === "complete") {
+        const id8 = parts[2];
+        const sbUrl = process.env.DANZ_SUPABASE_URL;
+        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
+            select: "id",
+            id: `like.${id8}%`,
+            limit: "1",
+          });
+          if (meetings?.length) {
+            const result = await meetingPlugin.complete(meetingCfg, userId(tgId), meetings[0].id);
+            await ctx.answerCallbackQuery({ text: result });
+            return;
+          }
+        }
+        await ctx.answerCallbackQuery({ text: "Meeting not found" });
+        return;
+      }
+
+      // mt:cancel:{id8} - cancel a meeting
+      if (action === "cancel") {
+        const id8 = parts[2];
+        const sbUrl = process.env.DANZ_SUPABASE_URL;
+        const sbKey = process.env.DANZ_SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          const meetings = await sbQuery<any[]>({ supabaseUrl: sbUrl, supabaseKey: sbKey }, "flowb_meetings", {
+            select: "id",
+            id: `like.${id8}%`,
+            limit: "1",
+          });
+          if (meetings?.length) {
+            const result = await meetingPlugin.cancel(meetingCfg, userId(tgId), meetings[0].id);
+            await ctx.answerCallbackQuery({ text: result });
+            return;
+          }
+        }
+        await ctx.answerCallbackQuery({ text: "Meeting not found" });
+        return;
+      }
+
+      // mt:new - show create prompt
+      if (action === "new") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply(formatMeetingCreatePromptHtml(), {
+          parse_mode: "HTML",
+          reply_markup: buildMeetingCreateKeyboard(),
+        });
+        return;
+      }
+
+      // mt:chat:{id8} - placeholder for chat
+      if (action === "chat") {
+        await ctx.answerCallbackQuery({ text: "Send a message with /meet chat <meetingId> <message>" });
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     if (data.startsWith("cr:")) {
       const parts = data.split(":");
       const action = parts[1];
@@ -3359,6 +3754,37 @@ export function startTelegramBot(
       return;
     }
 
+    // Leaderboard
+    if (/^(leaderboard|lb|rankings|top crews|top players|scoreboard|who.?s winning|who.?s on top)$/i.test(lower)) {
+      await ctx.replyWithChatAction("typing");
+      const crews = await core.getGlobalCrewRanking();
+      const individuals = await core.getGlobalIndividualRanking();
+      const lines: string[] = ["<b>\ud83c\udfc6 FlowB Leaderboard</b>", ""];
+      lines.push("<b>Top Crews</b>");
+      if (crews.length > 0) {
+        crews.slice(0, 10).forEach((c, i) => {
+          const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}.`;
+          const emoji = c.emoji ? `${c.emoji} ` : "";
+          lines.push(`${medal} ${emoji}<b>${escapeHtml(c.name)}</b> \u2014 ${c.totalPoints} pts (${c.memberCount} members)`);
+        });
+      } else {
+        lines.push("<i>No crews yet. Create one with /crew</i>");
+      }
+      lines.push("");
+      lines.push("<b>Top Individuals</b>");
+      if (individuals.length > 0) {
+        individuals.slice(0, 10).forEach((p, i) => {
+          const medal = i === 0 ? "\ud83e\udd47" : i === 1 ? "\ud83e\udd48" : i === 2 ? "\ud83e\udd49" : `${i + 1}.`;
+          const streak = p.currentStreak > 0 ? ` \ud83d\udd25${p.currentStreak}` : "";
+          lines.push(`${medal} <b>${escapeHtml(p.displayName)}</b> \u2014 ${p.totalPoints} pts${streak} (${p.milestoneTitle})`);
+        });
+      } else {
+        lines.push("<i>No points earned yet. Start exploring!</i>");
+      }
+      await ctx.reply(lines.join("\n"), { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() });
+      return;
+    }
+
     // Share / invite
     if (/^(share|invite|invite link|share link|referral|my link|get link)$/i.test(lower)) {
       await ensureVerified(tgId);
@@ -3653,6 +4079,42 @@ export function startTelegramBot(
     });
     fireAndForget(core.awardPoints(userId(tgId), "telegram", "chat"), "award points");
   });
+
+  // ========================================================================
+  // Register command menu with Telegram
+  // ========================================================================
+
+  bot.api.setMyCommands([
+    { command: "menu", description: "Open the main menu" },
+    { command: "events", description: "Browse upcoming events" },
+    { command: "search", description: "Search events by keyword" },
+    { command: "flow", description: "Your flow - connections & crews" },
+    { command: "crew", description: "Manage your crews" },
+    { command: "share", description: "Share your invite link" },
+    { command: "going", description: "RSVP or view your schedule" },
+    { command: "whosgoing", description: "See who's going to events" },
+    { command: "schedule", description: "View your event schedule" },
+    { command: "wheremycrew", description: "See where your crew is" },
+    { command: "checkin", description: "Check in at an event" },
+    { command: "points", description: "View your points" },
+    { command: "rewards", description: "View rewards & claim tokens" },
+    { command: "challenges", description: "Active challenges & quests" },
+    { command: "referral", description: "Your referral link & stats" },
+    { command: "wallet", description: "Link your Base wallet" },
+    { command: "moves", description: "Browse dance moves" },
+    { command: "whatsup", description: "What's happening in your flow" },
+    { command: "whoshere", description: "See who's checked in nearby" },
+    { command: "afterparty", description: "After-party info & vibes" },
+    { command: "todo", description: "View or add project todos" },
+    { command: "sponsor", description: "View or create sponsorships" },
+    { command: "topsponsor", description: "Top sponsored leaderboard" },
+    { command: "leaderboard", description: "Global points leaderboard" },
+    { command: "suggestfeature", description: "Suggest a new feature" },
+    { command: "reportbug", description: "Report a bug" },
+    { command: "register", description: "Connect your account" },
+    { command: "app", description: "Open the FlowB mini app" },
+    { command: "help", description: "Show all commands & info" },
+  ]).catch((err) => console.error("[flowb-telegram] Failed to set commands:", err.message || err));
 
   // ========================================================================
   // Start polling
@@ -4228,7 +4690,7 @@ async function saveEventToDiscovered(event: EventResult): Promise<void> {
           starts_at: event.startTime || null,
           ends_at: event.endTime || null,
           venue_name: event.locationName || null,
-          city: event.locationCity || "Denver",
+          city: event.locationCity || "Austin",
           is_free: event.isFree ?? null,
           is_virtual: event.isVirtual || false,
           image_url: event.imageUrl || null,

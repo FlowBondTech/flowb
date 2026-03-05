@@ -13,7 +13,7 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/start` | Begin or return to the main menu. Handles deep link invites. |
 | `/menu` | Show the main menu with all action buttons |
 | `/app` | Open the FlowB Telegram mini app |
-| `/events` | Browse EthDenver events in swipeable card format |
+| `/events` | Browse SXSW events in swipeable card format |
 | `/search` | Search events by keyword |
 | `/mylist` | View your saved events |
 | `/checkin` | Check in at a current event |

@@ -34,7 +34,7 @@ If you are not yet verified, shows a connect prompt with a link to verify your a
 
 ### /events
 
-Browse EthDenver events in a swipeable card format. Each card shows the event title, date, time, venue, and category.
+Browse SXSW events in a swipeable card format. Each card shows the event title, date, time, venue, and category.
 
 **With arguments**: Search for specific events using natural language.
 

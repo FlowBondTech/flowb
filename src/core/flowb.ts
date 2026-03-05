@@ -8,15 +8,17 @@
  *   - (more plugins coming: harmonik, etc.)
  */
 
-import type { FlowBPlugin, EventProvider, FlowBConfig, ToolInput, FlowBContext, EventResult } from "./types.js";
+import type { FlowBPlugin, EventProvider, FlowBConfig, ToolInput, FlowBContext, EventResult, MeetingPluginConfig } from "./types.js";
 import { DANZPlugin } from "../plugins/danz/index.js";
 import { EGatorPlugin, formatEventList } from "../plugins/egator/index.js";
 import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
-import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
+import type { CrewRanking, CrewMission, IndividualRanking } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { AgentKitPlugin } from "../plugins/agentkit/index.js";
 import { SocialPlugin } from "../plugins/social/index.js";
+import { MeetingPlugin } from "../plugins/meeting/index.js";
+import { AgentsPlugin } from "../plugins/agents/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -87,6 +89,18 @@ export class FlowBCore {
       social.configure(this.config.plugins.social);
     }
     this.registerPlugin(social);
+
+    const meeting = new MeetingPlugin();
+    if (this.config.plugins?.meeting) {
+      meeting.configure(this.config.plugins.meeting);
+    }
+    this.registerPlugin(meeting);
+
+    const agents = new AgentsPlugin();
+    if (this.config.plugins?.agents) {
+      agents.configure(this.config.plugins.agents);
+    }
+    this.registerPlugin(agents);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -296,6 +310,15 @@ export class FlowBCore {
     return points.getGlobalCrewRanking(this.config.plugins.points);
   }
 
+  /** Get global individual ranking by total points (delegates to PointsPlugin) */
+  async getGlobalIndividualRanking(): Promise<IndividualRanking[]> {
+    const points = this.plugins.get("points") as PointsPlugin | undefined;
+    if (!points?.isConfigured() || !this.config.plugins?.points) {
+      return [];
+    }
+    return points.getGlobalIndividualRanking(this.config.plugins.points);
+  }
+
   /** Get active crew missions (delegates to PointsPlugin) */
   async getCrewMissions(crewId: string): Promise<CrewMission[]> {
     const points = this.plugins.get("points") as PointsPlugin | undefined;
@@ -336,6 +359,18 @@ export class FlowBCore {
     return egator;
   }
 
+  /** Get the Meeting plugin for direct access. */
+  getMeetingPlugin(): MeetingPlugin | null {
+    const meeting = this.plugins.get("meeting") as MeetingPlugin | undefined;
+    if (!meeting?.isConfigured()) return null;
+    return meeting;
+  }
+
+  /** Get the Meeting plugin config. */
+  getMeetingConfig(): MeetingPluginConfig | null {
+    return this.config.plugins?.meeting || null;
+  }
+
   /** Get the Social plugin for direct access. */
   getSocialPlugin(): SocialPlugin | null {
     const social = this.plugins.get("social") as SocialPlugin | undefined;
@@ -346,6 +381,18 @@ export class FlowBCore {
   /** Get the Social plugin config. */
   getSocialConfig(): import("../plugins/social/types.js").SocialPluginConfig | null {
     return this.config.plugins?.social || null;
+  }
+
+  /** Get the Agents plugin for direct access. */
+  getAgentsPlugin(): AgentsPlugin | null {
+    const agents = this.plugins.get("agents") as AgentsPlugin | undefined;
+    if (!agents?.isConfigured()) return null;
+    return agents;
+  }
+
+  /** Get the Agents plugin config. */
+  getAgentsConfig(): import("../plugins/agents/index.js").AgentsPluginConfig | null {
+    return this.config.plugins?.agents || null;
   }
 
   /** Get the list of all action names (for schema generation) */

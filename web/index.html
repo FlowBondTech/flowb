@@ -27,19 +27,24 @@
       </a>
       <nav class="header-nav">
         <a href="/" class="header-nav-link active">Events</a>
-        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
         <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
-        <a href="/flow" class="header-nav-link" id="navMyFlow">My Flow</a>
-        <a href="/agents" class="header-nav-link">Agents</a>
-        <a href="/about" class="header-nav-link">About</a>
-        <a href="/?all=true" class="header-nav-link">All Events</a>
-      </nav>
-      <div class="header-meta">
-        <div class="luma-status" id="lumaStatus" title="Luma API Status">
-          <span class="luma-status-dot" id="lumaStatusDot"></span>
-          <span class="luma-status-label" id="lumaStatusLabel">Luma</span>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
         </div>
+      </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-meta">
         <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <!-- Points Badge -->
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
@@ -74,9 +79,6 @@
             <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
           </div>
         </div>
-        <button class="hamburger" id="navToggle" aria-label="Menu">
-          <span></span><span></span><span></span>
-        </button>
       </div>
     </div>
   </header>
@@ -327,9 +329,9 @@
     <div class="notif-settings-section">
       <h4 class="notif-settings-section-title">Timezone</h4>
       <select id="notifTimezone" class="notif-select notif-tz-select">
+        <option value="America/Chicago">America/Chicago (CST)</option>
         <option value="America/Denver">America/Denver (MST)</option>
         <option value="America/New_York">America/New_York (EST)</option>
-        <option value="America/Chicago">America/Chicago (CST)</option>
         <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
         <option value="UTC">UTC</option>
         <option value="Europe/London">Europe/London</option>
@@ -374,7 +376,7 @@
       </div>
       <div class="submit-field">
         <label for="submitCity">City</label>
-        <input type="text" id="submitCity" placeholder="Denver" value="Denver" autocomplete="off">
+        <input type="text" id="submitCity" placeholder="Austin" value="Austin" autocomplete="off">
       </div>
       <div class="submit-field">
         <label for="submitDesc">Description</label>
@@ -493,9 +495,16 @@
       function loadPrivy() {
         if (loaded) return;
         loaded = true;
+        console.log('[auth] Loading privy-mount.js...');
         var s = document.createElement('script');
         s.type = 'module';
         s.src = '/privy-mount.js';
+        s.onerror = function(e) {
+          console.error('[auth] Failed to load privy-mount.js:', e);
+          var btn = document.getElementById('authBtn');
+          if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+          loaded = false; // allow retry
+        };
         document.body.appendChild(s);
       }
 
@@ -507,7 +516,7 @@
           btn.disabled = true;
         }
         var attempts = 0;
-        var maxAttempts = 30; // 6 seconds max
+        var maxAttempts = 50; // 10 seconds max (Privy is a big bundle)
         var check = setInterval(function() {
           attempts++;
           if (window.flowbPrivy) {
@@ -516,8 +525,8 @@
             window.flowbPrivy.login();
           } else if (attempts >= maxAttempts) {
             clearInterval(check);
-            if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
-            console.warn('[auth] Privy failed to load');
+            if (btn) { btn.textContent = 'Retry'; btn.disabled = false; }
+            console.warn('[auth] Privy failed to initialize after ' + (maxAttempts * 200) + 'ms. Check browser console for errors.');
           }
         }, 200);
       }

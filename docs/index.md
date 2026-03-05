@@ -1,11 +1,11 @@
 ---
 layout: home
 title: FlowB
-titleTemplate: Your EthDenver Companion
+titleTemplate: Your SXSW Companion
 
 hero:
   name: FlowB
-  text: Your EthDenver Companion
+  text: Your SXSW Companion
   tagline: Discover events, coordinate with your crew, earn points, and never miss a vibe.
   actions:
     - theme: brand
@@ -21,7 +21,7 @@ hero:
 features:
   - icon: "\uD83D\uDCC5"
     title: Event Discovery
-    details: Browse hundreds of EthDenver events from Luma, Eventbrite, and more. Search, filter, RSVP, and get reminders.
+    details: Browse hundreds of SXSW events from Luma, Eventbrite, and more. Search, filter, RSVP, and get reminders.
     link: /features#events
   - icon: "\uD83D\uDC65"
     title: Crews & Flow

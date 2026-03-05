@@ -97,7 +97,7 @@ export async function authFarcaster(message: string, signature: string): Promise
 // Events
 // ============================================================================
 
-export async function getEvents(city = "Denver", limit = 50, categories?: string[]): Promise<EventResult[]> {
+export async function getEvents(city = "Austin", limit = 50, categories?: string[]): Promise<EventResult[]> {
   let path = `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`;
   if (categories && categories.length > 0) {
     path += `&categories=${encodeURIComponent(categories.join(","))}`;

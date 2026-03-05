@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'FlowB',
-  description: 'Your EthDenver companion — events, crews, and points',
+  description: 'Your SXSW companion — events, crews, and points',
   base: '/',
   cleanUrls: true,
   lastUpdated: true,
@@ -100,7 +100,7 @@ export default defineConfig({
     },
 
     footer: {
-      message: 'Built for EthDenver 2026',
+      message: 'Built for SXSW 2026',
       copyright: 'FlowB by FlowBond',
     },
 

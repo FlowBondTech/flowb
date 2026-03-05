@@ -1,6 +1,6 @@
 /**
  * Sheeets.xyz Google Spreadsheet Event Source Adapter
- * Fetches curated EthDenver side events from the community-maintained spreadsheet
+ * Fetches curated side events from the community-maintained spreadsheet
  * Source: https://docs.google.com/spreadsheets/d/1xWmIHyEyOmPHfkYuZkucPRlLGWbb9CF6Oqvfl8FUV6k
  */
 
@@ -51,7 +51,7 @@ export class SheeetsAdapter implements EventSourceAdapter {
 
       const events: EventResult[] = [];
       const now = new Date();
-      const year = 2026; // EthDenver 2026
+      const year = 2026; // SXSW 2026
 
       for (let i = headerIdx + 1; i < rows.length; i++) {
         const row = rows[i];
@@ -93,7 +93,7 @@ export class SheeetsAdapter implements EventSourceAdapter {
           startTime: startTime.toISOString(),
           endTime: endTime?.toISOString(),
           locationName: address || undefined,
-          locationCity: "Denver",
+          locationCity: "Austin",
           isFree,
           price,
           isVirtual: false,
@@ -147,8 +147,8 @@ function parseDateTime(dateStr: string, timeStr: string | undefined, year: numbe
       }
     }
 
-    // Use Denver timezone (MST = UTC-7)
-    const date = new Date(Date.UTC(year, month, day, hours + 7, minutes));
+    // Use Austin timezone (CST = UTC-6)
+    const date = new Date(Date.UTC(year, month, day, hours + 6, minutes));
     return date;
   } catch {
     return null;

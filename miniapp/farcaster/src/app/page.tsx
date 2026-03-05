@@ -14,7 +14,7 @@ import { PointsScreen } from "../components/PointsScreen";
 import { OnboardingScreen } from "../components/OnboardingScreen";
 import { WebLanding } from "../components/WebLanding";
 import { FlowBChat } from "../components/FlowBChat";
-import { EthDenverFeed } from "../components/EthDenverFeed";
+import { CommunityFeed } from "../components/CommunityFeed";
 import { AboutScreen } from "../components/AboutScreen";
 import { AgentsScreen } from "../components/AgentsScreen";
 import { SocialBScreen } from "../components/SocialBScreen";
@@ -23,7 +23,7 @@ type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
-// Featured Events - Date-aware picks for EthDenver Feb 15-27
+// Featured Events - Date-aware picks for SXSW March 12-18
 // ============================================================================
 interface FeaturedEvent {
   title: string;
@@ -45,68 +45,60 @@ function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | n
 
 function getFeaturedEvents(): FeaturedEvent[] {
   const today = new Date();
-  const month = today.getMonth(); // 0-indexed, Feb = 1
+  const month = today.getMonth(); // 0-indexed, Mar = 2
   const day = today.getDate();
 
-  // Only show during EthDenver range (Feb 15-27)
-  if (month !== 1 || day < 15 || day > 27) {
+  // Only show during SXSW range (Mar 12-18)
+  if (month !== 2 || day < 12 || day > 18) {
     return getDefaultFeatured();
   }
 
   const dayEvents: Record<number, FeaturedEvent[]> = {
+    12: [
+      { title: "SXSW Opening Day", date: "Thu, Mar 12", time: "10:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Opening", url: "https://sxsw.com", isFree: false },
+    ],
+    13: [
+      { title: "SXSW Conference & Showcases", date: "Fri, Mar 13", time: "9:00 AM - 12:00 AM CT", location: "Downtown Austin", badge: "Main Event", url: "https://sxsw.com", isFree: false },
+      { title: "Web3 & Crypto Summit", date: "Fri, Mar 13", time: "All Day", location: "Austin, TX", badge: "Side Event", url: "https://sxsw.com", isFree: false },
+    ],
+    14: [
+      { title: "SXSW Music Festival Kickoff", date: "Sat, Mar 14", time: "12:00 PM - 2:00 AM CT", location: "6th Street & Rainey St, Austin", badge: "Music", url: "https://sxsw.com", isFree: false },
+    ],
     15: [
-      { title: "Camp BUIDL Kickoff", date: "Sat, Feb 15", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Film & TV Premieres", date: "Sun, Mar 15", time: "10:00 AM - 11:00 PM CT", location: "Paramount Theatre, Austin", badge: "Film", url: "https://sxsw.com", isFree: false },
     ],
     16: [
-      { title: "Camp BUIDL Day 2", date: "Sun, Feb 16", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
-      { title: "Multichain Day", date: "Sun, Feb 16", time: "All Day", location: "Denver, CO", badge: "Side Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Interactive & AI Day", date: "Mon, Mar 16", time: "9:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Tech", url: "https://sxsw.com", isFree: false },
     ],
     17: [
-      { title: "EthDenver Opening Day", date: "Mon, Feb 17", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Music Night Showcases", date: "Tue, Mar 17", time: "8:00 PM - 2:00 AM CT", location: "Downtown Austin Venues", badge: "Music", url: "https://sxsw.com", isFree: false },
     ],
     18: [
-      { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
-    ],
-    19: [
-      { title: "EthDenver Main Stage", date: "Wed, Feb 19", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    20: [
-      { title: "EthDenver Day 4", date: "Thu, Feb 20", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    21: [
-      { title: "BUIDLathon Awards & Finality Party", date: "Fri, Feb 21", time: "4:00 PM - 2:00 AM MT", location: "National Western Center, Denver", badge: "Closing", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    22: [
-      { title: "SporkDAO Mountain Retreat", date: "Feb 22-27", time: "All Day", location: "Colorado Mountains", badge: "Post-Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Closing Ceremony", date: "Wed, Mar 18", time: "4:00 PM - 12:00 AM CT", location: "Austin Convention Center", badge: "Closing", url: "https://sxsw.com", isFree: false },
     ],
   };
-
-  // For days 23-27, reuse mountain retreat
-  for (let d = 23; d <= 27; d++) {
-    dayEvents[d] = dayEvents[22];
-  }
 
   return dayEvents[day] || getDefaultFeatured();
 }
 
 function getDefaultFeatured(): FeaturedEvent[] {
   return [
-    { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
+    { title: "FlowB at SXSW", date: "Mar 12-18", time: "All Week", location: "Austin, TX", badge: "Featured", url: "https://sxsw.com", isFree: true },
   ];
 }
 
 // ============================================================================
-// Date Filter - EthDenver Feb 15-27 (only show today and future dates)
+// Date Filter - SXSW March 12-18 (only show today and future dates)
 // ============================================================================
-const ETHDENVER_DATES = (() => {
+const SXSW_DATES = (() => {
   const dates: { id: string; label: string; date: Date }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let d = 15; d <= 27; d++) {
-    const dt = new Date(2026, 1, d); // Feb = month 1
+  for (let d = 12; d <= 18; d++) {
+    const dt = new Date(2026, 2, d); // Mar = month 2
     if (dt < today) continue;
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
-    dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
+    dates.push({ id: `mar${d}`, label: `${weekday} ${d}`, date: dt });
   }
   return dates;
 })();
@@ -117,9 +109,9 @@ const ETHDENVER_DATES = (() => {
 const FILTER_CATEGORIES = [
   { id: "all", label: "All" },
   { id: "now", label: "Happening Now" },
-  { id: "hackathon", label: "Hackathon" },
-  { id: "defi", label: "DeFi" },
-  { id: "ai", label: "AI & Agents" },
+  { id: "music", label: "Music" },
+  { id: "film", label: "Film & TV" },
+  { id: "ai", label: "AI & Tech" },
   { id: "panels", label: "Panels" },
   { id: "parties", label: "Parties" },
   { id: "workshops", label: "Workshops" },
@@ -305,7 +297,7 @@ export default function FarcasterApp() {
     if (screen === "home" && !showOnboarding) {
       setEventsLoading(true);
       const cats = activeFilter !== "all" && activeFilter !== "now" ? [activeFilter] : undefined;
-      getEvents("Denver", 50, cats)
+      getEvents("Austin", 50, cats)
         .then(setEvents)
         .catch(console.error)
         .finally(() => setEventsLoading(false));
@@ -554,7 +546,7 @@ export default function FarcasterApp() {
   const dateFiltered = activeDate === "any"
     ? events
     : events.filter((e) => {
-        const entry = ETHDENVER_DATES.find((d) => d.id === activeDate);
+        const entry = SXSW_DATES.find((d) => d.id === activeDate);
         if (!entry) return true;
         const evStart = new Date(e.startTime);
         return (
@@ -621,7 +613,7 @@ export default function FarcasterApp() {
             <div>
               <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                Denver{username ? ` | @${username}` : ""}
+                Austin, TX{username ? ` | @${username}` : ""}
               </div>
             </div>
             <button
@@ -736,7 +728,7 @@ export default function FarcasterApp() {
                 >
                   All Days
                 </button>
-                {ETHDENVER_DATES.map((d) => (
+                {SXSW_DATES.map((d) => (
                   <button
                     key={d.id}
                     className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
@@ -773,10 +765,10 @@ export default function FarcasterApp() {
                     <div className="empty-state-title">No events found</div>
                     <div className="empty-state-text">
                       {activeDate !== "any"
-                        ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
+                        ? `No events on ${SXSW_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
                         : activeFilter !== "all"
                         ? `No ${activeFilter} events right now. Try a different filter!`
-                        : "No events in Denver right now. Check back soon!"}
+                        : "No events in Austin right now. Check back soon!"}
                     </div>
                     {(activeFilter !== "all" || activeDate !== "any") && (
                       <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
@@ -1330,7 +1322,7 @@ export default function FarcasterApp() {
       )}
 
       {/* Feed Screen (standalone - from bottom nav) */}
-      {screen === "feed" && <EthDenverFeed authed={authed} />}
+      {screen === "feed" && <CommunityFeed authed={authed} />}
 
       {/* Crew Screen */}
       {screen === "crew" && <CrewScreen authed={authed} currentUserId={userId} />}

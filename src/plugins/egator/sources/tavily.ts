@@ -70,23 +70,23 @@ export class TavilyAdapter implements EventSourceAdapter {
 
   private buildSearchQueries(params: EventQuery): string[] {
     const queries: string[] = [];
-    const city = params.city || "Denver";
+    const city = params.city || "Austin";
 
     // Primary: category/style specific
     if (params.danceStyle || params.category) {
       const focus = params.danceStyle || params.category;
-      queries.push(`${focus} events ${city} February 2026`);
+      queries.push(`${focus} events ${city} March 2026`);
     }
 
-    // ETHDenver focus (always include for Denver)
-    if (city.toLowerCase().includes("denver")) {
-      queries.push("ETHDenver 2026 side event RSVP register");
-      queries.push("ETHDenver Denver February 2026 party afterparty");
-      queries.push("Denver crypto web3 event February 17 18 19 20 21 22 2026");
+    // SXSW focus (always include for Austin)
+    if (city.toLowerCase().includes("austin")) {
+      queries.push("SXSW 2026 side event RSVP register");
+      queries.push("SXSW Austin March 2026 party showcase");
+      queries.push("Austin tech music film event March 12 13 14 15 16 17 18 2026");
     }
 
     // General city events
-    queries.push(`upcoming event ${city} February 2026 RSVP`);
+    queries.push(`upcoming event ${city} March 2026 RSVP`);
 
     return queries;
   }

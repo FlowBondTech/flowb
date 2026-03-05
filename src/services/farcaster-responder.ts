@@ -176,12 +176,12 @@ export async function handleMention(event: MentionEvent, cfg: SbConfig): Promise
         const events = res.ok ? await res.json() : [];
         if (events?.length) {
           const list = events.map((e: any) => `- ${e.title}${e.venue_name ? ` at ${e.venue_name}` : ""}`).join("\n");
-          replyText = `Free events at EthDenver:\n\n${list}\n\nMore on FlowB!`;
+          replyText = `Free events at SXSW:\n\n${list}\n\nMore on FlowB!`;
         } else {
-          replyText = "Check FlowB for free events at EthDenver!";
+          replyText = "Check FlowB for free events at SXSW!";
         }
       } catch {
-        replyText = "Check FlowB for free events at EthDenver!";
+        replyText = "Check FlowB for free events at SXSW!";
       }
       break;
     }
@@ -190,7 +190,7 @@ export async function handleMention(event: MentionEvent, cfg: SbConfig): Promise
       const crews = await getTopCrews(cfg);
       if (crews.length) {
         const list = crews.map((c, i) => `${i + 1}. ${c.emoji} ${c.name} - ${c.totalPoints} pts`).join("\n");
-        replyText = `Top crews at EthDenver:\n\n${list}\n\nJoin a crew on FlowB!`;
+        replyText = `Top crews at SXSW:\n\n${list}\n\nJoin a crew on FlowB!`;
       } else {
         replyText = "Crews are just getting started! Join one on FlowB and start earning points.";
       }
@@ -203,7 +203,7 @@ export async function handleMention(event: MentionEvent, cfg: SbConfig): Promise
     }
 
     default: {
-      replyText = "Hey! I'm FlowB - your EthDenver companion. Ask me about events tonight, free events, or the crew leaderboard. Or just open the app!";
+      replyText = "Hey! I'm FlowB - your SXSW companion. Ask me about events tonight, free events, or the crew leaderboard. Or just open the app!";
       break;
     }
   }

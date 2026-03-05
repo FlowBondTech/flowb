@@ -76,7 +76,7 @@ export async function authFarcasterQuick(quickAuthToken: string): Promise<AuthRe
   return data;
 }
 
-export async function getEvents(city = "Denver", limit = 20, categories?: string[]): Promise<EventResult[]> {
+export async function getEvents(city = "Austin", limit = 20, categories?: string[]): Promise<EventResult[]> {
   let url = `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`;
   if (categories && categories.length > 0) {
     url += `&categories=${encodeURIComponent(categories.join(","))}`;
@@ -233,8 +233,8 @@ export async function submitFeedback(data: {
 }
 
 // Community Feed
-export async function getEthDenverFeed(cursor?: string): Promise<{ casts: FeedCast[]; nextCursor?: string }> {
-  let url = "/api/v1/feed/ethdenver";
+export async function getCommunityFeed(cursor?: string): Promise<{ casts: FeedCast[]; nextCursor?: string }> {
+  let url = "/api/v1/feed/community";
   if (cursor) url += `?cursor=${encodeURIComponent(cursor)}`;
   return get(url);
 }

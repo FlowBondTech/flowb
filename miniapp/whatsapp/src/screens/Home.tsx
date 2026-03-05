@@ -14,7 +14,7 @@ export function Home({ onNavigate }: HomeProps) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getEvents("Denver", 50)
+    getEvents("Austin", 50)
       .then(setEvents)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));

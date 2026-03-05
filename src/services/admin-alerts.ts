@@ -95,28 +95,35 @@ export async function alertDaily(cfg: SbConfig): Promise<void> {
   if (!adminIds.length) return;
 
   try {
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayISO = todayStart.toISOString();
+    // Midnight Denver time in UTC (handles MST/MDT automatically)
+    const now = new Date();
+    const denverDate = now.toLocaleDateString("en-CA", { timeZone: "America/Denver" });
+    // Create a date at noon UTC to safely detect the Denver offset
+    const probe = new Date(`${denverDate}T12:00:00Z`);
+    const denverH = parseInt(probe.toLocaleString("en-US", { timeZone: "America/Denver", hour: "numeric", hour12: false }), 10);
+    const offsetH = probe.getUTCHours() - denverH; // 7 (MST) or 6 (MDT)
+    const todayISO = new Date(`${denverDate}T00:00:00Z`);
+    todayISO.setUTCHours(offsetH); // shift to Denver midnight in UTC
+    const todayFilter = todayISO.toISOString();
 
     // New users today (sessions created today)
     const newUsers = await sbFetch<any[]>(
       cfg,
-      `flowb_sessions?created_at=gte.${todayISO}&select=user_id&limit=1000`,
+      `flowb_sessions?created_at=gte.${todayFilter}&select=user_id&limit=1000`,
     );
     const newUserCount = newUsers?.length || 0;
 
     // Feature requests today
     const features = await sbFetch<any[]>(
       cfg,
-      `flowb_feedback?created_at=gte.${todayISO}&type=eq.feature&select=id&limit=1000`,
+      `flowb_feedback?created_at=gte.${todayFilter}&type=eq.feature&select=id&limit=1000`,
     );
     const featureCount = features?.length || 0;
 
     // Bug reports today
     const bugs = await sbFetch<any[]>(
       cfg,
-      `flowb_feedback?created_at=gte.${todayISO}&type=eq.bug&select=id&limit=1000`,
+      `flowb_feedback?created_at=gte.${todayFilter}&type=eq.bug&select=id&limit=1000`,
     );
     const bugCount = bugs?.length || 0;
 
@@ -130,17 +137,25 @@ export async function alertDaily(cfg: SbConfig): Promise<void> {
     // Total points awarded today
     const pointsLog = await sbFetch<any[]>(
       cfg,
-      `flowb_points_log?created_at=gte.${todayISO}&select=points&limit=10000`,
+      `flowb_points_log?created_at=gte.${todayFilter}&select=points&limit=10000`,
     );
     const totalPointsToday = (pointsLog || []).reduce(
       (sum: number, row: any) => sum + (row.points || 0),
       0,
     );
 
+    // Break down new users by platform
+    const tgUsers = (newUsers || []).filter((u: any) => u.user_id?.startsWith("telegram_")).length;
+    const fcUsers = (newUsers || []).filter((u: any) => u.user_id?.startsWith("farcaster_")).length;
+    const webUsers = (newUsers || []).filter((u: any) => u.user_id?.startsWith("web_")).length;
+    const otherUsers = newUserCount - tgUsers - fcUsers - webUsers;
+
+    const platformBreakdown = [tgUsers && `TG:${tgUsers}`, fcUsers && `FC:${fcUsers}`, webUsers && `Web:${webUsers}`, otherUsers > 0 && `Other:${otherUsers}`].filter(Boolean).join(" / ");
+
     const lines = [
       `<b>Daily Summary</b>`,
       ``,
-      `New users: <b>${newUserCount}</b>`,
+      `New users: <b>${newUserCount}</b>${platformBreakdown ? ` (${platformBreakdown})` : ""}`,
       `Feature requests: <b>${featureCount}</b>`,
       `Bug reports: <b>${bugCount}</b>`,
       `Active crews: <b>${crewCount}</b>`,

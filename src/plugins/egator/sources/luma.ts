@@ -2,7 +2,7 @@
  * Luma Event Source Adapter (Enhanced)
  *
  * Two-tier approach:
- *   1. Unofficial Discover API  - public Denver event search (no auth needed)
+ *   1. Unofficial Discover API  - public geo-based event search (no auth needed)
  *   2. Official API (v1)        - rich event details, RSVP, tickets, guests
  *
  * Official API requires LUMA_API_KEY (Luma Plus subscription).

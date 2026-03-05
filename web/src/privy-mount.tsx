@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, Component, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PrivyProvider, usePrivy } from '@privy-io/react-auth';
 
@@ -119,10 +119,10 @@ function AuthBridge() {
 
   // Expose login/logout/linking to vanilla JS
   useEffect(() => {
+    console.log('[privy] AuthBridge ready:', ready, 'authenticated:', authenticated);
     window.flowbPrivy = {
       login,
       logout,
-      // Linking methods - these open Privy's linking UI
       linkEmail: () => privy.linkEmail(),
       linkPhone: () => privy.linkPhone(),
       linkWallet: () => privy.linkWallet(),
@@ -134,6 +134,7 @@ function AuthBridge() {
       linkApple: () => privy.linkApple(),
       getLinkedAccounts,
     };
+    console.log('[privy] window.flowbPrivy set');
   }, [login, logout, privy, getLinkedAccounts]);
 
   // Emit auth state changes for vanilla JS to consume
@@ -169,21 +170,47 @@ function AuthBridge() {
   return null;
 }
 
+// Error boundary to catch React rendering crashes (e.g. wallet extension conflicts)
+class PrivyErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  componentDidCatch(error: Error) {
+    console.error('[privy] React error boundary caught:', error);
+  }
+  render() {
+    if (this.state.error) return null;
+    return this.props.children;
+  }
+}
+
 const el = document.getElementById('privy-root');
 if (el) {
-  createRoot(el).render(
-    <PrivyProvider
-      appId={PRIVY_APP_ID}
-      config={{
-        appearance: {
-          theme: 'dark',
-          accentColor: '#6366f1',
-        },
-        // Active login methods — others coming soon
-        loginMethods: ['email', 'wallet', 'telegram', 'farcaster'],
-      }}
-    >
-      <AuthBridge />
-    </PrivyProvider>,
-  );
+  try {
+    console.log('[privy] Mounting PrivyProvider...');
+    createRoot(el).render(
+      <PrivyErrorBoundary>
+        <PrivyProvider
+          appId={PRIVY_APP_ID}
+          config={{
+            appearance: {
+              theme: 'dark',
+              accentColor: '#6366f1',
+            },
+            loginMethods: ['email', 'telegram', 'farcaster'],
+            walletConnectCloudProjectId: undefined,
+            embeddedWallets: {
+              createOnLogin: 'off',
+            },
+          }}
+        >
+          <AuthBridge />
+        </PrivyProvider>
+      </PrivyErrorBoundary>,
+    );
+    console.log('[privy] PrivyProvider mounted');
+  } catch (err) {
+    console.error('[privy] Failed to mount:', err);
+  }
+} else {
+  console.error('[privy] #privy-root element not found');
 }

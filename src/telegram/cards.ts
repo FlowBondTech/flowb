@@ -339,28 +339,28 @@ export function buildCategoryFilterKeyboard(activeCategory?: string): InlineKeyb
 
 export function getDateFilterLabel(dateFilter: string): string {
   if (!dateFilter || dateFilter === "all") return "All Dates";
-  const entry = ETHDENVER_DATE_FILTERS.find((df) => df.id === dateFilter);
+  const entry = SXSW_DATE_FILTERS.find((df) => df.id === dateFilter);
   return entry?.label ?? dateFilter;
 }
 
-/** ETHDenver 2026 date filters (Feb 15 - Feb 27) */
-const ETHDENVER_DATE_FILTERS = (() => {
+/** SXSW 2026 date filters (Mar 12 - Mar 18) */
+const SXSW_DATE_FILTERS = (() => {
   const filters: { id: string; label: string }[] = [{ id: "all", label: "All Dates" }];
-  for (let d = 15; d <= 27; d++) {
-    const dt = new Date(2026, 1, d);
+  for (let d = 12; d <= 18; d++) {
+    const dt = new Date(2026, 2, d); // March = 2
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
-    filters.push({ id: `2026-02-${String(d).padStart(2, "0")}`, label: `${weekday} 2/${d}` });
+    filters.push({ id: `2026-03-${String(d).padStart(2, "0")}`, label: `${weekday} 3/${d}` });
   }
   return filters;
 })();
 
 export function buildDateFilterKeyboard(activeDateFilter?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
-  for (let i = 0; i < ETHDENVER_DATE_FILTERS.length; i++) {
-    const df = ETHDENVER_DATE_FILTERS[i];
+  for (let i = 0; i < SXSW_DATE_FILTERS.length; i++) {
+    const df = SXSW_DATE_FILTERS[i];
     const marker = df.id === (activeDateFilter || "all") ? "\u2713 " : "";
     kb.text(`${marker}${df.label}`, `ec:setdate:${df.id}`);
-    if (i % 3 === 2 && i < ETHDENVER_DATE_FILTERS.length - 1) kb.row();
+    if (i % 3 === 2 && i < SXSW_DATE_FILTERS.length - 1) kb.row();
   }
   kb.row();
   kb.text("\u25c0\ufe0f Back", `ec:back`);
@@ -1128,6 +1128,200 @@ export function parseTradeIntent(text: string): TradeIntent {
     toToken: match[3].toUpperCase(),
     valid: true,
   };
+}
+
+// ==========================================================================
+// Meetings
+// ==========================================================================
+
+const MEETING_TYPE_EMOJI: Record<string, string> = {
+  coffee: "\u2615",
+  call: "\ud83d\udcde",
+  lunch: "\ud83c\udf7d\ufe0f",
+  workshop: "\ud83d\udee0\ufe0f",
+  demo: "\ud83d\udcbb",
+  other: "\ud83d\udcc5",
+};
+
+export function formatMeetingCreatedHtml(
+  title: string,
+  startsAt: string,
+  durationMin: number,
+  meetingType: string,
+  location: string | null,
+  shareLink: string,
+): string {
+  const emoji = MEETING_TYPE_EMOJI[meetingType] || "\ud83d\udcc5";
+  const date = new Date(startsAt);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const lines = [
+    `${emoji} <b>${escapeHtml(title)}</b>`,
+    "",
+    `\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`,
+    `\u23f1  ${durationMin} min`,
+  ];
+
+  if (location) {
+    lines.push(`\ud83d\udccd  ${escapeHtml(location)}`);
+  }
+
+  lines.push("");
+  lines.push(`Share: ${shareLink}`);
+
+  return lines.join("\n");
+}
+
+export function formatMeetingDetailHtml(
+  title: string,
+  startsAt: string,
+  durationMin: number,
+  meetingType: string,
+  status: string,
+  location: string | null,
+  description: string | null,
+  attendeeCount: number,
+): string {
+  const emoji = MEETING_TYPE_EMOJI[meetingType] || "\ud83d\udcc5";
+  const date = new Date(startsAt);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const statusBadge = status === "cancelled" ? " \u274c cancelled" : status === "completed" ? " \u2705 done" : "";
+
+  const lines = [
+    `${emoji} <b>${escapeHtml(title)}</b>${statusBadge}`,
+    "",
+    `\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`,
+    `\u23f1  ${durationMin} min`,
+  ];
+
+  if (location) {
+    lines.push(`\ud83d\udccd  ${escapeHtml(location)}`);
+  }
+
+  if (description) {
+    const snippet = description.length > 150 ? description.slice(0, 147) + "..." : description;
+    lines.push("");
+    lines.push(`<i>${escapeHtml(snippet)}</i>`);
+  }
+
+  lines.push("");
+  lines.push(`\ud83d\udc65  ${attendeeCount} attendee${attendeeCount !== 1 ? "s" : ""}`);
+
+  return lines.join("\n");
+}
+
+export function formatMeetingListHtml(
+  meetings: { id: string; title: string; starts_at: string; meeting_type: string; status: string }[],
+  filter: string,
+): string {
+  if (!meetings.length) {
+    return filter === "upcoming"
+      ? "<b>Your Meetings</b>\n\nNo upcoming meetings. Use /meet to create one!"
+      : "<b>Past Meetings</b>\n\nNo past meetings yet.";
+  }
+
+  const headerText = filter === "upcoming" ? "Your Meetings" : "Past Meetings";
+  const lines = [`<b>${headerText}</b>  (${meetings.length})\n`];
+
+  for (const m of meetings) {
+    const emoji = MEETING_TYPE_EMOJI[m.meeting_type] || "\ud83d\udcc5";
+    const date = new Date(m.starts_at);
+    const dateStr = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    lines.push(`${emoji} <b>${escapeHtml(m.title)}</b>`);
+    lines.push(`    ${dateStr} \u00b7 ${timeStr}`);
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+export function formatMeetingCreatePromptHtml(): string {
+  return [
+    "<b>Create a Meeting</b>",
+    "",
+    "Use natural language:",
+    "<code>/meet sarah tomorrow coffee</code>",
+    "<code>/meet team standup friday 10am</code>",
+    "<code>/meet project demo next week 2pm</code>",
+  ].join("\n");
+}
+
+export function buildMeetingDetailKeyboard(meetingId: string, isCreator: boolean, shareCode: string): InlineKeyboard {
+  const short = meetingId.slice(0, 8);
+  const kb = new InlineKeyboard();
+
+  kb.text("\u2705 Accept", `mt:rsvp:${short}:accepted`);
+  kb.text("\ud83e\udd14 Maybe", `mt:rsvp:${short}:maybe`);
+  kb.text("\u274c Decline", `mt:rsvp:${short}:declined`);
+  kb.row();
+  kb.text("\ud83d\udce4 Share", `mt:share:${short}`);
+  kb.text("\ud83d\udcac Chat", `mt:chat:${short}`);
+
+  if (isCreator) {
+    kb.row();
+    kb.text("\u2705 Complete", `mt:complete:${short}`);
+    kb.text("\u274c Cancel", `mt:cancel:${short}`);
+  }
+
+  kb.row();
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+
+  return kb;
+}
+
+export function buildMeetingListKeyboard(
+  meetings: { id: string; title: string }[],
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const m of meetings.slice(0, 5)) {
+    const short = m.id.slice(0, 8);
+    const label = m.title.length > 25 ? m.title.slice(0, 23) + ".." : m.title;
+    kb.text(label, `mt:view:${short}`);
+    kb.row();
+  }
+  kb.text("\u2795 New Meeting", "mt:new");
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+  return kb;
+}
+
+export function buildMeetingRsvpKeyboard(meetingId: string): InlineKeyboard {
+  const short = meetingId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u2705 Accept", `mt:rsvp:${short}:accepted`)
+    .text("\ud83e\udd14 Maybe", `mt:rsvp:${short}:maybe`)
+    .text("\u274c Decline", `mt:rsvp:${short}:declined`)
+    .row()
+    .text("\ud83d\udce4 Share", `mt:share:${short}`);
+}
+
+export function buildMeetingCreateKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
 }
 
 // ==========================================================================

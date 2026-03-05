@@ -404,14 +404,21 @@
         <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
-      <nav class="header-nav">
+            <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
-        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
         <a href="/crews" class="header-nav-link active">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
-        <a href="/flow" class="header-nav-link">My Flow</a>
-        <a href="/agents" class="header-nav-link">Agents</a>
-        <a href="/about" class="header-nav-link">About</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
       </nav>
       <button class="hamburger" id="navToggle" aria-label="Menu">
         <span></span><span></span><span></span>

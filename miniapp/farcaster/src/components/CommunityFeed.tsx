@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, type MouseEvent } from "react";
-import { getEthDenverFeed } from "../api/client";
+import { getCommunityFeed } from "../api/client";
 import { replyCast, quoteCast, viewCast, viewProfile, getCastUrl } from "../lib/farcaster";
 import type { FeedCast } from "../api/types";
 
@@ -189,7 +189,7 @@ function FeedSkeleton() {
   );
 }
 
-export function EthDenverFeed({ authed }: Props) {
+export function CommunityFeed({ authed }: Props) {
   const [casts, setCasts] = useState<FeedCast[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -200,7 +200,7 @@ export function EthDenverFeed({ authed }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const data = await getEthDenverFeed();
+      const data = await getCommunityFeed();
       setCasts(data.casts);
       setNextCursor(data.nextCursor);
     } catch (err) {
@@ -215,7 +215,7 @@ export function EthDenverFeed({ authed }: Props) {
     if (!nextCursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const data = await getEthDenverFeed(nextCursor);
+      const data = await getCommunityFeed(nextCursor);
       setCasts((prev) => {
         const existing = new Set(prev.map((c) => c.hash));
         const newCasts = data.casts.filter((c) => !existing.has(c.hash));

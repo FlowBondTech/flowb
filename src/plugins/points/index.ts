@@ -62,7 +62,7 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   channel_reaction:      { points: 1,   dailyCap: 20 },
   chatter_signal:        { points: 5,   dailyCap: 25 },
   crew_message:          { points: 2,   dailyCap: 30 },
-  // EthDenver mini app & event actions
+  // Mini app & event actions
   event_checkin:         { points: 5,   dailyCap: 25 },
   onboarding_complete:   { points: 10,  dailyCap: 10, once: true },
   miniapp_open:          { points: 2,   dailyCap: 10 },
@@ -101,6 +101,15 @@ export interface CrewRanking {
   totalPoints: number;
   memberCount: number;
   sponsorBoost?: number;
+}
+
+export interface IndividualRanking {
+  userId: string;
+  displayName: string;
+  totalPoints: number;
+  currentStreak: number;
+  milestoneLevel: number;
+  milestoneTitle: string;
 }
 
 export interface CrewMission {
@@ -420,6 +429,46 @@ export class PointsPlugin implements FlowBPlugin {
 
     rankings.sort((a, b) => b.totalPoints - a.totalPoints);
     return rankings.slice(0, 10);
+  }
+
+  /**
+   * Rank all individual users by total points.
+   * Returns top 20 users with display name, points, streak, and milestone.
+   */
+  async getGlobalIndividualRanking(cfg: PointsPluginConfig): Promise<IndividualRanking[]> {
+    const rows = await sbQuery<any[]>(cfg, "flowb_user_points", {
+      select: "user_id,total_points,current_streak,milestone_level",
+      order: "total_points.desc",
+      limit: "20",
+    });
+
+    if (!rows?.length) return [];
+
+    // Batch-fetch display names from sessions
+    const userIds = rows.map((r: any) => r.user_id);
+    const sessions = await sbQuery<any[]>(cfg, "flowb_sessions", {
+      select: "user_id,display_name,danz_username",
+      user_id: `in.(${userIds.join(",")})`,
+    });
+    const nameMap = new Map(
+      (sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || null]),
+    );
+
+    return rows.map((r: any) => {
+      const level = r.milestone_level || 1;
+      const milestone = MILESTONES.find((m) => m.level === level) || MILESTONES[0];
+      const rawName = nameMap.get(r.user_id) || r.user_id;
+      // Anonymize: show first 3 chars + "..."
+      const displayName = rawName.length > 6 ? rawName.slice(0, 3) + "..." : rawName;
+      return {
+        userId: r.user_id,
+        displayName,
+        totalPoints: r.total_points || 0,
+        currentStreak: r.current_streak || 0,
+        milestoneLevel: level,
+        milestoneTitle: milestone.title,
+      };
+    });
   }
 
   /**

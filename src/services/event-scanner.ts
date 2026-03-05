@@ -1,6 +1,6 @@
 /**
  * Event Scanner Service
- * Scans for new EthDenver events and stores full data in flowb_events.
+ * Scans for new events and stores full data in flowb_events.
  * Includes auto-categorization, venue matching, quality scoring, and stale detection.
  */
 
@@ -121,7 +121,7 @@ export async function scanForNewEvents(
     ]);
     const categoryMap = new Map((categories || []).map(c => [c.slug, c.id]));
 
-    const events = await discoverFn({ action: "events", city: "Denver" });
+    const events = await discoverFn({ action: "events", city: "Austin" });
 
     for (const event of events) {
       const titleSlug = slugify(event.title || "");
@@ -158,7 +158,7 @@ export async function scanForNewEvents(
           all_day: event.allDay || false,
           venue_id: venueId,
           venue_name: event.locationName || null,
-          city: event.locationCity || "Denver",
+          city: event.locationCity || "Austin",
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,
@@ -196,7 +196,7 @@ export async function scanForNewEvents(
           venue_id: venueId,
           venue_name: event.locationName || null,
           venue_address: null,
-          city: event.locationCity || "Denver",
+          city: event.locationCity || "Austin",
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,

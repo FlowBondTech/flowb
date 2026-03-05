@@ -11,7 +11,7 @@ The FlowB mobile app is built with Expo (React Native) and available on TestFlig
 - **Framework**: Expo SDK + React Native
 - **Bundle ID**: `me.flowb.app`
 - **EAS Project**: `@kohx/flowb-app`
-- **Auth**: Hardcoded demo users for EthDenver (native app auth)
+- **Auth**: Hardcoded demo users (native app auth)
 
 ## Features
 
@@ -32,7 +32,7 @@ eas build --platform ios --profile development
 
 ## Distribution
 
-Currently distributed via TestFlight for EthDenver attendees.
+Currently distributed via TestFlight for SXSW attendees.
 
 | Config | Value |
 |--------|-------|

@@ -613,7 +613,7 @@ async function loadNotificationSettings() {
   document.getElementById('notifDailyLimit').value = p.daily_notification_limit ?? 10;
 
   // Timezone
-  document.getElementById('notifTimezone').value = p.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Denver';
+  document.getElementById('notifTimezone').value = p.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
 }
 
 document.getElementById('notifSaveBtn').addEventListener('click', async () => {
@@ -931,11 +931,11 @@ searchClear.addEventListener('click', () => {
 // ===== Location Picker =====
 const POPULAR_CITIES = [
   { city: '', label: 'Anywhere', icon: '🌍', region: 'Global' },
+  { city: 'Austin', label: 'Austin', icon: '🤠', region: 'Texas, USA' },
   { city: 'Denver', label: 'Denver', icon: '🏔️', region: 'Colorado, USA' },
   { city: 'New York', label: 'New York', icon: '🗽', region: 'New York, USA' },
   { city: 'San Francisco', label: 'San Francisco', icon: '🌉', region: 'California, USA' },
   { city: 'Los Angeles', label: 'Los Angeles', icon: '🌴', region: 'California, USA' },
-  { city: 'Austin', label: 'Austin', icon: '🤠', region: 'Texas, USA' },
   { city: 'Miami', label: 'Miami', icon: '🌊', region: 'Florida, USA' },
   { city: 'Chicago', label: 'Chicago', icon: '🏙️', region: 'Illinois, USA' },
   { city: 'London', label: 'London', icon: '🇬🇧', region: 'United Kingdom' },
@@ -1991,12 +1991,13 @@ async function renderIntroCatMessage() {
   scrollChatToBottom();
 }
 
-function renderIntroDiscoveryPaths(selectedCats) {
-  const paths = [
+function renderIntroDiscoveryPaths(selectedCats, excludeCrew = false) {
+  const allPaths = [
     { id: 'near-me',   icon: '\uD83D\uDCCD', label: 'Find near me',      desc: 'Use my location' },
     { id: 'plan-trip', icon: '\u2708\uFE0F',  label: 'Plan for a trip',   desc: 'Pick a destination' },
     { id: 'crew',      icon: '\uD83D\uDC65',  label: "Where's my crew",   desc: 'See crew activity' },
   ];
+  const paths = excludeCrew ? allPaths.filter(p => p.id !== 'crew') : allPaths;
 
   const div = document.createElement('div');
   div.className = 'flowb-msg bot';
@@ -2094,32 +2095,35 @@ async function handleIntroCrew(selectedCats) {
   removeTypingIndicator();
 
   if (!Auth.isAuthenticated) {
-    addChatMessage("Sign in to see your crew! Click the **Sign In** button at the top, then come back to chat.", 'bot');
-    localStorage.setItem('flowb-intro-seen', '1');
+    addChatMessage("Crews require sign-in. Let's find you some events first!", 'bot');
+    await introWait(300);
+    renderIntroDiscoveryPaths(selectedCats, /* excludeCrew */ true);
     return;
   }
 
   const data = await fetchAuthed('/api/v1/flow/crews');
   if (!data || !data.crews || !data.crews.length) {
-    addChatMessage("You haven't joined any crews yet. Head to the [Crews page](/crews) to create or join one!\n\nMeanwhile, browse events below or ask me anything.", 'bot');
-  } else {
-    let text = `**Your Crews** (${data.crews.length})\n\n`;
-    for (const crew of data.crews) {
-      text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
-    }
-    text += '\nBrowse events below, or ask me anything here!';
-    addChatMessage(text, 'bot');
+    addChatMessage("No crews yet! Let's find events first — you can create or join a crew anytime.", 'bot');
+    await introWait(300);
+    renderIntroDiscoveryPaths(selectedCats, /* excludeCrew */ true);
+    return;
   }
 
+  let text = `**Your Crews** (${data.crews.length})\n\n`;
+  for (const crew of data.crews) {
+    text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
+  }
+  text += '\nBrowse events below, or ask me anything here!';
+  addChatMessage(text, 'bot');
   localStorage.setItem('flowb-intro-seen', '1');
 }
 
 function renderIntroCityPicker(selectedCats) {
   const topCities = [
+    { city: 'Austin', icon: '\uD83E\uDD20', label: 'Austin' },
     { city: 'Denver', icon: '\uD83C\uDFD4\uFE0F', label: 'Denver' },
     { city: 'New York', icon: '\uD83D\uDDFD', label: 'New York' },
     { city: 'San Francisco', icon: '\uD83C\uDF09', label: 'SF' },
-    { city: 'Austin', icon: '\uD83E\uDD20', label: 'Austin' },
     { city: 'Miami', icon: '\uD83C\uDF0A', label: 'Miami' },
     { city: 'London', icon: '\uD83C\uDDEC\uD83C\uDDE7', label: 'London' },
     { city: 'Berlin', icon: '\uD83C\uDDE9\uD83C\uDDEA', label: 'Berlin' },
@@ -2367,7 +2371,7 @@ function renderIntroCityPicker(selectedCats) {
       title: title || undefined,
       startTime,
       venue: venue || undefined,
-      city: city || 'Denver',
+      city: city || 'Austin',
       description: desc || undefined,
       isFree,
       submitterName: name || undefined,

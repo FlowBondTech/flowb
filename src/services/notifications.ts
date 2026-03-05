@@ -524,6 +524,114 @@ export async function notifyCrewMessage(
 }
 
 // ============================================================================
+// Meeting Invite Notification
+// ============================================================================
+
+/**
+ * Notify attendees when they're invited to a meeting.
+ * Sends the meeting title + share link.
+ */
+export async function notifyMeetingInvite(
+  ctx: NotifyContext,
+  inviterId: string,
+  meetingId: string,
+  meetingTitle: string,
+  shareLink: string,
+  attendeeUserIds: string[],
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  if (!attendeeUserIds.length) return 0;
+
+  const displayName = await resolveDisplayName(ctx.supabase, inviterId);
+  const message = `${displayName} invited you to: ${meetingTitle}\n${shareLink}`;
+
+  let sent = 0;
+  for (const attendeeId of attendeeUserIds) {
+    if (attendeeId === inviterId) continue;
+
+    const prefs = await getUserNotifyPrefs(ctx.supabase, attendeeId);
+    if (!prefs.notify_crew_messages) continue; // reuse crew_messages pref for meeting notifications
+
+    if (await hasReachedDailyLimit(ctx.supabase, attendeeId)) continue;
+    if (await isUserQuietHours(ctx.supabase, attendeeId)) continue;
+
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      attendeeId,
+      "meeting_invite",
+      meetingId,
+      inviterId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, attendeeId, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, attendeeId, "meeting_invite", meetingId, inviterId);
+      sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
+// Meeting Chat Notification
+// ============================================================================
+
+/**
+ * Notify meeting attendees when someone sends a chat message.
+ * Follows the same pattern as notifyCrewMessage.
+ */
+export async function notifyMeetingChat(
+  ctx: NotifyContext,
+  userId: string,
+  meetingId: string,
+  meetingTitle: string,
+  messageText: string,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  // Get meeting attendees (excluding the sender)
+  const attendees = await sbQuery<any[]>(ctx.supabase, "flowb_meeting_attendees", {
+    select: "user_id",
+    meeting_id: `eq.${meetingId}`,
+  });
+
+  if (!attendees?.length) return 0;
+
+  const displayName = await resolveDisplayName(ctx.supabase, userId);
+  const preview = messageText.length > 80 ? messageText.slice(0, 77) + "..." : messageText;
+  const message = `${displayName} in ${meetingTitle}: ${preview}`;
+
+  let sent = 0;
+  for (const attendee of attendees) {
+    if (!attendee.user_id || attendee.user_id === userId) continue;
+
+    const prefs = await getUserNotifyPrefs(ctx.supabase, attendee.user_id);
+    if (!prefs.notify_crew_messages) continue;
+
+    if (await hasReachedDailyLimit(ctx.supabase, attendee.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, attendee.user_id)) continue;
+
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      attendee.user_id,
+      "meeting_chat",
+      `${meetingId}:${userId}`,
+      userId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, attendee.user_id, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, attendee.user_id, "meeting_chat", `${meetingId}:${userId}`, userId);
+      sent++;
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 
