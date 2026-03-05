@@ -30,9 +30,10 @@ title: "eGator Events Plugin"
 | parse-utils | `src/plugins/egator/sources/parse-utils.ts` |
 | Resident Advisor | `src/plugins/egator/sources/ra.ts` |
 | Sheeets | `src/plugins/egator/sources/sheeets.ts` |
+| supadata | `src/plugins/egator/sources/supadata.ts` |
 | SXSW Schedule (scraper) | `src/plugins/egator/sources/sxsw-scraper.ts` |
 | Tavily | `src/plugins/egator/sources/tavily.ts` |
 
 ---
 
-*Auto-generated on 2026-03-04 23:28:09 UTC*
+*Auto-generated on 2026-03-05 00:07:17 UTC*
