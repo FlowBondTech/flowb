@@ -37,6 +37,10 @@ export function loadConfig(): FlowBConfig {
         postizMasterApiKey: process.env.POSTIZ_MASTER_API_KEY!,
         encryptionKey: process.env.SOCIAL_ENCRYPTION_KEY!,
       } : undefined,
+      meeting: process.env.DANZ_SUPABASE_URL ? {
+        supabaseUrl: process.env.DANZ_SUPABASE_URL,
+        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      } : undefined,
     },
   };
 }
@@ -115,6 +119,10 @@ function buildEgatorConfig(): EGatorPluginConfig | undefined {
   }
   if (process.env.GOOGLE_PLACES_API_KEY) {
     sources.googlePlaces = { apiKey: process.env.GOOGLE_PLACES_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.SUPADATA_API_KEY) {
+    sources.supadata = { apiKey: process.env.SUPADATA_API_KEY };
     hasAny = true;
   }
 

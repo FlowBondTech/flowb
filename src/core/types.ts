@@ -13,6 +13,7 @@ export interface FlowBConfig {
     cdp?: CDPPluginConfig;
     flow?: FlowPluginConfig;
     social?: SocialPluginConfig;
+    meeting?: MeetingPluginConfig;
     [key: string]: any;
   };
 }
@@ -32,6 +33,7 @@ export interface EGatorPluginConfig {
     lemonade?: { enabled: boolean };
     sheeets?: { spreadsheetId: string; apiKey?: string };
     googlePlaces?: { apiKey: string };
+    supadata?: { apiKey: string };
   };
 }
 
@@ -69,6 +71,11 @@ export interface SocialPluginConfig {
   postizBaseUrl: string;
   postizMasterApiKey: string;
   encryptionKey: string;
+}
+
+export interface MeetingPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
 }
 
 export interface CDPPluginConfig {
@@ -323,4 +330,21 @@ export interface ToolInput {
   scheduled_at?: string;
   post_id?: string;
   integration_id?: string;
+  // Meeting fields
+  meeting_id?: string;
+  meeting_title?: string;
+  meeting_description?: string;
+  meeting_starts_at?: string;
+  meeting_duration?: number;
+  meeting_location?: string;
+  meeting_type?: string;
+  meeting_notes?: string;
+  meeting_filter?: string;
+  attendee_name?: string;
+  attendee_email?: string;
+  message_content?: string;
+  // Transcript fields
+  video_url?: string;
+  transcript_lang?: string;
+  transcript_mode?: "native" | "generate" | "auto";
 }
