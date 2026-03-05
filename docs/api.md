@@ -124,7 +124,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/flow/connect` | Yes | Connect / send friend request (requires auth) |
 | `GET` | `/api/v1/flow/invite` | Yes | Get personal invite link (requires auth) |
 | `DELETE` | `/api/v1/flow/crews/:id/leave` | Yes | Leave crew (requires auth) |
-| `GET` | `/api/v1/flow/crews/discover` | Yes | Discover public crews (requires auth) |
+| `GET` | `/api/v1/flow/crews/discover` | No | Discover all crews (public, no auth required) |
 | `DELETE` | `/api/v1/flow/crews/:id/members/:userId` | Yes | Remove member from crew (admin, requires auth) |
 | `PATCH` | `/api/v1/flow/crews/:id/members/:userId` | Yes | Update member role (promote/demote, requires auth) |
 | `PATCH` | `/api/v1/flow/crews/:id` | Yes | Edit crew details (requires auth, admin only) |
@@ -361,4 +361,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 21:20:52 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 21:41:19 UTC*
