@@ -190,6 +190,23 @@ export async function claimPendingPoints(
 }
 
 // ============================================================================
+// Event Submission
+// ============================================================================
+
+export async function submitEvent(data: {
+  title?: string;
+  url?: string;
+  startTime?: string;
+  endTime?: string;
+  venue?: string;
+  city?: string;
+  description?: string;
+  isFree?: boolean;
+}): Promise<{ ok: boolean; message: string; eventId?: string }> {
+  return post("/api/v1/events/submit", data);
+}
+
+// ============================================================================
 // Chat (xAI Grok via FlowB backend)
 // ============================================================================
 

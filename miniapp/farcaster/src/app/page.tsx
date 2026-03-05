@@ -18,8 +18,9 @@ import { CommunityFeed } from "../components/CommunityFeed";
 import { AboutScreen } from "../components/AboutScreen";
 import { AgentsScreen } from "../components/AgentsScreen";
 import { SocialBScreen } from "../components/SocialBScreen";
+import { AddEventScreen } from "../components/AddEventScreen";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents" | "socialb";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents" | "socialb" | "addevent";
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
@@ -265,7 +266,7 @@ export default function FarcasterApp() {
         if (deepEvent) {
           setEventId(deepEvent);
           setScreen("event");
-        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat", "agents"].includes(deepScreen)) {
+        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat", "agents", "addevent"].includes(deepScreen)) {
           setScreen(deepScreen as Screen);
         }
       } catch {}
@@ -751,6 +752,23 @@ export default function FarcasterApp() {
                   </button>
                 ))}
               </div>
+
+              {/* List Your Event CTA */}
+              <button
+                onClick={() => { hapticImpact("light"); setScreen("addevent"); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "none", border: "1px dashed var(--border)",
+                  borderRadius: "var(--radius, 12px)", padding: "8px 14px",
+                  color: "var(--accent, #6366f1)", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", marginBottom: 10, width: "100%", justifyContent: "center",
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ width: 14, height: 14 }}>
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                List Your Event
+              </button>
 
               {eventsLoading ? (
                 <>
@@ -1341,6 +1359,9 @@ export default function FarcasterApp() {
 
       {/* SocialB Screen */}
       {screen === "socialb" && <SocialBScreen authed={authed} currentUserId={userId} />}
+
+      {/* Add Event Screen */}
+      {screen === "addevent" && <AddEventScreen onBack={() => setScreen("home")} />}
 
       {/* Bottom Navigation */}
       <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />
