@@ -95,6 +95,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `unknown` | No | Social media video transcription via Supadata |
 
+## SEARCH
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `unknown` | No | Web search via SerpAPI (Google) |
+
 ## SCHEDULE
 
 | Method | Path | Auth | Description |
@@ -263,22 +269,6 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/sponsor/featured-event` | No | Featured event boost (highest verified boost for featured spot) |
 | `POST` | `/api/v1/flow/checkin/proximity` | Yes | Proximity auto-checkin (requires auth) |
 
-## AGENTS
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/agents` | No | List all agent slots (public) |
-| `GET` | `/api/v1/agents/me` | Yes | Get my agent (requires auth) |
-| `POST` | `/api/v1/agents/claim` | Yes | Claim an open agent slot (requires auth) — beta: unlimited slots |
-| `POST` | `/api/v1/agents/skills/purchase` | Yes | Purchase a skill (x402-style flow) |
-| `POST` | `/api/v1/agents/boost-event` | Yes | Boost an event (x402 micropayment) |
-| `POST` | `/api/v1/agents/recommend` | Yes | Agent-to-agent recommendation (x402) |
-| `POST` | `/api/v1/agents/tip` | Yes | Send a tip to another user/agent |
-| `GET` | `/api/v1/agents/boosts` | No | Get active event boosts (for feed ranking) |
-| `GET` | `/api/v1/agents/transactions` | No | Transaction history (public, for demo) |
-| `POST` | `/api/v1/agents/award-top-scorer` | No | Award top points user (admin endpoint) |
-| `POST` | `/api/v1/agents/blast` | No | Notification blast to all users (admin) |
-
 ## FEEDBACK
 
 | Method | Path | Auth | Description |
@@ -371,4 +361,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 00:14:03 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-05 00:14:44 UTC*
