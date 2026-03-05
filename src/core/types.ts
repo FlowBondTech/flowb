@@ -34,6 +34,7 @@ export interface EGatorPluginConfig {
     sheeets?: { spreadsheetId: string; apiKey?: string };
     googlePlaces?: { apiKey: string };
     supadata?: { apiKey: string };
+    serpapi?: { apiKey: string };
   };
 }
 
@@ -347,4 +348,7 @@ export interface ToolInput {
   video_url?: string;
   transcript_lang?: string;
   transcript_mode?: "native" | "generate" | "auto";
+  // Search fields
+  search_query?: string;
+  search_location?: string;
 }

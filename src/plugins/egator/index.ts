@@ -30,6 +30,7 @@ import { MeetupScraperAdapter } from "./sources/meetup-scraper.js";
 import { SxswScraperAdapter } from "./sources/sxsw-scraper.js";
 import { SupadataAdapter } from "./sources/supadata.js";
 import type { TranscriptResult } from "./sources/supadata.js";
+import { SerpAPIAdapter } from "./sources/serpapi.js";
 import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
@@ -46,17 +47,20 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     "event-rsvp": { description: "RSVP to a Luma event" },
     "event-link": { description: "Look up event details from a URL" },
     transcribe: { description: "Transcribe a social media video (YouTube, TikTok, Instagram, X, Facebook)" },
+    "web-search": { description: "Search the web via Google (SerpAPI)" },
   };
 
   private config: EGatorPluginConfig | null = null;
   private luma: LumaAdapter | null = null;
   private supadata: SupadataAdapter | null = null;
+  private serpapi: SerpAPIAdapter | null = null;
   private adapters: EventSourceAdapter[] = [];
 
   configure(config: EGatorPluginConfig) {
     this.config = config;
     this.luma = null;
     this.supadata = null;
+    this.serpapi = null;
     this.adapters = [];
 
     const src = config.sources;
@@ -98,6 +102,11 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     if (src.supadata?.apiKey) {
       this.supadata = new SupadataAdapter(src.supadata.apiKey);
       console.log("[egator] Source: Supadata (transcription)");
+    }
+    if (src.serpapi?.apiKey) {
+      this.serpapi = new SerpAPIAdapter(src.serpapi.apiKey);
+      this.adapters.push(this.serpapi);
+      console.log("[egator] Source: SerpAPI (Google Search + Events)");
     }
 
     console.log(`[egator] ${this.adapters.length} source(s) configured`);
@@ -148,12 +157,17 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   }
 
   isConfigured(): boolean {
-    return this.adapters.length > 0 || this.supadata !== null;
+    return this.adapters.length > 0 || this.supadata !== null || this.serpapi !== null;
   }
 
   /** Expose SupadataAdapter for direct use by routes/services */
   getSupadataAdapter(): SupadataAdapter | null {
     return this.supadata;
+  }
+
+  /** Expose SerpAPIAdapter for direct use by routes/services */
+  getSerpAPIAdapter(): SerpAPIAdapter | null {
+    return this.serpapi;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
@@ -174,6 +188,8 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
         return this.eventLink(input);
       case "transcribe":
         return this.transcribeVideo(input);
+      case "web-search":
+        return this.webSearch(input);
       default:
         return `Unknown action: ${action}`;
     }
@@ -351,6 +367,36 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
       return JSON.stringify({ error: `Transcription failed: ${err.message}` });
     }
   }
+
+  private async webSearch(input: ToolInput): Promise<string> {
+    const query = input.search_query || input.query;
+    if (!query) return JSON.stringify({ error: "No search query provided" });
+    if (!this.serpapi) return JSON.stringify({ error: "SerpAPI not configured. Set SERPAPI_API_KEY." });
+
+    try {
+      console.log(`[egator:serpapi] Web search: "${query}"`);
+      const data = await this.serpapi.search(query, {
+        location: input.search_location || input.city,
+        num: 10,
+      });
+
+      const results = (data.organic_results || []).map((r) => ({
+        title: r.title,
+        link: r.link,
+        snippet: r.snippet,
+      }));
+
+      return JSON.stringify({
+        query,
+        results,
+        knowledge_graph: data.knowledge_graph || null,
+        related_questions: data.related_questions || [],
+      });
+    } catch (err: any) {
+      console.error("[egator:serpapi] Search error:", err.message);
+      return JSON.stringify({ error: `Search failed: ${err.message}` });
+    }
+  }
 }
 
 // ============================================================================
@@ -402,4 +448,4 @@ export function formatEventList(events: EventResult[], title: string): string {
 // Re-export types for use by bot/routes
 export type { LumaEventDetail, LumaTicketType, LumaGuest };
 export type { TranscriptResult };
-export { SupadataAdapter };
+export { SupadataAdapter, SerpAPIAdapter };

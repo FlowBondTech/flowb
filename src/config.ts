@@ -41,6 +41,10 @@ export function loadConfig(): FlowBConfig {
         supabaseUrl: process.env.DANZ_SUPABASE_URL,
         supabaseKey: process.env.DANZ_SUPABASE_KEY!,
       } : undefined,
+      agents: process.env.DANZ_SUPABASE_URL ? {
+        supabaseUrl: process.env.DANZ_SUPABASE_URL,
+        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      } : undefined,
     },
   };
 }
@@ -123,6 +127,10 @@ function buildEgatorConfig(): EGatorPluginConfig | undefined {
   }
   if (process.env.SUPADATA_API_KEY) {
     sources.supadata = { apiKey: process.env.SUPADATA_API_KEY };
+    hasAny = true;
+  }
+  if (process.env.SERPAPI_API_KEY) {
+    sources.serpapi = { apiKey: process.env.SERPAPI_API_KEY };
     hasAny = true;
   }
 
