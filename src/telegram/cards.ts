@@ -62,13 +62,13 @@ export function buildBackToMenuKeyboard(): InlineKeyboard {
 // ==========================================================================
 
 export function formatVerifiedGreetingHtml(
-  danzUsername: string,
+  displayName: string,
   points: number,
   streak: number,
 ): string {
   const streakBadge = streak > 0 ? `  \u00b7  ${streak}-day streak \ud83d\udd25` : "";
   return [
-    `gm <b>${escapeHtml(danzUsername)}</b>`,
+    `gm <b>${escapeHtml(displayName)}</b>`,
     "",
     `<b>${points}</b> pts${streakBadge}`,
     "",
@@ -98,9 +98,9 @@ export function formatConnectPromptHtml(): string {
   ].join("\n");
 }
 
-export function buildConnectKeyboard(danzUrl: string): InlineKeyboard {
+export function buildConnectKeyboard(connectUrl: string): InlineKeyboard {
   return new InlineKeyboard()
-    .url("\ud83d\udd17 Connect Account", danzUrl)
+    .url("\ud83d\udd17 Connect Account", connectUrl)
     .row()
     .text("\ud83d\udccd Browse Events", "mn:events");
 }
@@ -980,9 +980,11 @@ export function formatFlowAttendanceBadge(goingCount: number, maybeCount: number
 // ==========================================================================
 
 export function markdownToHtml(md: string): string {
+  // Strip hidden event ID comments
+  let s = md.replace(/<!--.*?-->/g, "");
   // Protect URLs from italic replacement (underscores in URLs)
   const urls: string[] = [];
-  let s = md.replace(/https?:\/\/[^\s)]+/g, (url) => {
+  s = s.replace(/https?:\/\/[^\s)]+/g, (url) => {
     urls.push(url);
     return `\x00URL${urls.length - 1}\x00`;
   });
@@ -1466,5 +1468,159 @@ export function formatEventSubmitDmFollowupHtml(title: string): string {
 export function buildEventSubmitDmFollowupKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("\ud83d\udccd Browse Events", "mn:events")
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+// ==========================================================================
+// Leads / CRM Pipeline
+// ==========================================================================
+
+export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+const STAGE_EMOJI: Record<LeadStage, string> = {
+  new: "\ud83d\udfe2",        // green circle
+  contacted: "\ud83d\udfe1",  // yellow circle
+  qualified: "\ud83d\udd35",  // blue circle
+  proposal: "\ud83d\udfe3",   // purple circle
+  won: "\u2705",              // check
+  lost: "\u274c",             // X
+};
+
+const STAGE_LABEL: Record<LeadStage, string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  proposal: "Proposal",
+  won: "Won",
+  lost: "Lost",
+};
+
+export interface LeadData {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  stage: LeadStage;
+  source?: string | null;
+  value?: number | null;
+  notes?: string | null;
+  assigned_to?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function formatLeadDetailHtml(lead: LeadData): string {
+  const lines = [
+    `${STAGE_EMOJI[lead.stage]} <b>${escapeHtml(lead.name)}</b>`,
+    `Stage: <b>${STAGE_LABEL[lead.stage]}</b>`,
+  ];
+  if (lead.company) lines.push(`\ud83c\udfe2 ${escapeHtml(lead.company)}`);
+  if (lead.email) lines.push(`\ud83d\udce7 ${escapeHtml(lead.email)}`);
+  if (lead.phone) lines.push(`\ud83d\udcde ${escapeHtml(lead.phone)}`);
+  if (lead.value != null) lines.push(`\ud83d\udcb0 $${lead.value.toLocaleString()}`);
+  if (lead.source) lines.push(`Source: ${escapeHtml(lead.source)}`);
+  if (lead.notes) {
+    lines.push("");
+    lines.push(`<i>${escapeHtml(lead.notes.slice(0, 200))}</i>`);
+  }
+  return lines.join("\n");
+}
+
+export function formatLeadListHtml(leads: LeadData[]): string {
+  if (!leads.length) {
+    return [
+      "<b>\ud83d\udcbc Leads</b>",
+      "",
+      "<i>No leads yet. Add one:</i>",
+      "<code>/lead add Sarah CEO at StartupX</code>",
+    ].join("\n");
+  }
+  const lines = [`<b>\ud83d\udcbc Leads</b> (${leads.length})`, ""];
+  for (const lead of leads.slice(0, 10)) {
+    const val = lead.value != null ? ` \u2014 $${lead.value.toLocaleString()}` : "";
+    const co = lead.company ? ` (${escapeHtml(lead.company)})` : "";
+    lines.push(`${STAGE_EMOJI[lead.stage]} <b>${escapeHtml(lead.name)}</b>${co}${val}`);
+  }
+  if (leads.length > 10) lines.push(`\n<i>...and ${leads.length - 10} more</i>`);
+  return lines.join("\n");
+}
+
+export function formatPipelineHtml(
+  pipeline: Record<LeadStage, number>,
+  total: number,
+): string {
+  const stages: LeadStage[] = ["new", "contacted", "qualified", "proposal", "won", "lost"];
+  const lines = [`<b>\ud83d\udcca Pipeline</b> (${total} leads)`, ""];
+  for (const stage of stages) {
+    const count = pipeline[stage] || 0;
+    if (count > 0 || stage !== "lost") {
+      lines.push(`${STAGE_EMOJI[stage]} ${STAGE_LABEL[stage]}: <b>${count}</b>`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export function formatLeadCreatedHtml(name: string, stage: LeadStage): string {
+  return [
+    `\u2705 <b>Lead added</b>`,
+    "",
+    `${STAGE_EMOJI[stage]} <b>${escapeHtml(name)}</b>`,
+    `Stage: ${STAGE_LABEL[stage]}`,
+  ].join("\n");
+}
+
+export function formatLeadUpdatedHtml(name: string, stage: LeadStage): string {
+  return `${STAGE_EMOJI[stage]} <b>${escapeHtml(name)}</b> moved to <b>${STAGE_LABEL[stage]}</b>`;
+}
+
+export function buildLeadDetailKeyboard(leadId: string): InlineKeyboard {
+  const short = leadId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u27a1\ufe0f Advance", `ld:advance:${short}`)
+    .text("\ud83d\udcc5 Schedule Meeting", `ld:meet:${short}`)
+    .row()
+    .text("\u270f\ufe0f Edit", `ld:edit:${short}`)
+    .text("\ud83d\uddd1 Delete", `ld:del:${short}`)
+    .row()
+    .text("\ud83d\udcbc Pipeline", "ld:pipeline")
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+export function buildLeadListKeyboard(leads: LeadData[]): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const lead of leads.slice(0, 5)) {
+    const short = lead.id.slice(0, 8);
+    const label = lead.name.length > 20 ? lead.name.slice(0, 18) + ".." : lead.name;
+    kb.text(`${STAGE_EMOJI[lead.stage]} ${label}`, `ld:view:${short}`);
+    kb.row();
+  }
+  kb.text("\u2795 Add Lead", "ld:add");
+  kb.text("\ud83d\udcca Pipeline", "ld:pipeline");
+  kb.row();
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+  return kb;
+}
+
+export function buildLeadStageKeyboard(leadId: string): InlineKeyboard {
+  const short = leadId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\ud83d\udfe2 New", `ld:stage:${short}:new`)
+    .text("\ud83d\udfe1 Contacted", `ld:stage:${short}:contacted`)
+    .row()
+    .text("\ud83d\udd35 Qualified", `ld:stage:${short}:qualified`)
+    .text("\ud83d\udfe3 Proposal", `ld:stage:${short}:proposal`)
+    .row()
+    .text("\u2705 Won", `ld:stage:${short}:won`)
+    .text("\u274c Lost", `ld:stage:${short}:lost`)
+    .row()
+    .text("\u25c0\ufe0f Back", `ld:view:${short}`);
+}
+
+export function buildPipelineKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\udcbc All Leads", "ld:list")
+    .text("\u2795 Add Lead", "ld:add")
+    .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
 }

@@ -710,8 +710,8 @@ async function handleTodos(
   phone: string,
   userId: string,
 ): Promise<void> {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) {
     await signal.sendText(phone, "Todo system not configured.");
     return;
@@ -756,8 +756,8 @@ async function handleTodoAdd(
   userId: string,
   title: string,
 ): Promise<void> {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) {
     await signal.sendText(phone, "Todo system not configured.");
     return;
@@ -801,8 +801,8 @@ async function handleTodoAdd(
 // ============================================================================
 
 function trackConversation(phone: string, userId: string, profileName?: string): void {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) return;
 
   fireAndForget(

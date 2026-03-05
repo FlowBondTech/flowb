@@ -45,8 +45,8 @@ export async function buildApp(core: FlowBCore) {
   // Scheduled Tasks: Farcaster Poster + Event Scanner
   // ==========================================================================
 
-  const supabaseUrl = process.env.DANZ_SUPABASE_URL;
-  const supabaseKey = process.env.DANZ_SUPABASE_KEY;
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_KEY;
 
   if (supabaseUrl && supabaseKey) {
     // NOTE: Event scanner moved to standalone scraper on IONOS VPS (216.225.205.69)
@@ -447,7 +447,7 @@ export async function buildApp(core: FlowBCore) {
   // ==========================================================================
   // Telegram Login Widget callback
   //
-  // Flow: User taps "Connect DANZ Account" in bot -> opens this URL ->
+  // Flow: User taps "Connect Account" in bot -> opens this URL ->
   // Telegram widget authenticates -> redirects here with auth params ->
   // we verify HMAC, store the link in Supabase, show success page.
   // ==========================================================================
@@ -471,7 +471,7 @@ export async function buildApp(core: FlowBCore) {
         return reply.type("text/html").status(403).send(authErrorPage(error || "Verification failed", botUsername));
       }
 
-      // Store the Telegram<->DANZ link
+      // Store the Telegram link
       const linkResult = await core.linkTelegramUser(authData);
       if (!linkResult.success) {
         app.log.error(`[auth/telegram] Link failed: ${linkResult.error}`);

@@ -7,14 +7,14 @@
  *
  * Usage: node scripts/seed-todos.mjs
  *
- * Requires: DANZ_SUPABASE_URL, DANZ_SUPABASE_KEY
+ * Requires: SUPABASE_URL, SUPABASE_KEY
  */
 
-const SUPABASE_URL = process.env.DANZ_SUPABASE_URL;
-const SUPABASE_KEY = process.env.DANZ_SUPABASE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("Missing DANZ_SUPABASE_URL or DANZ_SUPABASE_KEY");
+  console.error("Missing SUPABASE_URL or SUPABASE_KEY");
   process.exit(1);
 }
 

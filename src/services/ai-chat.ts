@@ -368,8 +368,8 @@ async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promis
         const free = e.is_free ? " (FREE)" : e.price ? ` ($${e.price})` : "";
         const rsvp = e.rsvp_count ? ` (${e.rsvp_count} going)` : "";
         const url = e.ticket_url || (e.source === "luma" && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : "");
-        out += `- **${e.title}**${org} | ${time} | ${venue}${free}${rsvp} [id:${e.id}]\n`;
-        if (url) out += `  ${url}\n`;
+        const title = url ? `[${e.title}](${url})` : e.title;
+        out += `- **${title}**${org} | ${time} | ${venue}${free}${rsvp} <!-- ${e.id} -->\n`;
       }
       out += "\n";
     }
@@ -581,7 +581,6 @@ async function getEventDetails(args: any, cfg: SbConfig): Promise<string> {
     if (e.ticket_url) out += `\n**Tickets:** ${e.ticket_url}`;
     else if (e.source === "luma" && e.source_event_id) out += `\n**Link:** https://lu.ma/${e.source_event_id}`;
 
-    out += `\n\n[id:${e.id}]`;
     return out;
   } catch (err: any) {
     console.error("[ai-chat] get_event_details error:", err.message);
@@ -609,9 +608,10 @@ async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): P
       const shares = e.share_count ? `${e.share_count} shares` : "";
       const stats = [rsvp, shares].filter(Boolean).join(", ");
       const free = e.is_free ? " (FREE)" : "";
-      out += `- **${e.title}** | ${time} | ${venue}${free}\n`;
+      const url = e.ticket_url || (e.source === "luma" && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : "");
+      const title = url ? `[${e.title}](${url})` : e.title;
+      out += `- **${title}** | ${time} | ${venue}${free} <!-- ${e.id} -->\n`;
       if (stats) out += `  ${stats}\n`;
-      out += `  [id:${e.id}]\n`;
     }
     return out;
   } catch (err: any) {
@@ -641,7 +641,7 @@ async function findPerson(args: any, user: UserContext, cfg: SbConfig): Promise<
   const q = encodeURIComponent(name);
   const sessions = await sbFetch<any[]>(
     cfg,
-    `flowb_sessions?or=(display_name.ilike.*${q}*,danz_username.ilike.*${q}*)&select=user_id,display_name,danz_username&limit=5`,
+    `flowb_sessions?display_name=ilike.*${q}*&select=user_id,display_name&limit=5`,
   );
   if (!sessions?.length) return `Couldn't find anyone named "${name}".`;
 
@@ -658,7 +658,7 @@ async function findPerson(args: any, user: UserContext, cfg: SbConfig): Promise<
   for (const s of sessions) {
     const targetId = s.user_id;
     if (targetId === user.userId) continue;
-    const displayName = s.display_name || s.danz_username || targetId;
+    const displayName = s.display_name || targetId;
 
     // Check access: friend OR shared crew
     let hasAccess = friendIds.has(targetId);
@@ -718,10 +718,10 @@ async function locateCrewMembers(args: any, user: UserContext, cfg: SbConfig): P
     // Batch: latest checkins + display names
     const [checkins, sessions] = await Promise.all([
       sbFetch<any[]>(cfg, `flowb_checkins?user_id=in.(${otherIds.join(",")})&order=created_at.desc`),
-      sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${otherIds.join(",")})&select=user_id,display_name,danz_username`),
+      sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${otherIds.join(",")})&select=user_id,display_name`),
     ]);
 
-    const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || s.user_id]));
+    const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.user_id]));
     const latest = new Map<string, any>();
     for (const c of checkins || []) {
       if (!latest.has(c.user_id)) latest.set(c.user_id, c);
@@ -794,8 +794,8 @@ async function lookupLocationCode(args: any, cfg: SbConfig): Promise<string> {
   if (!rows?.length) return `Code "${code}" not found or expired.`;
 
   const c = rows[0];
-  const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${c.user_id}&select=display_name,danz_username&limit=1`);
-  const name = sessions?.[0]?.display_name || sessions?.[0]?.danz_username || "Someone";
+  const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${c.user_id}&select=display_name&limit=1`);
+  const name = sessions?.[0]?.display_name || "Someone";
   return `${name} is at ${c.venue_name} (shared ${timeAgo(c.created_at)})${c.message ? ` — "${c.message}"` : ""}`;
 }
 
@@ -859,9 +859,9 @@ async function whoIsGoing(args: any, user: UserContext, cfg: SbConfig): Promise<
   const userIds = attendance.map((a: any) => a.user_id);
   const sessions = await sbFetch<any[]>(
     cfg,
-    `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name,danz_username`,
+    `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`,
   );
-  const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || "Someone"]));
+  const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || "Someone"]));
 
   let friendIds = new Set<string>();
   if (user.userId) {
@@ -902,10 +902,10 @@ async function getMyCrews(user: UserContext, cfg: SbConfig): Promise<string> {
     const memberIds = (members || []).map((x: any) => x.user_id);
     const sessions = await sbFetch<any[]>(
       cfg,
-      `flowb_sessions?user_id=in.(${memberIds.join(",")})&select=user_id,display_name,danz_username`,
+      `flowb_sessions?user_id=in.(${memberIds.join(",")})&select=user_id,display_name`,
     );
     const names = (sessions || [])
-      .map((s: any) => s.display_name || s.danz_username || s.user_id)
+      .map((s: any) => s.display_name || s.user_id)
       .slice(0, 10);
 
     const isOwner = crew.created_by === user.userId || m.role === "admin";
@@ -962,9 +962,9 @@ async function getActivityFeed(args: any, user: UserContext, cfg: SbConfig): Pro
   // Resolve display names
   const userIds = [...new Set(checkins.map((c: any) => c.user_id))] as string[];
   const sessions = userIds.length
-    ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name,danz_username`)
+    ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`)
     : [];
-  const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || "Someone"]));
+  const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || "Someone"]));
 
   // Aggregate: count people per venue + recent names
   const venues = new Map<string, { count: number; names: string[]; latest: string }>();
@@ -1019,7 +1019,7 @@ async function getActivityFeed(args: any, user: UserContext, cfg: SbConfig): Pro
   if (trendingEvents.length) {
     out += `\n**TRENDING EVENTS** (most RSVPs today):\n`;
     for (const [id, e] of trendingEvents) {
-      out += `- ${e.name}: ${e.count} RSVPs [id:${id}]\n`;
+      out += `- ${e.name}: ${e.count} RSVPs\n`;
     }
   }
 
@@ -1108,7 +1108,8 @@ Available category slugs for filtering: defi, nft, ai, social, music, hackathon,
 GENERAL BEHAVIOR:
 - Be friendly and helpful. Keep responses concise but informative.
 - ALWAYS use tools to get real data — never fabricate events, locations, or people.
-- When listing events, include event IDs so users can RSVP or get details.
+- Event names in listings are already linked to their source pages — NEVER show raw event IDs or UUIDs to users.
+- Event IDs are embedded as hidden comments (<!-- uuid -->) in tool results. Use these internally for RSVP and detail lookups, but never display them.
 - After actions (RSVP, check-in), mention points earned.
 - When someone asks "what's happening?", "where is everyone?", or wants a vibe check, call get_activity_feed.
 - When someone asks about their crews, call get_my_crews.

@@ -3321,16 +3321,6 @@ a:hover { text-decoration: underline; }
   text-decoration: none;
 }
 
-.login-btn-danz {
-  background: linear-gradient(135deg, var(--accent), var(--purple));
-  border-color: transparent;
-  color: #fff;
-}
-
-.login-btn-danz:hover {
-  opacity: 0.9;
-  text-decoration: none;
-}
 
 .login-btn-icon {
   width: 24px;

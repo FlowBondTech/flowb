@@ -35,6 +35,7 @@ export interface EGatorPluginConfig {
     googlePlaces?: { apiKey: string };
     supadata?: { apiKey: string };
     serpapi?: { apiKey: string };
+    partiful?: { enabled: boolean };
   };
 }
 
@@ -303,13 +304,14 @@ export interface ToolInput {
   user_id?: string;
   platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app" | "whatsapp" | "signal";
   platform_username?: string;
-  danz_username?: string;
+  username?: string;
   city?: string;
   category?: string;
   dance_style?: string;
   query?: string;
   wallet_address?: string;
   challenge_id?: string;
+  danz_username?: string;
   farcaster_username?: string;
   farcaster_channel?: string;
   page?: number;

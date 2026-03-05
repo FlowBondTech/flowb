@@ -89,7 +89,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (cfg) {
         fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
           user_id: userId,
-          danz_username: displayName,
+          display_name: displayName,
         }, "return=minimal,resolution=merge-duplicates"), "upsert session");
       }
 
@@ -233,7 +233,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             if (fcCfgSession) {
               fireAndForget(sbPost(fcCfgSession, "flowb_sessions?on_conflict=user_id", {
                 user_id: userId,
-                danz_username: displayName || username || `FID ${fid}`,
+                display_name: displayName || username || `FID ${fid}`,
               }, "return=minimal,resolution=merge-duplicates"), "upsert fc session");
             }
           }
@@ -430,7 +430,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         if (webCfgSession) {
           fireAndForget(sbPost(webCfgSession, "flowb_sessions?on_conflict=user_id", {
             user_id: userId,
-            danz_username: displayName || privyUserId,
+            display_name: displayName || privyUserId,
           }, "return=minimal,resolution=merge-duplicates"), "upsert web session");
         }
       }
@@ -809,9 +809,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         ...crewMessages.map((m: any) => m.user_id),
       ])] as string[];
       const sessions = allUserIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,display_name,danz_username`)
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,display_name`)
         : [];
-      const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || "Someone"]));
+      const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name || "Someone"]));
 
       // Resolve crew names for messages
       const msgCrewIds = [...new Set(crewMessages.map((m: any) => m.crew_id))] as string[];
@@ -1655,9 +1655,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         ]),
       ];
       const sessions = allUserIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,danz_username`)
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${allUserIds.join(",")})&select=user_id,display_name`)
         : [];
-      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
 
       return {
         members: (members || []).map((m: any) => ({ ...m, display_name: nameMap.get(m.user_id) || undefined })),
@@ -1831,7 +1831,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,role,tags,danz_username&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,role,tags,display_name&limit=1`,
       );
 
       const row = rows?.[0] || {};
@@ -1840,7 +1840,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           bio: row.bio || null,
           role: row.role || null,
           tags: row.tags || [],
-          display_name: row.danz_username || null,
+          display_name: row.display_name || null,
         },
       };
     },
@@ -1870,7 +1870,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Get friend's profile from sessions
       const sessions = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${friendId}&select=danz_username,bio,role,tags,home_city,current_city&limit=1`,
+        `flowb_sessions?user_id=eq.${friendId}&select=display_name,bio,role,tags,home_city,current_city&limit=1`,
       );
       const profile = sessions?.[0] || {};
 
@@ -1884,7 +1884,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return {
         friend: {
           user_id: friendId,
-          display_name: profile.danz_username || null,
+          display_name: profile.display_name || null,
           bio: profile.bio || null,
           role: profile.role || null,
           tags: profile.tags || [],
@@ -2151,9 +2151,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Resolve display names from sessions
       const sessions = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`,
+        `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`,
       );
-      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
 
       // Fetch verified sponsorship totals per member for sponsor boost
       const sponsorships = await sbFetch<any[]>(
@@ -2397,9 +2397,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Resolve display names
       const userIds = [...new Set((checkins || []).map((c: any) => c.user_id))];
       const sessions = userIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`)
         : [];
-      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
 
       return {
         activity: (checkins || []).map((c: any) => ({
@@ -2542,9 +2542,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Resolve display names
       const userIds = [...new Set((checkins || []).map((c: any) => c.user_id))];
       const sessions = userIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`)
         : [];
-      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
 
       return {
         locations: (checkins || []).map((c: any) => ({
@@ -2655,9 +2655,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Resolve display names from sessions (supplement stored display_name)
       const userIds = [...new Set((messages || []).map((m: any) => m.user_id))];
       const sessions = userIds.length
-        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,danz_username`)
+        ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${userIds.join(",")})&select=user_id,display_name`)
         : [];
-      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.danz_username]));
+      const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
 
       return {
         messages: (messages || []).map((m: any) => ({
@@ -2705,9 +2705,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Resolve sender display name from profile
       const sessions = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=danz_username&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name&limit=1`,
       );
-      const displayName = sessions?.[0]?.danz_username || undefined;
+      const displayName = sessions?.[0]?.display_name || undefined;
 
       // Insert message
       const msg = await sbPost(cfg, "flowb_crew_messages", {
@@ -3018,9 +3018,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Resolve display name for personalized responses
       if (jwt?.sub && cfg) {
-        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name,danz_username&limit=1`);
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name&limit=1`);
         if (sessions?.[0]) {
-          userContext.displayName = sessions[0].display_name || sessions[0].danz_username || null;
+          userContext.displayName = sessions[0].display_name || null;
         }
       }
 
@@ -3392,18 +3392,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Get friend locations (respecting privacy)
       const friends = await sbFetch<any[]>(cfg,
-        `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility`);
+        `flowb_sessions?user_id=in.(${inClause})&select=user_id,display_name,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility`);
 
       // Filter by visibility
       const visible = (friends || []).map((f: any) => {
         const vis = f.location_visibility || 'city';
-        if (vis === 'hidden') return { user_id: f.user_id, display_name: f.danz_username };
+        if (vis === 'hidden') return { user_id: f.user_id, display_name: f.display_name };
         if (vis === 'country') return {
-          user_id: f.user_id, display_name: f.danz_username,
+          user_id: f.user_id, display_name: f.display_name,
           home_country: f.home_country, current_country: f.current_country, destination_country: f.destination_country,
         };
         return {
-          user_id: f.user_id, display_name: f.danz_username,
+          user_id: f.user_id, display_name: f.display_name,
           home_city: f.home_city, home_country: f.home_country,
           current_city: f.current_city, current_country: f.current_country,
           destination_city: f.destination_city, destination_country: f.destination_country,
@@ -3440,7 +3440,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const inClause = friendIds.map((id: string) => `"${id}"`).join(",");
 
       const nearby = await sbFetch<any[]>(cfg,
-        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${encodeURIComponent(city)}&location_visibility=neq.hidden&select=user_id,danz_username,current_city,current_country`);
+        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${encodeURIComponent(city)}&location_visibility=neq.hidden&select=user_id,display_name,current_city,current_country`);
 
       return { nearby: nearby || [], city };
     },
@@ -3464,14 +3464,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       else return { people: [], error: "Provide city or country" };
 
       const rows = await sbFetch<any[]>(cfg,
-        `flowb_sessions?${filter}&select=user_id,danz_username,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility&limit=${limit}`);
+        `flowb_sessions?${filter}&select=user_id,display_name,home_city,home_country,current_city,current_country,destination_city,destination_country,location_visibility&limit=${limit}`);
 
       // Respect privacy: if visibility=country, strip city fields
       const people = (rows || []).map((r: any) => {
         if (r.location_visibility === 'country') {
-          return { user_id: r.user_id, display_name: r.danz_username, home_country: r.home_country, current_country: r.current_country, destination_country: r.destination_country };
+          return { user_id: r.user_id, display_name: r.display_name, home_country: r.home_country, current_country: r.current_country, destination_country: r.destination_country };
         }
-        return { user_id: r.user_id, display_name: r.danz_username, home_city: r.home_city, home_country: r.home_country, current_city: r.current_city, current_country: r.current_country, destination_city: r.destination_city, destination_country: r.destination_country };
+        return { user_id: r.user_id, display_name: r.display_name, home_city: r.home_city, home_country: r.home_country, current_city: r.current_city, current_country: r.current_country, destination_city: r.destination_city, destination_country: r.destination_country };
       });
 
       return { people };
@@ -5819,9 +5819,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
           // Resolve display names
           const nameRows = friendIds.length
-            ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username`)
+            ? await sbFetch<any[]>(cfg, `flowb_sessions?user_id=in.(${inClause})&select=user_id,display_name`)
             : [];
-          const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+          const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.display_name || "Someone"]));
 
           // Match friends to events
           const attendanceByEvent = new Map<string, string[]>();
@@ -5853,8 +5853,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           // Resolve names
           const checkinUserIds = [...new Set(checkins.map((c: any) => c.user_id))];
           const checkinNameRows = await sbFetch<any[]>(cfg,
-            `flowb_sessions?user_id=in.(${checkinUserIds.map((id: string) => `"${id}"`).join(",")})&select=user_id,danz_username`);
-          const checkinNameMap = new Map((checkinNameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+            `flowb_sessions?user_id=in.(${checkinUserIds.map((id: string) => `"${id}"`).join(",")})&select=user_id,display_name`);
+          const checkinNameMap = new Map((checkinNameRows || []).map((r: any) => [r.user_id, r.display_name || "Someone"]));
 
           // Resolve crew names
           const crewRows = await sbFetch<any[]>(cfg,
@@ -5916,14 +5916,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // 2. Look at destination_city values
       const sessions = await sbFetch<any[]>(cfg,
-        `flowb_sessions?user_id=in.(${inClause})&destination_city=not.is.null&location_visibility=neq.hidden&select=user_id,danz_username,destination_city`);
+        `flowb_sessions?user_id=in.(${inClause})&destination_city=not.is.null&location_visibility=neq.hidden&select=user_id,display_name,destination_city`);
 
       // Group by destination city
       const destMap = new Map<string, string[]>();
       for (const s of sessions || []) {
         if (!s.destination_city) continue;
         const list = destMap.get(s.destination_city) || [];
-        list.push(s.danz_username || "Someone");
+        list.push(s.display_name || "Someone");
         destMap.set(s.destination_city, list);
       }
 
@@ -5949,8 +5949,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
         // Resolve names
         const nameRows = await sbFetch<any[]>(cfg,
-          `flowb_sessions?user_id=in.(${inClause})&select=user_id,danz_username`);
-        const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+          `flowb_sessions?user_id=in.(${inClause})&select=user_id,display_name`);
+        const nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.display_name || "Someone"]));
 
         const attendanceByEvent = new Map<string, string[]>();
         for (const a of attendance) {
@@ -6046,8 +6046,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         let nameMap = new Map<string, string>();
         if (userIdArr.length) {
           const nameRows = await sbFetch<any[]>(cfg,
-            `flowb_sessions?user_id=in.(${userIdArr.map((id) => `"${id}"`).join(",")})&select=user_id,danz_username`);
-          nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.danz_username || "Someone"]));
+            `flowb_sessions?user_id=in.(${userIdArr.map((id) => `"${id}"`).join(",")})&select=user_id,display_name`);
+          nameMap = new Map((nameRows || []).map((r: any) => [r.user_id, r.display_name || "Someone"]));
         }
 
         // Group by relationship
@@ -6091,13 +6091,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const inClause = allPeopleIds.map((id: string) => `"${id}"`).join(",");
       const cityPeople = await sbFetch<any[]>(cfg,
-        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${cityEncoded}&location_visibility=neq.hidden&select=user_id,danz_username`);
+        `flowb_sessions?user_id=in.(${inClause})&current_city=eq.${cityEncoded}&location_visibility=neq.hidden&select=user_id,display_name`);
 
       const crew: any[] = [];
       const friends: any[] = [];
       for (const p of cityPeople || []) {
         if (p.user_id === jwt.sub) continue;
-        const person = { user_id: p.user_id, display_name: p.danz_username || "Someone" };
+        const person = { user_id: p.user_id, display_name: p.display_name || "Someone" };
         if (crewMemberIdSet.has(p.user_id)) crew.push(person);
         else if (friendIdSet.has(p.user_id)) friends.push(person);
       }
@@ -6289,6 +6289,230 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     },
   );
 
+  // ============================================================================
+  // LEADS — CRM pipeline
+  // ============================================================================
+
+  // POST /api/v1/leads — create lead
+  app.post<{
+    Body: {
+      name: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      stage?: string;
+      source?: string;
+      value?: number;
+      notes?: string;
+    };
+  }>(
+    "/api/v1/leads",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { error: "Not configured" };
+
+      const { name, email, phone, company, stage, source, value, notes } = request.body || {};
+      if (!name) return { error: "Name is required" };
+
+      const validStages = ["new", "contacted", "qualified", "proposal", "won", "lost"];
+      const leadStage = stage && validStages.includes(stage) ? stage : "new";
+
+      const lead = {
+        name,
+        email: email || null,
+        phone: phone || null,
+        company: company || null,
+        stage: leadStage,
+        source: source || null,
+        value: value ?? null,
+        notes: notes || null,
+        created_by: jwt.sub,
+        assigned_to: jwt.sub,
+      };
+
+      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(lead),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        log("leads", "error", `Create failed: ${err}`);
+        return { error: "Failed to create lead" };
+      }
+
+      const rows = await res.json();
+      const created = Array.isArray(rows) ? rows[0] : rows;
+      alertAdmins(`New lead: <b>${name}</b> by ${jwt.sub}`, "info");
+      return { lead: created };
+    },
+  );
+
+  // GET /api/v1/leads — list leads (with optional stage filter)
+  app.get<{ Querystring: { stage?: string; limit?: string } }>(
+    "/api/v1/leads",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { leads: [] };
+
+      const { stage, limit } = request.query || {};
+      let filter = `flowb_leads?created_by=eq.${encodeURIComponent(jwt.sub)}&order=updated_at.desc`;
+      if (stage) filter += `&stage=eq.${encodeURIComponent(stage)}`;
+      const lim = Math.min(parseInt(limit || "50", 10) || 50, 100);
+      filter += `&limit=${lim}`;
+
+      const leads = await sbFetch<any[]>(cfg, filter);
+      return { leads: leads || [] };
+    },
+  );
+
+  // GET /api/v1/leads/pipeline — stage-grouped counts
+  app.get(
+    "/api/v1/leads/pipeline",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { pipeline: {}, total: 0 };
+
+      const leads = await sbFetch<any[]>(
+        cfg,
+        `flowb_leads?created_by=eq.${encodeURIComponent(jwt.sub)}&select=stage`,
+      );
+
+      const pipeline: Record<string, number> = {
+        new: 0,
+        contacted: 0,
+        qualified: 0,
+        proposal: 0,
+        won: 0,
+        lost: 0,
+      };
+      let total = 0;
+      for (const l of leads || []) {
+        if (pipeline[l.stage] !== undefined) pipeline[l.stage]++;
+        total++;
+      }
+      return { pipeline, total };
+    },
+  );
+
+  // GET /api/v1/leads/:id — lead detail
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/leads/:id",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { error: "Not configured" };
+
+      const leads = await sbFetch<any[]>(
+        cfg,
+        `flowb_leads?id=eq.${encodeURIComponent(request.params.id)}&created_by=eq.${encodeURIComponent(jwt.sub)}&limit=1`,
+      );
+
+      if (!leads?.length) return { error: "Lead not found" };
+      return { lead: leads[0] };
+    },
+  );
+
+  // PATCH /api/v1/leads/:id — update lead
+  app.patch<{
+    Params: { id: string };
+    Body: {
+      name?: string;
+      email?: string;
+      phone?: string;
+      company?: string;
+      stage?: string;
+      source?: string;
+      value?: number;
+      notes?: string;
+    };
+  }>(
+    "/api/v1/leads/:id",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { error: "Not configured" };
+
+      const { id } = request.params;
+      const updates: Record<string, any> = {};
+      const body = request.body || {};
+
+      if (body.name) updates.name = body.name;
+      if (body.email !== undefined) updates.email = body.email || null;
+      if (body.phone !== undefined) updates.phone = body.phone || null;
+      if (body.company !== undefined) updates.company = body.company || null;
+      if (body.source !== undefined) updates.source = body.source || null;
+      if (body.value !== undefined) updates.value = body.value;
+      if (body.notes !== undefined) updates.notes = body.notes || null;
+
+      const validStages = ["new", "contacted", "qualified", "proposal", "won", "lost"];
+      if (body.stage && validStages.includes(body.stage)) updates.stage = body.stage;
+
+      if (Object.keys(updates).length === 0) return { error: "Nothing to update" };
+
+      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(id)}&created_by=eq.${encodeURIComponent(jwt.sub)}`;
+      const res = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        log("leads", "error", `Update failed: ${err}`);
+        return { error: "Failed to update lead" };
+      }
+
+      const rows = await res.json();
+      const lead = Array.isArray(rows) ? rows[0] : rows;
+      if (!lead) return { error: "Lead not found" };
+      return { lead };
+    },
+  );
+
+  // DELETE /api/v1/leads/:id — delete lead
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/leads/:id",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { error: "Not configured" };
+
+      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(request.params.id)}&created_by=eq.${encodeURIComponent(jwt.sub)}`;
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+        },
+      });
+
+      if (!res.ok) return { error: "Failed to delete lead" };
+      return { ok: true };
+    },
+  );
+
 } // end registerMiniAppRoutes
 
 // ============================================================================
@@ -6394,8 +6618,8 @@ function getNotifyContext(): { supabase: SbConfig } | null {
 }
 
 function getSupabaseConfig(): SbConfig | null {
-  const url = process.env.DANZ_SUPABASE_URL;
-  const key = process.env.DANZ_SUPABASE_KEY;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_KEY;
   if (!url || !key) return null;
   return { supabaseUrl: url, supabaseKey: key };
 }

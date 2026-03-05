@@ -3,8 +3,8 @@
  *
  * A privacy-centric assistant that helps users flow and bond.
  * Loads plugins for domain-specific capabilities:
- *   - danz:   Dance events, challenges, stats
  *   - egator: Aggregated multi-source event discovery
+ *   - danz:   Dance community (optional plugin)
  *   - (more plugins coming: harmonik, etc.)
  */
 
@@ -196,7 +196,7 @@ export class FlowBCore {
     });
 
     if (configuredProviders.length === 0) {
-      return "No event sources are configured. Ask your admin to set up DANZ or eGator.";
+      return "No event sources are configured.";
     }
 
     const results = await Promise.allSettled(

@@ -27,8 +27,8 @@ const TEMPLATE_MAP: Record<string, string> = {
  * Check if a phone number has an active conversation window (last msg < 24h).
  */
 async function isInConversationWindow(phone: string): Promise<boolean> {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) return false;
 
   try {
@@ -111,8 +111,8 @@ function extractTemplateParams(
 }
 
 function logTemplateSend(phone: string, templateName: string): void {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) return;
 
   fetch(`${sbUrl}/rest/v1/flowb_wa_template_log`, {

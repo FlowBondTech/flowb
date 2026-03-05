@@ -14,9 +14,9 @@ export default function register(api: any) {
 
   const config: FlowBConfig = {
     plugins: {
-      danz: rawConfig.danzSupabaseUrl ? {
-        supabaseUrl: rawConfig.danzSupabaseUrl,
-        supabaseKey: rawConfig.danzSupabaseKey,
+      danz: rawConfig.supabaseUrl ? {
+        supabaseUrl: rawConfig.supabaseUrl,
+        supabaseKey: rawConfig.supabaseKey,
       } : undefined,
       egator: process.env.LUMA_API_KEY ? {
         sources: { luma: { apiKey: process.env.LUMA_API_KEY } },
@@ -41,7 +41,7 @@ export default function register(api: any) {
         description: "User's platform",
       },
       platform_username: { type: "string", description: "Username on the platform" },
-      danz_username: { type: "string", description: "DANZ.Now username for verification" },
+      username: { type: "string", description: "Username for verification" },
       city: { type: "string", description: "City filter for events" },
       category: { type: "string", description: "Event category filter" },
       dance_style: { type: "string", description: "Dance style filter" },
@@ -52,19 +52,19 @@ export default function register(api: any) {
 
   api.registerTool({
     name: "flowb",
-    description: `FlowB - Your Flow & Bond Assistant. Privacy-centric helper for events, dance community, and more.
+    description: `FlowB - Your Flow & Bond Assistant. Privacy-centric helper for events, community, and more.
 
 EVENTS:
 - events: Discover upcoming events from all sources
 - events in [city]: Events in a specific city
 
-DANZ.NOW (dance community):
-- signup: Connect your DANZ.Now account
-- verify @username: Link existing DANZ account
-- stats: Your dance stats & achievements
+COMMUNITY:
+- signup: Connect your FlowB account
+- verify @username: Link existing account
+- stats: Your stats & achievements
 - my-events: Events you're registered for
 - challenges: Active daily & weekly challenges
-- leaderboard: Top dancers
+- leaderboard: Top participants
 
 OTHER:
 - search: Search events across all sources

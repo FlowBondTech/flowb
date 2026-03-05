@@ -13,8 +13,8 @@ import { fireAndForget } from "../utils/logger.js";
 import type { AgentResult } from "../plugins/agents/index.js";
 
 function getSupabaseConfig(): SbConfig | null {
-  const url = process.env.DANZ_SUPABASE_URL;
-  const key = process.env.DANZ_SUPABASE_KEY;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_KEY;
   if (!url || !key) return null;
   return { supabaseUrl: url, supabaseKey: key };
 }

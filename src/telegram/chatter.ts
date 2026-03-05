@@ -13,8 +13,8 @@ const FLOWB_CHAT_URL = "https://flowb.fly.dev";
 let sbCfg: SbConfig | null = null;
 
 export function initChatter(): void {
-  const url = process.env.DANZ_SUPABASE_URL;
-  const key = process.env.DANZ_SUPABASE_KEY;
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_KEY;
   if (url && key) {
     sbCfg = { supabaseUrl: url, supabaseKey: key };
     console.log("[flowb-chatter] Initialized");

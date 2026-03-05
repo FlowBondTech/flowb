@@ -1540,16 +1540,10 @@ async function processSingleCommand(lower) {
   // "what's happening tonight" → "tonight"
   // "show me free events" → "free"
   // "what are the best parties" → "browse social"
-  // "whats danz" → knowledge answer
   lower = lower
     .replace(/^(?:what'?s?|show me|find|tell me about|give me|list)\s+/i, '')
     .replace(/^(?:happening|going on)\s+/i, '')
     .trim();
-
-  // Handle "danz" / "what is danz" type questions (FlowBond ecosystem knowledge)
-  if (/^(?:danz|danz\.now|danz now)/i.test(lower)) {
-    return `**DANZ.Now** is a vibrant dance community platform within the FlowBond ecosystem. It connects dancers, offers challenges with USDC rewards on the Base network, and helps you find and register for dance events.\n\nYou can track your stats, join leaderboards, and engage with other dancers. Say "stats" to check your stats or "challenges" for active challenges.`;
-  }
 
   // Handle "flowb" / "what is flowb" questions
   if (/^(?:flowb|flow\s?b|flow\s?bond)/i.test(lower)) {

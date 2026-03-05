@@ -447,11 +447,11 @@ export class PointsPlugin implements FlowBPlugin {
     // Batch-fetch display names from sessions
     const userIds = rows.map((r: any) => r.user_id);
     const sessions = await sbQuery<any[]>(cfg, "flowb_sessions", {
-      select: "user_id,display_name,danz_username",
+      select: "user_id,display_name",
       user_id: `in.(${userIds.join(",")})`,
     });
     const nameMap = new Map(
-      (sessions || []).map((s: any) => [s.user_id, s.display_name || s.danz_username || null]),
+      (sessions || []).map((s: any) => [s.user_id, s.display_name || null]),
     );
 
     return rows.map((r: any) => {

@@ -133,9 +133,9 @@ export class AgentsPlugin implements FlowBPlugin {
     if (claimedIds.length) {
       const sessions = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=in.(${claimedIds.join(",")})&select=user_id,danz_username`,
+        `flowb_sessions?user_id=in.(${claimedIds.join(",")})&select=user_id,display_name`,
       );
-      nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.danz_username]));
+      nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name]));
     }
 
     return {

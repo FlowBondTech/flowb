@@ -38,24 +38,24 @@ async function main() {
   await test("Events (all sources)", "events");
   await test("Events in Denver", "events", { city: "Denver" });
 
-  // DANZ
-  await test("DANZ - Join Info", "join");
-  await test("DANZ - Signup", "signup", {
+  // Plugin tests
+  await test("Join Info", "join");
+  await test("Signup", "signup", {
     user_id: "telegram_12345",
     platform: "telegram",
     platform_username: "testuser",
   });
-  await test("DANZ - Status", "status", {
+  await test("Status", "status", {
     user_id: "telegram_12345",
     platform: "telegram",
   });
-  await test("DANZ - Verify (koH)", "verify", {
+  await test("Verify (koH)", "verify", {
     user_id: "test_user_123",
     danz_username: "koH",
   });
-  await test("DANZ - Stats", "stats", { user_id: "test_user_123", platform: "telegram" });
-  await test("DANZ - Challenges", "challenges", { platform: "telegram" });
-  await test("DANZ - Leaderboard", "leaderboard");
+  await test("Stats", "stats", { user_id: "test_user_123", platform: "telegram" });
+  await test("Challenges", "challenges", { platform: "telegram" });
+  await test("Leaderboard", "leaderboard");
 
   // eGator
   await test("eGator - Search", "search", { city: "San Francisco" });

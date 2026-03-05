@@ -3,9 +3,9 @@ import type { FlowBConfig, EGatorPluginConfig } from "./core/types.js";
 export function loadConfig(): FlowBConfig {
   return {
     plugins: {
-      danz: process.env.DANZ_SUPABASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      danz: process.env.SUPABASE_URL ? {
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseKey: process.env.SUPABASE_KEY!,
       } : undefined,
       egator: buildEgatorConfig(),
       neynar: process.env.NEYNAR_API_KEY ? {
@@ -16,9 +16,9 @@ export function loadConfig(): FlowBConfig {
         appId: process.env.PRIVY_APP_ID,
         appSecret: process.env.PRIVY_APP_SECRET!,
       } : undefined,
-      points: process.env.DANZ_SUPABASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      points: process.env.SUPABASE_URL ? {
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseKey: process.env.SUPABASE_KEY!,
       } : undefined,
       cdp: process.env.CDP_API_KEY_NAME ? {
         apiKeyName: process.env.CDP_API_KEY_NAME,
@@ -26,24 +26,24 @@ export function loadConfig(): FlowBConfig {
         walletSecret: process.env.CDP_WALLET_SECRET!,
         accountAddress: process.env.CDP_ACCOUNT_ADDRESS!,
       } : undefined,
-      flow: process.env.DANZ_SUPABASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      flow: process.env.SUPABASE_URL ? {
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseKey: process.env.SUPABASE_KEY!,
       } : undefined,
       social: process.env.POSTIZ_BASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL!,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+        supabaseUrl: process.env.SUPABASE_URL!,
+        supabaseKey: process.env.SUPABASE_KEY!,
         postizBaseUrl: process.env.POSTIZ_BASE_URL,
         postizMasterApiKey: process.env.POSTIZ_MASTER_API_KEY!,
         encryptionKey: process.env.SOCIAL_ENCRYPTION_KEY!,
       } : undefined,
-      meeting: process.env.DANZ_SUPABASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      meeting: process.env.SUPABASE_URL ? {
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseKey: process.env.SUPABASE_KEY!,
       } : undefined,
-      agents: process.env.DANZ_SUPABASE_URL ? {
-        supabaseUrl: process.env.DANZ_SUPABASE_URL,
-        supabaseKey: process.env.DANZ_SUPABASE_KEY!,
+      agents: process.env.SUPABASE_URL ? {
+        supabaseUrl: process.env.SUPABASE_URL,
+        supabaseKey: process.env.SUPABASE_KEY!,
       } : undefined,
     },
   };

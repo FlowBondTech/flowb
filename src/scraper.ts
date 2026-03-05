@@ -6,8 +6,8 @@
  * Includes a tiny health server on port 8080.
  *
  * Env vars:
- *   DANZ_SUPABASE_URL  - Supabase project URL (required)
- *   DANZ_SUPABASE_KEY  - Supabase anon/service key (required)
+ *   SUPABASE_URL             - Supabase project URL (required)
+ *   SUPABASE_KEY             - Supabase anon/service key (required)
  *   SCAN_INTERVAL_HOURS      - Hours between scans (default: 2)
  *   SCRAPER_CITIES           - Comma-separated city list (default: "austin")
  *   PORT                     - Health server port (default: 8080)
@@ -25,11 +25,11 @@ import type { SbConfig } from "./utils/supabase.js";
 // Configuration
 // ============================================================================
 
-const SUPABASE_URL = process.env.DANZ_SUPABASE_URL;
-const SUPABASE_KEY = process.env.DANZ_SUPABASE_KEY;
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("[scraper] DANZ_SUPABASE_URL and DANZ_SUPABASE_KEY are required");
+  console.error("[scraper] SUPABASE_URL and SUPABASE_KEY are required");
   process.exit(1);
 }
 

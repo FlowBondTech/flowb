@@ -847,8 +847,8 @@ async function handleDeepLinkJoin(
 // ============================================================================
 
 async function handleTodos(phone: string, userId: string): Promise<void> {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) {
     await wa.sendText(phone, "Todos not available.");
     return;
@@ -889,8 +889,8 @@ async function handleTodoAdd(phone: string, userId: string, title: string): Prom
     return;
   }
 
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) {
     await wa.sendText(phone, "Todos not available.");
     return;
@@ -932,8 +932,8 @@ async function handleTodoAdd(phone: string, userId: string, title: string): Prom
 // ============================================================================
 
 function trackConversation(phone: string, userId: string, profileName?: string): void {
-  const sbUrl = process.env.DANZ_SUPABASE_URL;
-  const sbKey = process.env.DANZ_SUPABASE_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
   if (!sbUrl || !sbKey) return;
 
   fireAndForget(
