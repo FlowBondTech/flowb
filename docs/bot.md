@@ -137,6 +137,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **share**: `share`
 
+**submit**: `submit`
+
 **toggle-public**: `toggle-public`
 
 **trending**: `trending`
@@ -149,4 +151,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-05 21:08:34 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-05 21:20:52 UTC*
