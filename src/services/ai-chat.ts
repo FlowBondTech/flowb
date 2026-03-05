@@ -37,15 +37,89 @@ const TOOLS = [
     function: {
       name: "search_events",
       description:
-        "Search live events from Luma by keyword, date, or venue. Use when user asks about events, parties, meetups, hackathons, or what's happening. Returns real-time data from lu.ma.",
+        "Search FlowB's event database for events, parties, meetups, hackathons, workshops, conferences. Supports city, date ranges, categories, free/paid, and keyword search. Use this for ANY question about events or what's happening.",
       parameters: {
         type: "object",
         properties: {
-          query: { type: "string", description: "Search keyword (event name, topic, etc.)" },
-          category: { type: "string", description: "Category slug: defi, nft, social, music, hackathon, workshop, networking" },
-          date: { type: "string", description: "Date in YYYY-MM-DD format" },
-          free_only: { type: "boolean", description: "Only free events" },
-          limit: { type: "number", description: "Max results (default 5)" },
+          query: { type: "string", description: "Keyword search (title, description, organizer name)" },
+          city: { type: "string", description: "City name (e.g. 'Austin', 'Denver', 'New York'). If omitted, uses user's current city." },
+          from: { type: "string", description: "Start date YYYY-MM-DD (e.g. '2026-03-02')" },
+          to: { type: "string", description: "End date YYYY-MM-DD (e.g. '2026-03-28')" },
+          date: { type: "string", description: "Single day YYYY-MM-DD (shortcut instead of from+to)" },
+          categories: { type: "string", description: "Comma-separated category slugs: defi, nft, ai, social, music, hackathon, workshop, networking, party, conference, meetup, gaming, dao, infrastructure, identity, privacy, payments, art, health, education, community" },
+          free_only: { type: "boolean", description: "Only show free events" },
+          event_type: { type: "string", description: "Event type filter: main_stage, side_event, party, workshop, hackathon, meetup, activation" },
+          limit: { type: "number", description: "Max results (default 20, max 50)" },
+          offset: { type: "number", description: "Pagination offset for 'show more' requests" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_available_cities",
+      description:
+        "Get a list of cities that have upcoming events, with event counts. Use when user asks 'what cities have events?', 'where can I find events?', or to help them pick a city.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_event_categories",
+      description:
+        "Get all event categories with counts of upcoming events. Use when user asks about types of events, what categories are available, or to help them filter.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "Optional city to get category counts for" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_event_summary",
+      description:
+        "Get a high-level summary of events for a city and date range — counts by day and by category. Use BEFORE search_events for broad queries like 'how many events this week?' or 'what's the scene like in Austin?'. Gives an overview without listing every event.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name" },
+          from: { type: "string", description: "Start date YYYY-MM-DD" },
+          to: { type: "string", description: "End date YYYY-MM-DD" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_event_details",
+      description:
+        "Get full details for a single event by ID — description, ticket link, venue, organizer, categories, attendee count. Use when user wants more info about a specific event.",
+      parameters: {
+        type: "object",
+        properties: {
+          event_id: { type: "string", description: "Event ID" },
+        },
+        required: ["event_id"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_trending_events",
+      description:
+        "Get the most popular upcoming events by RSVP count and shares. Use when user asks 'what's popular?', 'what's trending?', 'what should I go to?', or wants recommendations.",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name (optional)" },
+          limit: { type: "number", description: "Max results (default 10)" },
         },
       },
     },
@@ -203,71 +277,346 @@ const TOOLS = [
 
 // ─── Tool executors ──────────────────────────────────────────────────
 
-async function searchEvents(args: any, _cfg: SbConfig): Promise<string> {
-  const limit = Math.min(args.limit || 8, 15);
+async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promise<string> {
+  const limit = Math.min(args.limit || 20, 50);
+  const offset = args.offset || 0;
 
-  // Query Luma discover API directly for fresh Denver events
   try {
-    const params = new URLSearchParams();
-    params.set("geo_latitude", "39.7392");
-    params.set("geo_longitude", "-104.9903");
-    params.set("pagination_limit", String(limit));
+    // Build PostgREST query against local flowb_events table
+    let query = `flowb_events?hidden=eq.false&order=starts_at.asc&limit=${limit}&offset=${offset}`;
 
-    const res = await fetch(`https://api.lu.ma/discover/get-paginated-events?${params}`);
-    if (!res.ok) return "Couldn't reach Luma right now. Try again in a moment.";
+    // City filter — use arg, fall back to user's city
+    const city = args.city || userCity;
+    if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
 
-    const data = await res.json();
-    const entries = data.entries || [];
-    if (!entries.length) return "No events found on Luma right now.";
-
-    // Filter by query/date/free if specified
-    let filtered = entries.map((entry: any) => {
-      const e = entry.event || entry;
-      const geo = e.geo_address_info || {};
-      const cal = entry.calendar || {};
-      return {
-        title: e.name || "Untitled",
-        startTime: e.start_at,
-        endTime: e.end_at,
-        venue: geo.short_address || geo.address || geo.city_state || "TBD",
-        city: geo.city || "Denver",
-        isFree: e.location_type !== "offline" ? undefined : true,
-        url: e.url ? `https://lu.ma/${e.url}` : "",
-        organizer: cal.name || "",
-        rsvpCount: entry.guest_count || 0,
-        id: e.api_id || e.id,
-      };
-    });
-
-    if (args.query) {
-      const q = args.query.toLowerCase();
-      filtered = filtered.filter((e: any) =>
-        e.title.toLowerCase().includes(q) ||
-        e.organizer.toLowerCase().includes(q) ||
-        e.venue.toLowerCase().includes(q),
-      );
-    }
+    // Date filters
     if (args.date) {
-      filtered = filtered.filter((e: any) => e.startTime?.startsWith(args.date));
-    }
-    if (args.free_only) {
-      filtered = filtered.filter((e: any) => e.isFree);
+      query += `&starts_at=gte.${args.date}T00:00:00&starts_at=lte.${args.date}T23:59:59`;
+    } else {
+      if (args.from) {
+        query += `&starts_at=gte.${encodeURIComponent(args.from)}T00:00:00`;
+      } else {
+        // Default: today and future only
+        query += `&starts_at=gte.${new Date().toISOString().slice(0, 10)}T00:00:00`;
+      }
+      if (args.to) {
+        query += `&starts_at=lte.${encodeURIComponent(args.to)}T23:59:59`;
+      }
     }
 
-    if (!filtered.length) return "No events matching that search on Luma.";
+    // Type filter
+    if (args.event_type) query += `&event_type=eq.${encodeURIComponent(args.event_type)}`;
 
-    return filtered
-      .slice(0, limit)
-      .map((e: any) => {
-        const t = fmtTime(e.startTime);
-        const org = e.organizer ? ` by ${e.organizer}` : "";
-        const rsvp = e.rsvpCount ? ` (${e.rsvpCount} going)` : "";
-        return `- **${e.title}**${org} | ${t} | ${e.venue}${rsvp}\n  ${e.url}`;
-      })
-      .join("\n");
+    // Free filter
+    if (args.free_only) query += `&is_free=eq.true`;
+
+    // Keyword search
+    if (args.query) {
+      const q = encodeURIComponent(args.query);
+      query += `&or=(title.ilike.*${q}*,description.ilike.*${q}*,organizer_name.ilike.*${q}*)`;
+    }
+
+    let events = await sbFetch<any[]>(cfg, query) || [];
+
+    // Category filter (post-query via join table)
+    if (args.categories) {
+      const catSlugs = args.categories.split(",").map((c: string) => c.trim().toLowerCase()).filter(Boolean);
+      if (catSlugs.length) {
+        const catRows = await sbFetch<any[]>(cfg, `flowb_event_categories?slug=in.(${catSlugs.join(",")})&select=id`);
+        if (catRows?.length) {
+          const catIds = catRows.map((c: any) => c.id);
+          const mappings = await sbFetch<any[]>(cfg, `flowb_event_category_map?category_id=in.(${catIds.join(",")})&select=event_id`);
+          if (mappings?.length) {
+            const eventIds = new Set(mappings.map((m: any) => m.event_id));
+            events = events.filter((e: any) => eventIds.has(e.id));
+          } else {
+            events = [];
+          }
+        }
+      }
+    }
+
+    if (!events.length) {
+      const hints: string[] = [];
+      if (city) hints.push(`city "${city}"`);
+      if (args.categories) hints.push(`categories "${args.categories}"`);
+      if (args.from && args.to) hints.push(`${args.from} to ${args.to}`);
+      return `No events found${hints.length ? ` for ${hints.join(", ")}` : ""}. Try broadening your search (wider dates, different city, or fewer filters).`;
+    }
+
+    // Group events by day for readability
+    const dayMap = new Map<string, any[]>();
+    for (const e of events) {
+      const day = e.starts_at ? new Date(e.starts_at).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/Denver" }) : "TBD";
+      if (!dayMap.has(day)) dayMap.set(day, []);
+      dayMap.get(day)!.push(e);
+    }
+
+    // Count header
+    let out = `Found ${events.length} event${events.length !== 1 ? "s" : ""}`;
+    if (city) out += ` in ${city}`;
+    if (args.from && args.to) out += ` (${args.from} to ${args.to})`;
+    if (offset > 0) out += ` (page ${Math.floor(offset / limit) + 1})`;
+    out += ":\n\n";
+
+    for (const [day, dayEvents] of dayMap) {
+      out += `**${day}**\n`;
+      for (const e of dayEvents) {
+        const time = e.starts_at ? new Date(e.starts_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" }) : "";
+        const venue = e.venue_name || "TBD";
+        const org = e.organizer_name ? ` by ${e.organizer_name}` : "";
+        const free = e.is_free ? " (FREE)" : e.price ? ` ($${e.price})` : "";
+        const rsvp = e.rsvp_count ? ` (${e.rsvp_count} going)` : "";
+        const url = e.ticket_url || (e.source === "luma" && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : "");
+        out += `- **${e.title}**${org} | ${time} | ${venue}${free}${rsvp} [id:${e.id}]\n`;
+        if (url) out += `  ${url}\n`;
+      }
+      out += "\n";
+    }
+
+    if (events.length >= limit) {
+      out += `_Showing ${limit} results. Ask "show more" for the next page._`;
+    }
+
+    return out;
   } catch (err: any) {
-    console.error("[ai-chat] Luma search error:", err.message);
+    console.error("[ai-chat] search_events error:", err.message);
     return "Couldn't search events right now. Try again in a moment.";
+  }
+}
+
+async function getAvailableCities(cfg: SbConfig): Promise<string> {
+  try {
+    const now = new Date().toISOString().slice(0, 10);
+    const rows = await sbFetch<any[]>(cfg, `flowb_events?hidden=eq.false&starts_at=gte.${now}T00:00:00&select=city`);
+    if (!rows?.length) return "No upcoming events found in any city.";
+
+    // Normalize city names (case-insensitive grouping, keep most common casing)
+    const rawCounts = new Map<string, { display: string; count: number }>();
+    for (const r of rows) {
+      const c = (r.city || "Unknown").trim();
+      const key = c.toLowerCase();
+      const existing = rawCounts.get(key);
+      if (existing) {
+        existing.count++;
+        // Keep the capitalized version as display name
+        if (c[0] === c[0].toUpperCase() && existing.display[0] !== existing.display[0].toUpperCase()) {
+          existing.display = c;
+        }
+      } else {
+        rawCounts.set(key, { display: c, count: 1 });
+      }
+    }
+    const counts = new Map<string, number>();
+    for (const [, v] of rawCounts) {
+      counts.set(v.display, v.count);
+    }
+
+    const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    let out = `**Cities with upcoming events** (${sorted.length} cities):\n`;
+    for (const [city, count] of sorted.slice(0, 20)) {
+      out += `- **${city}**: ${count} event${count !== 1 ? "s" : ""}\n`;
+    }
+    if (sorted.length > 20) out += `_...and ${sorted.length - 20} more cities_\n`;
+    return out;
+  } catch (err: any) {
+    console.error("[ai-chat] get_available_cities error:", err.message);
+    return "Couldn't fetch cities right now.";
+  }
+}
+
+async function getEventCategories(args: any, cfg: SbConfig): Promise<string> {
+  try {
+    const cats = await sbFetch<any[]>(cfg, `flowb_event_categories?select=id,slug,name,icon&order=name.asc`);
+    if (!cats?.length) return "No categories found.";
+
+    // Get counts of upcoming events per category
+    const now = new Date().toISOString().slice(0, 10);
+    let eventQuery = `flowb_events?hidden=eq.false&starts_at=gte.${now}T00:00:00&select=id`;
+    if (args.city) eventQuery += `&city=ilike.*${encodeURIComponent(args.city)}*`;
+    const events = await sbFetch<any[]>(cfg, eventQuery) || [];
+    const eventIds = new Set(events.map((e: any) => e.id));
+
+    const mappings = await sbFetch<any[]>(cfg, `flowb_event_category_map?select=event_id,category_id`) || [];
+    const catCounts = new Map<string, number>();
+    for (const m of mappings) {
+      if (eventIds.has(m.event_id)) {
+        catCounts.set(m.category_id, (catCounts.get(m.category_id) || 0) + 1);
+      }
+    }
+
+    let out = `**Event categories**${args.city ? ` in ${args.city}` : ""}:\n`;
+    const sorted = cats.sort((a: any, b: any) => (catCounts.get(b.id) || 0) - (catCounts.get(a.id) || 0));
+    for (const cat of sorted) {
+      const count = catCounts.get(cat.id) || 0;
+      if (count > 0) out += `- ${cat.icon || ""} **${cat.name}** (\`${cat.slug}\`): ${count} events\n`;
+    }
+    const zeroCats = sorted.filter((c: any) => !catCounts.get(c.id));
+    if (zeroCats.length) {
+      out += `\n_Categories with no upcoming events: ${zeroCats.map((c: any) => c.slug).join(", ")}_`;
+    }
+    return out;
+  } catch (err: any) {
+    console.error("[ai-chat] get_event_categories error:", err.message);
+    return "Couldn't fetch categories right now.";
+  }
+}
+
+async function getEventSummary(args: any, cfg: SbConfig, userCity?: string): Promise<string> {
+  try {
+    const city = args.city || userCity;
+    const now = new Date().toISOString().slice(0, 10);
+    const from = args.from || now;
+    const to = args.to || new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10);
+
+    let query = `flowb_events?hidden=eq.false&starts_at=gte.${from}T00:00:00&starts_at=lte.${to}T23:59:59&select=id,starts_at,is_free,event_type,city`;
+    if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
+
+    const events = await sbFetch<any[]>(cfg, query) || [];
+    if (!events.length) return `No events found${city ? ` in ${city}` : ""} from ${from} to ${to}.`;
+
+    // Count by day
+    const dayMap = new Map<string, number>();
+    const typeMap = new Map<string, number>();
+    let freeCount = 0;
+    for (const e of events) {
+      const day = e.starts_at ? e.starts_at.slice(0, 10) : "unknown";
+      dayMap.set(day, (dayMap.get(day) || 0) + 1);
+      if (e.event_type) typeMap.set(e.event_type, (typeMap.get(e.event_type) || 0) + 1);
+      if (e.is_free) freeCount++;
+    }
+
+    // Count by category
+    const eventIds = events.map((e: any) => e.id);
+    const batchSize = 200;
+    const catCounts = new Map<string, number>();
+    for (let i = 0; i < eventIds.length; i += batchSize) {
+      const batch = eventIds.slice(i, i + batchSize);
+      const mappings = await sbFetch<any[]>(cfg, `flowb_event_category_map?event_id=in.(${batch.join(",")})&select=category_id`);
+      for (const m of mappings || []) {
+        catCounts.set(m.category_id, (catCounts.get(m.category_id) || 0) + 1);
+      }
+    }
+
+    // Resolve category names
+    const catIds = [...catCounts.keys()];
+    let catNames = new Map<string, string>();
+    if (catIds.length) {
+      const cats = await sbFetch<any[]>(cfg, `flowb_event_categories?id=in.(${catIds.join(",")})&select=id,name`);
+      catNames = new Map((cats || []).map((c: any) => [c.id, c.name]));
+    }
+
+    let out = `**Event Summary${city ? ` — ${city}` : ""}** (${from} to ${to})\n`;
+    out += `Total: **${events.length}** events (${freeCount} free)\n\n`;
+
+    out += `**By Day:**\n`;
+    const sortedDays = [...dayMap.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+    for (const [day, count] of sortedDays) {
+      const dayLabel = new Date(day + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+      out += `- ${dayLabel}: ${count} event${count !== 1 ? "s" : ""}\n`;
+    }
+
+    if (catCounts.size) {
+      out += `\n**By Category:**\n`;
+      const sortedCats = [...catCounts.entries()].sort((a, b) => b[1] - a[1]);
+      for (const [catId, count] of sortedCats.slice(0, 10)) {
+        out += `- ${catNames.get(catId) || catId}: ${count}\n`;
+      }
+    }
+
+    if (typeMap.size) {
+      out += `\n**By Type:**\n`;
+      for (const [type, count] of [...typeMap.entries()].sort((a, b) => b[1] - a[1])) {
+        out += `- ${type.replace(/_/g, " ")}: ${count}\n`;
+      }
+    }
+
+    out += `\n_Use search_events for detailed listings._`;
+    return out;
+  } catch (err: any) {
+    console.error("[ai-chat] get_event_summary error:", err.message);
+    return "Couldn't generate summary right now.";
+  }
+}
+
+async function getEventDetails(args: any, cfg: SbConfig): Promise<string> {
+  if (!args.event_id) return "Which event? Provide an event ID.";
+
+  try {
+    const events = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${args.event_id}&limit=1`);
+    if (!events?.length) return `Event not found (${args.event_id}).`;
+
+    const e = events[0];
+
+    // Get categories
+    const mappings = await sbFetch<any[]>(cfg, `flowb_event_category_map?event_id=eq.${e.id}&select=category_id`);
+    let categories: string[] = [];
+    if (mappings?.length) {
+      const catIds = mappings.map((m: any) => m.category_id);
+      const cats = await sbFetch<any[]>(cfg, `flowb_event_categories?id=in.(${catIds.join(",")})&select=name`);
+      categories = (cats || []).map((c: any) => c.name);
+    }
+
+    // Get RSVP count
+    const attendance = await sbFetch<any[]>(cfg, `flowb_event_attendance?event_id=eq.${e.id}&select=status`);
+    const goingCount = (attendance || []).filter((a: any) => a.status === "going").length;
+    const maybeCount = (attendance || []).filter((a: any) => a.status === "maybe").length;
+
+    let out = `**${e.title}**\n`;
+    if (e.organizer_name) out += `by ${e.organizer_name}\n`;
+    out += "\n";
+    out += `**When:** ${fmtTime(e.starts_at)}`;
+    if (e.ends_at) out += ` — ${fmtTime(e.ends_at)}`;
+    out += "\n";
+    out += `**Where:** ${e.venue_name || "TBD"}${e.city ? `, ${e.city}` : ""}\n`;
+    if (e.is_free) out += `**Price:** FREE\n`;
+    else if (e.price) out += `**Price:** $${e.price} ${e.price_currency || "USD"}\n`;
+    if (categories.length) out += `**Categories:** ${categories.join(", ")}\n`;
+    if (e.event_type) out += `**Type:** ${e.event_type.replace(/_/g, " ")}\n`;
+    out += `**RSVPs:** ${goingCount} going, ${maybeCount} maybe\n`;
+    if (e.description) {
+      const desc = e.description.length > 500 ? e.description.slice(0, 500) + "..." : e.description;
+      out += `\n${desc}\n`;
+    }
+    if (e.ticket_url) out += `\n**Tickets:** ${e.ticket_url}`;
+    else if (e.source === "luma" && e.source_event_id) out += `\n**Link:** https://lu.ma/${e.source_event_id}`;
+
+    out += `\n\n[id:${e.id}]`;
+    return out;
+  } catch (err: any) {
+    console.error("[ai-chat] get_event_details error:", err.message);
+    return "Couldn't fetch event details right now.";
+  }
+}
+
+async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): Promise<string> {
+  const limit = Math.min(args.limit || 10, 20);
+  const city = args.city || userCity;
+
+  try {
+    const now = new Date().toISOString().slice(0, 10);
+    let query = `flowb_events?hidden=eq.false&starts_at=gte.${now}T00:00:00&order=rsvp_count.desc.nullslast,share_count.desc.nullslast&limit=${limit}`;
+    if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
+
+    const events = await sbFetch<any[]>(cfg, query) || [];
+    if (!events.length) return `No trending events found${city ? ` in ${city}` : ""}.`;
+
+    let out = `**Trending Events${city ? ` in ${city}` : ""}** (by popularity):\n\n`;
+    for (const e of events) {
+      const time = fmtTime(e.starts_at);
+      const venue = e.venue_name || "TBD";
+      const rsvp = e.rsvp_count ? `${e.rsvp_count} going` : "";
+      const shares = e.share_count ? `${e.share_count} shares` : "";
+      const stats = [rsvp, shares].filter(Boolean).join(", ");
+      const free = e.is_free ? " (FREE)" : "";
+      out += `- **${e.title}** | ${time} | ${venue}${free}\n`;
+      if (stats) out += `  ${stats}\n`;
+      out += `  [id:${e.id}]\n`;
+    }
+    return out;
+  } catch (err: any) {
+    console.error("[ai-chat] get_trending_events error:", err.message);
+    return "Couldn't fetch trending events right now.";
   }
 }
 
@@ -703,8 +1052,9 @@ function fmtTime(iso: string): string {
 
 // ─── System prompt ───────────────────────────────────────────────────
 
-function buildSystemPrompt(user: UserContext): string {
-  const now = new Date().toLocaleString("en-US", {
+function buildSystemPrompt(user: UserContext, userCity?: string): string {
+  const now = new Date();
+  const nowStr = now.toLocaleString("en-US", {
     timeZone: "America/Denver",
     weekday: "long",
     year: "numeric",
@@ -713,30 +1063,71 @@ function buildSystemPrompt(user: UserContext): string {
     hour: "numeric",
     minute: "2-digit",
   });
+  const today = now.toISOString().slice(0, 10);
 
-  return `You are FlowB, a crew coordinator and event discovery AI.
+  // Compute "this weekend" and "next week" for date reasoning
+  const dayOfWeek = now.getDay(); // 0=Sun, 6=Sat
+  const daysToSat = (6 - dayOfWeek + 7) % 7 || 7;
+  const saturday = new Date(now.getTime() + daysToSat * 86400_000);
+  const sunday = new Date(saturday.getTime() + 86400_000);
+  const nextMonday = new Date(sunday.getTime() + 86400_000);
+  const nextSunday = new Date(nextMonday.getTime() + 6 * 86400_000);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
-You help people find events, locate friends & crew, manage crews, RSVP, share locations, and check points.
+  return `You are FlowB, an event discovery and social AI assistant.
 
-BEHAVIOR:
-- Be brief and friendly. One concise message, no walls of text.
-- ALWAYS use tools to get real data — never fabricate events or locations.
-- When someone asks "what's happening?", "where is everyone?", "what's popping?", "any action?", or wants a vibe check, call get_activity_feed.
+You help people find events anywhere, locate friends & crew, manage crews, RSVP, share locations, and check points. You have access to a database of events across multiple cities from sources including Luma, EventBrite, Meetup, and community submissions.
+
+EVENT SEARCH STRATEGY:
+- For broad queries ("what's happening in Austin this month?"), call get_event_summary FIRST for an overview, then search_events for details.
+- For specific queries ("AI workshops tomorrow"), call search_events directly with filters.
+- For "what's popular?" or recommendations, call get_trending_events.
+- For "what cities have events?", call get_available_cities.
+- For "what types of events?", call get_event_categories.
+- For details on a specific event, call get_event_details with the event ID.
+- You can chain multiple tools: summary → search → details. Use multiple tool calls when needed.
+
+CITY HANDLING:
+- If the user specifies a city, use it.
+- If no city is specified, ${userCity ? `use their current city: "${userCity}".` : "ask which city they're interested in."}
+- For "near me" or "around here", ${userCity ? `use "${userCity}".` : "ask for their city."}
+
+DATE REASONING:
+- Today is ${today} (${nowStr.split(",")[0]}).
+- "Today" = ${today}
+- "Tomorrow" = ${fmt(new Date(now.getTime() + 86400_000))}
+- "This weekend" = ${fmt(saturday)} to ${fmt(sunday)}
+- "Next week" = ${fmt(nextMonday)} to ${fmt(nextSunday)}
+- "This week" = ${today} to ${fmt(sunday)}
+- Convert relative dates to YYYY-MM-DD format for tool calls.
+- For "March 2nd to March 28th", use from="${today.slice(0, 5)}03-02" and to="${today.slice(0, 5)}03-28".
+
+CATEGORIES:
+Available category slugs for filtering: defi, nft, ai, social, music, hackathon, workshop, networking, party, conference, meetup, gaming, dao, infrastructure, identity, privacy, payments, art, health, education, community
+
+GENERAL BEHAVIOR:
+- Be friendly and helpful. Keep responses concise but informative.
+- ALWAYS use tools to get real data — never fabricate events, locations, or people.
+- When listing events, include event IDs so users can RSVP or get details.
+- After actions (RSVP, check-in), mention points earned.
+- When someone asks "what's happening?", "where is everyone?", or wants a vibe check, call get_activity_feed.
 - When someone asks about their crews, call get_my_crews.
-- When someone asks "where is [name]?" or just "[name]?", call find_person.
+- When someone asks "where is [name]?", call find_person.
 - When someone says "I'm at [place]", call update_my_location.
 - When someone mentions a 4-char code, call lookup_location_code.
-- When listing events, include the event ID so users can RSVP.
-- After actions (RSVP, check-in), mention points earned.
+- If results are empty, suggest broadening the search (different city, wider dates, fewer filters).
 - If you can't find something, suggest checking flowb.me.
 
 FORMAT:
-- Use **bold** for emphasis and event names.
-- Use bullet lists with "- " for event listings.
+- Use **bold** for event names and section headers.
+- Use bullet lists for event listings.
+- Group events by day when showing multi-day results.
+- Include time, venue, and price info.
 - Keep responses scannable with clear sections.
 
-Current time: ${now} MST
-${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}`;
+Current time: ${nowStr} MST
+${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}
+${userCity ? `User's city: ${userCity}` : ""}`;
 }
 
 // ─── Main chat handler ───────────────────────────────────────────────
@@ -749,17 +1140,31 @@ export async function handleChat(
 ): Promise<{ role: string; content: string }> {
   const { sb, xaiKey, user, model } = config;
 
+  // Fetch user's current city for context-aware search
+  let userCity: string | undefined;
+  if (user.userId) {
+    try {
+      const sessions = await sbFetch<any[]>(
+        sb,
+        `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`,
+      );
+      const session = sessions?.[0];
+      userCity = session?.current_city || session?.destination_city || undefined;
+    } catch { /* non-critical */ }
+  }
+
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
   const chatMessages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(user) },
+    { role: "system", content: buildSystemPrompt(user, userCity) },
     ...userMessages,
   ];
 
-  // Limit tools for unauthenticated users
+  // Limit tools for unauthenticated users — public tools include event search + discovery
+  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed"];
   const tools = user.userId
     ? TOOLS
-    : TOOLS.filter((t) => ["search_events", "lookup_location_code", "get_activity_feed"].includes(t.function.name));
+    : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -773,7 +1178,7 @@ export async function handleChat(
         messages: chatMessages,
         tools,
         tool_choice: "auto",
-        max_tokens: 1024,
+        max_tokens: 2048,
         temperature: 0.7,
       }),
     });
@@ -809,7 +1214,22 @@ export async function handleChat(
       try {
         switch (fn) {
           case "search_events":
-            result = await searchEvents(args, sb);
+            result = await searchEvents(args, sb, userCity);
+            break;
+          case "get_available_cities":
+            result = await getAvailableCities(sb);
+            break;
+          case "get_event_categories":
+            result = await getEventCategories(args, sb);
+            break;
+          case "get_event_summary":
+            result = await getEventSummary(args, sb, userCity);
+            break;
+          case "get_event_details":
+            result = await getEventDetails(args, sb);
+            break;
+          case "get_trending_events":
+            result = await getTrendingEvents(args, sb, userCity);
             break;
           case "get_my_schedule":
             result = await getMySchedule(user, sb);
