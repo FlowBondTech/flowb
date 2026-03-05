@@ -3667,7 +3667,13 @@ export function startTelegramBot(
       fireAndForget(core.awardPoints(userId(tgId), "telegram", "message_sent"), "award points");
     }
 
-    const text = ctx.message.text.trim();
+    // Strip leading bot mention so natural text triggers work in group chats
+    // e.g. "@FlowB_bot leaderboard" → "leaderboard", "flowb leaderboard" → "leaderboard"
+    const rawText = ctx.message.text.trim();
+    const text = rawText
+      .replace(new RegExp(`^@?${botUsername}[,:]?\\s*`, "i"), "")
+      .replace(/^flowb[,:]?\s*/i, "")
+      .trim() || rawText;
     const lower = text.toLowerCase();
 
     // ---- Event URL detection (Luma) ----

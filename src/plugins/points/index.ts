@@ -457,9 +457,10 @@ export class PointsPlugin implements FlowBPlugin {
     return rows.map((r: any) => {
       const level = r.milestone_level || 1;
       const milestone = MILESTONES.find((m) => m.level === level) || MILESTONES[0];
-      const rawName = nameMap.get(r.user_id) || r.user_id;
-      // Anonymize: show first 3 chars + "..."
-      const displayName = rawName.length > 6 ? rawName.slice(0, 3) + "..." : rawName;
+      const resolvedName = nameMap.get(r.user_id);
+      // Show full display name if available; anonymize raw user_id fallback
+      const displayName = resolvedName
+        || (r.user_id.replace(/^(telegram|farcaster|web)_/, "").slice(0, 6) + "...");
       return {
         userId: r.user_id,
         displayName,
