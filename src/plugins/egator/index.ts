@@ -28,6 +28,8 @@ import { GooglePlacesAdapter } from "./sources/google-places.js";
 import { EventbriteScraperAdapter } from "./sources/eventbrite-scraper.js";
 import { MeetupScraperAdapter } from "./sources/meetup-scraper.js";
 import { SxswScraperAdapter } from "./sources/sxsw-scraper.js";
+import { SupadataAdapter } from "./sources/supadata.js";
+import type { TranscriptResult } from "./sources/supadata.js";
 import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
@@ -43,15 +45,18 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     "event-guests": { description: "See who's going to an event" },
     "event-rsvp": { description: "RSVP to a Luma event" },
     "event-link": { description: "Look up event details from a URL" },
+    transcribe: { description: "Transcribe a social media video (YouTube, TikTok, Instagram, X, Facebook)" },
   };
 
   private config: EGatorPluginConfig | null = null;
   private luma: LumaAdapter | null = null;
+  private supadata: SupadataAdapter | null = null;
   private adapters: EventSourceAdapter[] = [];
 
   configure(config: EGatorPluginConfig) {
     this.config = config;
     this.luma = null;
+    this.supadata = null;
     this.adapters = [];
 
     const src = config.sources;
@@ -89,6 +94,10 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     if (src.googlePlaces?.apiKey) {
       this.adapters.push(new GooglePlacesAdapter(src.googlePlaces.apiKey));
       console.log("[egator] Source: Google Places");
+    }
+    if (src.supadata?.apiKey) {
+      this.supadata = new SupadataAdapter(src.supadata.apiKey);
+      console.log("[egator] Source: Supadata (transcription)");
     }
 
     console.log(`[egator] ${this.adapters.length} source(s) configured`);
@@ -139,7 +148,12 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   }
 
   isConfigured(): boolean {
-    return this.adapters.length > 0;
+    return this.adapters.length > 0 || this.supadata !== null;
+  }
+
+  /** Expose SupadataAdapter for direct use by routes/services */
+  getSupadataAdapter(): SupadataAdapter | null {
+    return this.supadata;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
@@ -158,6 +172,8 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
         return this.eventRsvp(input);
       case "event-link":
         return this.eventLink(input);
+      case "transcribe":
+        return this.transcribeVideo(input);
       default:
         return `Unknown action: ${action}`;
     }
@@ -210,7 +226,7 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   private async searchEvents(input: ToolInput): Promise<string> {
     const events = await this.getEvents({
-      city: input.city || "Denver",
+      city: input.city || "Austin",
       category: input.category,
       limit: 20,
     });
@@ -299,6 +315,42 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
     return JSON.stringify({ error: "Could not find this event" });
   }
+
+  private async transcribeVideo(input: ToolInput): Promise<string> {
+    const url = input.video_url || input.url;
+    if (!url) return JSON.stringify({ error: "No video URL provided" });
+    if (!this.supadata) return JSON.stringify({ error: "Supadata not configured. Set SUPADATA_API_KEY." });
+
+    if (!SupadataAdapter.isSupportedUrl(url)) {
+      return JSON.stringify({
+        error: "Unsupported URL",
+        message: "Supported platforms: YouTube, TikTok, Instagram, X/Twitter, Facebook",
+      });
+    }
+
+    try {
+      const platform = SupadataAdapter.detectPlatform(url);
+      console.log(`[egator:supadata] Transcribing ${platform} video: ${url}`);
+
+      const result = await this.supadata.transcribe(url, {
+        lang: input.transcript_lang,
+        mode: input.transcript_mode || "auto",
+        text: true,
+      });
+
+      return JSON.stringify({
+        platform,
+        url: result.sourceUrl,
+        lang: result.lang,
+        availableLangs: result.availableLangs,
+        transcript: result.content,
+        async: result.async,
+      });
+    } catch (err: any) {
+      console.error("[egator:supadata] Transcribe error:", err.message);
+      return JSON.stringify({ error: `Transcription failed: ${err.message}` });
+    }
+  }
 }
 
 // ============================================================================
@@ -347,5 +399,7 @@ export function formatEventList(events: EventResult[], title: string): string {
   return lines.join("\n");
 }
 
-// Re-export Luma types for use by bot
+// Re-export types for use by bot/routes
 export type { LumaEventDetail, LumaTicketType, LumaGuest };
+export type { TranscriptResult };
+export { SupadataAdapter };
