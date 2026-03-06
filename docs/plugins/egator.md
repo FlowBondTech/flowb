@@ -29,6 +29,7 @@ title: "eGator Events Plugin"
 | Luma | `src/plugins/egator/sources/luma.ts` |
 | Meetup (scraper) | `src/plugins/egator/sources/meetup-scraper.ts` |
 | parse-utils | `src/plugins/egator/sources/parse-utils.ts` |
+| Partiful | `src/plugins/egator/sources/partiful.ts` |
 | Resident Advisor | `src/plugins/egator/sources/ra.ts` |
 | SerpAPI | `src/plugins/egator/sources/serpapi.ts` |
 | Sheeets | `src/plugins/egator/sources/sheeets.ts` |
@@ -38,4 +39,4 @@ title: "eGator Events Plugin"
 
 ---
 
-*Auto-generated on 2026-03-06 20:51:28 UTC*
+*Auto-generated on 2026-03-06 20:53:07 UTC*
