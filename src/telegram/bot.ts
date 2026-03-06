@@ -173,6 +173,31 @@ interface OnboardingState {
 
 const onboardingStates = new Map<number, OnboardingState>();
 
+// ============================================================================
+// Event Reaction Tracking (in-memory, tracks messages bot flagged with 🎉)
+// ============================================================================
+
+interface EventReactedMessage {
+  chatId: number;
+  messageId: number;
+  senderId: number;
+  senderName: string;
+  eventTitle: string | null;
+  eventUrl: string | null;
+  eventDate: string | null;
+  eventVenue: string | null;
+  rawText: string;
+  createdAt: number;
+  dmSentTo: Set<number>; // track who already got the DM
+}
+
+const EVENT_REACT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const eventReactedMessages = new Map<string, EventReactedMessage>();
+
+function eventReactKey(chatId: number, messageId: number): string {
+  return `${chatId}:${messageId}`;
+}
+
 // Supabase client for persistent session storage (survives restarts)
 const supabase: SupabaseClient | null =
   process.env.SUPABASE_URL && process.env.SUPABASE_KEY
@@ -315,6 +340,9 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingBugReport: partial.awaitingBugReport ?? existing?.awaitingBugReport,
     awaitingEventStep: partial.awaitingEventStep ?? existing?.awaitingEventStep,
     pendingEvent: partial.pendingEvent ?? existing?.pendingEvent,
+    awaitingLeadName: partial.awaitingLeadName ?? existing?.awaitingLeadName,
+    awaitingLeadDetails: partial.awaitingLeadDetails ?? existing?.awaitingLeadDetails,
+    leadCache: partial.leadCache ?? existing?.leadCache,
   };
   sessions.set(userId, session);
 
@@ -956,6 +984,8 @@ export function startTelegramBot(
   });
 
   bot.command("menu", async (ctx) => {
+    const tgId = ctx.from!.id;
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "menu_opened"), "award points");
     await ctx.reply(formatMenuHtml(), {
       parse_mode: "HTML",
       reply_markup: buildCompactMenuKeyboard(miniAppUrl || undefined),
@@ -963,6 +993,8 @@ export function startTelegramBot(
   });
 
   bot.command("app", async (ctx) => {
+    const tgId = ctx.from!.id;
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "app_opened"), "award points");
     if (!miniAppUrl) {
       await ctx.reply("Mini app not configured yet. Try /menu for inline options.");
       return;
@@ -1009,6 +1041,8 @@ export function startTelegramBot(
   });
 
   bot.command("mylist", async (ctx) => {
+    const tgId = ctx.from!.id;
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "mylist_viewed"), "award points");
     await sendCoreAction(ctx, core, "my-list");
   });
 
@@ -1101,6 +1135,7 @@ export function startTelegramBot(
       platform: "telegram",
       wallet_address: address,
     });
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "wallet_linked"), "award points");
     await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
   });
 
@@ -1123,6 +1158,7 @@ export function startTelegramBot(
     });
     const hasWallet = !historyResult.includes("link a wallet") && !historyResult.includes("signup");
 
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "rewards_viewed"), "award points");
     await ctx.reply(formatRewardsHtml(hasWallet), {
       parse_mode: "HTML",
       reply_markup: buildRewardsKeyboard(hasWallet),
@@ -1150,6 +1186,7 @@ export function startTelegramBot(
       return;
     }
 
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_viewed"), "award points");
     await ctx.reply(formatFlowMenuHtml(), {
       parse_mode: "HTML",
       reply_markup: buildFlowMenuKeyboard(botUsername),
@@ -1327,6 +1364,7 @@ export function startTelegramBot(
   bot.command("whosgoing", async (ctx) => {
     const tgId = ctx.from!.id;
     await ensureVerified(tgId);
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "schedule_viewed"), "award points");
 
     const result = await core.execute("whos-going", {
       action: "whos-going",
@@ -1342,6 +1380,7 @@ export function startTelegramBot(
   bot.command("schedule", async (ctx) => {
     const tgId = ctx.from!.id;
     await ensureVerified(tgId);
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "schedule_viewed"), "award points");
 
     const result = await core.execute("my-schedule", {
       action: "my-schedule",
@@ -1358,6 +1397,7 @@ export function startTelegramBot(
   bot.command("wheremycrew", async (ctx) => {
     const tgId = ctx.from!.id;
     const uid = userId(tgId);
+    fireAndForget(core.awardPoints(uid, "telegram", "wheremycrew_used"), "award points");
     const sbUrl = process.env.SUPABASE_URL;
     const sbKey = process.env.SUPABASE_KEY;
     if (!sbUrl || !sbKey) { await ctx.reply("Not configured"); return; }
@@ -1721,7 +1761,290 @@ export function startTelegramBot(
     await ctx.reply(result);
   });
 
+  // ==========================================================================
+  // Lead / CRM Commands
+  // ==========================================================================
+
+  // Helper: fetch leads from Supabase for this TG user
+  async function fetchLeads(tgId: number, stage?: string): Promise<LeadData[]> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return [];
+    let filter = `flowb_leads?created_by=eq.${encodeURIComponent(userId(tgId))}&order=updated_at.desc&limit=20`;
+    if (stage) filter += `&stage=eq.${encodeURIComponent(stage)}`;
+    const res = await fetch(`${sbUrl}/rest/v1/${filter}`, {
+      headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as LeadData[];
+  }
+
+  // Helper: fetch single lead by short ID prefix
+  async function fetchLeadByShort(tgId: number, short: string): Promise<LeadData | null> {
+    const leads = await fetchLeads(tgId);
+    return leads.find((l) => l.id.startsWith(short)) || null;
+  }
+
+  // Helper: create lead in Supabase
+  async function createLead(
+    tgId: number,
+    data: { name: string; company?: string; email?: string; phone?: string; notes?: string; source?: string; value?: number },
+  ): Promise<LeadData | null> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return null;
+    const res = await fetch(`${sbUrl}/rest/v1/flowb_leads`, {
+      method: "POST",
+      headers: {
+        apikey: sbKey,
+        Authorization: `Bearer ${sbKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({
+        name: data.name,
+        company: data.company || null,
+        email: data.email || null,
+        phone: data.phone || null,
+        notes: data.notes || null,
+        source: data.source || "telegram",
+        value: data.value ?? null,
+        stage: "new",
+        created_by: userId(tgId),
+        assigned_to: userId(tgId),
+      }),
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) ? rows[0] : rows;
+  }
+
+  // Helper: update lead stage
+  async function updateLeadStage(tgId: number, leadId: string, stage: LeadStage): Promise<LeadData | null> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return null;
+    const res = await fetch(
+      `${sbUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(leadId)}&created_by=eq.${encodeURIComponent(userId(tgId))}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: sbKey,
+          Authorization: `Bearer ${sbKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=representation",
+        },
+        body: JSON.stringify({ stage }),
+      },
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) ? rows[0] : rows;
+  }
+
+  // Helper: delete lead
+  async function deleteLead(tgId: number, leadId: string): Promise<boolean> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return false;
+    const res = await fetch(
+      `${sbUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(leadId)}&created_by=eq.${encodeURIComponent(userId(tgId))}`,
+      {
+        method: "DELETE",
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+      },
+    );
+    return res.ok;
+  }
+
+  // Helper: get pipeline counts
+  async function fetchPipeline(tgId: number): Promise<{ pipeline: Record<LeadStage, number>; total: number }> {
+    const leads = await fetchLeads(tgId);
+    const pipeline: Record<LeadStage, number> = { new: 0, contacted: 0, qualified: 0, proposal: 0, won: 0, lost: 0 };
+    for (const l of leads) {
+      if (pipeline[l.stage as LeadStage] !== undefined) pipeline[l.stage as LeadStage]++;
+    }
+    return { pipeline, total: leads.length };
+  }
+
+  // Helper: advance lead to next stage
+  const STAGE_ORDER: LeadStage[] = ["new", "contacted", "qualified", "proposal", "won"];
+  function nextStage(current: LeadStage): LeadStage | null {
+    const idx = STAGE_ORDER.indexOf(current);
+    if (idx < 0 || idx >= STAGE_ORDER.length - 1) return null;
+    return STAGE_ORDER[idx + 1];
+  }
+
+  // Helper: parse "add lead" natural language
+  function parseLeadInput(text: string): { name: string; company?: string; email?: string; notes?: string } {
+    let name = text;
+    let company: string | undefined;
+    let email: string | undefined;
+    let notes: string | undefined;
+
+    // Extract email
+    const emailMatch = text.match(/[\w.+-]+@[\w.-]+\.\w{2,}/);
+    if (emailMatch) {
+      email = emailMatch[0];
+      name = name.replace(emailMatch[0], "").trim();
+    }
+
+    // Extract company with "at" or parentheses
+    const atMatch = name.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
+    const parenMatch = name.match(/^(.+?)\s*\((.+?)\)\s*$/);
+    if (atMatch) {
+      name = atMatch[1].trim();
+      company = atMatch[2].trim();
+    } else if (parenMatch) {
+      name = parenMatch[1].trim();
+      company = parenMatch[2].trim();
+    }
+
+    // Extract role/title before the name
+    const titleWords = ["ceo", "cto", "cfo", "coo", "vp", "director", "manager", "founder", "cofounder", "head", "lead", "engineer", "designer"];
+    const nameParts = name.split(/\s+/);
+    if (nameParts.length > 1) {
+      const firstLower = nameParts[0].toLowerCase();
+      if (titleWords.includes(firstLower)) {
+        notes = nameParts[0];
+        name = nameParts.slice(1).join(" ");
+      }
+    }
+
+    return { name: name.trim(), company, email, notes };
+  }
+
+  // /lead — lead CRUD
+  bot.command("lead", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    const text = ctx.match?.trim() || "";
+
+    if (!text) {
+      await ctx.replyWithChatAction("typing");
+      const { pipeline, total } = await fetchPipeline(tgId);
+      if (total === 0) {
+        await ctx.reply(
+          [
+            "<b>\ud83d\udcbc Leads</b>",
+            "",
+            "No leads yet. Add one:",
+            "",
+            "<code>/lead add Sarah CEO at StartupX</code>",
+            "<code>/lead add Mike mike@example.com</code>",
+            "",
+            "Or just type: <i>add lead Sarah</i>",
+          ].join("\n"),
+          { parse_mode: "HTML", reply_markup: buildPipelineKeyboard() },
+        );
+      } else {
+        await ctx.reply(formatPipelineHtml(pipeline, total), {
+          parse_mode: "HTML",
+          reply_markup: buildPipelineKeyboard(),
+        });
+      }
+      return;
+    }
+
+    // /lead add <details>
+    if (text.toLowerCase().startsWith("add ")) {
+      const input = text.slice(4).trim();
+      if (!input) {
+        await ctx.reply("Usage: <code>/lead add Sarah CEO at StartupX</code>", { parse_mode: "HTML" });
+        return;
+      }
+      await ctx.replyWithChatAction("typing");
+      const parsed = parseLeadInput(input);
+      const lead = await createLead(tgId, parsed);
+      if (!lead) {
+        await ctx.reply("Failed to create lead. Try again.");
+        return;
+      }
+      setSession(tgId, { leadCache: [lead, ...(getSession(tgId)?.leadCache || [])] });
+      await ctx.reply(formatLeadCreatedHtml(lead.name, lead.stage as LeadStage), {
+        parse_mode: "HTML",
+        reply_markup: buildLeadDetailKeyboard(lead.id),
+      });
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_created"), "award points");
+      alertAdmins(`New lead: <b>${lead.name}</b> by ${ctx.from?.username || tgId}`, "info");
+      return;
+    }
+
+    // /lead update <name> <stage>
+    if (text.toLowerCase().startsWith("update ")) {
+      const rest = text.slice(7).trim();
+      const validStages: LeadStage[] = ["new", "contacted", "qualified", "proposal", "won", "lost"];
+      const parts = rest.split(/\s+/);
+      const lastWord = parts[parts.length - 1]?.toLowerCase() as LeadStage;
+      if (parts.length >= 2 && validStages.includes(lastWord)) {
+        const nameQuery = parts.slice(0, -1).join(" ").toLowerCase();
+        await ctx.replyWithChatAction("typing");
+        const leads = await fetchLeads(tgId);
+        const match = leads.find((l) => l.name.toLowerCase().includes(nameQuery));
+        if (!match) {
+          await ctx.reply(`No lead matching "${escapeHtml(nameQuery)}".`, { parse_mode: "HTML" });
+          return;
+        }
+        const updated = await updateLeadStage(tgId, match.id, lastWord);
+        if (!updated) {
+          await ctx.reply("Failed to update lead.");
+          return;
+        }
+        await ctx.reply(formatLeadUpdatedHtml(updated.name, updated.stage as LeadStage), {
+          parse_mode: "HTML",
+          reply_markup: buildLeadDetailKeyboard(updated.id),
+        });
+        return;
+      }
+      await ctx.reply("Usage: <code>/lead update Sarah qualified</code>", { parse_mode: "HTML" });
+      return;
+    }
+
+    // /lead <name> — search and show detail
+    await ctx.replyWithChatAction("typing");
+    const leads = await fetchLeads(tgId);
+    const match = leads.find((l) => l.name.toLowerCase().includes(text.toLowerCase()));
+    if (match) {
+      await ctx.reply(formatLeadDetailHtml(match), {
+        parse_mode: "HTML",
+        reply_markup: buildLeadDetailKeyboard(match.id),
+      });
+    } else {
+      await ctx.reply(
+        `No lead matching "<b>${escapeHtml(text)}</b>". Create one?\n\n<code>/lead add ${escapeHtml(text)}</code>`,
+        { parse_mode: "HTML" },
+      );
+    }
+  });
+
+  // /leads — list all leads
+  bot.command("leads", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+    const leads = await fetchLeads(tgId);
+    setSession(tgId, { leadCache: leads });
+    await ctx.reply(formatLeadListHtml(leads), {
+      parse_mode: "HTML",
+      reply_markup: buildLeadListKeyboard(leads),
+    });
+  });
+
+  // /pipeline — pipeline view
+  bot.command("pipeline", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+    const { pipeline, total } = await fetchPipeline(tgId);
+    await ctx.reply(formatPipelineHtml(pipeline, total), {
+      parse_mode: "HTML",
+      reply_markup: buildPipelineKeyboard(),
+    });
+  });
+
   bot.command("help", async (ctx) => {
+    const tgId = ctx.from!.id;
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "help_viewed"), "award points");
     const help = [
       "<b>FlowB Commands</b>",
       "",
@@ -1742,6 +2065,14 @@ export function startTelegramBot(
       "<b>Meetings</b>",
       "/meet <i>description</i> - Create a meeting",
       "/meetings - View upcoming meetings",
+      "",
+      "<b>Leads / CRM</b>",
+      "/lead - Pipeline overview",
+      "/lead add <i>name details</i> - Add a lead",
+      "/lead <i>name</i> - View a lead",
+      "/lead update <i>name stage</i> - Move stage",
+      "/leads - List all leads",
+      "/pipeline - Pipeline summary",
       "",
       "<b>Social</b>",
       "/whatsup - What's happening in your flow",
@@ -2149,6 +2480,48 @@ export function startTelegramBot(
     if (!tgId) return;
 
     fireAndForget(core.awardPoints(userId(tgId), "telegram", "channel_reaction"), "award points");
+
+    // Check if this reaction is on an event-flagged message
+    const chatId = ctx.messageReaction.chat.id;
+    const messageId = ctx.messageReaction.message_id;
+    const key = eventReactKey(chatId, messageId);
+    const tracked = eventReactedMessages.get(key);
+
+    if (tracked && !tracked.dmSentTo.has(tgId)) {
+      // Don't DM the bot itself
+      if (tgId === bot.botInfo?.id) return;
+
+      tracked.dmSentTo.add(tgId);
+
+      const title = tracked.eventTitle || "an event";
+      const isSender = tgId === tracked.senderId;
+      const prompt = isSender
+        ? `You shared <b>${escapeHtml(title)}</b> — nice find!`
+        : `<b>${escapeHtml(tracked.senderName)}</b> shared <b>${escapeHtml(title)}</b> in the group.`;
+
+      const details: string[] = [];
+      if (tracked.eventDate) details.push(`📅 ${escapeHtml(tracked.eventDate)}`);
+      if (tracked.eventVenue) details.push(`📍 ${escapeHtml(tracked.eventVenue)}`);
+      if (tracked.eventUrl) details.push(`🔗 <a href="${tracked.eventUrl}">Event link</a>`);
+
+      const html = `🎉 ${prompt}\n\n${details.length ? details.join("\n") + "\n\n" : ""}Would you like to add it to your RSVP or send it to your crew?`;
+
+      const kb = new InlineKeyboard()
+        .text("✅ RSVP Going", `evr:rsvp:${chatId}:${messageId}`)
+        .text("📤 Send to Crew", `evr:crew:${chatId}:${messageId}`);
+
+      try {
+        await bot.api.sendMessage(tgId, html, {
+          parse_mode: "HTML",
+          reply_markup: kb,
+        });
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_reaction_dm"), "award points");
+        console.log(`[flowb-chatter] DM sent to ${tgId} for event reaction in ${chatId}`);
+      } catch (dmErr: any) {
+        // User hasn't started a DM with the bot — can't message them
+        console.warn(`[flowb-chatter] Could not DM ${tgId}: ${dmErr.message}`);
+      }
+    }
   });
 
   // ========================================================================
@@ -2158,6 +2531,65 @@ export function startTelegramBot(
   bot.on("callback_query:data", async (ctx) => {
     const data = ctx.callbackQuery.data;
     const tgId = ctx.from.id;
+
+    // ---- Event reaction callbacks: evr:rsvp:chatId:msgId, evr:crew:chatId:msgId ----
+    if (data.startsWith("evr:")) {
+      const parts = data.split(":");
+      const action = parts[1]; // "rsvp" or "crew"
+      const chatId = parseInt(parts[2]);
+      const messageId = parseInt(parts[3]);
+      const key = eventReactKey(chatId, messageId);
+      const tracked = eventReactedMessages.get(key);
+
+      if (!tracked) {
+        await ctx.answerCallbackQuery({ text: "This event has expired. Try sharing it again!" });
+        return;
+      }
+
+      const title = tracked.eventTitle || "this event";
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+
+      if (action === "rsvp") {
+        // RSVP the user as going
+        const eventId = tracked.eventUrl || `signal_${chatId}_${messageId}`;
+        if (flowPlugin && flowCfg) {
+          try {
+            await flowPlugin.rsvpWithDetails(
+              flowCfg, userId(tgId), eventId, title,
+              tracked.eventDate || null, tracked.eventVenue || null, "going",
+            );
+          } catch {
+            // best-effort
+          }
+        }
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
+        await ctx.answerCallbackQuery({ text: "You're going! 🎉" });
+        await ctx.editMessageText(
+          `✅ <b>RSVP'd!</b> You're going to <b>${escapeHtml(title)}</b>\n\nCheck /events to see your upcoming plans.`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      if (action === "crew") {
+        // Share event with user's crews via flow notify
+        fireAndForget(
+          notifyFlowAboutRsvp(core, userId(tgId), title, title, bot),
+          "notify flow about event share",
+        );
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_shared_crew"), "award points");
+        await ctx.answerCallbackQuery({ text: "Sent to your crew! 📤" });
+        await ctx.editMessageText(
+          `📤 <b>Shared!</b> <b>${escapeHtml(title)}</b> sent to your crew.\n\nYour friends will get a heads up about this event.`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
 
     // ---- Onboarding callbacks: onb:* ----
     if (data.startsWith("onb:")) {
@@ -2303,6 +2735,7 @@ export function startTelegramBot(
 
       // --- Navigation: next / prev ---
       if (action === "next" || action === "prev") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_navigated"), "award points");
         const newIndex = action === "next"
           ? Math.min(session.cardIndex + 1, session.filteredEvents.length - 1)
           : Math.max(session.cardIndex - 1, 0);
@@ -2352,6 +2785,7 @@ export function startTelegramBot(
 
       // --- Apply category filter ---
       if (action === "setcat") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_filtered"), "award points");
         const category = parts[2] || "all";
         session.categoryFilter = category;
         // Re-apply both filters from raw events
@@ -2389,6 +2823,7 @@ export function startTelegramBot(
 
       // --- Apply date filter ---
       if (action === "setdate") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_filtered"), "award points");
         const dateFilter = parts[2] || "all";
         session.dateFilter = dateFilter;
         // Re-apply both filters from raw events
@@ -2476,6 +2911,7 @@ export function startTelegramBot(
           await ctx.answerCallbackQuery({ text: "Event not found." });
           return;
         }
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_shared"), "award points");
         const shareText = `Check out: ${event.title}\n${event.url || ""}`;
         const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(event.url || "")}&text=${encodeURIComponent(shareText)}`;
         await ctx.answerCallbackQuery();
@@ -2488,6 +2924,7 @@ export function startTelegramBot(
 
       // --- Luma Event Details (full description + tickets + guest count) ---
       if (action === "luma") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_details_viewed"), "award points");
         if (!event) {
           await ctx.answerCallbackQuery({ text: "Event not found." });
           return;
@@ -2783,6 +3220,7 @@ export function startTelegramBot(
     if (data.startsWith("rw:")) {
       const action = data.slice(3);
       if (action === "claim") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "reward_claimed"), "award points");
         await ctx.answerCallbackQuery({ text: "Processing claims..." });
         const result = await core.execute("claim-reward", {
           action: "claim-reward",
@@ -3166,6 +3604,7 @@ export function startTelegramBot(
 
       // mt:share:{id8} - share meeting link
       if (action === "share") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_shared"), "award points");
         const id8 = parts[2];
         const sbUrl = process.env.SUPABASE_URL;
         const sbKey = process.env.SUPABASE_KEY;
@@ -3191,6 +3630,7 @@ export function startTelegramBot(
 
       // mt:complete:{id8} - complete a meeting
       if (action === "complete") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_completed"), "award points");
         const id8 = parts[2];
         const sbUrl = process.env.SUPABASE_URL;
         const sbKey = process.env.SUPABASE_KEY;
@@ -3212,6 +3652,7 @@ export function startTelegramBot(
 
       // mt:cancel:{id8} - cancel a meeting
       if (action === "cancel") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_cancelled"), "award points");
         const id8 = parts[2];
         const sbUrl = process.env.SUPABASE_URL;
         const sbKey = process.env.SUPABASE_KEY;
@@ -3244,6 +3685,224 @@ export function startTelegramBot(
       // mt:chat:{id8} - placeholder for chat
       if (action === "chat") {
         await ctx.answerCallbackQuery({ text: "Send a message with /meet chat <meetingId> <message>" });
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    // ---- Lead callbacks: ld:* ----
+    if (data.startsWith("ld:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+
+      // ld:view:{short} - view lead detail
+      if (action === "view") {
+        const short = parts[2];
+        await ctx.replyWithChatAction("typing");
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          await ctx.editMessageText(formatLeadDetailHtml(lead), {
+            parse_mode: "HTML",
+            reply_markup: buildLeadDetailKeyboard(lead.id),
+          });
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+          return;
+        }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // ld:advance:{short} - advance to next pipeline stage
+      if (action === "advance") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_advanced"), "award points");
+        const short = parts[2];
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          const next = nextStage(lead.stage);
+          if (!next) {
+            await ctx.answerCallbackQuery({ text: "Already at final stage" });
+            return;
+          }
+          const updated = await updateLeadStage(tgId, lead.id, next);
+          if (updated) {
+            await ctx.editMessageText(formatLeadDetailHtml(updated), {
+              parse_mode: "HTML",
+              reply_markup: buildLeadDetailKeyboard(updated.id),
+            });
+            await ctx.answerCallbackQuery({ text: `Moved to ${next}` });
+            fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_updated"), "award points");
+          } else {
+            await ctx.answerCallbackQuery({ text: "Update failed" });
+          }
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+        }
+        return;
+      }
+
+      // ld:stage:{short} - show stage picker
+      if (action === "stage") {
+        const short = parts[2];
+        const specificStage = parts[3] as LeadStage | undefined; // if present, set that stage directly
+        if (specificStage) {
+          const lead = await fetchLeadByShort(tgId, short);
+          if (lead) {
+            const updated = await updateLeadStage(tgId, lead.id, specificStage);
+            if (updated) {
+              await ctx.editMessageText(formatLeadDetailHtml(updated), {
+                parse_mode: "HTML",
+                reply_markup: buildLeadDetailKeyboard(updated.id),
+              });
+              await ctx.answerCallbackQuery({ text: `Stage: ${specificStage}` });
+              fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_updated"), "award points");
+            } else {
+              await ctx.answerCallbackQuery({ text: "Update failed" });
+            }
+          } else {
+            await ctx.answerCallbackQuery({ text: "Lead not found" });
+          }
+          return;
+        }
+        // Show stage picker keyboard
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          await ctx.editMessageText(
+            `<b>Move "${escapeHtml(lead.name)}" to which stage?</b>`,
+            { parse_mode: "HTML", reply_markup: buildLeadStageKeyboard(lead.id) },
+          );
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+        }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // ld:meet:{short} - create meeting from lead
+      if (action === "meet") {
+        const short = parts[2];
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          const meetingPlugin = core.getMeetingPlugin();
+          const meetingCfg = core.getMeetingConfig();
+          if (meetingPlugin && meetingCfg) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            tomorrow.setHours(10, 0, 0, 0);
+            const resultStr = await meetingPlugin.create(meetingCfg, userId(tgId), {
+              action: "meeting-create",
+              user_id: userId(tgId),
+              meeting_title: `Meeting with ${lead.name}`,
+              meeting_starts_at: tomorrow.toISOString(),
+              meeting_duration: 30,
+              meeting_type: "one_on_one",
+              meeting_description: lead.company ? `Lead: ${lead.name} (${lead.company})` : `Lead: ${lead.name}`,
+            });
+            try {
+              const parsed = JSON.parse(resultStr);
+              if (parsed.type === "meeting_created" && parsed.id) {
+                await ctx.answerCallbackQuery({ text: "Meeting created!" });
+                const attendees = await meetingPlugin.getAttendees(meetingCfg, parsed.id);
+                await ctx.editMessageText(
+                  formatMeetingDetailHtml(
+                    parsed.title, parsed.starts_at, parsed.duration_min || 30,
+                    parsed.meeting_type || "one_on_one", "scheduled", parsed.location,
+                    parsed.description, attendees.length,
+                  ),
+                  { parse_mode: "HTML", reply_markup: buildMeetingDetailKeyboard(parsed.id, true, parsed.share_code) },
+                );
+                fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_created"), "award points");
+              } else {
+                await ctx.answerCallbackQuery({ text: "Could not create meeting" });
+              }
+            } catch {
+              await ctx.answerCallbackQuery({ text: "Could not create meeting" });
+            }
+          } else {
+            await ctx.answerCallbackQuery({ text: "Meetings not configured" });
+          }
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+        }
+        return;
+      }
+
+      // ld:edit:{short} - edit lead (show stage picker for now)
+      if (action === "edit") {
+        const short = parts[2];
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          await ctx.editMessageText(
+            `<b>Move "${escapeHtml(lead.name)}" to which stage?</b>`,
+            { parse_mode: "HTML", reply_markup: buildLeadStageKeyboard(lead.id) },
+          );
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+        }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // ld:del:{short} - delete lead
+      if (action === "del") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_deleted"), "award points");
+        const short = parts[2];
+        const lead = await fetchLeadByShort(tgId, short);
+        if (lead) {
+          const ok = await deleteLead(tgId, lead.id);
+          if (ok) {
+            await ctx.answerCallbackQuery({ text: `Deleted: ${lead.name}` });
+            // Show updated list
+            const leads = await fetchLeads(tgId);
+            setSession(tgId, { leadCache: leads });
+            await ctx.editMessageText(formatLeadListHtml(leads), {
+              parse_mode: "HTML",
+              reply_markup: buildLeadListKeyboard(leads),
+            });
+          } else {
+            await ctx.answerCallbackQuery({ text: "Delete failed" });
+          }
+        } else {
+          await ctx.answerCallbackQuery({ text: "Lead not found" });
+        }
+        return;
+      }
+
+      // ld:add - prompt to add new lead
+      if (action === "add") {
+        await ctx.answerCallbackQuery();
+        setSession(tgId, { awaitingLeadName: true });
+        await ctx.reply(
+          "<b>Add a new lead</b>\n\nSend the lead info in any format:\n• <i>Sarah CEO at StartupX</i>\n• <i>Mike mike@email.com</i>\n• <i>John Smith (Acme Corp)</i>",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // ld:pipeline - show pipeline
+      if (action === "pipeline") {
+        await ctx.replyWithChatAction("typing");
+        const { pipeline, total } = await fetchPipeline(tgId);
+        await ctx.editMessageText(formatPipelineHtml(pipeline, total), {
+          parse_mode: "HTML",
+          reply_markup: buildPipelineKeyboard(),
+        });
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // ld:list - show lead list
+      if (action === "list") {
+        await ctx.replyWithChatAction("typing");
+        const leads = await fetchLeads(tgId);
+        setSession(tgId, { leadCache: leads });
+        await ctx.editMessageText(formatLeadListHtml(leads), {
+          parse_mode: "HTML",
+          reply_markup: buildLeadListKeyboard(leads),
+        });
+        await ctx.answerCallbackQuery();
         return;
       }
 
@@ -3441,6 +4100,7 @@ export function startTelegramBot(
 
       // --- Toggle public visibility ---
       if (action === "toggle-public") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_settings_changed"), "award points");
         const groupIdShort = parts[2];
         await ctx.answerCallbackQuery({ text: "Toggling..." });
 
@@ -3482,6 +4142,7 @@ export function startTelegramBot(
 
       // --- Set join mode ---
       if (action === "join-mode") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_settings_changed"), "award points");
         const groupIdShort = parts[2];
         const newMode = parts[3];
         await ctx.answerCallbackQuery({ text: `Join mode: ${newMode}` });
@@ -3521,6 +4182,7 @@ export function startTelegramBot(
 
       // --- Promote member ---
       if (action === "promote") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_member_promoted"), "award points");
         const groupIdShort = parts[2];
         const targetIdShort = parts[3];
         await ctx.answerCallbackQuery({ text: "Promoting..." });
@@ -3615,6 +4277,7 @@ export function startTelegramBot(
 
       // --- Browse public crews ---
       if (action === "browse") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_browsed"), "award points");
         await ctx.answerCallbackQuery();
         const result = await flowPlugin.crewBrowse(flowCfg);
 
@@ -3732,6 +4395,7 @@ export function startTelegramBot(
       }
 
       if (action === "profile") {
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "farcaster_profile"), "award points");
         await ctx.answerCallbackQuery();
         await ctx.reply(
           "Who do you want to look up?\n\n<i>Type a Farcaster username, e.g. <b>dwr</b> or <b>vitalik.eth</b></i>",
@@ -3812,6 +4476,31 @@ export function startTelegramBot(
               );
               fireAndForget(core.awardPoints(userId(tgId), "telegram", "chatter_signal"), "award points");
               console.log(`[flowb-chatter] Signal stored: "${signal.event_title}" (${signal.confidence})`);
+
+              // React with 🎉 and track for user interaction
+              try {
+                await ctx.api.setMessageReaction(ctx.chat.id, ctx.message.message_id, [
+                  { type: "emoji", emoji: "🎉" },
+                ]);
+                const key = eventReactKey(ctx.chat.id, ctx.message.message_id);
+                eventReactedMessages.set(key, {
+                  chatId: ctx.chat.id,
+                  messageId: ctx.message.message_id,
+                  senderId: tgId,
+                  senderName,
+                  eventTitle: signal.event_title || null,
+                  eventUrl: signal.event_url || null,
+                  eventDate: signal.event_date || null,
+                  eventVenue: signal.venue_name || null,
+                  rawText: ctx.message.text.slice(0, 300),
+                  createdAt: Date.now(),
+                  dmSentTo: new Set(),
+                });
+                console.log(`[flowb-chatter] Reacted 🎉 to event message in ${ctx.chat.id}`);
+              } catch (reactErr: any) {
+                // Bot may not have permission to react — that's ok
+                console.warn(`[flowb-chatter] Could not react: ${reactErr.message}`);
+              }
             }
           } catch (err: any) {
             console.error("[flowb-chatter] extraction error:", err.message);
@@ -3899,6 +4588,7 @@ export function startTelegramBot(
 
     // Menu
     if (/^(menu|home|start|hi|hey|hello|yo|sup)$/i.test(lower)) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "menu_opened"), "award points");
       await ctx.reply(formatMenuHtml(), {
         parse_mode: "HTML",
         reply_markup: buildCompactMenuKeyboard(miniAppUrl || undefined),
@@ -3908,6 +4598,7 @@ export function startTelegramBot(
 
     // Events / browse
     if (/^(events|browse|whats on|what's on|show events|browse events|find events)$/i.test(lower)) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "events_viewed"), "award points");
       await sendEventCards(ctx, core, {});
       return;
     }
@@ -3924,6 +4615,7 @@ export function startTelegramBot(
 
     // Flow menu
     if (/^(flow|my flow)$/i.test(lower)) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "flow_viewed"), "award points");
       await ctx.reply(formatFlowMenuHtml(), {
         parse_mode: "HTML",
         reply_markup: buildFlowMenuKeyboard(botUsername),
@@ -4021,6 +4713,40 @@ export function startTelegramBot(
       await ensureVerified(tgId);
       const result = await core.execute("crew-join", { action: "crew-join", user_id: userId(tgId), platform: "telegram", query: joinMatch[1] });
       await ctx.reply(markdownToHtml(result), { parse_mode: "HTML" });
+      return;
+    }
+
+    // Leads: "leads", "my leads", "pipeline", "show pipeline", "crm"
+    if (/^(leads|my leads|pipeline|show pipeline|crm|show leads|deal|deals)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      const leads = await fetchLeads(tgId);
+      setSession(tgId, { leadCache: leads });
+      await ctx.reply(formatLeadListHtml(leads), {
+        parse_mode: "HTML",
+        reply_markup: buildLeadListKeyboard(leads),
+      });
+      return;
+    }
+
+    // Add lead: "add lead Sarah CEO at StartupX", "new lead Mike"
+    const addLeadMatch = lower.match(/^(?:add|new|create)\s+lead\s+(.+)/i);
+    if (addLeadMatch) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      const parsed = parseLeadInput(text.slice(text.length - addLeadMatch[1].length).trim());
+      const lead = await createLead(tgId, parsed);
+      if (!lead) {
+        await ctx.reply("Failed to create lead. Try again.");
+        return;
+      }
+      setSession(tgId, { leadCache: [lead, ...(getSession(tgId)?.leadCache || [])] });
+      await ctx.reply(formatLeadCreatedHtml(lead.name, lead.stage as LeadStage), {
+        parse_mode: "HTML",
+        reply_markup: buildLeadDetailKeyboard(lead.id),
+      });
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_created"), "award points");
+      alertAdmins(`New lead: <b>${lead.name}</b> by ${ctx.from?.username || tgId}`, "info");
       return;
     }
 
@@ -4253,6 +4979,28 @@ export function startTelegramBot(
       }
     }
 
+    // ---- Awaiting lead name (conversational lead creation) ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingLeadName) {
+        setSession(tgId, { awaitingLeadName: false });
+        await ctx.replyWithChatAction("typing");
+        const parsed = parseLeadInput(text.trim());
+        const lead = await createLead(tgId, parsed);
+        if (lead) {
+          setSession(tgId, { leadCache: undefined }); // invalidate cache
+          await ctx.reply(formatLeadCreatedHtml(lead.name, lead.stage), {
+            parse_mode: "HTML",
+            reply_markup: buildLeadDetailKeyboard(lead.id),
+          });
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_created"), "award points");
+        } else {
+          await ctx.reply("Failed to create lead. Try again or use /lead <name>", { parse_mode: "HTML" });
+        }
+        return;
+      }
+    }
+
     // ---- Awaiting crew name (conversational crew creation) ----
     {
       const session = getSession(tgId);
@@ -4329,6 +5077,9 @@ export function startTelegramBot(
     { command: "sponsor", description: "View or create sponsorships" },
     { command: "topsponsor", description: "Top sponsored leaderboard" },
     { command: "leaderboard", description: "Global points leaderboard" },
+    { command: "lead", description: "Add or view a lead" },
+    { command: "leads", description: "View your lead pipeline" },
+    { command: "pipeline", description: "Pipeline overview by stage" },
     { command: "suggestfeature", description: "Suggest a new feature" },
     { command: "reportbug", description: "Report a bug" },
     { command: "register", description: "Connect your account" },
@@ -4365,6 +5116,12 @@ export function startTelegramBot(
       const session = sessions.get(id);
       if (!session || now - session.lastActive > SESSION_TTL_MS) {
         onboardingStates.delete(id);
+      }
+    }
+    // Clean up expired event reaction tracking (24h TTL)
+    for (const [key, tracked] of eventReactedMessages) {
+      if (now - tracked.createdAt > EVENT_REACT_TTL_MS) {
+        eventReactedMessages.delete(key);
       }
     }
   }, 5 * 60 * 1000);
@@ -5206,6 +5963,7 @@ async function submitEventFromPending(
 
     const data = await res.json() as any;
     if (data.ok) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_submitted"), "award points");
       await ctx.reply(
         formatEventSubmittedHtml(pending.title || "Event", data.eventId),
         { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
@@ -5249,6 +6007,7 @@ async function submitEventQuick(
 
     const data = await res.json() as any;
     if (data.ok) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_submitted"), "award points");
       await ctx.reply(
         formatEventSubmittedHtml(title, data.eventId),
         { parse_mode: "HTML", reply_markup: buildBackToMenuKeyboard() },
@@ -5292,6 +6051,7 @@ async function submitEventFromGroup(
 
     const data = await res.json() as any;
     if (data.ok) {
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_submitted"), "award points");
       // Reply in group
       await ctx.reply(
         formatEventSubmitGroupReplyHtml(title),

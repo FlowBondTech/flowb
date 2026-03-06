@@ -79,6 +79,49 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   // SocialB auto-repost actions
   socialb_repost:        { points: 3,   dailyCap: 30 },
   socialb_enabled:       { points: 15,  dailyCap: 15, once: true },
+  // Pre-existing actions that were missing from table
+  event_shared_crew:     { points: 5,   dailyCap: 25 },
+  farcaster_viewed:      { points: 2,   dailyCap: 10 },
+  lead_created:          { points: 5,   dailyCap: 25 },
+  lead_updated:          { points: 2,   dailyCap: 20 },
+  meeting_created:       { points: 8,   dailyCap: 30 },
+  meeting_rsvp:          { points: 5,   dailyCap: 25 },
+  todo_added:            { points: 2,   dailyCap: 10 },
+  // Engagement actions (event browsing, sharing, navigation)
+  event_shared:          { points: 5,   dailyCap: 25 },
+  event_details_viewed:  { points: 2,   dailyCap: 20 },
+  event_filtered:        { points: 1,   dailyCap: 10 },
+  event_navigated:       { points: 1,   dailyCap: 20 },
+  event_submitted:       { points: 10,  dailyCap: 30 },
+  // Meeting engagement
+  meeting_shared:        { points: 5,   dailyCap: 25 },
+  meeting_completed:     { points: 15,  dailyCap: 30 },
+  meeting_cancelled:     { points: 1,   dailyCap: 5 },
+  // Crew management
+  crew_settings_changed: { points: 3,   dailyCap: 15 },
+  crew_member_promoted:  { points: 5,   dailyCap: 15 },
+  crew_browsed:          { points: 2,   dailyCap: 10 },
+  // CRM / Leads
+  lead_advanced:         { points: 3,   dailyCap: 30 },
+  lead_deleted:          { points: 1,   dailyCap: 10 },
+  // General engagement
+  menu_opened:           { points: 1,   dailyCap: 5 },
+  help_viewed:           { points: 1,   dailyCap: 3 },
+  wallet_linked:         { points: 15,  dailyCap: 15, once: true },
+  reward_claimed:        { points: 5,   dailyCap: 25 },
+  rewards_viewed:        { points: 1,   dailyCap: 5 },
+  mylist_viewed:         { points: 1,   dailyCap: 5 },
+  schedule_viewed:       { points: 2,   dailyCap: 10 },
+  wheremycrew_used:      { points: 3,   dailyCap: 15 },
+  flow_viewed:           { points: 1,   dailyCap: 5 },
+  farcaster_profile:     { points: 2,   dailyCap: 10 },
+  dance_photo_shared:    { points: 5,   dailyCap: 25 },
+  event_reaction_dm:     { points: 3,   dailyCap: 15 },
+  app_opened:            { points: 2,   dailyCap: 10 },
+  qr_checkin:            { points: 10,  dailyCap: 50 },
+  feature_suggested:     { points: 5,   dailyCap: 15 },
+  bug_reported:          { points: 10,  dailyCap: 30 },
+  chat:                  { points: 1,   dailyCap: 20 },
 };
 
 const MILESTONES = [
