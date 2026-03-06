@@ -982,7 +982,13 @@ export function formatFlowAttendanceBadge(goingCount: number, maybeCount: number
 export function markdownToHtml(md: string): string {
   // Strip hidden event ID comments
   let s = md.replace(/<!--.*?-->/g, "");
-  // Protect URLs from italic replacement (underscores in URLs)
+  // Convert markdown links FIRST (before URL protection mangles them)
+  const links: string[] = [];
+  s = s.replace(/\[(.+?)\]\((.+?)\)/g, (_m, text, href) => {
+    links.push(`<a href="${href}">${text}</a>`);
+    return `\x00LINK${links.length - 1}\x00`;
+  });
+  // Protect bare URLs from italic replacement (underscores in URLs)
   const urls: string[] = [];
   s = s.replace(/https?:\/\/[^\s)]+/g, (url) => {
     urls.push(url);
@@ -991,10 +997,10 @@ export function markdownToHtml(md: string): string {
   s = s
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/_(.+?)_/g, "<i>$1</i>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
     .replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;")
     .replace(/<(?!\/?(?:b|i|a|code|pre)[\s>])/g, "&lt;");
-  // Restore URLs
+  // Restore links and URLs
+  links.forEach((link, i) => { s = s.replace(`\x00LINK${i}\x00`, link); });
   urls.forEach((url, i) => { s = s.replace(`\x00URL${i}\x00`, url); });
   return s;
 }

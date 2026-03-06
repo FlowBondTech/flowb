@@ -1126,6 +1126,8 @@ FORMAT:
 - Group events by day when showing multi-day results.
 - Include time, venue, and price info.
 - Keep responses scannable and clean — no IDs, no UUIDs, no technical metadata.
+- Show ALL events returned by the tool — do not truncate or summarize the list. If the tool returns 10 events, show all 10.
+- If results say "Showing N results", tell the user they can ask for more.
 - When users want to RSVP, just ask which event by name — you can find the ID from the hidden comments in the tool data.
 
 Current time: ${nowStr} MST
