@@ -540,7 +540,7 @@ async function getEventSummary(args: any, cfg: SbConfig, userCity?: string): Pro
 }
 
 async function getEventDetails(args: any, cfg: SbConfig): Promise<string> {
-  if (!args.event_id) return "Which event? Provide an event ID.";
+  if (!args.event_id) return "Which event would you like details for?";
 
   try {
     const events = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${args.event_id}&limit=1`);
@@ -801,7 +801,7 @@ async function lookupLocationCode(args: any, cfg: SbConfig): Promise<string> {
 
 async function rsvpEvent(args: any, user: UserContext, cfg: SbConfig): Promise<string> {
   if (!user.userId) return "Log in to RSVP.";
-  if (!args.event_id) return "Which event? Give me an event ID or name.";
+  if (!args.event_id) return "Which event would you like to RSVP to?";
 
   const status = args.status || "going";
   const events = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${args.event_id}&limit=1`);
@@ -1120,11 +1120,13 @@ GENERAL BEHAVIOR:
 - If you can't find something, suggest checking flowb.me.
 
 FORMAT:
-- Use **bold** for event names and section headers.
+- Event titles are pre-linked in tool results — preserve the markdown links when presenting them.
+- Use **bold** for section headers (days, categories).
 - Use bullet lists for event listings.
 - Group events by day when showing multi-day results.
 - Include time, venue, and price info.
-- Keep responses scannable with clear sections.
+- Keep responses scannable and clean — no IDs, no UUIDs, no technical metadata.
+- When users want to RSVP, just ask which event by name — you can find the ID from the hidden comments in the tool data.
 
 Current time: ${nowStr} MST
 ${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}
