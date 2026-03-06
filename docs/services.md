@@ -37,7 +37,7 @@ Admin Alert Service
 
 ### ai chat
 
-AI Chat Service — Tool-augmented chat using xAI Grok
+AI Chat Service — Tool-augmented chat
 
 **Source**: `src/services/ai-chat.ts`
 
@@ -153,4 +153,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-06 21:05:58 UTC*
+*Auto-generated on 2026-03-06 21:21:42 UTC*
