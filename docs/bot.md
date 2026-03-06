@@ -36,6 +36,9 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/leaderboard` | — |
 | `/meet` | — |
 | `/meetings` | — |
+| `/lead` | — |
+| `/leads` | — |
+| `/pipeline` | — |
 | `/help` | Show available commands and help text |
 | `/todo` | — |
 | `/register` | Verify your account or check status |
@@ -61,6 +64,10 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 
 Inline keyboard callbacks used throughout the bot:
 
+**add**: `add`
+
+**advance**: `advance`
+
 **approve**: `approve`
 
 **back**: `back`
@@ -77,6 +84,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **copy-link**: `copy-link`
 
+**crew**: `crew`
+
 **crew-create**: `crew-create`
 
 **crew-invite**: `crew-invite`
@@ -87,9 +96,13 @@ Inline keyboard callbacks used throughout the bot:
 
 **crew-members**: `crew-members`
 
+**del**: `del`
+
 **demote**: `demote`
 
 **deny**: `deny`
+
+**edit**: `edit`
 
 **fcat**: `fcat`
 
@@ -109,6 +122,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **maybe**: `maybe`
 
+**meet**: `meet`
+
 **menu**: `menu`
 
 **new**: `new`
@@ -116,6 +131,8 @@ Inline keyboard callbacks used throughout the bot:
 **next**: `next`
 
 **noop**: `noop`
+
+**pipeline**: `pipeline`
 
 **prev**: `prev`
 
@@ -137,6 +154,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **share**: `share`
 
+**stage**: `stage`
+
 **submit**: `submit`
 
 **toggle-public**: `toggle-public`
@@ -151,4 +170,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-06 20:53:07 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-06 20:57:30 UTC*
