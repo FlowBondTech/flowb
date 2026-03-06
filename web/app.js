@@ -1,7 +1,7 @@
 const API = 'https://flowb.fly.dev';
 const FLOWB_API = 'https://flowb.fly.dev';
 
-// FlowB Chat API (proxied through flowb.fly.dev → xAI Grok)
+// FlowB Chat API (proxied through flowb.fly.dev)
 const FLOWB_CHAT_URL = FLOWB_API;
 
 // State
@@ -85,6 +85,22 @@ async function fetchCategories() {
   }
 }
 
+// Get local YYYY-MM-DD string (avoids UTC shift from toISOString)
+function localDate(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Convert local date string to UTC ISO for PostgREST (which interprets naive timestamps as UTC)
+function localStartOfDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toISOString();
+}
+function localEndOfDay(dateStr) {
+  const d = new Date(dateStr + 'T23:59:59');
+  return d.toISOString();
+}
+
 async function fetchEvents(params = {}) {
   try {
     // Map old POST params to new GET query params
@@ -92,8 +108,10 @@ async function fetchEvents(params = {}) {
     qp.set('limit', String(params.limit || 50));
     if (params.mainCategory) qp.set('categories', params.mainCategory);
     if (params.query) qp.set('q', params.query);
-    if (params.startDate) qp.set('from', params.startDate + 'T00:00:00');
-    if (params.endDate) qp.set('to', params.endDate + 'T23:59:59');
+    // Send timezone-aware UTC timestamps so PostgREST compares correctly
+    const fromDate = params.startDate || localDate();
+    qp.set('from', localStartOfDay(fromDate));
+    if (params.endDate) qp.set('to', localEndOfDay(params.endDate));
     if (params.freeOnly) qp.set('free', 'true');
     // Use explicit city param, or fall back to active location
     // Pass city: '' to explicitly skip city filtering
@@ -112,7 +130,7 @@ async function fetchEvents(params = {}) {
 async function fetchTonight() {
   try {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = localDate(now);
     return await fetchEvents({ startDate: today, endDate: today, limit: 50 });
   } catch (err) {
     console.error('Failed to fetch tonight events:', err);
@@ -235,7 +253,7 @@ const SOURCE_META = {
   brave: { color: '#FB542B', label: 'Brave' },
   'google-places': { color: '#4285F4', label: 'Google' },
   tavily: { color: '#7C3AED', label: 'Tavily' },
-  egator: { color: '#3b82f6', label: 'eGator' },
+  egator: { color: '#3b82f6', label: 'FlowB' },
 };
 
 function getSourceMeta(source) {
@@ -877,8 +895,8 @@ async function applyFilter(filter) {
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
     const params = {
-      startDate: now.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: localDate(now),
+      endDate: localDate(end),
     };
     if (activeCategory !== 'all') params.mainCategory = activeCategory;
     allEvents = await fetchEvents(params);
@@ -1433,13 +1451,25 @@ function scrollChatToBottom() {
 }
 
 function formatMarkdown(text) {
-  let html = escapeHtml(text);
+  // Strip hidden event ID comments before rendering
+  let clean = text.replace(/<!--.*?-->/g, '');
+  // Extract markdown links before escaping HTML
+  const links = [];
+  clean = clean.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, href) => {
+    links.push({ label, href });
+    return `\x00LINK${links.length - 1}\x00`;
+  });
+  let html = escapeHtml(clean);
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-  html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
+  // Restore markdown links as proper <a> tags
+  links.forEach((link, i) => {
+    html = html.replace(`\x00LINK${i}\x00`, `<a href="${link.href}" target="_blank">${escapeHtml(link.label)}</a>`);
+  });
+  // Linkify remaining bare URLs (not already inside <a> tags)
+  html = html.replace(/(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank">$1</a>');
   html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
   html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
@@ -1462,7 +1492,7 @@ function setStatus(status, text) {
   }
 }
 
-// ===== FlowB Chat (xAI Grok via backend proxy) =====
+// ===== FlowB Chat =====
 
 async function sendToFlowB(userMessage) {
   chatHistory.push({ role: 'user', content: userMessage });
@@ -1590,8 +1620,8 @@ async function processSingleCommand(lower) {
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
     const events = await fetchEvents({
-      startDate: now.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: localDate(now),
+      endDate: localDate(end),
       limit: 10,
     });
     if (!events.length) return 'No events this week.';
@@ -1707,7 +1737,7 @@ async function sendChatMessage(msg) {
   const cleanMsg = stripFlowbMention(msg);
 
   try {
-    // Try FlowB backend (xAI Grok)
+    // Try FlowB backend
     const response = await sendToFlowB(cleanMsg);
     removeTypingIndicator();
     addChatMessage(response, 'bot');
@@ -2247,8 +2277,8 @@ function renderIntroCityPicker(selectedCats) {
     const now = new Date();
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
-    initParams.startDate = now.toISOString().slice(0, 10);
-    initParams.endDate = end.toISOString().slice(0, 10);
+    initParams.startDate = localDate(now);
+    initParams.endDate = localDate(end);
     allEvents = await fetchEvents(initParams);
     activeFilter = 'week';
     document.querySelectorAll('.filter-pill').forEach(btn => {

@@ -1,5 +1,5 @@
 /**
- * AI Chat Service — Tool-augmented chat using xAI Grok
+ * AI Chat Service — Tool-augmented chat
  *
  * Gives FlowB's AI assistant real access to events, crews, friends,
  * locations, points, and the full platform via function calling.
