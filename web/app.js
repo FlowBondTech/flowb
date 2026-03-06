@@ -230,6 +230,7 @@ function optimizeImageUrl(url, w, h) {
 const SOURCE_META = {
   luma: { color: '#FF5C00', label: 'Luma' },
   eventbrite: { color: '#F05537', label: 'Eventbrite' },
+  partiful: { color: '#E040FB', label: 'Partiful' },
   ra: { color: '#D4FC79', label: 'RA' },
   brave: { color: '#FB542B', label: 'Brave' },
   'google-places': { color: '#4285F4', label: 'Google' },

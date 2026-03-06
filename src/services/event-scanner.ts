@@ -40,7 +40,7 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
 };
 
 // Trusted sources get a quality score bonus
-const TRUSTED_SOURCES = new Set(["luma", "eventbrite", "ra", "lemonade", "sheeets"]);
+const TRUSTED_SOURCES = new Set(["luma", "eventbrite", "ra", "lemonade", "sheeets", "partiful"]);
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
@@ -108,6 +108,7 @@ function fuzzyMatchVenue(
 export async function scanForNewEvents(
   cfg: SbConfig,
   discoverFn: (opts: any) => Promise<EventResult[]>,
+  city?: string,
 ): Promise<{ newCount: number; updatedCount: number; skippedCount: number }> {
   let newCount = 0;
   let updatedCount = 0;
@@ -121,7 +122,7 @@ export async function scanForNewEvents(
     ]);
     const categoryMap = new Map((categories || []).map(c => [c.slug, c.id]));
 
-    const events = await discoverFn({ action: "events", city: "Austin" });
+    const events = await discoverFn({ action: "events", city: city || undefined });
 
     for (const event of events) {
       const titleSlug = slugify(event.title || "");
@@ -158,7 +159,7 @@ export async function scanForNewEvents(
           all_day: event.allDay || false,
           venue_id: venueId,
           venue_name: event.locationName || null,
-          city: event.locationCity || "Austin",
+          city: event.locationCity || city || null,
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,
@@ -196,7 +197,7 @@ export async function scanForNewEvents(
           venue_id: venueId,
           venue_name: event.locationName || null,
           venue_address: null,
-          city: event.locationCity || "Austin",
+          city: event.locationCity || city || null,
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,

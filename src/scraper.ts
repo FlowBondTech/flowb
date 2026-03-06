@@ -74,6 +74,7 @@ async function runScan() {
       const result = await scanForNewEvents(
         sbConfig,
         async (opts) => egator.getEvents({ ...opts, city }),
+        city,
       );
       totalNew += result.newCount;
       totalUpdated += result.updatedCount;

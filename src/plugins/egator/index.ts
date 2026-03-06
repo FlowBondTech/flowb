@@ -28,6 +28,7 @@ import { GooglePlacesAdapter } from "./sources/google-places.js";
 import { EventbriteScraperAdapter } from "./sources/eventbrite-scraper.js";
 import { MeetupScraperAdapter } from "./sources/meetup-scraper.js";
 import { SxswScraperAdapter } from "./sources/sxsw-scraper.js";
+import { PartifulAdapter } from "./sources/partiful.js";
 import { SupadataAdapter } from "./sources/supadata.js";
 import type { TranscriptResult } from "./sources/supadata.js";
 import { SerpAPIAdapter } from "./sources/serpapi.js";
@@ -108,6 +109,10 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
       this.adapters.push(this.serpapi);
       console.log("[egator] Source: SerpAPI (Google Search + Events)");
     }
+    if (src.partiful?.enabled) {
+      this.adapters.push(new PartifulAdapter());
+      console.log("[egator] Source: Partiful (discover scraper)");
+    }
 
     console.log(`[egator] ${this.adapters.length} source(s) configured`);
   }
@@ -141,6 +146,10 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     // Lemonade public GraphQL works without spaceId for search
     this.adapters.push(new LemonadeAdapter(""));
     console.log("[egator] Source: Lemonade (keyless)");
+
+    // Partiful Discover works without auth (supports 9 cities)
+    this.adapters.push(new PartifulAdapter(cities));
+    console.log("[egator] Source: Partiful (keyless)");
 
     // SXSW scraper - enabled when any city is Austin
     if (cities.some((c) => c.toLowerCase() === "austin")) {
