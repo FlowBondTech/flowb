@@ -8,17 +8,18 @@ Backend services that power FlowB's cross-platform features.
 
 | Service | File | Exports |
 |---------|------|---------|
-| admin alerts | `src/services/admin-alerts.ts` | `alertAdmins`, `alertDaily`, `checkMilestone` |
+| admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertDaily`, `checkMilestone` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
+| email digest | `src/services/email-digest.ts` | `runEmailDigest` |
 | email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
-| notifications | `src/services/notifications.ts` | `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat` |
+| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat` |
 | privy | `src/services/privy.ts` | — |
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
@@ -33,7 +34,7 @@ Admin Alert Service
 
 **Source**: `src/services/admin-alerts.ts`
 
-**Exports**: `alertAdmins()`, `alertDaily()`, `checkMilestone()`
+**Exports**: `getAdminIds()`, `alertAdmins()`, `alertDaily()`, `checkMilestone()`
 
 ### ai chat
 
@@ -56,6 +57,14 @@ Contextual Push Notification Engine
 **Source**: `src/services/context-notifications.ts`
 
 **Exports**: `runContextNotifications()`
+
+### email digest
+
+FlowB Email Digest Service
+
+**Source**: `src/services/email-digest.ts`
+
+**Exports**: `runEmailDigest()`
 
 ### email
 
@@ -111,7 +120,7 @@ FlowB Notification Service
 
 **Source**: `src/services/notifications.ts`
 
-**Exports**: `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`
+**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`
 
 ### privy
 
@@ -153,4 +162,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-07 18:03:22 UTC*
+*Auto-generated on 2026-03-07 18:04:14 UTC*
