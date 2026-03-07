@@ -82,6 +82,11 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/leads/:id` | Yes |  |
 | `PATCH` | `unknown` | No |  |
 | `DELETE` | `/api/v1/leads/:id` | Yes |  |
+| `POST` | `/api/v1/admin/egator/scan` | No |  |
+| `GET` | `/api/v1/shared-results/:code` | No |  |
+| `POST` | `/api/v1/shared-results/:code/interact` | No |  |
+| `POST` | `/api/v1/shared-results` | No |  |
+| `POST` | `/api/v1/chat/email-results` | No |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
 ## EVENTS
@@ -235,6 +240,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/admin/events/:id/categorize` | No | Assign categories to an event |
 | `POST` | `/api/v1/admin/venues` | No | Create venue |
 | `GET` | `/api/v1/admin/users` | No | All users (for user manager) |
+| `GET` | `/api/v1/admin/egator/stats` | No | eGator Stats & Scan |
 
 ## ZONES
 
@@ -367,4 +373,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-07 01:31:57 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-07 02:03:40 UTC*
