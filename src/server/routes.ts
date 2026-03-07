@@ -1512,6 +1512,134 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // PREP TASKS: List prep tasks for an event (requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { eventId: string } }>(
+    "/api/v1/me/events/:eventId/prep-tasks",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { eventId } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { tasks: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_prep_tasks?user_id=eq.${jwt.sub}&event_source_id=eq.${encodeURIComponent(eventId)}&order=due_offset_minutes.desc&limit=50`,
+      );
+
+      return { tasks: rows || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PREP TASKS: Add a prep task to an event (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{
+    Params: { eventId: string };
+    Body: {
+      task_text: string;
+      task_type?: string;
+      due_offset_minutes?: number;
+      location?: string;
+      contact_name?: string;
+      event_title?: string;
+    };
+  }>(
+    "/api/v1/me/events/:eventId/prep-tasks",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { eventId } = request.params;
+      const { task_text, task_type, due_offset_minutes, location, contact_name, event_title } = request.body || {};
+
+      if (!task_text?.trim()) {
+        return reply.status(400).send({ error: "Missing task_text" });
+      }
+
+      const validTypes = ["pickup_person", "pickup_item", "bring_item", "errand", "custom"];
+      const type = validTypes.includes(task_type || "") ? task_type : "custom";
+
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const inserted = await sbInsert<any>(cfg, "flowb_event_prep_tasks", {
+        user_id: jwt.sub,
+        event_source_id: eventId,
+        event_title: event_title || null,
+        task_text: task_text.trim(),
+        task_type: type,
+        due_offset_minutes: due_offset_minutes ?? 60,
+        location: location || null,
+        contact_name: contact_name || null,
+      });
+
+      return { ok: true, task: inserted };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PREP TASKS: Complete / update a prep task (requires auth)
+  // ------------------------------------------------------------------
+  app.patch<{
+    Params: { taskId: string };
+    Body: { completed?: boolean; task_text?: string; due_offset_minutes?: number; location?: string; contact_name?: string };
+  }>(
+    "/api/v1/me/prep-tasks/:taskId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { taskId } = request.params;
+      const body = request.body || {};
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      const updates: Record<string, any> = {};
+      if (body.completed !== undefined) {
+        updates.completed = body.completed;
+        updates.completed_at = body.completed ? new Date().toISOString() : null;
+      }
+      if (body.task_text) updates.task_text = body.task_text.trim();
+      if (body.due_offset_minutes !== undefined) updates.due_offset_minutes = body.due_offset_minutes;
+      if (body.location !== undefined) updates.location = body.location || null;
+      if (body.contact_name !== undefined) updates.contact_name = body.contact_name || null;
+
+      if (!Object.keys(updates).length) return { ok: true };
+
+      await sbPatchRaw(cfg, `flowb_event_prep_tasks?id=eq.${taskId}&user_id=eq.${jwt.sub}`, updates);
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PREP TASKS: Delete a prep task (requires auth)
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { taskId: string } }>(
+    "/api/v1/me/prep-tasks/:taskId",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { taskId } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      fireAndForget(fetch(
+        `${cfg.supabaseUrl}/rest/v1/flowb_event_prep_tasks?id=eq.${taskId}&user_id=eq.${jwt.sub}`,
+        {
+          method: "DELETE",
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+          },
+        },
+      ), "delete prep task");
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // FLOW: Crews list (requires auth)
   // ------------------------------------------------------------------
   app.get(
@@ -3223,7 +3351,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at,notify_email,notify_email_digest,notify_email_events,notify_email_crew,email&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,notify_prep_tasks,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at,notify_email,notify_email_digest,notify_email_events,notify_email_crew,email&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -3242,6 +3370,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           notify_crew_messages: pref.notify_crew_messages ?? true,
           notify_event_reminders: pref.notify_event_reminders ?? true,
           notify_daily_digest: pref.notify_daily_digest ?? true,
+          notify_prep_tasks: pref.notify_prep_tasks ?? true,
           daily_notification_limit: pref.daily_notification_limit ?? 10,
           quiet_hours_start: pref.quiet_hours_start ?? 22,
           quiet_hours_end: pref.quiet_hours_end ?? 8,
@@ -3278,6 +3407,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       notify_crew_messages?: boolean;
       notify_event_reminders?: boolean;
       notify_daily_digest?: boolean;
+      notify_prep_tasks?: boolean;
       notifications_enabled?: boolean;
       daily_notification_limit?: number;
       quiet_hours_start?: number;
@@ -3319,6 +3449,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.notify_crew_messages !== undefined) updates.notify_crew_messages = body.notify_crew_messages;
       if (body.notify_event_reminders !== undefined) updates.notify_event_reminders = body.notify_event_reminders;
       if (body.notify_daily_digest !== undefined) updates.notify_daily_digest = body.notify_daily_digest;
+      if (body.notify_prep_tasks !== undefined) updates.notify_prep_tasks = body.notify_prep_tasks;
       if (body.notifications_enabled !== undefined) updates.notifications_enabled = body.notifications_enabled;
       if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
       if (body.quiet_hours_start !== undefined) updates.quiet_hours_start = Math.max(0, Math.min(23, body.quiet_hours_start));

@@ -10,6 +10,8 @@
  *   3. "People heading your way" — 3+ connections have your city as destination
  *   4. "Post-event roundup" — after an attended event ends, show where crew went
  *   5. "Morning briefing" — daily at ~9am local: friends in city + schedule
+ *   6. "Pre-event prep tasks" — reminds about planning tasks before events
+ *      (pick someone up, bring items, run errands, etc.)
  *
  * Dedup: Uses flowb_notifications_sent table. Same type+reference won't
  * re-send within 12 hours (configurable per type).
@@ -39,6 +41,7 @@ interface ActiveUser {
   timezone: string | null;
   notifications_enabled: boolean;
   notify_daily_digest: boolean;
+  notify_prep_tasks: boolean;
   quiet_hours_enabled: boolean;
   quiet_hours_start: number;
   quiet_hours_end: number;
@@ -52,6 +55,7 @@ const COOLDOWN_HOURS: Record<string, number> = {
   heading_your_way: 24,
   post_event: 48,
   morning_briefing: 20, // ~once per day
+  prep_task: 1, // prep tasks can re-notify after 1h (they use their own notified flag too)
 };
 
 // ---------------------------------------------------------------------------
@@ -74,7 +78,7 @@ export async function runContextNotifications(cfg: CtxNotifyConfig): Promise<{
     // who have notifications_enabled (or the column hasn't been set yet, defaulting to true)
     const users = await sbFetch<ActiveUser[]>(
       cfg.supabase,
-      `flowb_sessions?select=user_id,current_city,destination_city,timezone,notifications_enabled,notify_daily_digest,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,daily_notification_limit&or=(user_id.like.telegram_%25,user_id.like.farcaster_%25,user_id.like.whatsapp_%25)&notifications_enabled=not.is.false&limit=500`,
+      `flowb_sessions?select=user_id,current_city,destination_city,timezone,notifications_enabled,notify_daily_digest,notify_prep_tasks,quiet_hours_enabled,quiet_hours_start,quiet_hours_end,daily_notification_limit&or=(user_id.like.telegram_%25,user_id.like.farcaster_%25,user_id.like.whatsapp_%25)&notifications_enabled=not.is.false&limit=500`,
     );
 
     if (!users?.length) {
@@ -96,6 +100,7 @@ export async function runContextNotifications(cfg: CtxNotifyConfig): Promise<{
 
         // Run each trigger (order matters: most actionable first)
         const sent = await Promise.all([
+          safeRun(() => checkPrepTasks(cfg, user)),
           safeRun(() => checkCrewActive(cfg, user)),
           safeRun(() => checkFriendsAtEvent(cfg, user)),
           safeRun(() => checkHeadingYourWay(cfg, user)),
@@ -123,6 +128,143 @@ export async function runContextNotifications(cfg: CtxNotifyConfig): Promise<{
 
   log.info("[ctx-notify]", "Run complete", stats as any);
   return stats;
+}
+
+// ---------------------------------------------------------------------------
+// Trigger 6: "Pre-event prep tasks"
+// Reminds users about tasks they need to do before an event starts —
+// picking someone up, grabbing supplies, running errands, etc.
+// Fires when: now >= event.starts_at - task.due_offset_minutes (within 10 min window)
+// ---------------------------------------------------------------------------
+
+async function checkPrepTasks(cfg: CtxNotifyConfig, user: ActiveUser): Promise<boolean> {
+  if (user.notify_prep_tasks === false) return false;
+
+  const now = Date.now();
+  const windowEnd = now + 10 * 60_000; // 10-minute processing window
+
+  // Get all incomplete, un-notified prep tasks for this user
+  const tasks = await sbFetch<any[]>(
+    cfg.supabase,
+    `flowb_event_prep_tasks?user_id=eq.${user.user_id}&completed=eq.false&notified=eq.false&select=id,event_source_id,event_title,task_text,task_type,due_offset_minutes,location,contact_name&limit=20`,
+  );
+
+  if (!tasks?.length) return false;
+
+  // Group tasks by event_source_id so we can batch-check start times
+  const tasksByEvent = new Map<string, any[]>();
+  for (const task of tasks) {
+    if (!task.event_source_id) continue;
+    const list = tasksByEvent.get(task.event_source_id) || [];
+    list.push(task);
+    tasksByEvent.set(task.event_source_id, list);
+  }
+
+  let sentAny = false;
+
+  for (const [eventSourceId, eventTasks] of tasksByEvent) {
+    // Look up event start time from schedule
+    const schedules = await sbFetch<any[]>(
+      cfg.supabase,
+      `flowb_schedules?user_id=eq.${user.user_id}&event_source_id=eq.${eventSourceId}&rsvp_status=in.(going,maybe)&select=starts_at,event_title,venue_name&limit=1`,
+    );
+    const schedule = schedules?.[0];
+    if (!schedule?.starts_at) continue;
+
+    const eventStart = new Date(schedule.starts_at).getTime();
+
+    // Check each task to see if its reminder is due
+    const dueTasks: any[] = [];
+    for (const task of eventTasks) {
+      const reminderDue = eventStart - task.due_offset_minutes * 60_000;
+      // Due if within [now - 10min, now + 10min] window
+      if (reminderDue <= windowEnd && reminderDue >= now - 10 * 60_000) {
+        dueTasks.push(task);
+      }
+    }
+
+    if (!dueTasks.length) continue;
+
+    // Check dedup via cooldown
+    const refId = `prep:${eventSourceId}`;
+    if (await wasRecentlySent(cfg.supabase, user.user_id, "prep_task", refId)) continue;
+
+    // Build message — group all due tasks for this event
+    const eventTitle = schedule.event_title || dueTasks[0].event_title || "your event";
+    const timeUntil = formatTimeUntil(eventStart - now);
+
+    let message: string;
+    if (dueTasks.length === 1) {
+      const t = dueTasks[0];
+      message = formatSinglePrepTask(t, eventTitle, timeUntil);
+    } else {
+      const taskLines = dueTasks.map((t: any) => `  - ${t.task_text}`).join("\n");
+      message = `<b>${eventTitle}</b> starts ${timeUntil}. Don't forget:\n${taskLines}`;
+    }
+
+    const didSend = await sendToUser(cfg, user.user_id, message);
+    if (didSend) {
+      await recordSent(cfg.supabase, user.user_id, "prep_task", refId);
+      // Mark each task as notified
+      for (const task of dueTasks) {
+        await markPrepTaskNotified(cfg.supabase, task.id);
+      }
+      sentAny = true;
+      break; // One event's prep tasks per cycle
+    }
+  }
+
+  return sentAny;
+}
+
+/** Format a single prep task notification with context */
+function formatSinglePrepTask(task: any, eventTitle: string, timeUntil: string): string {
+  const typeEmoji: Record<string, string> = {
+    pickup_person: "\u{1F697}",
+    pickup_item: "\u{1F4E6}",
+    bring_item: "\u{1F392}",
+    errand: "\u{1F3C3}",
+    custom: "\u{1F4CB}",
+  };
+  const emoji = typeEmoji[task.task_type] || "\u{1F4CB}";
+
+  let msg = `${emoji} <b>${eventTitle}</b> starts ${timeUntil}\n${task.task_text}`;
+  if (task.contact_name) msg += `\nContact: ${task.contact_name}`;
+  if (task.location) msg += `\nAt: ${task.location}`;
+  return msg;
+}
+
+/** Format milliseconds into "in X hours", "in 30 min", etc. */
+function formatTimeUntil(ms: number): string {
+  if (ms <= 0) return "soon";
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `in ${mins} min`;
+  const hours = Math.round(mins / 60);
+  if (hours === 1) return "in 1 hour";
+  return `in ${hours} hours`;
+}
+
+/** Mark a prep task as notified so we don't re-send */
+async function markPrepTaskNotified(cfg: SbConfig, taskId: string): Promise<void> {
+  try {
+    await fetch(
+      `${cfg.supabaseUrl}/rest/v1/flowb_event_prep_tasks?id=eq.${taskId}`,
+      {
+        method: "PATCH",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({ notified: true, notified_at: new Date().toISOString() }),
+      },
+    );
+  } catch (err) {
+    log.error("[ctx-notify]", "markPrepTaskNotified failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -455,8 +597,16 @@ async function checkMorningBriefing(cfg: CtxNotifyConfig, user: ActiveUser): Pro
     eventsToday = todayEvents?.length || 0;
   }
 
+  // Count incomplete prep tasks for today's events
+  let prepTaskCount = 0;
+  const prepTasks = await sbFetch<any[]>(
+    cfg.supabase,
+    `flowb_event_prep_tasks?user_id=eq.${user.user_id}&completed=eq.false&select=id&limit=50`,
+  );
+  prepTaskCount = prepTasks?.length || 0;
+
   // Only send if there's something worth mentioning
-  if (friendsInCity === 0 && eventsToday === 0) return false;
+  if (friendsInCity === 0 && eventsToday === 0 && prepTaskCount === 0) return false;
 
   const parts: string[] = [];
   if (friendsInCity > 0 && user.current_city) {
@@ -464,6 +614,9 @@ async function checkMorningBriefing(cfg: CtxNotifyConfig, user: ActiveUser): Pro
   }
   if (eventsToday > 0) {
     parts.push(`${eventsToday} event${eventsToday === 1 ? "" : "s"} on your schedule`);
+  }
+  if (prepTaskCount > 0) {
+    parts.push(`${prepTaskCount} prep task${prepTaskCount === 1 ? "" : "s"} to handle`);
   }
 
   const message = `Good morning! ${parts.join(", ")}`;
