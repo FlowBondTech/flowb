@@ -212,7 +212,7 @@ export async function sendDigestEmail(
 // ============================================================================
 
 /** Resolve a user's email address from their session or linked Privy accounts */
-async function resolveUserEmail(cfg: SbConfig, userId: string): Promise<string | null> {
+export async function resolveUserEmail(cfg: SbConfig, userId: string): Promise<string | null> {
   // If it's an email-based user ID, extract it
   if (userId.startsWith("email_")) {
     return userId.replace("email_", "");
@@ -262,7 +262,7 @@ async function getUserEmailPrefs(cfg: SbConfig, userId: string): Promise<{
 }
 
 /** Wrap content in the FlowB email template */
-function wrapInTemplate(title: string, body: string): string {
+export function wrapInTemplate(title: string, body: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -286,6 +286,6 @@ function wrapInTemplate(title: string, body: string): string {
 </html>`;
 }
 
-function escHtml(s: string): string {
+export function escHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }

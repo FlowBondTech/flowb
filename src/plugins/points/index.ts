@@ -122,6 +122,8 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   feature_suggested:     { points: 5,   dailyCap: 15 },
   bug_reported:          { points: 10,  dailyCap: 30 },
   chat:                  { points: 1,   dailyCap: 20 },
+  results_shared:        { points: 5,   dailyCap: 25 },
+  results_emailed:       { points: 3,   dailyCap: 15 },
 };
 
 const MILESTONES = [

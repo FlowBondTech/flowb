@@ -5,7 +5,8 @@
  * locations, points, and the full platform via function calling.
  * Each tool maps to existing Supabase tables.
  */
-import { sbFetch, sbPost, type SbConfig } from "../utils/supabase.js";
+import { sbFetch, sbPost, sbPatch, type SbConfig } from "../utils/supabase.js";
+import { sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "./email.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -273,11 +274,41 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "email_results",
+      description:
+        "Email the last search results to the user. Use when user says 'email me these', 'send to my email', 'email these results', etc. Requires a prior search_events or get_trending_events call in this conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          email: { type: "string", description: "Email address to send to (optional — uses user's email on file if not provided)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "share_results",
+      description:
+        "Create a shareable flowb.me/r/{code} link from the last search results. Use when user says 'share these', 'send me a link', 'create a shareable link', etc. Requires a prior search_events or get_trending_events call in this conversation.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Optional title for the shared results page" },
+        },
+      },
+    },
+  },
 ];
 
 // ─── Tool executors ──────────────────────────────────────────────────
 
-async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promise<string> {
+interface SearchResult { text: string; events: any[]; context: any }
+
+async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promise<SearchResult> {
   const limit = Math.min(args.limit || 20, 50);
   const offset = args.offset || 0;
 
@@ -341,8 +372,10 @@ async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promis
       if (city) hints.push(`city "${city}"`);
       if (args.categories) hints.push(`categories "${args.categories}"`);
       if (args.from && args.to) hints.push(`${args.from} to ${args.to}`);
-      return `No events found${hints.length ? ` for ${hints.join(", ")}` : ""}. Try broadening your search (wider dates, different city, or fewer filters).`;
+      return { text: `No events found${hints.length ? ` for ${hints.join(", ")}` : ""}. Try broadening your search (wider dates, different city, or fewer filters).`, events: [], context: {} };
     }
+
+    const searchContext = { city, from: args.from, to: args.to, categories: args.categories, query: args.query, title: `${events.length} events${city ? ` in ${city}` : ""}` };
 
     // Group events by day for readability
     const dayMap = new Map<string, any[]>();
@@ -378,10 +411,10 @@ async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promis
       out += `_Showing ${limit} results. Ask "show more" for the next page._`;
     }
 
-    return out;
+    return { text: out, events, context: searchContext };
   } catch (err: any) {
     console.error("[ai-chat] search_events error:", err.message);
-    return "Couldn't search events right now. Try again in a moment.";
+    return { text: "Couldn't search events right now. Try again in a moment.", events: [], context: {} };
   }
 }
 
@@ -588,7 +621,7 @@ async function getEventDetails(args: any, cfg: SbConfig): Promise<string> {
   }
 }
 
-async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): Promise<string> {
+async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): Promise<SearchResult> {
   const limit = Math.min(args.limit || 10, 20);
   const city = args.city || userCity;
 
@@ -598,7 +631,7 @@ async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): P
     if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
 
     const events = await sbFetch<any[]>(cfg, query) || [];
-    if (!events.length) return `No trending events found${city ? ` in ${city}` : ""}.`;
+    if (!events.length) return { text: `No trending events found${city ? ` in ${city}` : ""}.`, events: [], context: {} };
 
     let out = `**Trending Events${city ? ` in ${city}` : ""}** (by popularity):\n\n`;
     for (const e of events) {
@@ -613,10 +646,11 @@ async function getTrendingEvents(args: any, cfg: SbConfig, userCity?: string): P
       out += `- **${title}** | ${time} | ${venue}${free} <!-- ${e.id} -->\n`;
       if (stats) out += `  ${stats}\n`;
     }
-    return out;
+    const trendContext = { city, title: `Trending events${city ? ` in ${city}` : ""}` };
+    return { text: out, events, context: trendContext };
   } catch (err: any) {
     console.error("[ai-chat] get_trending_events error:", err.message);
-    return "Couldn't fetch trending events right now.";
+    return { text: "Couldn't fetch trending events right now.", events: [], context: {} };
   }
 }
 
@@ -1027,6 +1061,103 @@ async function getActivityFeed(args: any, user: UserContext, cfg: SbConfig): Pro
   return out;
 }
 
+// ─── Email/Share tool executors ──────────────────────────────────────
+
+const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+function genCode(len = 8): string {
+  let code = "";
+  for (let i = 0; i < len; i++) code += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+  return code;
+}
+
+async function emailResults(
+  args: any,
+  user: UserContext,
+  cfg: SbConfig,
+  capturedEvents: any[],
+  capturedContext: any,
+): Promise<string> {
+  if (!user.userId) return "You need to be logged in to email results. Sign in first!";
+  if (!capturedEvents.length) return "No search results to email. Search for events first, then ask me to email them.";
+
+  const email = args.email || await resolveUserEmail(cfg, user.userId);
+  if (!email) return "I don't have your email on file. Please provide one — e.g. \"email these to me@example.com\"";
+
+  const eventsHtml = capturedEvents.map((e: any) => {
+    const time = e.starts_at
+      ? new Date(e.starts_at).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Denver" })
+      : "TBD";
+    const venue = e.venue_name || "TBD";
+    const price = e.is_free ? "FREE" : e.price ? `$${e.price}` : "";
+    const link = e.ticket_url || (e.source === "luma" && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : "");
+    const titleHtml = link
+      ? `<a href="${escHtml(link)}" style="color:#6366f1;text-decoration:none;">${escHtml(e.title)}</a>`
+      : escHtml(e.title);
+    return `<tr>
+      <td style="padding:8px 0;border-bottom:1px solid #222;">${titleHtml}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(time)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(venue)}</td>
+      <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(price)}</td>
+    </tr>`;
+  }).join("");
+
+  const title = capturedContext.title || `${capturedEvents.length} events`;
+  const html = wrapInTemplate(
+    `Your FlowB Events: ${title}`,
+    `<p>Here are the events you requested:</p>
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Event</th>
+        <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">When</th>
+        <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Where</th>
+        <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Price</th>
+      </tr></thead>
+      <tbody>${eventsHtml}</tbody>
+    </table>
+    <div style="margin-top:20px;text-align:center;">
+      <a href="https://flowb.me" style="display:inline-block;padding:10px 24px;background:#6366f1;color:#fff;border-radius:24px;text-decoration:none;font-weight:600;">Explore more on FlowB</a>
+    </div>`,
+  );
+
+  const sent = await sendEmail({
+    to: email,
+    subject: `FlowB Events: ${title}`,
+    html,
+    tags: [
+      { name: "type", value: "chat_results" },
+      { name: "user_id", value: user.userId },
+    ],
+  });
+
+  if (!sent) return "Couldn't send the email right now. Try again in a moment.";
+  return `Sent ${capturedEvents.length} events to ${email}! Check your inbox.`;
+}
+
+async function shareResults(
+  args: any,
+  user: UserContext,
+  cfg: SbConfig,
+  capturedEvents: any[],
+  capturedContext: any,
+): Promise<string> {
+  if (!capturedEvents.length) return "No search results to share. Search for events first, then ask me to share them.";
+
+  const code = genCode();
+  const title = args.title || capturedContext.title || `${capturedEvents.length} events`;
+
+  const row = await sbPost(cfg, "flowb_shared_results", {
+    code,
+    title,
+    results: capturedEvents,
+    query_context: capturedContext,
+    sharer_user_id: user.userId || null,
+    sharer_display_name: user.displayName || null,
+  });
+
+  if (!row) return "Couldn't create the share link right now. Try again.";
+  return `Here's your shareable link:\n\n**https://flowb.me/r/${code}**\n\nAnyone with this link can see ${capturedEvents.length} events. The link expires in 30 days.`;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────
 
 function timeAgo(iso: string): string {
@@ -1130,6 +1261,13 @@ FORMAT:
 - If results say "Showing N results", tell the user they can ask for more.
 - When users want to RSVP, just ask which event by name — you can find the ID from the hidden comments in the tool data.
 
+SHARING & EMAIL:
+- After showing event search results with 5+ events, briefly mention: "I can email these results or create a shareable link - just ask!"
+- Only mention this ONCE per conversation, after the first substantial search.
+- If user asks to email and isn't logged in, tell them to sign in first.
+- If user asks to email and no email on file, ask them to provide one.
+- When sharing, show the flowb.me/r/{code} link prominently.
+
 Current time: ${nowStr} MST
 ${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}
 ${userCity ? `User's city: ${userCity}` : ""}`;
@@ -1165,8 +1303,12 @@ export async function handleChat(
     ...userMessages,
   ];
 
+  // State tracking for email/share tools
+  let capturedEvents: any[] = [];
+  let capturedContext: any = {};
+
   // Limit tools for unauthenticated users — public tools include event search + discovery
-  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed"];
+  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results"];
   const tools = user.userId
     ? TOOLS
     : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
@@ -1218,9 +1360,12 @@ export async function handleChat(
       let result: string;
       try {
         switch (fn) {
-          case "search_events":
-            result = await searchEvents(args, sb, userCity);
+          case "search_events": {
+            const sr = await searchEvents(args, sb, userCity);
+            result = sr.text;
+            if (sr.events.length) { capturedEvents = sr.events; capturedContext = sr.context; }
             break;
+          }
           case "get_available_cities":
             result = await getAvailableCities(sb);
             break;
@@ -1233,9 +1378,12 @@ export async function handleChat(
           case "get_event_details":
             result = await getEventDetails(args, sb);
             break;
-          case "get_trending_events":
-            result = await getTrendingEvents(args, sb, userCity);
+          case "get_trending_events": {
+            const tr = await getTrendingEvents(args, sb, userCity);
+            result = tr.text;
+            if (tr.events.length) { capturedEvents = tr.events; capturedContext = tr.context; }
             break;
+          }
           case "get_my_schedule":
             result = await getMySchedule(user, sb);
             break;
@@ -1268,6 +1416,12 @@ export async function handleChat(
             break;
           case "get_activity_feed":
             result = await getActivityFeed(args, user, sb);
+            break;
+          case "email_results":
+            result = await emailResults(args, user, sb, capturedEvents, capturedContext);
+            break;
+          case "share_results":
+            result = await shareResults(args, user, sb, capturedEvents, capturedContext);
             break;
           default:
             result = `Unknown tool: ${fn}`;

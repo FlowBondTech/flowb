@@ -41,6 +41,12 @@
   status = 200
   force = true
 
+# Shared results pages
+[[redirects]]
+  from = "/r/:code"
+  to = "/r.html"
+  status = 200
+
 # Clean URL routes for static pages
 [[redirects]]
   from = "/leaderboard"

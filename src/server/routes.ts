@@ -5,6 +5,7 @@
  * Auth endpoints issue JWTs for Telegram and Farcaster users.
  */
 
+import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { FlowBCore } from "../core/flowb.js";
 import type { FlowPluginConfig } from "../plugins/flow/index.js";
@@ -29,16 +30,17 @@ import {
   notifyCrewMessage,
   notifyMeetingChat,
 } from "../services/notifications.js";
-import { sendWelcomeEmail } from "../services/email.js";
+import { sendWelcomeEmail, sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "../services/email.js";
 import { handleChat, type UserContext } from "../services/ai-chat.js";
 import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
-import { sbFetch, sbPost, sbInsert, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
+import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { alertAdmins } from "../services/admin-alerts.js";
+import { scanForNewEvents } from "../services/event-scanner.js";
 import { registerAgentRoutes } from "./agent-routes.js";
 
 
@@ -6346,7 +6348,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       if (!res.ok) {
         const err = await res.text();
-        log("leads", "error", `Create failed: ${err}`);
+        log.error("leads", `Create failed: ${err}`);
         return { error: "Failed to create lead" };
       }
 
@@ -6479,7 +6481,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       if (!res.ok) {
         const err = await res.text();
-        log("leads", "error", `Update failed: ${err}`);
+        log.error("leads", `Update failed: ${err}`);
         return { error: "Failed to update lead" };
       }
 
@@ -6510,6 +6512,377 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       if (!res.ok) return { error: "Failed to delete lead" };
       return { ok: true };
+    },
+  );
+
+  // ============================================================================
+  // ADMIN: eGator Stats & Scan
+  // ============================================================================
+
+  app.get(
+    "/api/v1/admin/egator/stats",
+    { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const [
+        allEvents,
+        staleEvents,
+        featuredEvents,
+        recentEvents,
+      ] = await Promise.all([
+        sbFetch<any[]>(cfg, "flowb_events?select=id,source,city,quality_score,image_url,description,venue_name,price,organizer_name,is_free,stale,featured,created_at,last_seen&limit=50000"),
+        sbFetch<any[]>(cfg, "flowb_events?stale=eq.true&select=id&limit=50000"),
+        sbFetch<any[]>(cfg, "flowb_events?featured=eq.true&select=id&limit=50000"),
+        sbFetch<any[]>(cfg, "flowb_events?select=id,title,source,city,quality_score,image_url,created_at&order=created_at.desc&limit=20"),
+      ]);
+
+      const events = allEvents || [];
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      // By source
+      const bySource: Record<string, { count: number; avgQuality: number; qualitySum: number; lastSeen: string }> = {};
+      for (const e of events) {
+        const src = e.source || "unknown";
+        if (!bySource[src]) bySource[src] = { count: 0, avgQuality: 0, qualitySum: 0, lastSeen: "" };
+        bySource[src].count++;
+        bySource[src].qualitySum += Number(e.quality_score) || 0;
+        if (e.last_seen && e.last_seen > (bySource[src].lastSeen || "")) {
+          bySource[src].lastSeen = e.last_seen;
+        }
+      }
+      for (const src of Object.keys(bySource)) {
+        bySource[src].avgQuality = bySource[src].count > 0
+          ? Math.round((bySource[src].qualitySum / bySource[src].count) * 100) / 100
+          : 0;
+      }
+
+      // By city
+      const byCity: Record<string, number> = {};
+      for (const e of events) {
+        const city = e.city || "unknown";
+        byCity[city] = (byCity[city] || 0) + 1;
+      }
+
+      // Quality audit
+      const withImage = events.filter((e: any) => e.image_url).length;
+      const withDescription = events.filter((e: any) => e.description && e.description.length > 10).length;
+      const withVenue = events.filter((e: any) => e.venue_name).length;
+      const withPrice = events.filter((e: any) => e.price != null || e.is_free != null).length;
+      const withOrganizer = events.filter((e: any) => e.organizer_name).length;
+      const total = events.length;
+      const qualityScores = events.map((e: any) => Number(e.quality_score) || 0);
+      const avgQuality = total > 0
+        ? Math.round((qualityScores.reduce((a: number, b: number) => a + b, 0) / total) * 100) / 100
+        : 0;
+
+      // Freshness
+      const createdToday = events.filter((e: any) => e.created_at >= todayStart).length;
+      const createdThisWeek = events.filter((e: any) => e.created_at >= weekAgo).length;
+      const lastScanTimes = events.map((e: any) => e.last_seen).filter(Boolean).sort();
+      const lastScanTime = lastScanTimes.length ? lastScanTimes[lastScanTimes.length - 1] : null;
+
+      // Free events
+      const freeCount = events.filter((e: any) => e.is_free === true).length;
+
+      return {
+        totals: {
+          active: total - (staleEvents?.length || 0),
+          stale: staleEvents?.length || 0,
+          featured: featuredEvents?.length || 0,
+          free: freeCount,
+          total,
+        },
+        bySource,
+        byCity,
+        quality: {
+          avgScore: avgQuality,
+          withImage,
+          withDescription,
+          withVenue,
+          withPrice,
+          withOrganizer,
+          pctImage: total > 0 ? Math.round((withImage / total) * 100) : 0,
+          pctDescription: total > 0 ? Math.round((withDescription / total) * 100) : 0,
+          pctVenue: total > 0 ? Math.round((withVenue / total) * 100) : 0,
+          pctPrice: total > 0 ? Math.round((withPrice / total) * 100) : 0,
+          pctOrganizer: total > 0 ? Math.round((withOrganizer / total) * 100) : 0,
+        },
+        freshness: {
+          staleCount: staleEvents?.length || 0,
+          lastScanTime,
+          createdToday,
+          createdThisWeek,
+        },
+        recentEvents: (recentEvents || []).map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          source: e.source,
+          city: e.city,
+          qualityScore: e.quality_score,
+          hasImage: !!e.image_url,
+          createdAt: e.created_at,
+        })),
+      };
+    },
+  );
+
+  app.post(
+    "/api/v1/admin/egator/scan",
+    { config: { rateLimit: { max: 2, timeWindow: "5 minutes" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      try {
+        const result = await scanForNewEvents(
+          cfg,
+          (opts) => core.discoverEventsRaw(opts),
+        );
+        return { ok: true, ...result };
+      } catch (err) {
+        return reply.status(500).send({
+          error: "Scan failed",
+          detail: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+  );
+
+  // ==================================================================
+  // SHARED RESULTS: Public shareable event result pages
+  // ==================================================================
+
+  // GET /api/v1/shared-results/:code — fetch shared results (public)
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/shared-results/:code",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const { code } = request.params;
+      const rows = await sbFetch<any[]>(cfg, `flowb_shared_results?code=eq.${encodeURIComponent(code)}&limit=1`);
+      if (!rows?.length) return reply.status(404).send({ error: "Not found" });
+
+      const row = rows[0];
+
+      // Check expiry
+      if (row.expires_at && new Date(row.expires_at) < new Date()) {
+        return reply.status(410).send({ error: "This shared link has expired" });
+      }
+
+      // Increment view count (fire-and-forget)
+      fireAndForget(sbPatch(cfg, "flowb_shared_results", { code: `eq.${code}` }, {
+        view_count: (row.view_count || 0) + 1,
+      }), "increment share view count");
+
+      // Log view interaction with IP hash
+      const ip = request.ip || "unknown";
+      const ipHash = createHash("sha256").update(ip + code).digest("hex").slice(0, 16);
+      fireAndForget(sbPost(cfg, "flowb_share_interactions", {
+        result_code: code,
+        viewer_ip_hash: ipHash,
+        interaction_type: "view",
+        referrer: (request.headers.referer as string) || null,
+      }), "log share view interaction");
+
+      return {
+        title: row.title,
+        results: row.results,
+        sharerDisplayName: row.sharer_display_name,
+        queryContext: row.query_context,
+        createdAt: row.created_at,
+        viewCount: (row.view_count || 0) + 1,
+      };
+    },
+  );
+
+  // POST /api/v1/shared-results/:code/interact — log interactions (public)
+  app.post<{ Params: { code: string }; Body: { type: string; eventId?: string } }>(
+    "/api/v1/shared-results/:code/interact",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["type"],
+          properties: {
+            type: { type: "string", enum: ["csv_download", "reshare", "event_click"] },
+            eventId: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const { code } = request.params;
+      const { type, eventId } = request.body;
+
+      const ip = request.ip || "unknown";
+      const ipHash = createHash("sha256").update(ip + code).digest("hex").slice(0, 16);
+
+      // Log interaction
+      await sbPost(cfg, "flowb_share_interactions", {
+        result_code: code,
+        viewer_ip_hash: ipHash,
+        interaction_type: type,
+        event_id: eventId || null,
+        referrer: (request.headers.referer as string) || null,
+      });
+
+      // Update counters
+      if (type === "csv_download") {
+        const rows = await sbFetch<any[]>(cfg, `flowb_shared_results?code=eq.${encodeURIComponent(code)}&select=csv_downloads&limit=1`);
+        if (rows?.length) {
+          fireAndForget(sbPatch(cfg, "flowb_shared_results", { code: `eq.${code}` }, {
+            csv_downloads: (rows[0].csv_downloads || 0) + 1,
+          }), "increment csv downloads");
+        }
+      } else if (type === "reshare") {
+        const rows = await sbFetch<any[]>(cfg, `flowb_shared_results?code=eq.${encodeURIComponent(code)}&select=share_count&limit=1`);
+        if (rows?.length) {
+          fireAndForget(sbPatch(cfg, "flowb_shared_results", { code: `eq.${code}` }, {
+            share_count: (rows[0].share_count || 0) + 1,
+          }), "increment share count");
+        }
+      }
+
+      return { ok: true };
+    },
+  );
+
+  // POST /api/v1/shared-results — create shared results (auth optional)
+  app.post<{ Body: { results: any[]; title?: string; queryContext?: any } }>(
+    "/api/v1/shared-results",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["results"],
+          properties: {
+            results: { type: "array" },
+            title: { type: "string" },
+            queryContext: { type: "object" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const { results, title, queryContext } = request.body;
+      const jwt = extractJwt(request);
+
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+      let code = "";
+      for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+      const row = await sbPost(cfg, "flowb_shared_results", {
+        code,
+        title: title || `${results.length} events`,
+        results,
+        query_context: queryContext || {},
+        sharer_user_id: jwt?.sub || null,
+        sharer_display_name: jwt?.username || null,
+      });
+
+      if (!row) return reply.status(500).send({ error: "Failed to create share" });
+
+      // Award points if authenticated
+      if (jwt?.sub) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "results_shared"), "award share points");
+      }
+
+      return { code, url: `https://flowb.me/r/${code}` };
+    },
+  );
+
+  // POST /api/v1/chat/email-results — email event results (auth required)
+  app.post<{ Body: { results: any[]; title?: string; email?: string } }>(
+    "/api/v1/chat/email-results",
+    {
+      preHandler: [authMiddleware],
+      schema: {
+        body: {
+          type: "object",
+          required: ["results"],
+          properties: {
+            results: { type: "array" },
+            title: { type: "string" },
+            email: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const jwt = (request as any).user as JWTPayload;
+      const { results, title, email: providedEmail } = request.body;
+
+      const email = providedEmail || await resolveUserEmail(cfg, jwt.sub);
+      if (!email) return reply.status(400).send({ error: "No email on file. Provide one in the request body." });
+
+      const eventsHtml = results.map((e: any) => {
+        const time = e.starts_at || e.startTime
+          ? new Date(e.starts_at || e.startTime).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Denver" })
+          : "TBD";
+        const venue = e.venue_name || e.locationName || "TBD";
+        const price = e.is_free || e.isFree ? "FREE" : e.price ? `$${e.price}` : "";
+        const link = e.ticket_url || e.ticketUrl || e.url || "";
+        const titleHtml = link
+          ? `<a href="${escHtml(link)}" style="color:#6366f1;text-decoration:none;">${escHtml(e.title)}</a>`
+          : escHtml(e.title || "Untitled");
+        return `<tr>
+          <td style="padding:8px 0;border-bottom:1px solid #222;">${titleHtml}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(time)}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(venue)}</td>
+          <td style="padding:8px 0;border-bottom:1px solid #222;color:#888;">${escHtml(price)}</td>
+        </tr>`;
+      }).join("");
+
+      const emailTitle = title || `${results.length} events`;
+      const html = wrapInTemplate(
+        `Your FlowB Events: ${emailTitle}`,
+        `<p>Here are the events you requested:</p>
+        <table style="width:100%;border-collapse:collapse;">
+          <thead><tr>
+            <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Event</th>
+            <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">When</th>
+            <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Where</th>
+            <th style="text-align:left;padding:8px 0;border-bottom:2px solid #333;color:#a78bfa;">Price</th>
+          </tr></thead>
+          <tbody>${eventsHtml}</tbody>
+        </table>
+        <div style="margin-top:20px;text-align:center;">
+          <a href="https://flowb.me" style="display:inline-block;padding:10px 24px;background:#6366f1;color:#fff;border-radius:24px;text-decoration:none;font-weight:600;">Explore more on FlowB</a>
+        </div>`,
+      );
+
+      const sent = await sendEmail({
+        to: email,
+        subject: `FlowB Events: ${emailTitle}`,
+        html,
+        tags: [
+          { name: "type", value: "chat_results" },
+          { name: "user_id", value: jwt.sub },
+        ],
+      });
+
+      if (!sent) return reply.status(500).send({ error: "Failed to send email" });
+
+      // Award points
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "results_emailed"), "award email points");
+
+      return { ok: true, sentTo: email };
     },
   );
 
