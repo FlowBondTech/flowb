@@ -6,23 +6,311 @@
  *   - Friend RSVP alerts ("Alice is going to [event]")
  *   - Event reminders (30 min before RSVP'd events)
  *   - Daily morning digest
+ *   - Business notifications (meetings, leads, commissions, automations)
  *
  * Features:
  *   - Cross-platform dedup (Telegram preferred for push, Farcaster for social)
  *   - Quiet hours (10pm-8am MST)
  *   - Rate limiting (max 10/day/user)
+ *   - Priority tiers (P0 urgent, P1 important, P2 digest)
+ *   - DND mode respects user opt-out
+ *   - Digest queue for P2 batch processing
  */
 
 import { sendFarcasterNotification } from "./farcaster-notify.js";
 import { sendWhatsAppNotification } from "../whatsapp/templates.js";
 import { sendSignalNotification } from "../signal/api.js";
 import { sendEmailNotification } from "./email.js";
-import { sbQuery, sbFetch, type SbConfig } from "../utils/supabase.js";
-import { log } from "../utils/logger.js";
+import { sbQuery, sbFetch, sbInsert, sbPatch, type SbConfig } from "../utils/supabase.js";
+import { log, fireAndForget } from "../utils/logger.js";
 
 interface NotifyContext {
   supabase: SbConfig;
   botToken?: string;
+}
+
+// ============================================================================
+// Priority Tiers
+// ============================================================================
+
+/** P0: Urgent - immediate delivery via all channels */
+/** P1: Important - immediate delivery via primary channel only */
+/** P2: Digest - queued for daily/weekly batch processing */
+export type NotifyPriority = "p0" | "p1" | "p2";
+
+/** Business notification event types */
+export type BizNotifyType =
+  | "meeting_reminder"
+  | "lead_stage_change"
+  | "commission_earned"
+  | "automation_executed"
+  | string; // allow custom types
+
+export interface BizNotifyOptions {
+  userId: string;
+  title: string;
+  body: string;
+  priority: NotifyPriority;
+  type: BizNotifyType;
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Business Notification Dispatch
+// ============================================================================
+
+/**
+ * Send a business notification with priority routing.
+ *
+ * - P0 (urgent): Immediate delivery, all channels, bypasses quiet hours
+ * - P1 (important): Immediate delivery, primary channel only
+ * - P2 (digest): Queued to flowb_digest_queue for batch processing
+ *
+ * Respects user DND settings (dnd_enabled on flowb_sessions).
+ * Returns true if the notification was sent or queued successfully.
+ */
+export async function sendBizNotification(
+  ctx: NotifyContext,
+  opts: BizNotifyOptions,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<boolean> {
+  const { userId, title, body, priority, type, metadata } = opts;
+
+  // Check DND (Do Not Disturb) — P0 bypasses DND
+  if (priority !== "p0") {
+    const isDnd = await isUserDndEnabled(ctx.supabase, userId);
+    if (isDnd) {
+      log.debug("[biz-notify]", `Skipping ${type} for ${userId}: DND enabled`, { priority });
+      return false;
+    }
+  }
+
+  // P2: queue for digest batch processing
+  if (priority === "p2") {
+    return await queueForDigest(ctx.supabase, userId, type, title, body, priority, metadata);
+  }
+
+  // P0/P1: send immediately
+  const message = `${title}\n${body}`;
+
+  if (priority === "p0") {
+    // P0: all channels - send to primary and attempt fallbacks
+    const didSend = await sendToUser(ctx, userId, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, userId, `biz_${type}`, type, "system");
+    }
+    return didSend;
+  }
+
+  // P1: primary channel only (same as sendToUser which tries primary first)
+  if (await hasReachedDailyLimit(ctx.supabase, userId)) {
+    log.debug("[biz-notify]", `Daily limit reached for ${userId}`, { type });
+    return false;
+  }
+  if (await isUserQuietHours(ctx.supabase, userId)) {
+    log.debug("[biz-notify]", `Quiet hours for ${userId}, downgrading to digest`, { type });
+    // Downgrade P1 to digest during quiet hours instead of dropping
+    return await queueForDigest(ctx.supabase, userId, type, title, body, "p1", metadata);
+  }
+
+  const didSend = await sendToUser(ctx, userId, message, sendTelegramMessage);
+  if (didSend) {
+    await logNotification(ctx.supabase, userId, `biz_${type}`, type, "system");
+  }
+  return didSend;
+}
+
+// ============================================================================
+// Digest Queue Processing
+// ============================================================================
+
+/**
+ * Process the digest queue: fetch all pending items grouped by user,
+ * compose a single digest message per user, send it, and mark items as sent.
+ *
+ * Intended to be called by a cron job (e.g. daily at 9am user-local time).
+ * Returns the number of users who received a digest.
+ */
+export async function processDigestQueue(
+  ctx: NotifyContext,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  // Fetch all unsent digest items
+  const pending = await sbFetch<any[]>(
+    ctx.supabase,
+    `flowb_digest_queue?sent_at=is.null&order=created_at.asc&limit=500`,
+  );
+
+  if (!pending?.length) {
+    log.debug("[digest]", "No pending digest items");
+    return 0;
+  }
+
+  // Group by user_id
+  const byUser = new Map<string, typeof pending>();
+  for (const item of pending) {
+    const list = byUser.get(item.user_id) || [];
+    list.push(item);
+    byUser.set(item.user_id, list);
+  }
+
+  let usersNotified = 0;
+
+  for (const [userId, items] of byUser) {
+    // Check DND before sending digest
+    const isDnd = await isUserDndEnabled(ctx.supabase, userId);
+    if (isDnd) {
+      log.debug("[digest]", `Skipping digest for ${userId}: DND enabled`);
+      continue;
+    }
+
+    // Compose digest message
+    const digestLines: string[] = ["Your FlowB digest:", ""];
+    for (const item of items) {
+      const content = item.content || {};
+      const title = content.title || item.message_type;
+      const body = content.body || "";
+      digestLines.push(`- ${title}${body ? `: ${body}` : ""}`);
+    }
+    const digestMessage = digestLines.join("\n");
+
+    // Send the composed digest
+    const didSend = await sendToUser(ctx, userId, digestMessage, sendTelegramMessage);
+
+    // Mark all items for this user as sent (regardless of send success to avoid infinite retries)
+    const now = new Date().toISOString();
+    const itemIds = items.map((i: any) => i.id);
+    for (const itemId of itemIds) {
+      fireAndForget(
+        sbPatch(
+          ctx.supabase,
+          "flowb_digest_queue",
+          { id: `eq.${itemId}` },
+          { sent_at: now },
+        ).then(() => {}),
+        `mark digest item ${itemId} as sent`,
+      );
+    }
+
+    if (didSend) {
+      await logNotification(ctx.supabase, userId, "biz_digest", `digest_${now}`, "system");
+      usersNotified++;
+    } else {
+      log.warn("[digest]", `Failed to deliver digest for ${userId}`, { itemCount: items.length });
+    }
+  }
+
+  log.info("[digest]", `Processed digest queue`, {
+    totalItems: pending.length,
+    users: byUser.size,
+    delivered: usersNotified,
+  });
+
+  return usersNotified;
+}
+
+// ============================================================================
+// Business Event Notification Helpers
+// ============================================================================
+
+/**
+ * Notify a user about an upcoming meeting.
+ * Priority: P1 (important) - immediate delivery.
+ */
+export function notifyMeetingReminder(
+  ctx: NotifyContext,
+  userId: string,
+  meetingTitle: string,
+  startsAt: Date,
+  minutesBefore: number,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): void {
+  const timeStr = startsAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const label = formatReminderLabel(minutesBefore);
+
+  fireAndForget(
+    sendBizNotification(ctx, {
+      userId,
+      title: `Meeting ${label}`,
+      body: `${meetingTitle} at ${timeStr}`,
+      priority: "p1",
+      type: "meeting_reminder",
+      metadata: { meeting_title: meetingTitle, starts_at: startsAt.toISOString(), minutes_before: minutesBefore },
+    }, sendTelegramMessage),
+    `meeting reminder for ${userId}`,
+  );
+}
+
+/**
+ * Notify a user that a lead changed stages.
+ * Priority: P2 (digest) - batched for daily delivery.
+ */
+export function notifyLeadStageChange(
+  ctx: NotifyContext,
+  userId: string,
+  leadName: string,
+  fromStage: string,
+  toStage: string,
+): void {
+  fireAndForget(
+    sendBizNotification(ctx, {
+      userId,
+      title: "Lead moved",
+      body: `${leadName}: ${fromStage} -> ${toStage}`,
+      priority: "p2",
+      type: "lead_stage_change",
+      metadata: { lead_name: leadName, from_stage: fromStage, to_stage: toStage },
+    }),
+    `lead stage change for ${userId}`,
+  );
+}
+
+/**
+ * Notify a user that they earned a commission.
+ * Priority: P1 (important) - immediate delivery.
+ */
+export function notifyCommissionEarned(
+  ctx: NotifyContext,
+  userId: string,
+  amount: number,
+  currency: string,
+  source: string,
+): void {
+  fireAndForget(
+    sendBizNotification(ctx, {
+      userId,
+      title: "Commission earned",
+      body: `${amount} ${currency} from ${source}`,
+      priority: "p1",
+      type: "commission_earned",
+      metadata: { amount, currency, source },
+    }),
+    `commission earned for ${userId}`,
+  );
+}
+
+/**
+ * Notify a user that an automation was executed.
+ * Priority: P2 (digest) - batched for daily delivery.
+ */
+export function notifyAutomationExecuted(
+  ctx: NotifyContext,
+  userId: string,
+  automationName: string,
+  result: "success" | "failure",
+  details?: string,
+): void {
+  fireAndForget(
+    sendBizNotification(ctx, {
+      userId,
+      title: `Automation ${result === "success" ? "ran" : "failed"}: ${automationName}`,
+      body: details || (result === "success" ? "Completed successfully" : "Check logs for details"),
+      priority: "p2",
+      type: "automation_executed",
+      metadata: { automation_name: automationName, result, details },
+    }),
+    `automation executed for ${userId}`,
+  );
 }
 
 // ============================================================================
@@ -301,7 +589,7 @@ export async function notifyCrewJoin(
   crewEmoji: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
 ): Promise<number> {
-  // NOTE: Don't check joiner's quiet hours here — each recipient's quiet hours
+  // NOTE: Don't check joiner's quiet hours here -- each recipient's quiet hours
   // are checked individually in the loop below.
 
   // Get crew members (excluding the person who joined)
@@ -504,7 +792,7 @@ export async function notifyCrewMessage(
     if (await hasReachedDailyLimit(ctx.supabase, member.user_id)) continue;
     if (await isUserQuietHours(ctx.supabase, member.user_id)) continue;
 
-    // Check dedup — use hourly bucket so the same sender can trigger notifications
+    // Check dedup -- use hourly bucket so the same sender can trigger notifications
     // again after an hour, preventing spam while still allowing follow-up messages
     const hourBucket = new Date().toISOString().slice(0, 13); // "2026-03-05T14"
     const alreadySent = await isAlreadyNotified(
@@ -867,4 +1155,47 @@ async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean>
     }
     return mstHour >= qhStart && mstHour < qhEnd;
   }
+}
+
+/**
+ * Check if user has Do Not Disturb enabled.
+ * Reads dnd_enabled from flowb_sessions (added in migration 027).
+ */
+async function isUserDndEnabled(cfg: SbConfig, userId: string): Promise<boolean> {
+  const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
+    select: "dnd_enabled",
+    user_id: `eq.${userId}`,
+    limit: "1",
+  });
+  return rows?.[0]?.dnd_enabled === true;
+}
+
+/**
+ * Insert a notification into the digest queue for later batch processing.
+ * Uses the flowb_digest_queue table (migration 027) with JSONB content column.
+ */
+async function queueForDigest(
+  cfg: SbConfig,
+  userId: string,
+  messageType: string,
+  title: string,
+  body: string,
+  priority: NotifyPriority,
+  metadata?: Record<string, unknown>,
+): Promise<boolean> {
+  const result = await sbInsert(cfg, "flowb_digest_queue", {
+    user_id: userId,
+    message_type: messageType,
+    content: { title, body, ...(metadata ? { metadata } : {}) },
+    priority,
+    is_biz: true,
+  });
+
+  if (result) {
+    log.debug("[biz-notify]", `Queued ${messageType} for ${userId} digest`, { priority });
+    return true;
+  }
+
+  log.warn("[biz-notify]", `Failed to queue ${messageType} for ${userId}`, { priority });
+  return false;
 }

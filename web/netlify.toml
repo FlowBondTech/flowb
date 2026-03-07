@@ -41,6 +41,19 @@
   status = 200
   force = true
 
+# Meeting share links
+[[redirects]]
+  from = "/m/:code"
+  to = "/m.html"
+  status = 200
+
+# Referral event links -> proxy to Fastify for click tracking
+[[redirects]]
+  from = "/t/:code"
+  to = "https://flowb.fly.dev/api/v1/referrals/e/:code"
+  status = 302
+  force = true
+
 # Shared results pages
 [[redirects]]
   from = "/r/:code"
@@ -86,6 +99,11 @@
 [[redirects]]
   from = "/agents"
   to = "/agents.html"
+  status = 200
+
+[[redirects]]
+  from = "/biz"
+  to = "/biz.html"
   status = 200
 
 [[headers]]

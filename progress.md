@@ -1,135 +1,130 @@
 # Progress - FlowB Business Platform
 
-## Overall Status: PLANNING
+## Overall Status: PLANNING → IMPLEMENTATION
 
-## Session: March 4, 2026
+## Session: March 6, 2026 — Context Recovery + Planning
+
+### Context Recovery
+- Recovered from 262 unsynced messages from previous session
+- Previous session focused on creating `flowb_leads` table in Supabase
+- DB password was changed by user to new value (updated in `.pgpass`)
+- `flowb_leads` table successfully created and verified via REST API
+- Migration `025_flowb_leads_standalone.sql` created and tracked
+
+### Current State
+- All 9 phases still at `pending` status
+- DB: `flowb_leads` table live in production
+- Meeting plugin exists at `src/plugins/meeting/index.ts` (basic CRUD)
+- Kanban web UI exists at `kanban/` (37 files, not deployed)
+- No lead API routes in `src/server/routes.ts` yet
+- No lead/biz commands in TG bot yet
+- Significant uncommitted changes (13 files, ~1600 lines)
+
+---
+
+## Session: March 5, 2026 (Session 3) — flowb_leads Table Created
+
+### What Was Done
+- Created `flowb_leads` table in production Supabase via direct psql
+- Found DB password in `~/.pgpass` file
+- User changed DB password afterward (new password updated in `.pgpass`)
+- Created migration file `025_flowb_leads_standalone.sql`
+- Verified table works via REST API (returns empty array)
+
+---
+
+## Session: March 5, 2026 (Session 2) — Add Event Feature Shipped
+
+### What Was Done
+- **Add Event in TG Bot**: Deployed `/addmyevent` command + conversational flow to Fly.io
+- **Add Event in Mini Apps**: Already deployed to fc.flowb.me and tg.flowb.me (previous commit)
+- **Date Picker Fix**: Added `min={today}` to date inputs so users can't pick past dates
+- **Deploys**: Bot → Fly.io, Mini apps → Netlify (fc.flowb.me + tg.flowb.me)
+
+### Commits
+- `35ebc6f` Add community event submission to Farcaster and Telegram mini apps
+- `8eb490e` Add event submission to Telegram bot (/addmyevent command + conversational flow)
+- `02f2ff8` Prevent past dates in event submission date picker
+
+### Still Uncommitted (from git status)
+- `findings.md`, `progress.md`, `task_plan.md` (planning files)
+- `package.json` / `package-lock.json` changes
+- `src/plugins/egator/sources/` scraper improvements (eventbrite, lemonade, luma, meetup)
+- `src/plugins/meeting/` directory (new meeting plugin)
+- `src/services/email-digest.ts`
+- `supabase/migrations/` (022 email, 023 kanban, 024 meetings)
+- `kanban/` directory (kanban web UI, 37 files)
+- `infra/` directory (OVH VPS config, SOPS vault)
+- `research/` directory
+
+---
+
+## Session: March 5, 2026 (Session 1) — Focus: Wire Up Business/Lead Tools in TG Bot
+
+### Context Recovery
+- Read previous session's full planning files (task_plan.md, findings.md, progress.md)
+- Previous session (March 4) did comprehensive 9-phase planning
+- No implementation has started — all phases at `pending`
+- User's question: "where are we at with utilizing business and lead tools in flowb telegram"
+
+### Current State Assessment (March 5)
+- **DB schema**: `flowb_leads` table fully defined (migration 023), not yet applied to prod
+- **Kanban types**: `Lead`, `LeadStage`, `KanbanTask.lead_id` in `kanban/src/types/kanban.ts`
+- **Kanban web UI**: 37 source files in `kanban/`, not deployed
+- **Meeting plugin**: Basic version exists at `src/plugins/meeting/index.ts` (create, list, detail, RSVP, chat)
+- **API routes**: NO lead CRUD endpoints in `src/server/routes.ts`
+- **TG bot**: NO `/lead`, `/pipeline`, `/deal`, `/biz` commands
+- **Notifications**: `lead_update` notification type exists in schema but no sender wired up
+
+### What Needs to Happen (Immediate)
+1. Add lead CRUD API routes to Fastify (`/api/v1/leads/*`)
+2. Wire up TG bot commands: `/lead`, `/leads`, `/pipeline`
+3. Wire up TG callback handlers for lead actions
+4. Connect leads to meeting plugin (lead-to-meeting conversion)
+5. Deploy kanban web UI to a Netlify site
+
+### Phase 1 Progress: Smart Meetings Engine
+- [x] Meeting plugin exists with basic CRUD + RSVP + chat + share codes
+- [ ] Lead-to-meeting conversion
+- [ ] AI briefing generation
+- [ ] Follow-up drafting
+- [ ] Invite sending with shared link
+
+### Lead/Business Tools in TG Bot
+- [ ] `/lead add <name> <details>` — quick lead creation
+- [ ] `/lead <name>` — view lead detail
+- [ ] `/lead update <name> <stage>` — move pipeline stage
+- [ ] `/leads` — pipeline summary (counts by stage)
+- [ ] `/pipeline` — full pipeline view
+- [ ] `/earnings` — commission summary (future)
+- [ ] `/biz` — open biz mini app
+- [ ] Inline keyboard actions for lead notifications
+- [ ] Lead-to-meeting conversion from TG
+- [ ] Natural language lead commands ("add sarah as a lead")
+
+### API Routes Needed
+- [ ] `POST /api/v1/leads` — create lead
+- [ ] `GET /api/v1/leads` — list leads (with stage filter)
+- [ ] `GET /api/v1/leads/:id` — lead detail
+- [ ] `PATCH /api/v1/leads/:id` — update lead
+- [ ] `DELETE /api/v1/leads/:id` — delete lead
+- [ ] `GET /api/v1/leads/pipeline` — pipeline summary (grouped by stage)
+- [ ] `GET /api/v1/leads/:id/timeline` — activity timeline
+- [ ] `POST /api/v1/leads/:id/schedule-meeting` — convert to meeting
+
+## Previous Session: March 4, 2026
 
 ### Research Completed
-- [x] Explored current mobile app architecture (Expo, 6 tabs, glassmorphism, auth)
+- [x] Explored current mobile app architecture
 - [x] Searched codebase for existing meeting/calendar/contact features
-- [x] Mapped all business model elements (points, agents, sponsorships, SocialB, kanban)
-- [x] Identified gaps: no meetings, no calendar integration, no billing, no business tier
+- [x] Mapped all business model elements
 - [x] Created comprehensive 9-phase plan
 - [x] Documented findings and technology research
-- [x] Mapped OpenClaw integration points for meetings
-- [x] Researched existing referral/ticket/engagement tracking infrastructure
 - [x] Designed crew-level referral commission system
+- [x] Designed cross-platform biz mode integration
+- [x] Designed priority message routing
 
-### Key Decisions Made
-- Meeting engine uses built-in scheduler + booking links (not Google Cal for MVP)
-- Mobile app redesign: 5 tabs, dual-mode (personal/business)
-- Auth upgrade: Privy + TG + FC login (replacing username/password)
-- Pricing: Free / $19 Pro / $49 Team / $149 Business
-- **Leads flow into meetings**: Lead pipeline has "Meeting" as a first-class stage with one-tap conversion
-- **Shared meeting links**: Every meeting gets `flowb.me/m/{code}` -- universal hub for agenda, RSVP, chat
-- **Meeting chat rooms**: Real-time chat per meeting, reusing crew chat infrastructure, cross-platform delivery
-- **Guest access**: Non-FlowB users can view meeting basics + RSVP via shared link (no account required)
-- **Crew-level referrals**: Any engagement with an event earns commission weight -- entire crew splits the pool
-- **Engagement = revenue**: RSVP, share, chat mention, view, invite -- all count toward commission split
-- **Multiple payout methods**: USDC on Base, Stripe, points conversion, FlowB.biz subscription credit
-- **Auto-attributed links**: When crew members share events, referral codes are auto-appended
-
-### Files Created/Modified
-- `task_plan.md` - 9-phase plan with leads-to-meetings, shared links, chat rooms, referral commissions
-- `findings.md` - Research, architecture, referral system design, revenue projections
+### Files Created
+- `task_plan.md` - 9-phase plan (1200+ lines)
+- `findings.md` - Research and architecture (855 lines)
 - `progress.md` - This file
-
-## Phase 1: Smart Meetings Engine
-- [ ] Design meeting database schema (meetings, attendees, notes, messages)
-- [ ] Create MeetingPlugin with all actions (including meeting-from-lead, meeting-chat)
-- [ ] Shared link system: generate `flowb.me/m/{code}`, public resolution endpoint
-- [ ] Meeting chat rooms: create on meeting creation, Supabase Realtime, cross-platform delivery
-- [ ] Lead-to-meeting conversion: one-tap with full context transfer
-- [ ] Add meeting API routes to Fastify (CRUD + chat + shared link + lead conversion)
-- [ ] AI meeting creation (natural language -> meeting)
-- [ ] Briefing note generation
-- [ ] Follow-up drafting
-- [ ] Invite sending with shared link via notification channels
-- [ ] Guest access: lightweight RSVP for non-FlowB users via shared link
-- [ ] OpenClaw meeting skills
-
-## Phase 2: Mobile App Redesign
-- [ ] Design new splash + intro carousel
-- [ ] Redesign auth screen (Privy multi-method)
-- [ ] New 5-tab navigation with mode toggle
-- [ ] Home screen: personal + business variants
-- [ ] Meeting screens (list, detail, create)
-- [ ] Enhanced contact screens
-- [ ] Design system refinements
-
-## Phase 3: Contacts & CRM Evolution
-- [ ] Contact enrichment (AI + public data)
-- [ ] Interaction timeline (meetings, events, messages, stage changes)
-- [ ] Contact groups and smart tagging
-- [ ] Contact import (phone, CSV, vCard)
-- [ ] Leads pipeline: New -> Contacted -> Qualified -> Meeting -> Proposal -> Won/Lost
-- [ ] Lead-to-meeting conversion UI: one-tap from lead card
-- [ ] Shared link sent to lead on meeting creation
-- [ ] Post-meeting auto-advance lead stage
-- [ ] Meeting action items -> kanban tasks linked to lead
-- [ ] Full lead activity timeline (meetings, chats, tasks, follow-ups)
-- [ ] Relationship strength scoring
-
-## Phase 4: Referral & Ticket Commission Engine
-- [ ] Design referral schema (programs, engagement, links, commissions, splits, payouts)
-- [ ] Engagement tracking: log every event interaction with user + crew + weight
-- [ ] Referral link generation: `flowb.me/e/{code}?c={crewCode}` per crew per event
-- [ ] Click tracking + 30-day attribution window
-- [ ] Auto-append referral codes when crew members share events
-- [ ] Luma webhook handler (ticket purchase -> commission creation)
-- [ ] Eventbrite webhook handler (ticket purchase -> commission creation)
-- [ ] API polling fallback for ticket sale detection
-- [ ] Commission calculation: weighted split across engaged crew members
-- [ ] Crew earnings dashboard: events promoted, tickets driven, earnings breakdown
-- [ ] Individual earnings view: my commissions, pending, available
-- [ ] Payout processing: USDC on Base, Stripe, points conversion, FlowB.biz credit
-- [ ] Points integration: new actions (referral_ticket_driven, commission_earned, crew_bonus)
-- [ ] Crew leaderboard: add referral metrics (tickets driven, total earned)
-- [ ] Notification flow: commission earned, weekly digest, milestone alerts
-- [ ] Event organizer side: create referral program, set rates/caps, view performance
-
-## Phase 5: AI Automation Services
-- [ ] Automation rule engine (triggers/conditions/actions)
-- [ ] Meeting automations (auto-brief, auto-follow-up)
-- [ ] Contact automations (re-engagement, enrichment)
-- [ ] Lead-to-meeting automations (auto-convert on qualify, auto-advance on complete)
-- [ ] Referral automations (auto-share to crews, commission alerts, opportunity alerts)
-- [ ] Business automations (lead scoring, reports)
-- [ ] User controls and explainability
-
-## Phase 6: FlowB.biz Business Tier
-- [ ] Tier definitions and feature gates (including referral tier limits)
-- [ ] Stripe integration (subscriptions)
-- [ ] biz.flowb.me domain and landing page
-- [ ] Business web dashboard
-- [ ] In-app purchase integration (iOS/Android)
-- [ ] Referral payout methods gated by tier (free: points only, pro: all methods)
-
-## Phase 7: Polished Mobile App Build
-- [ ] Implement splash + onboarding
-- [ ] Auth screen with Privy
-- [ ] Home screen (both modes)
-- [ ] Meeting screens (list, detail, create, chat)
-- [ ] Contact screens
-- [ ] Referral dashboard screen (crew earnings, my earnings)
-- [ ] AI assistant upgrades (meeting + referral aware)
-- [ ] Push notifications
-- [ ] Deep linking (flowb://meeting/123, flowb://referral/dashboard)
-- [ ] TestFlight + Play Store internal
-
-## Phase 8: Backend + API
-- [ ] MeetingPlugin deployed
-- [ ] ReferralPlugin deployed
-- [ ] AutomationPlugin deployed
-- [ ] BillingPlugin deployed
-- [ ] Luma + Eventbrite webhook endpoints live
-- [ ] Calendar integration (Google Cal)
-- [ ] All new API routes live
-
-## Phase 9: Deploy & Launch
-- [ ] Production migrations
-- [ ] All services deployed
-- [ ] App Store submissions
-- [ ] biz.flowb.me live
-- [ ] Referral system live with pilot event organizers
-- [ ] Go-to-market execution

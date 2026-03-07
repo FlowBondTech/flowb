@@ -1,0 +1,175 @@
+# OVH VPS-2 (15.204.172.65) - 6 vCores, 12GB RAM
+# Postiz + n8n + Signal + Caddy (auto-SSL)
+# Access: https://postiz.koh.lol | https://n8n.koh.lol | https://signal.koh.lol | https://temporal.koh.lol
+
+services:
+  # ── Caddy Reverse Proxy (auto-SSL) ────────────────────────
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - postiz
+      - n8n
+      - signal-api
+      - temporal-ui
+
+  # ── Shared Infrastructure ──────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: flowb
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U flowb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Postiz (Social Media Scheduler) ────────────────────────
+  postiz:
+    image: ghcr.io/gitroomhq/postiz-app:latest
+    restart: unless-stopped
+    environment:
+      MAIN_URL: "https://postiz.koh.lol"
+      FRONTEND_URL: "https://postiz.koh.lol"
+      NEXT_PUBLIC_BACKEND_URL: "https://postiz.koh.lol/api"
+      BACKEND_INTERNAL_URL: "http://localhost:3000"
+      JWT_SECRET: "${POSTIZ_JWT_SECRET}"
+      DATABASE_URL: "postgresql://flowb:${DB_PASSWORD}@postgres:5432/postiz"
+      REDIS_URL: "redis://redis:6379"
+      STORAGE_PROVIDER: "local"
+      UPLOAD_DIRECTORY: "/uploads"
+      NEXT_PUBLIC_UPLOAD_DIRECTORY: "/uploads"
+      TEMPORAL_ADDRESS: "temporal:7233"
+      # Email via Resend for signup/notifications
+      EMAIL_PROVIDER: "resend"
+      RESEND_API_KEY: "${RESEND_API_KEY}"
+    volumes:
+      - postiz_uploads:/uploads
+    expose:
+      - "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+
+  # ── Postiz Temporal Stack ──────────────────────────────────
+  temporal:
+    image: temporalio/auto-setup:latest
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: 5432
+      POSTGRES_USER: flowb
+      POSTGRES_PWD: ${DB_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      DYNAMIC_CONFIG_FILE_PATH: config/dynamicconfig/development-sql.yaml
+    volumes:
+      - ./temporal-dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:7233:7233"
+
+  temporal-ui:
+    image: temporalio/ui:latest
+    restart: unless-stopped
+    environment:
+      TEMPORAL_ADDRESS: "temporal:7233"
+      TEMPORAL_CORS_ORIGINS: "https://temporal.koh.lol"
+    expose:
+      - "8080"
+    depends_on:
+      - temporal
+
+  # ── n8n (Workflow Automation) ──────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: flowb
+      DB_POSTGRESDB_PASSWORD: ${DB_PASSWORD}
+      N8N_HOST: n8n.koh.lol
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      WEBHOOK_URL: "https://n8n.koh.lol/"
+      N8N_ENCRYPTION_KEY: "${N8N_ENCRYPTION_KEY}"
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD}
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      EXECUTIONS_DATA_SAVE_ON_ERROR: all
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 168
+      GENERIC_TIMEZONE: "America/Denver"
+      # SMTP via Resend for activation/notification emails
+      N8N_EMAIL_MODE: smtp
+      N8N_SMTP_HOST: smtp.resend.com
+      N8N_SMTP_PORT: 465
+      N8N_SMTP_USER: resend
+      N8N_SMTP_PASS: "${RESEND_API_KEY}"
+      N8N_SMTP_SSL: "true"
+      N8N_SMTP_SENDER: "n8n <noreply@flowb.me>"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    expose:
+      - "5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Signal CLI REST API (for FlowB Signal bot + OpenClaw) ──
+  signal-api:
+    image: bbernhard/signal-cli-rest-api:latest
+    restart: unless-stopped
+    environment:
+      MODE: normal
+      AUTO_RECEIVE_SCHEDULE: "*/5 * * * *"
+    volumes:
+      - signal_data:/home/.local/share/signal-cli
+    expose:
+      - "8080"
+
+volumes:
+  pg_data:
+  redis_data:
+  postiz_uploads:
+  n8n_data:
+  signal_data:
+  caddy_data:
+  caddy_config:

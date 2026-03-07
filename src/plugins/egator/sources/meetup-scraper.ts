@@ -1,13 +1,14 @@
 /**
  * Meetup Scraper Adapter (Keyless)
  *
- * Scrapes public Meetup listing pages for events.
- * Uses JSON-LD structured data when available, falls back to HTML parsing.
+ * Scrapes public Meetup listing pages using Cheerio for DOM parsing.
+ * Uses JSON-LD structured data when available, falls back to Cheerio.
  * No API key required - works purely from public HTML.
  *
  * URL pattern: meetup.com/find/?location={city}&source=EVENTS
  */
 
+import * as cheerio from "cheerio";
 import type { EventQuery, EventResult, EventSourceAdapter } from "../../../core/types.js";
 import {
   fetchHtml,
@@ -55,7 +56,6 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
     const allEvents: EventResult[] = [];
 
     try {
-      // Build the Meetup find URL
       let url = `https://www.meetup.com/find/?location=${location}&source=EVENTS&eventType=inPerson`;
       if (params.category) {
         url += `&keywords=${encodeURIComponent(params.category)}`;
@@ -65,7 +65,7 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
       const html = await fetchHtml(url);
       if (!html) return [];
 
-      // Try JSON-LD first
+      // JSON-LD first
       const jsonLdEvents = parseJsonLd(html);
       if (jsonLdEvents.length > 0) {
         console.log(`[egator:meetup-scraper] Found ${jsonLdEvents.length} JSON-LD events`);
@@ -75,11 +75,18 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
         }
       }
 
-      // Extract event links from the page
-      const eventUrls = extractMeetupLinks(html);
+      // Cheerio: extract event cards from listing
+      const $ = cheerio.load(html);
+      const cheerioEvents = extractMeetupCards($, city);
+      if (cheerioEvents.length > 0) {
+        console.log(`[egator:meetup-scraper] Cheerio found ${cheerioEvents.length} event cards`);
+        allEvents.push(...cheerioEvents);
+      }
+
+      // Extract event links for individual scraping
+      const eventUrls = extractMeetupLinks($);
       console.log(`[egator:meetup-scraper] Found ${eventUrls.length} event links`);
 
-      // Scrape individual event pages (limit to avoid rate limiting)
       const pagesToScrape = eventUrls.slice(0, 12);
       const results = await Promise.allSettled(
         pagesToScrape.map((eventUrl) => this.scrapeEventPage(eventUrl, city)),
@@ -91,20 +98,21 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
         }
       }
 
-      // Also try the "tech" category for city if no specific category
+      // Also try tech category if no specific category
       if (!params.category) {
         const techUrl = `https://www.meetup.com/find/?location=${location}&source=EVENTS&keywords=tech`;
         const techHtml = await fetchHtml(techUrl);
         if (techHtml) {
+          const $tech = cheerio.load(techHtml);
           const techJsonLd = parseJsonLd(techHtml);
           for (const ld of techJsonLd) {
             const event = jsonLdToEventResult(ld, techUrl, "meetup", city);
             if (event) allEvents.push(event);
           }
-          const techLinks = extractMeetupLinks(techHtml);
-          const techPages = techLinks.slice(0, 8);
+          allEvents.push(...extractMeetupCards($tech, city));
+          const techLinks = extractMeetupLinks($tech);
           const techResults = await Promise.allSettled(
-            techPages.map((u) => this.scrapeEventPage(u, city)),
+            techLinks.slice(0, 8).map((u) => this.scrapeEventPage(u, city)),
           );
           for (const r of techResults) {
             if (r.status === "fulfilled" && r.value) allEvents.push(r.value);
@@ -115,7 +123,7 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
       console.error("[egator:meetup-scraper] Error:", err.message);
     }
 
-    // Deduplicate by title
+    // Deduplicate by normalized title
     const seen = new Set<string>();
     const deduped = allEvents.filter((e) => {
       const key = e.title.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -134,86 +142,145 @@ export class MeetupScraperAdapter implements EventSourceAdapter {
     const html = await fetchHtml(url, { retries: 1, timeoutMs: 10000 });
     if (!html) return null;
 
-    // JSON-LD is the best source on Meetup event pages
+    // JSON-LD on individual event pages (most reliable)
     const jsonLdEvents = parseJsonLd(html);
     if (jsonLdEvents.length > 0) {
       const event = jsonLdToEventResult(jsonLdEvents[0], url, "meetup", city);
       if (event) {
-        // Enrich with Meetup-specific data
-        const rsvpCount = extractRsvpCount(html);
-        if (rsvpCount) event.rsvpCount = rsvpCount;
-        const groupName = extractGroupName(html);
-        if (groupName) event.organizerName = groupName;
+        // Enrich with Cheerio
+        const $ = cheerio.load(html);
+        event.rsvpCount = extractRsvpCount($) || event.rsvpCount;
+        event.organizerName = extractGroupName($) || event.organizerName;
+        event.description = event.description || extractDescription($);
         return event;
       }
     }
 
-    // Fallback: extract from meta tags
-    return extractFromMetaTags(html, url, city);
+    // Cheerio fallback for individual event pages
+    const $ = cheerio.load(html);
+    return extractSingleEventPage($, url, city);
   }
 }
 
-function extractMeetupLinks(html: string): string[] {
-  const urls = new Set<string>();
-  // Meetup event URLs: meetup.com/{group-name}/events/{event-id}
-  const regex = /href=["'](https:\/\/www\.meetup\.com\/[^"']+\/events\/\d+[^"']*)["']/gi;
-  let match;
-  while ((match = regex.exec(html)) !== null) {
-    const url = match[1].split("?")[0];
-    urls.add(url);
+/** Extract event cards from Meetup listing pages */
+function extractMeetupCards($: cheerio.CheerioAPI, city: string): EventResult[] {
+  const events: EventResult[] = [];
+
+  // Meetup uses various card/list item selectors
+  const selectors = [
+    "[data-testid='categoryResults-eventCard']",
+    ".eventCard",
+    "[id^='event-card']",
+    ".searchResult",
+  ];
+
+  for (const selector of selectors) {
+    $(selector).each((_, el) => {
+      const $card = $(el);
+      const title = $card.find("h2, h3, [data-testid='event-card-title']").first().text().trim();
+      if (!title || title.length < 3) return;
+
+      const link = $card.find("a[href*='/events/']").first().attr("href");
+      const url = link?.startsWith("http") ? link : link ? `https://www.meetup.com${link}` : "";
+
+      const dateText = $card.find("time").first().attr("datetime")
+        || $card.find("time").first().text().trim();
+
+      const venue = $card.find("[data-testid='venue-name']").text().trim()
+        || $card.find(".venueDisplay").text().trim();
+
+      const groupName = $card.find("[data-testid='group-name']").text().trim();
+      const image = $card.find("img").first().attr("src");
+      const attendees = $card.find("[data-testid='attendee-count']").text().trim();
+      const rsvpCount = attendees ? parseInt(attendees.replace(/\D/g, ""), 10) : undefined;
+
+      events.push({
+        id: `meetup_${hashString(url || title)}`,
+        title,
+        startTime: parseDate(dateText) || new Date().toISOString(),
+        locationName: venue || undefined,
+        locationCity: city,
+        source: "meetup",
+        url: url?.split("?")[0] || "",
+        imageUrl: image || undefined,
+        organizerName: groupName || undefined,
+        rsvpCount: rsvpCount && !isNaN(rsvpCount) ? rsvpCount : undefined,
+      });
+    });
+
+    if (events.length > 0) break;
   }
-  return [...urls];
+
+  return events;
 }
 
-function extractRsvpCount(html: string): number | undefined {
-  // Look for attendee count patterns
-  const match = html.match(/(\d+)\s*(?:attendees?|going|RSVPs?)/i);
-  if (match) return parseInt(match[1], 10);
-  return undefined;
-}
-
-function extractGroupName(html: string): string | undefined {
-  // Look for group name in meta or specific Meetup markup
-  const match = html.match(/<meta[^>]*property=["']og:site_name["'][^>]*content=["']([^"']*)["']/i);
-  if (match) return match[1];
-  return undefined;
-}
-
-function extractFromMetaTags(html: string, url: string, city: string): EventResult | null {
-  const title = extractMetaContent(html, "og:title");
+/** Extract a single event from a Meetup event page using Cheerio */
+function extractSingleEventPage($: cheerio.CheerioAPI, url: string, city: string): EventResult | null {
+  const title = $("meta[property='og:title']").attr("content")
+    || $("h1").first().text().trim();
   if (!title || title.length < 3) return null;
 
-  const description = extractMetaContent(html, "og:description");
-  const image = extractMetaContent(html, "og:image");
-
-  // Try to get date from the page
-  const dateMatch = html.match(/datetime=["']([^"']+)["']/i);
-  const startTime = dateMatch ? new Date(dateMatch[1]).toISOString() : new Date().toISOString();
+  const description = extractDescription($);
+  const image = $("meta[property='og:image']").attr("content");
+  const dateTime = $("time[datetime]").first().attr("datetime");
 
   return {
     id: `meetup_${hashString(url)}`,
     title: title.replace(/\s*\|\s*Meetup.*$/i, "").trim(),
-    description: description?.substring(0, 300),
-    startTime,
+    description: description?.substring(0, 500) || undefined,
+    startTime: dateTime ? new Date(dateTime).toISOString() : new Date().toISOString(),
     locationCity: city,
     source: "meetup",
     url,
     imageUrl: image || undefined,
-    rsvpCount: extractRsvpCount(html),
-    organizerName: extractGroupName(html),
+    rsvpCount: extractRsvpCount($),
+    organizerName: extractGroupName($),
   };
 }
 
-function extractMetaContent(html: string, property: string): string | null {
-  const propMatch = html.match(
-    new RegExp(`<meta[^>]*(?:property|name)=["']${property}["'][^>]*content=["']([^"']*)["']`, "i"),
-  );
-  if (propMatch) return propMatch[1];
+/** Extract event description from Meetup page */
+function extractDescription($: cheerio.CheerioAPI): string | undefined {
+  const desc = $("meta[property='og:description']").attr("content")
+    || $("[data-testid='event-description']").text().trim()
+    || $(".event-description").text().trim()
+    || $(".break-words").first().text().trim();
+  return desc && desc.length > 10 ? desc.substring(0, 500) : undefined;
+}
 
-  const reverseMatch = html.match(
-    new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*(?:property|name)=["']${property}["']`, "i"),
-  );
-  if (reverseMatch) return reverseMatch[1];
+/** Extract RSVP/attendee count */
+function extractRsvpCount($: cheerio.CheerioAPI): number | undefined {
+  const text = $("[data-testid='attendee-count']").text()
+    || $(".attendee-count").text()
+    || $("body").text();
+  const match = text.match(/(\d+)\s*(?:attendees?|going|RSVPs?)/i);
+  return match ? parseInt(match[1], 10) : undefined;
+}
 
+/** Extract group/organizer name */
+function extractGroupName($: cheerio.CheerioAPI): string | undefined {
+  return $("meta[property='og:site_name']").attr("content")
+    || $("[data-testid='group-name']").text().trim()
+    || undefined;
+}
+
+/** Extract event links from listing page */
+function extractMeetupLinks($: cheerio.CheerioAPI): string[] {
+  const urls = new Set<string>();
+  $("a[href*='/events/']").each((_, el) => {
+    const href = $(el).attr("href");
+    if (href && /\/events\/\d+/.test(href)) {
+      const full = href.startsWith("http") ? href : `https://www.meetup.com${href}`;
+      urls.add(full.split("?")[0]);
+    }
+  });
+  return Array.from(urls);
+}
+
+function parseDate(text: string): string | null {
+  if (!text) return null;
+  try {
+    const d = new Date(text);
+    if (!isNaN(d.getTime())) return d.toISOString();
+  } catch { /* ignore */ }
   return null;
 }

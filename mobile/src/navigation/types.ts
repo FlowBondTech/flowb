@@ -19,6 +19,11 @@ export type RootStackParamList = {
   CastComposer: undefined;
   NotificationCenter: undefined;
   SettingsEditor: undefined;
+  MeetingList: undefined;
+  MeetingDetail: { meetingId: string };
+  CreateMeeting: undefined;
+  LeadList: undefined;
+  LeadDetail: { leadId: string };
 };
 
 export type TabParamList = {

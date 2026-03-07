@@ -21,6 +21,11 @@ import { SettingsEditor } from "../screens/admin/SettingsEditor";
 import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
 import { FriendsScreen } from "../screens/profile/FriendsScreen";
 import { AboutScreen } from "../screens/profile/AboutScreen";
+import { MeetingListScreen } from "../screens/meetings/MeetingListScreen";
+import { MeetingDetailScreen } from "../screens/meetings/MeetingDetailScreen";
+import { CreateMeetingScreen } from "../screens/meetings/CreateMeetingScreen";
+import { LeadListScreen } from "../screens/leads/LeadListScreen";
+import { LeadDetailScreen } from "../screens/leads/LeadDetailScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -105,6 +110,10 @@ export function AppNavigator() {
             <Stack.Screen name="UserManager" component={UserManager} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
             <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
+            <Stack.Screen name="MeetingList" component={MeetingListScreen} />
+            <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} />
+            <Stack.Screen name="LeadList" component={LeadListScreen} />
+            <Stack.Screen name="LeadDetail" component={LeadDetailScreen} />
 
             {/* Modal screens — slide up with scale-behind effect */}
             <Stack.Screen
@@ -128,6 +137,15 @@ export function AppNavigator() {
             <Stack.Screen
               name="CastComposer"
               component={CastComposer}
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureDirection: "vertical",
+              }}
+            />
+            <Stack.Screen
+              name="CreateMeeting"
+              component={CreateMeetingScreen}
               options={{
                 presentation: "modal",
                 animation: "slide_from_bottom",

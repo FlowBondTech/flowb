@@ -353,4 +353,7 @@ export interface ToolInput {
   // Search fields
   search_query?: string;
   search_location?: string;
+  // Automation fields
+  automation_id?: string;
+  log_limit?: number;
 }

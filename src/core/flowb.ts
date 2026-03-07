@@ -19,6 +19,9 @@ import { AgentKitPlugin } from "../plugins/agentkit/index.js";
 import { SocialPlugin } from "../plugins/social/index.js";
 import { MeetingPlugin } from "../plugins/meeting/index.js";
 import { AgentsPlugin } from "../plugins/agents/index.js";
+import { ReferralPlugin } from "../plugins/referral/index.js";
+import { AutomationPlugin } from "../plugins/automation/index.js";
+import { BillingPlugin } from "../plugins/billing/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -101,6 +104,24 @@ export class FlowBCore {
       agents.configure(this.config.plugins.agents);
     }
     this.registerPlugin(agents);
+
+    const referral = new ReferralPlugin();
+    if (this.config.plugins?.referral) {
+      referral.configure(this.config.plugins.referral);
+    }
+    this.registerPlugin(referral);
+
+    const automation = new AutomationPlugin();
+    if (this.config.plugins?.automation) {
+      automation.configure(this.config.plugins.automation);
+    }
+    this.registerPlugin(automation);
+
+    const billing = new BillingPlugin();
+    if (this.config.plugins?.billing) {
+      billing.configure(this.config.plugins.billing);
+    }
+    this.registerPlugin(billing);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -393,6 +414,27 @@ export class FlowBCore {
   /** Get the Agents plugin config. */
   getAgentsConfig(): import("../plugins/agents/index.js").AgentsPluginConfig | null {
     return this.config.plugins?.agents || null;
+  }
+
+  /** Get the Referral plugin for direct access. */
+  getReferralPlugin(): ReferralPlugin | null {
+    const referral = this.plugins.get("referral") as ReferralPlugin | undefined;
+    if (!referral?.isConfigured()) return null;
+    return referral;
+  }
+
+  /** Get the Automation plugin for direct access. */
+  getAutomationPlugin(): AutomationPlugin | null {
+    const automation = this.plugins.get("automation") as AutomationPlugin | undefined;
+    if (!automation?.isConfigured()) return null;
+    return automation;
+  }
+
+  /** Get the Billing plugin for direct access. */
+  getBillingPlugin(): BillingPlugin | null {
+    const billing = this.plugins.get("billing") as BillingPlugin | undefined;
+    if (!billing?.isConfigured()) return null;
+    return billing;
   }
 
   /** Get the list of all action names (for schema generation) */

@@ -19,6 +19,7 @@
     "@fastify/rate-limit": "^10.3.0",
     "@grammyjs/storage-supabase": "^2.5.0",
     "@supabase/supabase-js": "^2.95.3",
+    "cheerio": "^1.2.0",
     "dotenv": "^16.4.0",
     "fastify": "^5.2.0",
     "grammy": "^1.35.0",

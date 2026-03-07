@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eGator Dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --bg-card: #1a1a1a; --bg-card-hover: #222222; --bg-surface: #111111;
+      --border: #2a2a2a; --border-hover: #3a3a3a;
+      --text: #e4e4ec; --text-muted: #8888a0; --text-dim: #555568;
+      --accent: #2563eb; --accent-light: #3b82f6; --accent-glow: rgba(37,99,235,0.15);
+      --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+      --orange: #f97316; --red: #ef4444; --purple: #a855f7;
+      --radius: 12px; --radius-sm: 8px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+    a { color: var(--accent-light); text-decoration: none; }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    .dash-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,10,0.92); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border); padding: 14px 0;
+    }
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .dash-title { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .dash-title-icon { font-size: 1.4rem; }
+    .dash-actions { display: flex; gap: 10px; align-items: center; }
+
+    .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
+
+    /* Auth gate */
+    .auth-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; text-align: center; }
+    .auth-gate h2 { font-size: 1.3rem; }
+    .auth-gate p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* Dashboard grid */
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin: 20px 0; }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .card-title { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .card-value { font-size: 2rem; font-weight: 800; line-height: 1.1; }
+    .card-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
+
+    /* Stat bars */
+    .stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(42,42,42,0.5); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 0.82rem; min-width: 100px; color: var(--text-muted); }
+    .stat-bar-wrap { flex: 1; height: 6px; background: var(--bg-surface); border-radius: 3px; overflow: hidden; }
+    .stat-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+    .stat-bar.blue { background: var(--accent-light); }
+    .stat-bar.green { background: var(--green); }
+    .stat-bar.orange { background: var(--orange); }
+    .stat-bar.purple { background: var(--purple); }
+    .stat-count { font-size: 0.82rem; font-weight: 600; min-width: 50px; text-align: right; }
+
+    /* Wide card */
+    .card-wide { grid-column: 1 / -1; }
+
+    /* Quality gauge */
+    .quality-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+    .quality-label { font-size: 0.82rem; color: var(--text-muted); min-width: 110px; }
+    .quality-pct { font-size: 0.82rem; font-weight: 600; min-width: 40px; text-align: right; }
+
+    /* Recent events table */
+    .recent-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .recent-table th { text-align: left; color: var(--text-dim); font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px; border-bottom: 1px solid var(--border); }
+    .recent-table td { padding: 7px 8px; border-bottom: 1px solid rgba(42,42,42,0.4); vertical-align: middle; }
+    .recent-table tr:hover td { background: var(--bg-card-hover); }
+    .source-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; background: var(--accent-glow); color: var(--accent-light); }
+
+    /* Health dots */
+    .health-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .health-dot.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+    .health-dot.warn { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
+    .health-dot.bad { background: var(--red); box-shadow: 0 0 4px var(--red); }
+
+    /* Scan status */
+    .scan-status { font-size: 0.82rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .scan-status.running { color: var(--orange); }
+    .scan-status.done { color: var(--green); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent-light); border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-card); border: 1px solid var(--green); color: var(--green); padding: 12px 20px; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; z-index: 1000; transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+
+    /* Loading */
+    .loading { text-align: center; padding: 80px 20px; color: var(--text-muted); }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .dash-grid { grid-template-columns: 1fr; }
+      .card-value { font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <header class="dash-header">
+    <div class="container dash-header-inner">
+      <div class="dash-title">
+        <span class="dash-title-icon">&#x1F40A;</span>
+        <span>eGator Dashboard</span>
+      </div>
+      <div class="dash-actions">
+        <span class="scan-status" id="scanStatus"></span>
+        <button class="btn btn-primary" id="scanBtn" disabled>Run Scan</button>
+        <button class="btn btn-ghost" id="refreshBtn" disabled>Refresh</button>
+        <button class="btn btn-ghost" id="authBtn">Sign In</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth gate -->
+  <div class="container auth-gate" id="authGate">
+    <h2>eGator Admin Dashboard</h2>
+    <p>Sign in to view event scanner stats and controls.</p>
+  </div>
+
+  <!-- Dashboard (hidden until authed) -->
+  <main class="container" id="dashboard" style="display:none;">
+    <div class="loading" id="loadingMsg">Loading stats...</div>
+
+    <div class="dash-grid" id="statsGrid" style="display:none;">
+      <!-- Totals -->
+      <div class="card" id="cardTotals">
+        <div class="card-header"><span class="card-title">Total Events</span></div>
+        <div class="card-value" id="totalActive">-</div>
+        <div class="card-sub" id="totalSub"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Stale</span></div>
+        <div class="card-value" id="staleCount" style="color:var(--orange)">-</div>
+        <div class="card-sub" id="staleSub"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Today / This Week</span></div>
+        <div class="card-value" id="freshCount">-</div>
+        <div class="card-sub" id="freshSub"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Avg Quality</span></div>
+        <div class="card-value" id="avgQuality">-</div>
+        <div class="card-sub" id="qualitySub"></div>
+      </div>
+
+      <!-- Sources -->
+      <div class="card card-wide" id="cardSources">
+        <div class="card-header"><span class="card-title">Events by Source</span></div>
+        <div id="sourceRows"></div>
+      </div>
+
+      <!-- Cities -->
+      <div class="card card-wide" id="cardCities">
+        <div class="card-header"><span class="card-title">Events by City (Top 15)</span></div>
+        <div id="cityRows"></div>
+      </div>
+
+      <!-- Quality Audit -->
+      <div class="card" id="cardQuality">
+        <div class="card-header"><span class="card-title">Data Quality</span></div>
+        <div id="qualityRows"></div>
+      </div>
+
+      <!-- Freshness -->
+      <div class="card" id="cardFreshness">
+        <div class="card-header"><span class="card-title">Freshness</span></div>
+        <div id="freshnessInfo"></div>
+      </div>
+
+      <!-- Recent Events -->
+      <div class="card card-wide" id="cardRecent">
+        <div class="card-header"><span class="card-title">Recent Events</span></div>
+        <div style="overflow-x:auto;">
+          <table class="recent-table">
+            <thead><tr><th>Title</th><th>Source</th><th>City</th><th>Quality</th><th>Img</th><th>Added</th></tr></thead>
+            <tbody id="recentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = 'https://flowb.fly.dev';
+    let adminKey = localStorage.getItem('egator-admin-key') || '';
+    let authed = false;
+
+    const $ = (id) => document.getElementById(id);
+    const authBtn = $('authBtn');
+    const authGate = $('authGate');
+    const dashboard = $('dashboard');
+    const loadingMsg = $('loadingMsg');
+    const statsGrid = $('statsGrid');
+    const scanBtn = $('scanBtn');
+    const refreshBtn = $('refreshBtn');
+    const scanStatus = $('scanStatus');
+    const toast = $('toast');
+
+    function showToast(msg, isError) {
+      toast.textContent = msg;
+      toast.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => toast.className = 'toast', 3000);
+    }
+
+    function timeSince(iso) {
+      if (!iso) return 'never';
+      const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      if (sec < 60) return 'just now';
+      const min = Math.floor(sec / 60);
+      if (min < 60) return min + 'm ago';
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return hr + 'h ago';
+      return Math.floor(hr / 24) + 'd ago';
+    }
+
+    // Auth
+    authBtn.addEventListener('click', () => {
+      const key = prompt('Enter admin key:');
+      if (key) {
+        adminKey = key.trim();
+        localStorage.setItem('egator-admin-key', adminKey);
+        tryAuth();
+      }
+    });
+
+    async function tryAuth() {
+      if (!adminKey) return;
+      authBtn.textContent = 'Checking...';
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/stats', {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          authed = true;
+          authGate.style.display = 'none';
+          dashboard.style.display = 'block';
+          authBtn.textContent = 'Signed In';
+          authBtn.style.color = 'var(--green)';
+          scanBtn.disabled = false;
+          refreshBtn.disabled = false;
+          const data = await res.json();
+          renderStats(data);
+        } else {
+          localStorage.removeItem('egator-admin-key');
+          adminKey = '';
+          authBtn.textContent = 'Sign In';
+          showToast('Invalid admin key', true);
+        }
+      } catch (e) {
+        authBtn.textContent = 'Sign In';
+        showToast('Connection error', true);
+      }
+    }
+
+    // Fetch stats
+    async function fetchStats() {
+      if (!authed) return;
+      loadingMsg.style.display = 'block';
+      statsGrid.style.display = 'none';
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/stats', {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          renderStats(data);
+        } else {
+          showToast('Failed to fetch stats', true);
+        }
+      } catch (e) {
+        showToast('Connection error', true);
+      }
+    }
+
+    // Render
+    function renderStats(data) {
+      loadingMsg.style.display = 'none';
+      statsGrid.style.display = 'grid';
+
+      const t = data.totals || {};
+      $('totalActive').textContent = (t.active || 0).toLocaleString();
+      $('totalSub').textContent = `${t.total || 0} total / ${t.featured || 0} featured / ${t.free || 0} free`;
+      $('staleCount').textContent = (t.stale || 0).toLocaleString();
+      $('staleSub').textContent = `${t.total ? Math.round((t.stale / t.total) * 100) : 0}% of total`;
+
+      const f = data.freshness || {};
+      $('freshCount').innerHTML = `<span>${f.createdToday || 0}</span> <span style="color:var(--text-dim);font-size:0.8em">/ ${f.createdThisWeek || 0}</span>`;
+      $('freshSub').textContent = `Last scan: ${timeSince(f.lastScanTime)}`;
+
+      const q = data.quality || {};
+      $('avgQuality').textContent = q.avgScore || '0';
+      $('qualitySub').textContent = `${q.withImage || 0} images / ${q.withDescription || 0} descriptions`;
+
+      // Sources
+      const sources = data.bySource || {};
+      const maxSrc = Math.max(...Object.values(sources).map(s => s.count), 1);
+      const sourceColors = ['blue', 'green', 'orange', 'purple', 'blue', 'green', 'orange', 'purple'];
+      const sortedSources = Object.entries(sources).sort((a, b) => b[1].count - a[1].count);
+      $('sourceRows').innerHTML = sortedSources.map(([name, s], i) =>
+        `<div class="stat-row">
+          <span class="stat-label">${name}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar ${sourceColors[i % sourceColors.length]}" style="width:${(s.count / maxSrc) * 100}%"></div></div>
+          <span class="stat-count">${s.count}</span>
+        </div>`
+      ).join('');
+
+      // Cities
+      const cities = data.byCity || {};
+      const sortedCities = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 15);
+      const maxCity = Math.max(...sortedCities.map(c => c[1]), 1);
+      $('cityRows').innerHTML = sortedCities.map(([name, count]) =>
+        `<div class="stat-row">
+          <span class="stat-label">${name}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar purple" style="width:${(count / maxCity) * 100}%"></div></div>
+          <span class="stat-count">${count}</span>
+        </div>`
+      ).join('');
+
+      // Quality
+      const qualityFields = [
+        ['Images', q.pctImage, q.withImage, data.totals?.total],
+        ['Descriptions', q.pctDescription, q.withDescription, data.totals?.total],
+        ['Venues', q.pctVenue, q.withVenue, data.totals?.total],
+        ['Prices', q.pctPrice, q.withPrice, data.totals?.total],
+        ['Organizers', q.pctOrganizer, q.withOrganizer, data.totals?.total],
+      ];
+      $('qualityRows').innerHTML = qualityFields.map(([label, pct, count, total]) =>
+        `<div class="quality-row">
+          <span class="quality-label">${label}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar ${pct >= 70 ? 'green' : pct >= 40 ? 'orange' : 'blue'}" style="width:${pct || 0}%"></div></div>
+          <span class="quality-pct">${pct || 0}%</span>
+        </div>`
+      ).join('');
+
+      // Freshness card
+      $('freshnessInfo').innerHTML = `
+        <div class="stat-row"><span class="stat-label">Stale events</span><span class="stat-count" style="color:var(--orange)">${f.staleCount || 0}</span></div>
+        <div class="stat-row"><span class="stat-label">Last scan</span><span class="stat-count">${timeSince(f.lastScanTime)}</span></div>
+        <div class="stat-row"><span class="stat-label">Added today</span><span class="stat-count" style="color:var(--green)">${f.createdToday || 0}</span></div>
+        <div class="stat-row"><span class="stat-label">Added this week</span><span class="stat-count">${f.createdThisWeek || 0}</span></div>
+      `;
+
+      // Recent events
+      const recent = data.recentEvents || [];
+      $('recentBody').innerHTML = recent.map(e =>
+        `<tr>
+          <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.title || '?'}</td>
+          <td><span class="source-badge">${e.source || '?'}</span></td>
+          <td>${e.city || '-'}</td>
+          <td>${e.qualityScore != null ? Number(e.qualityScore).toFixed(1) : '-'}</td>
+          <td>${e.hasImage ? '<span class="health-dot ok"></span>' : '<span class="health-dot bad"></span>'}</td>
+          <td style="white-space:nowrap">${timeSince(e.createdAt)}</td>
+        </tr>`
+      ).join('');
+    }
+
+    // Scan
+    scanBtn.addEventListener('click', async () => {
+      if (!authed) return;
+      scanBtn.disabled = true;
+      scanStatus.className = 'scan-status running';
+      scanStatus.innerHTML = '<span class="spinner"></span> Scanning...';
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/scan', {
+          method: 'POST',
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          scanStatus.className = 'scan-status done';
+          scanStatus.textContent = `Done: ${data.newCount || 0} new, ${data.updatedCount || 0} updated`;
+          showToast(`Scan complete: ${data.newCount} new, ${data.updatedCount} updated`);
+          // Refresh stats
+          await fetchStats();
+        } else {
+          scanStatus.className = 'scan-status';
+          scanStatus.textContent = '';
+          showToast('Scan failed', true);
+        }
+      } catch (e) {
+        scanStatus.className = 'scan-status';
+        scanStatus.textContent = '';
+        showToast('Scan error: ' + e.message, true);
+      }
+      scanBtn.disabled = false;
+    });
+
+    // Refresh
+    refreshBtn.addEventListener('click', () => fetchStats());
+
+    // Auto-auth on load
+    if (adminKey) tryAuth();
+  </script>
+</body>
+</html>

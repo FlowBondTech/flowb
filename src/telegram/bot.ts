@@ -111,10 +111,10 @@ import {
   type LeadData,
   type LeadStage,
 } from "./cards.js";
-import { sbQuery } from "../utils/supabase.js";
+import { sbQuery, sbFetch } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
-import { alertAdmins } from "../services/admin-alerts.js";
+import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -2086,6 +2086,11 @@ export function startTelegramBot(
       "/referral - Your referral link & stats",
       "/wallet <i>0x...</i> - Link your Base wallet",
       "",
+      "<b>Business</b>",
+      "/earnings - Referral earnings & commissions",
+      "/automations - View your automations",
+      "/biz - Business tier & plan info",
+      "",
       "<b>More</b>",
       "/moves - Browse dance moves",
       "/sponsor - View or create sponsorships",
@@ -2406,6 +2411,206 @@ export function startTelegramBot(
     );
   });
 
+  // ==========================================================================
+  // Referral Earnings Commands
+  // ==========================================================================
+
+  bot.command("earnings", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Earnings not configured.");
+      return;
+    }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+    const uid = userId(tgId);
+
+    // Fetch commissions
+    const commissions = await sbQuery<any[]>(cfg, "flowb_referral_commissions", {
+      select: "amount,status,created_at",
+      referrer_id: `eq.${uid}`,
+      order: "created_at.desc",
+      limit: "20",
+    }) || [];
+
+    const totalEarned = commissions.reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+    const pending = commissions.filter((c: any) => c.status === "pending").reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+    const paid = commissions.filter((c: any) => c.status === "paid").reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+
+    // Fetch referral links
+    const links = await sbQuery<any[]>(cfg, "flowb_referral_links", {
+      select: "short_code,clicks,conversions",
+      creator_id: `eq.${uid}`,
+      order: "created_at.desc",
+      limit: "10",
+    }) || [];
+
+    const totalClicks = links.reduce((sum: number, l: any) => sum + (l.clicks || 0), 0);
+    const totalConversions = links.reduce((sum: number, l: any) => sum + (l.conversions || 0), 0);
+
+    const lines = [
+      "<b>Referral Earnings</b>",
+      "",
+      `Total earned: <b>$${totalEarned.toFixed(2)}</b>`,
+      `Pending: $${pending.toFixed(2)}`,
+      `Paid out: $${paid.toFixed(2)}`,
+      "",
+      `Referral links: <b>${links.length}</b>`,
+      `Total clicks: ${totalClicks}`,
+      `Conversions: ${totalConversions}`,
+    ];
+
+    if (commissions.length > 0) {
+      lines.push("", "<b>Recent commissions:</b>");
+      for (const c of commissions.slice(0, 5)) {
+        const date = new Date(c.created_at).toLocaleDateString();
+        const icon = c.status === "paid" ? "\u2705" : "\u23f3";
+        lines.push(`${icon} $${c.amount.toFixed(2)} - ${date}`);
+      }
+    }
+
+    if (links.length === 0) {
+      lines.push("", "No referral links yet. Create one from an event page!");
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  });
+
+  // ==========================================================================
+  // Business Tier Command
+  // ==========================================================================
+
+  bot.command("biz", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Business features not configured.");
+      return;
+    }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+    const uid = userId(tgId);
+
+    // Check subscription
+    const subs = await sbQuery<any[]>(cfg, "flowb_subscriptions", {
+      select: "*",
+      user_id: `eq.${uid}`,
+      limit: "1",
+    }) || [];
+
+    const sub = subs[0];
+    const tier = sub?.tier || "free";
+    const status = sub?.status || "none";
+
+    const tierFeatures: Record<string, string[]> = {
+      free: ["5 AI chats/day", "3 meetings/month", "10 leads", "1 automation"],
+      pro: ["50 AI chats/day", "Unlimited meetings", "100 leads", "10 automations"],
+      team: ["200 AI chats/day", "Unlimited meetings", "500 leads", "50 automations", "5 team members"],
+      business: ["Unlimited AI chats", "Unlimited meetings", "Unlimited leads", "Unlimited automations", "Unlimited team"],
+    };
+
+    const features = tierFeatures[tier] || tierFeatures.free;
+
+    const lines = [
+      "<b>FlowB Business</b>",
+      "",
+      `Current plan: <b>${tier.toUpperCase()}</b>`,
+      `Status: ${status === "active" ? "\u2705 Active" : status === "none" ? "Free tier" : status}`,
+      "",
+      "<b>Your plan includes:</b>",
+      ...features.map((f) => `  \u2022 ${f}`),
+      "",
+    ];
+
+    if (tier === "free") {
+      lines.push(
+        "<b>Upgrade to Pro</b> for more power:",
+        "  \u2022 50 AI chats/day",
+        "  \u2022 Unlimited meetings & leads",
+        "  \u2022 10 automations",
+        "",
+        "Visit flowb.me/biz to upgrade",
+      );
+    }
+
+    if (sub?.current_period_end) {
+      const renewDate = new Date(sub.current_period_end).toLocaleDateString();
+      lines.push(`Renews: ${renewDate}`);
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  });
+
+  // ==========================================================================
+  // Automations Command
+  // ==========================================================================
+
+  bot.command("automations", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+    await ctx.replyWithChatAction("typing");
+
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Automations not configured.");
+      return;
+    }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+    const uid = userId(tgId);
+
+    const automations = await sbQuery<any[]>(cfg, "flowb_automations", {
+      select: "id,name,trigger_type,action_type,is_active,run_count,last_run_at",
+      user_id: `eq.${uid}`,
+      order: "created_at.desc",
+    }) || [];
+
+    if (automations.length === 0) {
+      await ctx.reply(
+        [
+          "<b>Automations</b>",
+          "",
+          "No automations set up yet.",
+          "",
+          "Automations let you:",
+          "  \u2022 Auto-follow-up after meetings",
+          "  \u2022 Nurture leads through stages",
+          "  \u2022 Get reminders before meetings",
+          "  \u2022 Send notifications on events",
+          "",
+          "Set them up at <b>flowb.me/biz</b>",
+        ].join("\n"),
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const active = automations.filter((a: any) => a.is_active).length;
+    const lines = [
+      "<b>Your Automations</b>",
+      `${active} active / ${automations.length} total`,
+      "",
+    ];
+
+    for (const a of automations) {
+      const icon = a.is_active ? "\u2705" : "\u23f8\ufe0f";
+      const runs = a.run_count || 0;
+      lines.push(`${icon} <b>${escapeHtml(a.name)}</b>`);
+      lines.push(`   ${a.trigger_type} \u2192 ${a.action_type} (${runs} runs)`);
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  });
+
   bot.command("reportbug", async (ctx) => {
     const tgId = ctx.from!.id;
     const args = ctx.match?.trim();
@@ -2423,6 +2628,137 @@ export function startTelegramBot(
     );
   });
 
+
+  // ========================================================================
+  // Admin: /egator — event scanner stats, scan, health
+  // ========================================================================
+
+  bot.command("egator", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const adminIds = getAdminIds();
+    if (!adminIds.includes(tgId)) {
+      await ctx.reply("Admin only.");
+      return;
+    }
+
+    const sub = (ctx.match?.trim() || "stats").toLowerCase();
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Supabase not configured.");
+      return;
+    }
+
+    if (sub === "scan") {
+      await ctx.replyWithChatAction("typing");
+      try {
+        const { scanForNewEvents } = await import("../services/event-scanner.js");
+        const result = await scanForNewEvents(
+          { supabaseUrl: sbUrl, supabaseKey: sbKey },
+          (opts) => core.discoverEventsRaw(opts),
+        );
+        await ctx.reply(
+          `<b>Scan Complete</b>\n\n` +
+          `New: <b>${result.newCount}</b>\n` +
+          `Updated: <b>${result.updatedCount}</b>\n` +
+          `Unchanged: <b>${result.skippedCount}</b>`,
+          { parse_mode: "HTML" },
+        );
+      } catch (err) {
+        await ctx.reply(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return;
+    }
+
+    if (sub === "health") {
+      await ctx.replyWithChatAction("typing");
+      try {
+        const healthRes = await fetch("https://flowb.fly.dev/api/v1/health/luma");
+        const health = healthRes.ok ? await healthRes.json() : null;
+        const lines = ["<b>eGator Health</b>", ""];
+        if (health) {
+          lines.push(`Luma Discover: <b>${health.discover?.status || "?"}</b> (${health.discover?.latency || 0}ms)`);
+          lines.push(`Luma Official: <b>${health.official?.status || "?"}</b> (${health.official?.latency || 0}ms)`);
+          lines.push(`Checked: ${health.checkedAt || "?"}`);
+        } else {
+          lines.push("Could not fetch health endpoint.");
+        }
+        await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+      } catch (err) {
+        await ctx.reply(`Health check failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return;
+    }
+
+    // Default: stats
+    await ctx.replyWithChatAction("typing");
+    try {
+      const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+      const [allEvents, staleRows] = await Promise.all([
+        sbFetch<any[]>(cfg, "flowb_events?select=source,city,quality_score,image_url,description,venue_name,stale,is_free,created_at&limit=50000"),
+        sbFetch<any[]>(cfg, "flowb_events?stale=eq.true&select=id&limit=50000"),
+      ]);
+
+      const events = allEvents || [];
+      const total = events.length;
+      const staleCount = staleRows?.length || 0;
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+
+      // By source
+      const srcMap: Record<string, number> = {};
+      for (const e of events) srcMap[e.source || "?"] = (srcMap[e.source || "?"] || 0) + 1;
+      const srcLines = Object.entries(srcMap)
+        .sort((a, b) => b[1] - a[1])
+        .map(([s, c]) => `  ${s}: <b>${c}</b>`)
+        .join("\n");
+
+      // By city (top 10)
+      const cityMap: Record<string, number> = {};
+      for (const e of events) cityMap[e.city || "?"] = (cityMap[e.city || "?"] || 0) + 1;
+      const cityLines = Object.entries(cityMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([c, n]) => `  ${c}: <b>${n}</b>`)
+        .join("\n");
+
+      // Quality
+      const withImg = events.filter((e: any) => e.image_url).length;
+      const withDesc = events.filter((e: any) => e.description?.length > 10).length;
+      const withVenue = events.filter((e: any) => e.venue_name).length;
+      const scores = events.map((e: any) => Number(e.quality_score) || 0);
+      const avg = total > 0 ? (scores.reduce((a: number, b: number) => a + b, 0) / total).toFixed(2) : "0";
+
+      // Freshness
+      const todayCount = events.filter((e: any) => e.created_at >= todayStart).length;
+      const freeCount = events.filter((e: any) => e.is_free === true).length;
+
+      const msg = [
+        `<b>eGator Stats</b>`,
+        ``,
+        `<b>Totals</b>`,
+        `  Active: <b>${total - staleCount}</b> / Stale: <b>${staleCount}</b> / Total: <b>${total}</b>`,
+        `  Free: <b>${freeCount}</b> / Today: <b>${todayCount}</b>`,
+        ``,
+        `<b>By Source</b>`,
+        srcLines,
+        ``,
+        `<b>Top Cities</b>`,
+        cityLines,
+        ``,
+        `<b>Quality</b>`,
+        `  Avg score: <b>${avg}</b>`,
+        `  Images: <b>${total > 0 ? Math.round((withImg / total) * 100) : 0}%</b> (${withImg}/${total})`,
+        `  Descriptions: <b>${total > 0 ? Math.round((withDesc / total) * 100) : 0}%</b> (${withDesc}/${total})`,
+        `  Venues: <b>${total > 0 ? Math.round((withVenue / total) * 100) : 0}%</b> (${withVenue}/${total})`,
+      ];
+
+      await ctx.reply(msg.join("\n"), { parse_mode: "HTML" });
+    } catch (err) {
+      await ctx.reply(`Stats failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
 
   // ========================================================================
   // New member welcome (auto-detect group joins)

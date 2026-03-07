@@ -41,11 +41,15 @@ export class LemonadeAdapter implements EventSourceAdapter {
   async fetchEvents(params: EventQuery): Promise<EventResult[]> {
     try {
       const variables: Record<string, any> = {
-        space: this.spaceId,
         limit: Math.min(params.limit || 20, 50),
         skip: 0,
         start_from: new Date().toISOString(),
       };
+
+      // Only include spaceId when it's a valid MongoID (24 hex chars)
+      if (this.spaceId && /^[a-f0-9]{24}$/i.test(this.spaceId)) {
+        variables.space = this.spaceId;
+      }
 
       if (params.category) variables.search = params.category;
 

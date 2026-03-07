@@ -20,7 +20,7 @@ import { sbFetch, type SbConfig } from "../utils/supabase.js";
 // Config
 // ---------------------------------------------------------------------------
 
-function getAdminIds(): number[] {
+export function getAdminIds(): number[] {
   const raw = process.env.FLOWB_ADMIN_ALERT_IDS;
   if (!raw) return [];
   return raw

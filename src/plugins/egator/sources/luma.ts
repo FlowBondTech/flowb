@@ -35,6 +35,7 @@ const CITY_COORDS: Record<string, { lat: string; lng: string }> = {
   seattle: { lat: "47.6062", lng: "-122.3321" },
   portland: { lat: "45.5152", lng: "-122.6784" },
   boston: { lat: "42.3601", lng: "-71.0589" },
+  atlanta: { lat: "33.7490", lng: "-84.3880" },
   london: { lat: "51.5074", lng: "-0.1278" },
   berlin: { lat: "52.5200", lng: "13.4050" },
   paris: { lat: "48.8566", lng: "2.3522" },

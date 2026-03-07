@@ -20,7 +20,11 @@ import { registerSignalWebhook } from "../signal/bot.js";
 export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
 
-  app.register(cors);
+  app.register(cors, {
+    origin: true,
+    credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"],
+  });
 
   // Global rate limit: 100 requests per minute per IP
   await app.register(rateLimit, {

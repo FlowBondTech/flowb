@@ -1034,6 +1034,91 @@ GET    /api/v1/billing/usage               Usage stats vs limits
 
 ---
 
+## Cross-Platform Biz Integration (Spans All Phases)
+**Status**: `pending`
+**Goal**: Every biz feature works across every platform the user is on. Priority routing ensures urgent messages always reach users. Each platform does what it's best at.
+
+### Priority Message System
+
+Three tiers replace the current flat notification model:
+
+| Tier | Delivery | Quiet Hours | Rate Limit | Examples |
+|------|----------|-------------|------------|---------|
+| **P0** | All channels, instant | Bypasses (not DND) | Bypasses | Meeting in 5 min, lead replied, commission earned, payment failed |
+| **P1** | Primary channel only | Blocked | Biz budget (15/day) | Meeting invite, lead stage change, follow-up due, task assigned |
+| **P2** | Batched digest | N/A | N/A | Weekly earnings, AI suggestions, crew activity, pipeline summary |
+
+### Per-Platform Role
+
+| Platform | Role in Biz Mode | Key Actions |
+|----------|-----------------|-------------|
+| **Telegram** | Quick commands + chat bridge | /meet, /leads, /earnings, inline RSVP, reply-to-chat |
+| **Farcaster** | Social proof + identity | Cast-based triggers, DC relay, Frames for invites/earnings |
+| **WhatsApp** | Business contacts bridge | Template invites, reply-to-chat, outbound follow-ups |
+| **Signal** | Privacy-focused alternative | Same bridge as WA via Signal REST API |
+| **Email** | Digest channel + universal fallback | Daily biz digest, iCal attachments, reply-to-chat parsing |
+| **Web (biz.flowb.me)** | Command center for deep work | Full dashboard, always-visible chat panel, keyboard shortcuts |
+| **Mobile App** | Always-with-you assistant | Push tiers, deep links, offline cache, lock-screen actions |
+
+### Notification Service Upgrade (`sendToUser()` → `sendBizMessage()`)
+
+```typescript
+interface BizMessage {
+  userId: string;
+  content: string;
+  priority: 'p0' | 'p1' | 'p2';
+  type: string;           // meeting_invite, lead_reply, commission_earned, etc.
+  isBiz: boolean;
+  context?: {             // for chat bridging
+    chatType: 'meeting' | 'lead' | 'crew';
+    chatId: string;
+  };
+  deepLink?: string;      // flowb://meeting/123
+  actions?: Array<{       // actionable notifications
+    label: string;
+    callback: string;     // callback_query data for TG, URL for others
+  }>;
+  metadata?: Record<string, any>;
+}
+```
+
+**Fallback chain**: TG → Mobile Push → WhatsApp → Signal → FC DC → Email
+**P0 override**: sends to ALL connected platforms simultaneously
+**P2 bypass**: queues to `flowb_digest_queue` instead of sending
+
+### Chat Bridge Pattern (Unified)
+
+Every chat context follows one pattern:
+```
+Supabase table (flowb_{context}_messages)
+  → Realtime → Web + Mobile (native)
+  → Bridge service → TG bot (DM relay)
+  → Bridge service → WhatsApp (template + reply)
+  → Bridge service → Signal (API relay)
+  → Bridge service → FC (DC relay)
+  → Digest service → Email (batch + reply-to parsing)
+```
+
+User's "active chat context" tracked per platform so replies route correctly.
+
+### Database Changes
+- `flowb_sessions`: add `biz_mode_enabled`, `primary_biz_channel`, `biz_quiet_hours_*`, `dnd_enabled`, `digest_frequency`, `connected_platforms`
+- `flowb_notification_log`: add `priority`, `platform`, `delivery_status`, `is_biz`
+- New table: `flowb_digest_queue` for P2 message batching
+
+### Implementation Touches Each Phase
+- **Phase 1**: Meeting invites + chat use priority routing
+- **Phase 4**: Commission alerts are P0
+- **Phase 5**: Automations generate prioritized messages
+- **Phase 6**: Biz tier unlocks full notification preferences
+- **Phase 7**: Mobile app push tiers + deep links
+- **Phase 8**: Notification service upgrade, digest queue, chat bridges
+- **Phase 9**: All platforms connected and tested
+
+**Full architecture documented in `findings.md` > "Cross-Platform Biz Mode Integration"**
+
+---
+
 ## Phase 9: Deploy, Connect & Launch
 **Status**: `pending`
 **Goal**: Ship everything to production. Connect all the pieces. Launch publicly.
