@@ -76,16 +76,45 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/whos-here` | Yes |  |
 | `POST` | `unknown` | No |  |
 | `PATCH` | `unknown` | No |  |
-| `POST` | `unknown` | No |  |
-| `GET` | `/api/v1/leads` | Yes |  |
-| `GET` | `/api/v1/leads/pipeline` | Yes |  |
-| `GET` | `/api/v1/leads/:id` | Yes |  |
-| `PATCH` | `unknown` | No |  |
-| `DELETE` | `/api/v1/leads/:id` | Yes |  |
 | `POST` | `/api/v1/admin/egator/scan` | No |  |
 | `GET` | `/api/v1/shared-results/:code` | No |  |
 | `POST` | `/api/v1/shared-results/:code/interact` | No |  |
 | `POST` | `/api/v1/shared-results` | No |  |
+| `GET` | `/api/v1/leads` | Yes |  |
+| `GET` | `/api/v1/leads/:id` | No |  |
+| `PATCH` | `/api/v1/leads/:id` | Yes |  |
+| `DELETE` | `/api/v1/leads/:id` | No |  |
+| `GET` | `/api/v1/leads/pipeline` | Yes |  |
+| `GET` | `/api/v1/leads/:id/timeline` | No |  |
+| `POST` | `/api/v1/leads/:id/schedule-meeting` | Yes |  |
+| `POST` | `/api/v1/meetings/:id/briefing` | No |  |
+| `POST` | `/api/v1/meetings/:id/follow-up` | No |  |
+| `GET` | `/api/v1/meetings/:id/notes` | No |  |
+| `POST` | `/api/v1/meetings/:id/notes` | Yes |  |
+| `GET` | `/api/v1/meetings/suggest` | Yes |  |
+| `POST` | `/api/v1/meetings/from-lead/:leadId` | Yes |  |
+| `GET` | `/api/v1/m/:code/ical` | No |  |
+| `GET` | `/api/v1/meetings/:id/messages/since/:ts` | No |  |
+| `POST` | `/api/v1/referral/programs` | Yes |  |
+| `GET` | `/api/v1/referral/programs/:eventId` | No |  |
+| `GET` | `/api/v1/referral/links/:eventId` | Yes |  |
+| `POST` | `/api/v1/referral/engagement` | Yes |  |
+| `GET` | `/api/v1/referral/earnings` | Yes |  |
+| `GET` | `/api/v1/referral/earnings/crew/:crewId` | No |  |
+| `GET` | `/api/v1/referral/commissions` | Yes |  |
+| `POST` | `/api/v1/referral/payouts` | Yes |  |
+| `GET` | `/api/v1/referral/payouts` | Yes |  |
+| `GET` | `/api/v1/e/:code` | No |  |
+| `POST` | `/api/v1/webhooks/luma/ticket` | No |  |
+| `GET` | `/api/v1/automations` | Yes |  |
+| `POST` | `/api/v1/automations` | Yes |  |
+| `PATCH` | `/api/v1/automations/:id` | Yes |  |
+| `DELETE` | `/api/v1/automations/:id` | Yes |  |
+| `POST` | `/api/v1/automations/:id/toggle` | Yes |  |
+| `GET` | `/api/v1/automations/:id/log` | No |  |
+| `GET` | `/api/v1/billing/subscription` | Yes |  |
+| `GET` | `/api/v1/billing/usage` | Yes |  |
+| `POST` | `/api/v1/billing/checkout` | No |  |
 | `POST` | `/api/v1/chat/email-results` | No |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
@@ -174,6 +203,7 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/v1/meetings` | Yes | CRUD + share links |
+| `POST` | `/api/v1/meetings/:id/complete` | Yes | Extended routes (briefing, follow-up, notes, iCal, suggest) |
 
 ## CHAT
 
@@ -305,6 +335,18 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `unknown` | No | Project task tracking (admin + authenticated users) |
 
+## LEADS
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/leads` | Yes | Full CRUD + pipeline + timeline |
+
+## TODO
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/billing/portal` | No | integrate Stripe when STRIPE_SECRET_KEY is set |
+
 ## NOTE
 
 | Method | Path | Auth | Description |
@@ -373,4 +415,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-07 04:28:54 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-07 05:02:44 UTC*
