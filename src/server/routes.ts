@@ -37,7 +37,7 @@ import {
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
-import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, type SbConfig } from "../utils/supabase.js";
+import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, sbQuery, sbDelete, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { alertAdmins } from "../services/admin-alerts.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
@@ -6292,230 +6292,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ============================================================================
-  // LEADS — CRM pipeline
-  // ============================================================================
-
-  // POST /api/v1/leads — create lead
-  app.post<{
-    Body: {
-      name: string;
-      email?: string;
-      phone?: string;
-      company?: string;
-      stage?: string;
-      source?: string;
-      value?: number;
-      notes?: string;
-    };
-  }>(
-    "/api/v1/leads",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { error: "Not configured" };
-
-      const { name, email, phone, company, stage, source, value, notes } = request.body || {};
-      if (!name) return { error: "Name is required" };
-
-      const validStages = ["new", "contacted", "qualified", "proposal", "won", "lost"];
-      const leadStage = stage && validStages.includes(stage) ? stage : "new";
-
-      const lead = {
-        name,
-        email: email || null,
-        phone: phone || null,
-        company: company || null,
-        stage: leadStage,
-        source: source || null,
-        value: value ?? null,
-        notes: notes || null,
-        created_by: jwt.sub,
-        assigned_to: jwt.sub,
-      };
-
-      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          apikey: cfg.supabaseKey,
-          Authorization: `Bearer ${cfg.supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify(lead),
-      });
-
-      if (!res.ok) {
-        const err = await res.text();
-        log.error("leads", `Create failed: ${err}`);
-        return { error: "Failed to create lead" };
-      }
-
-      const rows = await res.json();
-      const created = Array.isArray(rows) ? rows[0] : rows;
-      alertAdmins(`New lead: <b>${name}</b> by ${jwt.sub}`, "info");
-      return { lead: created };
-    },
-  );
-
-  // GET /api/v1/leads — list leads (with optional stage filter)
-  app.get<{ Querystring: { stage?: string; limit?: string } }>(
-    "/api/v1/leads",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { leads: [] };
-
-      const { stage, limit } = request.query || {};
-      let filter = `flowb_leads?created_by=eq.${encodeURIComponent(jwt.sub)}&order=updated_at.desc`;
-      if (stage) filter += `&stage=eq.${encodeURIComponent(stage)}`;
-      const lim = Math.min(parseInt(limit || "50", 10) || 50, 100);
-      filter += `&limit=${lim}`;
-
-      const leads = await sbFetch<any[]>(cfg, filter);
-      return { leads: leads || [] };
-    },
-  );
-
-  // GET /api/v1/leads/pipeline — stage-grouped counts
-  app.get(
-    "/api/v1/leads/pipeline",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { pipeline: {}, total: 0 };
-
-      const leads = await sbFetch<any[]>(
-        cfg,
-        `flowb_leads?created_by=eq.${encodeURIComponent(jwt.sub)}&select=stage`,
-      );
-
-      const pipeline: Record<string, number> = {
-        new: 0,
-        contacted: 0,
-        qualified: 0,
-        proposal: 0,
-        won: 0,
-        lost: 0,
-      };
-      let total = 0;
-      for (const l of leads || []) {
-        if (pipeline[l.stage] !== undefined) pipeline[l.stage]++;
-        total++;
-      }
-      return { pipeline, total };
-    },
-  );
-
-  // GET /api/v1/leads/:id — lead detail
-  app.get<{ Params: { id: string } }>(
-    "/api/v1/leads/:id",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { error: "Not configured" };
-
-      const leads = await sbFetch<any[]>(
-        cfg,
-        `flowb_leads?id=eq.${encodeURIComponent(request.params.id)}&created_by=eq.${encodeURIComponent(jwt.sub)}&limit=1`,
-      );
-
-      if (!leads?.length) return { error: "Lead not found" };
-      return { lead: leads[0] };
-    },
-  );
-
-  // PATCH /api/v1/leads/:id — update lead
-  app.patch<{
-    Params: { id: string };
-    Body: {
-      name?: string;
-      email?: string;
-      phone?: string;
-      company?: string;
-      stage?: string;
-      source?: string;
-      value?: number;
-      notes?: string;
-    };
-  }>(
-    "/api/v1/leads/:id",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { error: "Not configured" };
-
-      const { id } = request.params;
-      const updates: Record<string, any> = {};
-      const body = request.body || {};
-
-      if (body.name) updates.name = body.name;
-      if (body.email !== undefined) updates.email = body.email || null;
-      if (body.phone !== undefined) updates.phone = body.phone || null;
-      if (body.company !== undefined) updates.company = body.company || null;
-      if (body.source !== undefined) updates.source = body.source || null;
-      if (body.value !== undefined) updates.value = body.value;
-      if (body.notes !== undefined) updates.notes = body.notes || null;
-
-      const validStages = ["new", "contacted", "qualified", "proposal", "won", "lost"];
-      if (body.stage && validStages.includes(body.stage)) updates.stage = body.stage;
-
-      if (Object.keys(updates).length === 0) return { error: "Nothing to update" };
-
-      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(id)}&created_by=eq.${encodeURIComponent(jwt.sub)}`;
-      const res = await fetch(url, {
-        method: "PATCH",
-        headers: {
-          apikey: cfg.supabaseKey,
-          Authorization: `Bearer ${cfg.supabaseKey}`,
-          "Content-Type": "application/json",
-          Prefer: "return=representation",
-        },
-        body: JSON.stringify(updates),
-      });
-
-      if (!res.ok) {
-        const err = await res.text();
-        log.error("leads", `Update failed: ${err}`);
-        return { error: "Failed to update lead" };
-      }
-
-      const rows = await res.json();
-      const lead = Array.isArray(rows) ? rows[0] : rows;
-      if (!lead) return { error: "Lead not found" };
-      return { lead };
-    },
-  );
-
-  // DELETE /api/v1/leads/:id — delete lead
-  app.delete<{ Params: { id: string } }>(
-    "/api/v1/leads/:id",
-    { preHandler: authMiddleware },
-    async (request) => {
-      const jwt = request.jwtPayload!;
-      const cfg = getSupabaseConfig();
-      if (!cfg) return { error: "Not configured" };
-
-      const url = `${cfg.supabaseUrl}/rest/v1/flowb_leads?id=eq.${encodeURIComponent(request.params.id)}&created_by=eq.${encodeURIComponent(jwt.sub)}`;
-      const res = await fetch(url, {
-        method: "DELETE",
-        headers: {
-          apikey: cfg.supabaseKey,
-          Authorization: `Bearer ${cfg.supabaseKey}`,
-        },
-      });
-
-      if (!res.ok) return { error: "Failed to delete lead" };
-      return { ok: true };
-    },
-  );
-
-  // ============================================================================
   // ADMIN: eGator Stats & Scan
   // ============================================================================
 
@@ -6801,6 +6577,855 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { code, url: `https://flowb.me/r/${code}` };
+    },
+  );
+
+  // ==================================================================
+  // LEADS: Full CRUD + pipeline + timeline
+  // ==================================================================
+
+  // Create lead
+  app.post<{ Body: { name: string; email?: string; phone?: string; company?: string; source?: string; value?: number; notes?: string; tags?: string[] } }>(
+    "/api/v1/leads",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { name, email, phone, company, source, value, notes, tags } = request.body;
+      if (!name) return reply.status(400).send({ error: "name required" });
+
+      const lead = await sbInsert(cfg, "flowb_leads", {
+        name, email, phone, company, source, value, notes,
+        tags: tags || [],
+        created_by: jwt.sub,
+        assigned_to: jwt.sub,
+      });
+      if (!lead) return reply.status(500).send({ error: "Failed to create lead" });
+
+      // Log activity
+      fireAndForget(sbInsert(cfg, "flowb_lead_activities", {
+        lead_id: lead.id, user_id: jwt.sub,
+        activity_type: "created",
+        description: `Lead created: ${name}`,
+      }), "log lead creation");
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "lead_created"), "award points");
+      return lead;
+    },
+  );
+
+  // List leads
+  app.get<{ Querystring: { stage?: string; limit?: string; offset?: string; q?: string } }>(
+    "/api/v1/leads",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { leads: [] };
+      const jwt = (request as any).user as JWTPayload;
+      const { stage, limit, offset, q } = request.query;
+
+      const params: Record<string, string> = {
+        select: "*",
+        or: `(created_by.eq.${jwt.sub},assigned_to.eq.${jwt.sub})`,
+        order: "updated_at.desc",
+        limit: limit || "50",
+      };
+      if (stage) params.stage = `eq.${stage}`;
+      if (offset) params.offset = offset;
+
+      let leads = await sbQuery<any[]>(cfg, "flowb_leads", params) || [];
+
+      if (q) {
+        const lower = q.toLowerCase();
+        leads = leads.filter((l: any) =>
+          l.name?.toLowerCase().includes(lower) ||
+          l.company?.toLowerCase().includes(lower) ||
+          l.email?.toLowerCase().includes(lower)
+        );
+      }
+
+      return { leads, total: leads.length };
+    },
+  );
+
+  // Lead detail
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/leads/:id",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const rows = await sbQuery<any[]>(cfg, "flowb_leads", {
+        select: "*", id: `eq.${request.params.id}`, limit: "1",
+      });
+      if (!rows?.length) return reply.status(404).send({ error: "Lead not found" });
+      return rows[0];
+    },
+  );
+
+  // Update lead
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/leads/:id",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { name, email, phone, company, stage, source, value, notes, tags, score } = request.body || {};
+
+      // Get current lead for stage change tracking
+      const current = await sbQuery<any[]>(cfg, "flowb_leads", {
+        select: "stage", id: `eq.${request.params.id}`, limit: "1",
+      });
+
+      const updates: Record<string, any> = {};
+      if (name !== undefined) updates.name = name;
+      if (email !== undefined) updates.email = email;
+      if (phone !== undefined) updates.phone = phone;
+      if (company !== undefined) updates.company = company;
+      if (stage !== undefined) updates.stage = stage;
+      if (source !== undefined) updates.source = source;
+      if (value !== undefined) updates.value = value;
+      if (notes !== undefined) updates.notes = notes;
+      if (tags !== undefined) updates.tags = tags;
+      if (score !== undefined) updates.score = score;
+
+      if (Object.keys(updates).length === 0) return reply.status(400).send({ error: "No updates" });
+
+      await sbPatch(cfg, "flowb_leads", { id: `eq.${request.params.id}` }, updates);
+
+      // Log stage change
+      if (stage && current?.[0]?.stage !== stage) {
+        fireAndForget(sbInsert(cfg, "flowb_lead_activities", {
+          lead_id: request.params.id, user_id: jwt.sub,
+          activity_type: "stage_change",
+          description: `Stage: ${current?.[0]?.stage || "?"} → ${stage}`,
+          metadata: { from_stage: current?.[0]?.stage, to_stage: stage },
+        }), "log stage change");
+      }
+
+      return { success: true };
+    },
+  );
+
+  // Delete lead
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/leads/:id",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const ok = await sbPatchRaw(cfg, `flowb_leads?id=eq.${request.params.id}`, { stage: "lost" });
+      return { success: ok };
+    },
+  );
+
+  // Pipeline summary
+  app.get("/api/v1/leads/pipeline",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { pipeline: {} };
+      const jwt = (request as any).user as JWTPayload;
+
+      const leads = await sbQuery<any[]>(cfg, "flowb_leads", {
+        select: "id,name,company,stage,value,updated_at",
+        or: `(created_by.eq.${jwt.sub},assigned_to.eq.${jwt.sub})`,
+        order: "updated_at.desc",
+      }) || [];
+
+      const pipeline: Record<string, any[]> = {};
+      for (const lead of leads) {
+        const stage = lead.stage || "new";
+        if (!pipeline[stage]) pipeline[stage] = [];
+        pipeline[stage].push(lead);
+      }
+
+      return { pipeline, total: leads.length };
+    },
+  );
+
+  // Lead timeline
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/leads/:id/timeline",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { activities: [] };
+
+      const activities = await sbQuery<any[]>(cfg, "flowb_lead_activities", {
+        select: "*",
+        lead_id: `eq.${request.params.id}`,
+        order: "created_at.desc",
+        limit: "50",
+      });
+
+      return { activities: activities || [] };
+    },
+  );
+
+  // Schedule meeting from lead
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/leads/:id/schedule-meeting",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Meetings not configured" });
+      const jwt = (request as any).user as JWTPayload;
+
+      const meeting = await meetingPlugin.createFromLead(meetingCfg, jwt.sub, request.params.id);
+      if (!meeting) return reply.status(500).send({ error: "Failed to create meeting from lead" });
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "meeting_from_lead"), "award points");
+
+      return {
+        meeting_id: meeting.id,
+        title: meeting.title,
+        share_code: meeting.share_code,
+        share_link: meetingPlugin.getShareLink(meeting.share_code),
+      };
+    },
+  );
+
+  // ==================================================================
+  // MEETINGS: Extended routes (briefing, follow-up, notes, iCal, suggest)
+  // ==================================================================
+
+  // Complete meeting with notes
+  app.post<{ Params: { id: string }; Body: { outcome_notes?: string; action_items?: string[] } }>(
+    "/api/v1/meetings/:id/complete",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { outcome_notes, action_items } = request.body || {};
+      const result = await meetingPlugin.completeWithNotes(meetingCfg, jwt.sub, request.params.id, outcome_notes, action_items);
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "meeting_completed"), "award points");
+      return { success: !result.includes("not found"), message: result };
+    },
+  );
+
+  // Generate briefing
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/meetings/:id/briefing",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const briefing = await meetingPlugin.generateBriefing(meetingCfg, request.params.id);
+      return { briefing };
+    },
+  );
+
+  // Draft follow-up
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/meetings/:id/follow-up",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const followUp = await meetingPlugin.draftFollowUp(meetingCfg, request.params.id);
+      return { follow_up: followUp };
+    },
+  );
+
+  // Meeting notes
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/meetings/:id/notes",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      if (!meetingCfg) return { notes: [] };
+      const notes = await meetingPlugin!.getNotes(meetingCfg, request.params.id);
+      return { notes };
+    },
+  );
+
+  app.post<{ Params: { id: string }; Body: { content: string; note_type?: string } }>(
+    "/api/v1/meetings/:id/notes",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { content, note_type } = request.body || {};
+      if (!content) return reply.status(400).send({ error: "content required" });
+      const note = await meetingPlugin.addNote(meetingCfg, request.params.id, jwt.sub, content, note_type);
+      return note || { error: "Failed to add note" };
+    },
+  );
+
+  // AI meeting suggestions
+  app.get("/api/v1/meetings/suggest",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      if (!meetingPlugin || !meetingCfg) return { suggestions: [] };
+      const jwt = (request as any).user as JWTPayload;
+      const suggestions = await meetingPlugin.suggestMeetings(meetingCfg, jwt.sub);
+      return { suggestions };
+    },
+  );
+
+  // Create meeting from lead
+  app.post<{ Params: { leadId: string } }>(
+    "/api/v1/meetings/from-lead/:leadId",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const meeting = await meetingPlugin.createFromLead(meetingCfg, jwt.sub, request.params.leadId);
+      if (!meeting) return reply.status(500).send({ error: "Failed" });
+      return { meeting_id: meeting.id, title: meeting.title, share_link: meetingPlugin.getShareLink(meeting.share_code) };
+    },
+  );
+
+  // iCal download
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/m/:code/ical",
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const meeting = await meetingPlugin.getByCode(meetingCfg, request.params.code);
+      if (!meeting) return reply.status(404).send({ error: "Not found" });
+      const ical = meetingPlugin.generateICal(meeting);
+      return reply
+        .header("Content-Type", "text/calendar; charset=utf-8")
+        .header("Content-Disposition", `attachment; filename="${meeting.title.replace(/[^a-zA-Z0-9 ]/g, "")}.ics"`)
+        .send(ical);
+    },
+  );
+
+  // Messages since timestamp (polling)
+  app.get<{ Params: { id: string; ts: string } }>(
+    "/api/v1/meetings/:id/messages/since/:ts",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      if (!meetingPlugin || !meetingCfg) return { messages: [] };
+      const messages = await meetingPlugin.getMessages(meetingCfg, request.params.id, request.params.ts);
+      return { messages };
+    },
+  );
+
+  // ==================================================================
+  // REFERRAL & COMMISSIONS
+  // ==================================================================
+
+  // Create referral program
+  app.post<{ Body: { event_id: string; commission_rate?: number; max_commission_per_ticket?: number; max_total_payout?: number } }>(
+    "/api/v1/referral/programs",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { event_id, commission_rate, max_commission_per_ticket, max_total_payout } = request.body;
+      if (!event_id) return reply.status(400).send({ error: "event_id required" });
+
+      const program = await sbInsert(cfg, "flowb_referral_programs", {
+        event_id, organizer_id: jwt.sub,
+        commission_rate: commission_rate || 0.10,
+        max_commission_per_ticket, max_total_payout,
+      });
+      return program || reply.status(500).send({ error: "Failed" });
+    },
+  );
+
+  // Get referral program for event
+  app.get<{ Params: { eventId: string } }>(
+    "/api/v1/referral/programs/:eventId",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { program: null };
+      const rows = await sbQuery<any[]>(cfg, "flowb_referral_programs", {
+        select: "*", event_id: `eq.${request.params.eventId}`, is_active: "eq.true", limit: "1",
+      });
+      return { program: rows?.[0] || null };
+    },
+  );
+
+  // Get/create referral link
+  app.get<{ Params: { eventId: string }; Querystring: { crew_id?: string } }>(
+    "/api/v1/referral/links/:eventId",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { link: null };
+      const jwt = (request as any).user as JWTPayload;
+      const { crew_id } = request.query;
+
+      // Check if link already exists
+      const existing = await sbQuery<any[]>(cfg, "flowb_referral_links", {
+        select: "*",
+        event_id: `eq.${request.params.eventId}`,
+        creator_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (existing?.length) {
+        return { link: existing[0], url: `https://flowb.me/e/${existing[0].short_code}` };
+      }
+
+      // Create new link
+      const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+      let code = "";
+      for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)];
+
+      const link = await sbInsert(cfg, "flowb_referral_links", {
+        event_id: request.params.eventId,
+        creator_id: jwt.sub,
+        crew_id: crew_id || null,
+        short_code: code,
+        link_type: "event",
+      });
+
+      return { link, url: `https://flowb.me/e/${code}` };
+    },
+  );
+
+  // Track referral engagement
+  app.post<{ Body: { event_id: string; action: string; crew_id?: string; metadata?: any } }>(
+    "/api/v1/referral/engagement",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { event_id, action, crew_id, metadata } = request.body;
+
+      const weights: Record<string, number> = {
+        rsvp_going: 5, invite: 5, share: 4, social_post: 4,
+        rsvp_maybe: 3, chat_mention: 3, checkin: 3, comment: 2, view: 1,
+      };
+
+      const weight = weights[action] || 1;
+
+      const engagement = await sbInsert(cfg, "flowb_referral_engagement", {
+        user_id: jwt.sub, event_id, crew_id: crew_id || null,
+        action, weight, metadata: metadata || {},
+      });
+
+      return engagement || reply.status(500).send({ error: "Failed" });
+    },
+  );
+
+  // My earnings
+  app.get("/api/v1/referral/earnings",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { total: 0, pending: 0 };
+      const jwt = (request as any).user as JWTPayload;
+
+      const splits = await sbQuery<any[]>(cfg, "flowb_referral_splits", {
+        select: "amount,status",
+        user_id: `eq.${jwt.sub}`,
+      }) || [];
+
+      const total = splits.reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+      const pending = splits.filter((s: any) => s.status === "pending")
+        .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+      const credited = splits.filter((s: any) => s.status === "credited")
+        .reduce((sum: number, s: any) => sum + Number(s.amount || 0), 0);
+
+      return { total: Math.round(total * 100) / 100, pending: Math.round(pending * 100) / 100, credited: Math.round(credited * 100) / 100 };
+    },
+  );
+
+  // Crew earnings
+  app.get<{ Params: { crewId: string } }>(
+    "/api/v1/referral/earnings/crew/:crewId",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { earnings: [] };
+
+      const commissions = await sbQuery<any[]>(cfg, "flowb_referral_commissions", {
+        select: "id,event_id,ticket_price,total_commission,status",
+        source_crew_id: `eq.${request.params.crewId}`,
+        order: "created_at.desc",
+      }) || [];
+
+      const total = commissions.reduce((sum: number, c: any) => sum + Number(c.total_commission || 0), 0);
+
+      return { commissions, total: Math.round(total * 100) / 100 };
+    },
+  );
+
+  // Commission history
+  app.get<{ Querystring: { limit?: string } }>(
+    "/api/v1/referral/commissions",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { commissions: [] };
+      const jwt = (request as any).user as JWTPayload;
+
+      const splits = await sbQuery<any[]>(cfg, "flowb_referral_splits", {
+        select: "id,commission_id,amount,share_percentage,status,created_at",
+        user_id: `eq.${jwt.sub}`,
+        order: "created_at.desc",
+        limit: request.query.limit || "25",
+      });
+
+      return { commissions: splits || [] };
+    },
+  );
+
+  // Request payout
+  app.post<{ Body: { amount: number; payment_method: string } }>(
+    "/api/v1/referral/payouts",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { amount, payment_method } = request.body;
+
+      if (!amount || amount <= 0) return reply.status(400).send({ error: "Invalid amount" });
+      if (!["usdc_wallet", "stripe", "points_conversion", "flowb_credit"].includes(payment_method)) {
+        return reply.status(400).send({ error: "Invalid payment method" });
+      }
+
+      const payout = await sbInsert(cfg, "flowb_referral_payouts", {
+        user_id: jwt.sub, amount, payment_method,
+      });
+
+      return payout || reply.status(500).send({ error: "Failed" });
+    },
+  );
+
+  // Payout history
+  app.get("/api/v1/referral/payouts",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { payouts: [] };
+      const jwt = (request as any).user as JWTPayload;
+
+      const payouts = await sbQuery<any[]>(cfg, "flowb_referral_payouts", {
+        select: "*",
+        user_id: `eq.${jwt.sub}`,
+        order: "created_at.desc",
+      });
+
+      return { payouts: payouts || [] };
+    },
+  );
+
+  // Referral link resolver (public)
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/e/:code",
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const links = await sbQuery<any[]>(cfg, "flowb_referral_links", {
+        select: "*", short_code: `eq.${request.params.code}`, limit: "1",
+      });
+
+      if (!links?.length) return reply.status(404).send({ error: "Link not found" });
+
+      const link = links[0];
+      // Increment clicks
+      fireAndForget(sbPatch(cfg, "flowb_referral_links", { id: `eq.${link.id}` }, {
+        clicks: (link.clicks || 0) + 1,
+      }), "increment referral clicks");
+
+      // Log click
+      const ip = request.ip || "unknown";
+      const fpHash = createHash("sha256").update(ip + request.params.code).digest("hex").slice(0, 16);
+      fireAndForget(sbInsert(cfg, "flowb_referral_clicks", {
+        link_id: link.id,
+        visitor_fingerprint: fpHash,
+        referrer_url: (request.headers.referer as string) || null,
+      }), "log referral click");
+
+      return { event_id: link.event_id, crew_id: link.crew_id, creator_id: link.creator_id };
+    },
+  );
+
+  // Luma webhook (ticket purchased)
+  app.post("/api/v1/webhooks/luma/ticket", async (request, reply) => {
+    const cfg = getSupabaseConfig();
+    if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+    const body = request.body as any;
+    const eventId = body?.event_id || body?.event?.api_id;
+    const ticketRef = body?.ticket_id || body?.guest?.api_id || `luma_${Date.now()}`;
+    const ticketPrice = Number(body?.price || body?.ticket_price || 0);
+    const buyerEmail = body?.email || body?.guest?.email;
+
+    if (!eventId) return reply.status(400).send({ error: "event_id required" });
+
+    // Find referral program
+    const programs = await sbQuery<any[]>(cfg, "flowb_referral_programs", {
+      select: "*", event_id: `eq.${eventId}`, is_active: "eq.true", limit: "1",
+    });
+
+    if (!programs?.length) return { ok: true, message: "No referral program for this event" };
+
+    const program = programs[0];
+    const commission = ticketPrice * Number(program.commission_rate);
+    const cappedCommission = program.max_commission_per_ticket
+      ? Math.min(commission, Number(program.max_commission_per_ticket))
+      : commission;
+
+    if (cappedCommission <= 0) return { ok: true, message: "No commission to distribute" };
+
+    // Create commission record
+    const commissionRecord = await sbInsert(cfg, "flowb_referral_commissions", {
+      program_id: program.id, event_id: eventId,
+      ticket_ref: ticketRef, ticket_price: ticketPrice,
+      total_commission: cappedCommission, status: "pending",
+    });
+
+    if (!commissionRecord) return reply.status(500).send({ error: "Failed to create commission" });
+
+    // Get all engagement for this event and calculate splits
+    const engagement = await sbQuery<any[]>(cfg, "flowb_referral_engagement", {
+      select: "user_id,weight", event_id: `eq.${eventId}`,
+    }) || [];
+
+    if (engagement.length === 0) return { ok: true, commission_id: commissionRecord.id, message: "Commission created, no engagement to split" };
+
+    // Aggregate weights per user
+    const userWeights: Record<string, number> = {};
+    for (const e of engagement) {
+      userWeights[e.user_id] = (userWeights[e.user_id] || 0) + e.weight;
+    }
+
+    const totalWeight = Object.values(userWeights).reduce((a, b) => a + b, 0);
+
+    // Create splits
+    for (const [userId, weight] of Object.entries(userWeights)) {
+      const share = weight / totalWeight;
+      const amount = Math.round(cappedCommission * share * 100) / 100;
+      if (amount > 0) {
+        fireAndForget(sbInsert(cfg, "flowb_referral_splits", {
+          commission_id: commissionRecord.id,
+          user_id: userId,
+          engagement_weight: weight,
+          share_percentage: share,
+          amount,
+        }), "create referral split");
+      }
+    }
+
+    return { ok: true, commission_id: commissionRecord.id, splits: Object.keys(userWeights).length };
+  });
+
+  // ==================================================================
+  // AUTOMATIONS
+  // ==================================================================
+
+  // List automations
+  app.get("/api/v1/automations",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { automations: [] };
+      const jwt = (request as any).user as JWTPayload;
+
+      const automations = await sbQuery<any[]>(cfg, "flowb_automations", {
+        select: "id,name,trigger_type,action_type,is_active,run_count,last_run_at,created_at",
+        user_id: `eq.${jwt.sub}`,
+        order: "created_at.desc",
+      });
+
+      return { automations: automations || [] };
+    },
+  );
+
+  // Create automation
+  app.post<{ Body: { name: string; trigger_type: string; trigger_config: any; action_type: string; action_config: any; max_per_day?: number } }>(
+    "/api/v1/automations",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { name, trigger_type, trigger_config, action_type, action_config, max_per_day } = request.body;
+
+      if (!name || !trigger_type || !action_type) {
+        return reply.status(400).send({ error: "name, trigger_type, action_type required" });
+      }
+
+      const automation = await sbInsert(cfg, "flowb_automations", {
+        user_id: jwt.sub, name, trigger_type, trigger_config: trigger_config || {},
+        action_type, action_config: action_config || {},
+        max_per_day: max_per_day || 5,
+      });
+
+      return automation || reply.status(500).send({ error: "Failed" });
+    },
+  );
+
+  // Update automation
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/automations/:id",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+
+      // Verify ownership
+      const existing = await sbQuery<any[]>(cfg, "flowb_automations", {
+        select: "user_id", id: `eq.${request.params.id}`, limit: "1",
+      });
+      if (!existing?.length) return reply.status(404).send({ error: "Not found" });
+      if (existing[0].user_id !== jwt.sub) return reply.status(403).send({ error: "Not owner" });
+
+      const { name, trigger_type, trigger_config, action_type, action_config, max_per_day } = request.body || {};
+      const updates: Record<string, any> = {};
+      if (name !== undefined) updates.name = name;
+      if (trigger_type !== undefined) updates.trigger_type = trigger_type;
+      if (trigger_config !== undefined) updates.trigger_config = trigger_config;
+      if (action_type !== undefined) updates.action_type = action_type;
+      if (action_config !== undefined) updates.action_config = action_config;
+      if (max_per_day !== undefined) updates.max_per_day = max_per_day;
+
+      await sbPatch(cfg, "flowb_automations", { id: `eq.${request.params.id}` }, updates);
+      return { success: true };
+    },
+  );
+
+  // Delete automation
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/automations/:id",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+
+      const existing = await sbQuery<any[]>(cfg, "flowb_automations", {
+        select: "user_id", id: `eq.${request.params.id}`, limit: "1",
+      });
+      if (!existing?.length) return reply.status(404).send({ error: "Not found" });
+      if (existing[0].user_id !== jwt.sub) return reply.status(403).send({ error: "Not owner" });
+
+      await sbPatchRaw(cfg, `flowb_automations?id=eq.${request.params.id}`, { is_active: false });
+      return { success: true };
+    },
+  );
+
+  // Toggle automation
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/automations/:id/toggle",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+      const jwt = (request as any).user as JWTPayload;
+
+      const existing = await sbQuery<any[]>(cfg, "flowb_automations", {
+        select: "user_id,is_active", id: `eq.${request.params.id}`, limit: "1",
+      });
+      if (!existing?.length) return reply.status(404).send({ error: "Not found" });
+      if (existing[0].user_id !== jwt.sub) return reply.status(403).send({ error: "Not owner" });
+
+      const newState = !existing[0].is_active;
+      await sbPatch(cfg, "flowb_automations", { id: `eq.${request.params.id}` }, { is_active: newState });
+      return { is_active: newState };
+    },
+  );
+
+  // Automation log
+  app.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
+    "/api/v1/automations/:id/log",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { log: [] };
+
+      const entries = await sbQuery<any[]>(cfg, "flowb_automation_log", {
+        select: "*",
+        automation_id: `eq.${request.params.id}`,
+        order: "created_at.desc",
+        limit: request.query.limit || "25",
+      });
+
+      return { log: entries || [] };
+    },
+  );
+
+  // ==================================================================
+  // BILLING / SUBSCRIPTIONS
+  // ==================================================================
+
+  // Get current subscription
+  app.get("/api/v1/billing/subscription",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { tier: "free" };
+      const jwt = (request as any).user as JWTPayload;
+
+      const subs = await sbQuery<any[]>(cfg, "flowb_subscriptions", {
+        select: "*", user_id: `eq.${jwt.sub}`, limit: "1",
+      });
+
+      if (!subs?.length) {
+        return { tier: "free", status: "active" };
+      }
+
+      return subs[0];
+    },
+  );
+
+  // Get usage stats
+  app.get("/api/v1/billing/usage",
+    { preHandler: [authMiddleware] },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { usage: {} };
+      const jwt = (request as any).user as JWTPayload;
+
+      const today = new Date().toISOString().split("T")[0];
+      const usage = await sbQuery<any[]>(cfg, "flowb_usage_tracking", {
+        select: "feature,count",
+        user_id: `eq.${jwt.sub}`,
+        period_start: `eq.${today}`,
+      }) || [];
+
+      const usageMap: Record<string, number> = {};
+      for (const u of usage) {
+        usageMap[u.feature] = u.count;
+      }
+
+      // Get tier limits
+      const subs = await sbQuery<any[]>(cfg, "flowb_subscriptions", {
+        select: "tier", user_id: `eq.${jwt.sub}`, limit: "1",
+      });
+      const tier = subs?.[0]?.tier || "free";
+
+      const limits: Record<string, Record<string, number>> = {
+        free: { ai_chat: 10, meetings: 3, automations: 2, leads: 10, boards: 1 },
+        pro: { ai_chat: -1, meetings: -1, automations: -1, leads: -1, boards: -1 },
+        team: { ai_chat: -1, meetings: -1, automations: -1, leads: -1, boards: -1 },
+        business: { ai_chat: -1, meetings: -1, automations: -1, leads: -1, boards: -1 },
+      };
+
+      return { tier, usage: usageMap, limits: limits[tier] || limits.free };
+    },
+  );
+
+  // Create checkout session (stub)
+  app.post<{ Body: { tier: string } }>(
+    "/api/v1/billing/checkout",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      const { tier } = request.body;
+      if (!["pro", "team", "business"].includes(tier)) {
+        return reply.status(400).send({ error: "Invalid tier" });
+      }
+
+      // TODO: integrate Stripe when STRIPE_SECRET_KEY is set
+      return { url: `https://flowb.me/upgrade?tier=${tier}`, message: "Stripe integration pending" };
+    },
+  );
+
+  // Customer portal (stub)
+  app.post("/api/v1/billing/portal",
+    { preHandler: [authMiddleware] },
+    async () => {
+      return { url: "https://flowb.me/billing", message: "Stripe portal integration pending" };
     },
   );
 
