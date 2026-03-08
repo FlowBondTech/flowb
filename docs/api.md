@@ -21,6 +21,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/farcaster` | No | Farcaster Mini App (Quick Auth + legacy SIWF fallback) |
 | `POST` | `/api/v1/auth/app` | No | Native App (hardcoded demo users) |
 | `POST` | `/api/v1/auth/web` | No | Web (Privy) - issues a FlowB JWT for web users |
+| `POST` | `/api/v1/auth/privy` | No | Privy (Mobile) — verify Privy access token, issue FlowB JWT |
 | `POST` | `/api/v1/auth/whatsapp` | No | WhatsApp Mini App (HMAC-based phone verification) |
 | `POST` | `/api/v1/auth/signal` | No | Signal Mini App (HMAC-based, same pattern as WhatsApp) |
 | `POST` | `/api/v1/auth/claim-points` | Yes | Claim pending points (pre-auth actions → backend account) |
@@ -54,6 +55,8 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/meetings/:id/messages` | Yes |  |
 | `GET` | `/api/v1/m/:code` | No |  |
 | `POST` | `/api/v1/m/:code/rsvp` | No |  |
+| `POST` | `/api/v1/me/push-token` | Yes |  |
+| `DELETE` | `/api/v1/me/push-token` | Yes |  |
 | `GET` | `/api/v1/me/preferences` | Yes |  |
 | `PATCH` | `unknown` | No |  |
 | `GET` | `/api/v1/flow/friends/nearby` | Yes |  |
@@ -236,6 +239,12 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `POST` | `/api/v1/webhooks/neynar` | No | Mention webhook (@flowb mentions on Farcaster) |
+
+## DASHBOARD
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/me/dashboard` | Yes | Aggregate KPIs for biz dashboard (mobile) |
 
 ## DISCOVERY
 
@@ -423,4 +432,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 16:16:31 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 17:04:33 UTC*

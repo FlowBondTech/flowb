@@ -15,6 +15,7 @@ Backend services that power FlowB's cross-platform features.
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
 | email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
+| expo push | `src/services/expo-push.ts` | `sendExpoPush`, `sendExpoPushToUser`, `deactivateToken` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
@@ -81,6 +82,14 @@ Event Scanner Service
 **Source**: `src/services/event-scanner.ts`
 
 **Exports**: `scanForNewEvents()`
+
+### expo push
+
+Expo Push Notification Sender
+
+**Source**: `src/services/expo-push.ts`
+
+**Exports**: `sendExpoPush()`, `sendExpoPushToUser()`, `deactivateToken()`
 
 ### farcaster notify
 
@@ -162,4 +171,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-08 16:16:31 UTC*
+*Auto-generated on 2026-03-08 17:04:33 UTC*
