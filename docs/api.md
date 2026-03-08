@@ -37,6 +37,14 @@ FlowB exposes two backend servers:
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/api/v1/feed/ethdenver` | No |  |
+| `GET` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
+| `PATCH` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
+| `PATCH` | `/api/v1/flow/crews/:id/my-settings` | Yes |  |
+| `GET` | `/api/v1/flow/crews/:id/biz-feed` | Yes |  |
+| `POST` | `/api/v1/flow/crews/:id/biz-feed` | Yes |  |
+| `POST` | `/api/v1/flow/crews/:id/share-lead` | Yes |  |
+| `GET` | `/api/v1/flow/crews/:id/shared-leads` | Yes |  |
+| `GET` | `/api/v1/flow/crews/:id/pipeline` | Yes |  |
 | `GET` | `/api/v1/meetings` | Yes |  |
 | `GET` | `/api/v1/meetings/:id` | No |  |
 | `PATCH` | `/api/v1/meetings/:id` | Yes |  |
@@ -415,4 +423,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 16:03:28 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 16:16:31 UTC*
