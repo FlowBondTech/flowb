@@ -41,6 +41,7 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
 | `PATCH` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
 | `PATCH` | `/api/v1/flow/crews/:id/my-settings` | Yes |  |
+| `POST` | `/api/v1/flow/crews/:id/share-meeting/:meetingId` | Yes |  |
 | `GET` | `/api/v1/flow/crews/:id/biz-feed` | Yes |  |
 | `POST` | `/api/v1/flow/crews/:id/biz-feed` | Yes |  |
 | `POST` | `/api/v1/flow/crews/:id/share-lead` | Yes |  |
@@ -106,6 +107,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/meetings/from-lead/:leadId` | Yes |  |
 | `GET` | `/api/v1/m/:code/ical` | No |  |
 | `GET` | `/api/v1/meetings/:id/messages/since/:ts` | No |  |
+| `POST` | `/api/v1/meetings/:id/share` | Yes |  |
 | `POST` | `/api/v1/referral/programs` | Yes |  |
 | `GET` | `/api/v1/referral/programs/:eventId` | No |  |
 | `GET` | `/api/v1/referral/links/:eventId` | Yes |  |
@@ -432,4 +434,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 19:05:38 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-08 19:22:15 UTC*
