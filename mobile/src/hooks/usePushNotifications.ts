@@ -12,8 +12,7 @@ import { useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useNavigation, NavigationProp } from "@react-navigation/native";
 import * as api from "../api/client";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -27,7 +26,7 @@ Notifications.setNotificationHandler({
   }),
 });
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Nav = NavigationProp<RootStackParamList>;
 
 export function usePushNotifications() {
   const navigation = useNavigation<Nav>();
@@ -115,7 +114,7 @@ async function registerForPush() {
 
 function handleNotificationNavigation(
   data: Record<string, unknown> | undefined,
-  navigation: Nav,
+  navigation: any,
 ) {
   if (!data?.url) return;
 

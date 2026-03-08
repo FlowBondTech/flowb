@@ -5,7 +5,6 @@ import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useAuthStore } from "../stores/useAuthStore";
-import { usePushNotifications } from "../hooks/usePushNotifications";
 import { IntroCarouselScreen } from "../screens/auth/IntroCarouselScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
 import { PrivyLoginScreen } from "../screens/auth/PrivyLoginScreen";
@@ -44,9 +43,6 @@ const INTRO_SEEN_KEY = "flowb_intro_seen";
 export function AppNavigator() {
   const { token, isLoading, restore } = useAuthStore();
   const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
-
-  // Register for push notifications when authenticated
-  usePushNotifications();
 
   useEffect(() => {
     async function init() {

@@ -9,12 +9,16 @@ import { BizDashboardScreen } from "../screens/biz/BizDashboardScreen";
 import { CrewListScreen } from "../screens/crew/CrewListScreen";
 import { PointsScreen } from "../screens/points/PointsScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
 import { colors } from "../theme/colors";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export function TabNavigator() {
+  // Register for push notifications (must be inside NavigationContainer)
+  usePushNotifications();
+
   return (
     <Tab.Navigator
       tabBar={(props) => <GlassTabBar {...props} />}
