@@ -29,6 +29,7 @@ import {
   notifyCrewLocate,
   notifyCrewMessage,
   notifyMeetingChat,
+  notifyMeetingInvite,
 } from "../services/notifications.js";
 import { sendWelcomeEmail, sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "../services/email.js";
 import { handleChat, type UserContext } from "../services/ai-chat.js";
@@ -2964,6 +2965,46 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       });
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Share meeting with all crew members
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string; meetingId: string } }>(
+    "/api/v1/flow/crews/:id/share-meeting/:meetingId",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id, meetingId } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Meetings not configured" });
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(cfg, `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`);
+      if (!membership?.length) return reply.status(403).send({ error: "Not a member" });
+
+      // Check share_meetings setting
+      const crew = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${id}&select=share_meetings&limit=1`);
+      if (!crew?.[0]?.share_meetings) return reply.status(403).send({ error: "Meeting sharing is disabled for this crew" });
+
+      // Fetch meeting + build share link
+      const meeting = await meetingPlugin.getById(meetingCfg, meetingId);
+      if (!meeting) return reply.status(404).send({ error: "Meeting not found" });
+      const shareLink = meetingPlugin.getShareLink(meeting.share_code);
+
+      // Get crew member user_ids (excluding sender)
+      const members = await sbFetch<any[]>(cfg, `flowb_group_members?group_id=eq.${id}&select=user_id`);
+      const memberIds = (members || []).map((m: any) => m.user_id).filter((uid: string) => uid !== jwt.sub);
+
+      // Notify via existing cross-platform notification system
+      const notifyCtx = { supabase: cfg, botToken: process.env.FLOWB_TELEGRAM_BOT_TOKEN };
+      const sent = await notifyMeetingInvite(notifyCtx, jwt.sub, meetingId, meeting.title, shareLink, memberIds);
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "meeting_shared"), "award points");
+
+      return { shared: true, members_notified: sent, share_link: shareLink };
     },
   );
 
@@ -7335,6 +7376,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Meetings not configured" });
       const jwt = (request as any).user as JWTPayload;
 
+      // Fetch lead to check contact info for auto_shared flag
+      const leadCfg = getSupabaseConfig();
+      const leads = leadCfg ? await sbQuery<any[]>(leadCfg, "flowb_leads", { select: "email,phone,platform_id", id: `eq.${request.params.id}`, limit: "1" }) : null;
+      const lead = leads?.[0];
+
       const meeting = await meetingPlugin.createFromLead(meetingCfg, jwt.sub, request.params.id);
       if (!meeting) return reply.status(500).send({ error: "Failed to create meeting from lead" });
 
@@ -7345,6 +7391,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         title: meeting.title,
         share_code: meeting.share_code,
         share_link: meetingPlugin.getShareLink(meeting.share_code),
+        auto_shared: !!(lead?.email || lead?.phone || lead?.platform_id),
       };
     },
   );
@@ -7431,9 +7478,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     async (request, reply) => {
       if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
       const jwt = (request as any).user as JWTPayload;
+      const leadCfg = getSupabaseConfig();
+      const leads = leadCfg ? await sbQuery<any[]>(leadCfg, "flowb_leads", { select: "email,phone,platform_id", id: `eq.${request.params.leadId}`, limit: "1" }) : null;
+      const lead = leads?.[0];
       const meeting = await meetingPlugin.createFromLead(meetingCfg, jwt.sub, request.params.leadId);
       if (!meeting) return reply.status(500).send({ error: "Failed" });
-      return { meeting_id: meeting.id, title: meeting.title, share_link: meetingPlugin.getShareLink(meeting.share_code) };
+      return { meeting_id: meeting.id, title: meeting.title, share_link: meetingPlugin.getShareLink(meeting.share_code), auto_shared: !!(lead?.email || lead?.phone || lead?.platform_id) };
     },
   );
 
@@ -7460,6 +7510,25 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (!meetingPlugin || !meetingCfg) return { messages: [] };
       const messages = await meetingPlugin.getMessages(meetingCfg, request.params.id, request.params.ts);
       return { messages };
+    },
+  );
+
+  // Share meeting with a guest (non-user contact)
+  app.post<{ Params: { id: string }; Body: { name?: string; email?: string; phone?: string; platform?: string; platform_id?: string; message?: string } }>(
+    "/api/v1/meetings/:id/share",
+    { preHandler: [authMiddleware] },
+    async (request, reply) => {
+      if (!meetingPlugin || !meetingCfg) return reply.status(503).send({ error: "Not configured" });
+      const jwt = (request as any).user as JWTPayload;
+      const { name, email, phone, platform, platform_id, message } = request.body || {};
+      if (!email && !phone && !platform_id) return reply.status(400).send({ error: "At least one of email, phone, or platform_id required" });
+
+      const result = await meetingPlugin.shareMeetingToGuest(meetingCfg, request.params.id, jwt.sub, { name, email, phone, platform, platform_id }, { message });
+      if (result.sent) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "meeting_shared"), "award points");
+      }
+      const mtg = await meetingPlugin.getById(meetingCfg, request.params.id);
+      return { ...result, share_link: mtg ? meetingPlugin.getShareLink(mtg.share_code) : undefined };
     },
   );
 
