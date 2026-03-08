@@ -16,7 +16,11 @@ import type {
   MeetingPluginConfig,
 } from "../../core/types.js";
 export type { MeetingPluginConfig } from "../../core/types.js";
-import { sbQuery, sbInsert, sbPatch, type SbConfig } from "../../utils/supabase.js";
+import { sbQuery, sbInsert, sbPatch, sbUpsert, type SbConfig } from "../../utils/supabase.js";
+import { sendEmail, wrapInTemplate, escHtml } from "../../services/email.js";
+import { sendWhatsAppNotification } from "../../whatsapp/templates.js";
+import { sendSignalNotification } from "../../signal/api.js";
+import { log } from "../../utils/logger.js";
 
 // ============================================================================
 // Types
@@ -768,6 +772,14 @@ export class MeetingPlugin implements FlowBPlugin {
       metadata: { meeting_id: meeting.id, share_code: shareCode },
     });
 
+    // Auto-share invite to the lead's contact info (fire-and-forget)
+    if (lead.email || lead.phone || lead.platform_id) {
+      this.shareMeetingToGuest(cfg, meeting.id, uid, {
+        name: lead.name, email: lead.email,
+        phone: lead.phone, platform: lead.platform, platform_id: lead.platform_id,
+      }).catch(err => log.error("[meeting]", "auto-share failed", { err: err?.message }));
+    }
+
     return meeting;
   }
 
@@ -1025,5 +1037,137 @@ export class MeetingPlugin implements FlowBPlugin {
       "END:VEVENT",
       "END:VCALENDAR",
     ].filter(Boolean).join("\r\n");
+  }
+
+  // ==========================================================================
+  // Share Meeting to Guest (non-user contact)
+  // ==========================================================================
+
+  async shareMeetingToGuest(
+    cfg: SbConfig,
+    meetingId: string,
+    senderId: string,
+    contact: { name?: string; email?: string; phone?: string; platform?: string; platform_id?: string },
+    options?: { message?: string },
+  ): Promise<{ sent: boolean; channel: string; attendeeId?: string }> {
+    // Fetch meeting
+    const meetings = await sbQuery<Meeting[]>(cfg, "flowb_meetings", {
+      select: "id,creator_id,title,starts_at,duration_min,location,share_code,lead_id",
+      id: `eq.${meetingId}`,
+      limit: "1",
+    });
+    if (!meetings?.length) return { sent: false, channel: "none" };
+    const meeting = meetings[0] as any;
+
+    // Verify sender is creator or organizer
+    if (meeting.creator_id !== senderId) {
+      const att = await sbQuery<MeetingAttendee[]>(cfg, "flowb_meeting_attendees", {
+        select: "id",
+        meeting_id: `eq.${meetingId}`,
+        user_id: `eq.${senderId}`,
+        is_organizer: "eq.true",
+        limit: "1",
+      });
+      if (!att?.length) return { sent: false, channel: "none" };
+    }
+
+    const shareLink = this.getShareLink(meeting.share_code);
+    const dateStr = new Date(meeting.starts_at).toLocaleString("en-US", {
+      weekday: "short", month: "short", day: "numeric",
+      hour: "numeric", minute: "2-digit",
+    });
+    const customMsg = options?.message ? `\n\n${options.message}` : "";
+    const textMsg = `You're invited to: ${meeting.title}\n${dateStr}${meeting.location ? `\nAt: ${meeting.location}` : ""}\n\nView & RSVP: ${shareLink}${customMsg}`;
+
+    let sent = false;
+    let channel = "none";
+
+    // 1. Email (highest priority)
+    if (!sent && contact.email) {
+      const htmlBody = `
+        <p style="color:#ccc;">You're invited to a meeting:</p>
+        <h3 style="color:#fff;margin:12px 0 4px;">${escHtml(meeting.title)}</h3>
+        <p style="color:#aaa;margin:4px 0;">${escHtml(dateStr)}</p>
+        ${meeting.location ? `<p style="color:#aaa;margin:4px 0;">At: ${escHtml(meeting.location)}</p>` : ""}
+        ${customMsg ? `<p style="color:#ccc;margin:12px 0;">${escHtml(customMsg.trim())}</p>` : ""}
+        <div style="margin:20px 0;text-align:center;">
+          <a href="${shareLink}" style="display:inline-block;padding:12px 28px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">View & RSVP</a>
+        </div>`;
+      sent = await sendEmail({
+        to: contact.email,
+        subject: `Meeting invite: ${meeting.title}`,
+        html: wrapInTemplate("Meeting Invitation", htmlBody),
+        text: textMsg,
+      });
+      if (sent) channel = "email";
+    }
+
+    // 2. Telegram DM (only works if user has messaged bot before)
+    if (!sent && contact.platform === "telegram" && contact.platform_id) {
+      try {
+        const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+        if (botToken) {
+          const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ chat_id: contact.platform_id, text: textMsg }),
+          });
+          if (res.ok) {
+            sent = true;
+            channel = "telegram";
+          }
+        }
+      } catch (err: any) {
+        log.debug("[meeting]", "TG DM failed (expected if user hasn't started bot)", { err: err?.message });
+      }
+    }
+
+    // 3. WhatsApp
+    if (!sent && contact.phone) {
+      sent = await sendWhatsAppNotification(contact.phone, textMsg, "meeting_invite");
+      if (sent) channel = "whatsapp";
+    }
+
+    // 4. Signal
+    if (!sent && contact.phone) {
+      sent = await sendSignalNotification(contact.phone, textMsg);
+      if (sent) channel = "signal";
+    }
+
+    // Upsert contact into attendees if not already there
+    let attendeeId: string | undefined;
+    const existingAtt = await sbQuery<MeetingAttendee[]>(cfg, "flowb_meeting_attendees", {
+      select: "id",
+      meeting_id: `eq.${meetingId}`,
+      ...(contact.email ? { email: `eq.${contact.email}` } : contact.phone ? { phone: `eq.${contact.phone}` } : {}),
+      limit: "1",
+    });
+    if (existingAtt?.length) {
+      attendeeId = existingAtt[0].id;
+    } else if (contact.email || contact.phone || contact.name) {
+      const att = await sbInsert<MeetingAttendee>(cfg, "flowb_meeting_attendees", {
+        meeting_id: meetingId,
+        name: contact.name || null,
+        email: contact.email || null,
+        phone: contact.phone || null,
+        platform: contact.platform || null,
+        platform_id: contact.platform_id || null,
+        rsvp_status: "invited",
+      });
+      if (att) attendeeId = att.id;
+    }
+
+    // Log activity if meeting is from a lead
+    if (meeting.lead_id && sent) {
+      await sbInsert(cfg, "flowb_lead_activities", {
+        lead_id: meeting.lead_id,
+        user_id: senderId,
+        activity_type: "meeting_shared",
+        description: `Meeting invite sent via ${channel}`,
+        metadata: { meeting_id: meetingId, channel },
+      }).catch(() => {});
+    }
+
+    return { sent, channel, attendeeId };
   }
 }
