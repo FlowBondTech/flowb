@@ -6,7 +6,7 @@ import {
   useEffect,
 } from 'react'
 import type { ReactNode } from 'react'
-import { DEV_MODE, DEV_USERS, APP_NAME } from '@/lib/constants'
+import { DEV_MODE, DEV_USERS, APP_NAME, FLOWB_API } from '@/lib/constants'
 
 interface AuthUser {
   id: string
@@ -140,20 +140,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const stored = loadStoredUser()
-    if (stored) {
-      if (DEV_MODE) {
-        const valid = DEV_USERS.find((u) => u.id === stored.id)
-        if (valid) {
-          setUser({ id: valid.id, name: valid.name })
-        } else {
-          localStorage.removeItem(STORAGE_KEY)
+    let cancelled = false
+
+    async function init() {
+      // 1. Check for FlowB JWT first (set by web app Privy auth)
+      const jwt = localStorage.getItem('flowb-jwt')
+      if (jwt && !DEV_MODE) {
+        try {
+          // Validate JWT by calling the pipeline endpoint (lightest auth'd route)
+          const res = await fetch(`${FLOWB_API}/api/v1/leads/pipeline`, {
+            headers: { Authorization: `Bearer ${jwt}` },
+          })
+          if (res.ok && !cancelled) {
+            // Extract user info from JWT payload
+            const payload = JSON.parse(atob(jwt.split('.')[1]))
+            const userId = payload.sub || payload.user_id || 'unknown'
+            const displayName = payload.display_name || payload.name || userId.split('_').pop() || 'User'
+            const authUser: AuthUser = { id: userId, name: displayName }
+            setUser(authUser)
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(authUser))
+            setLoading(false)
+            return
+          }
+          // JWT invalid — remove it
+          if (!cancelled) localStorage.removeItem('flowb-jwt')
+        } catch {
+          // Network error — fall through to stored user
         }
-      } else {
-        setUser(stored)
       }
+
+      // 2. Fall back to stored kanban user
+      if (cancelled) return
+      const stored = loadStoredUser()
+      if (stored) {
+        if (DEV_MODE) {
+          const valid = DEV_USERS.find((u) => u.id === stored.id)
+          if (valid) {
+            setUser({ id: valid.id, name: valid.name })
+          } else {
+            localStorage.removeItem(STORAGE_KEY)
+          }
+        } else {
+          setUser(stored)
+        }
+      }
+      setLoading(false)
     }
-    setLoading(false)
+
+    init()
+    return () => { cancelled = true }
   }, [])
 
   const login = useCallback(
@@ -186,6 +221,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     setUser(null)
     localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem('flowb-jwt')
   }, [])
 
   const value: AuthContextValue = {
