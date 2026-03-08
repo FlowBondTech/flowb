@@ -153,11 +153,41 @@ export function AppNavigator() {
             <Stack.Screen name="UserManager" component={UserManager} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
             <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
-            <Stack.Screen name="MeetingList" component={MeetingListScreen} />
+            <Stack.Screen
+              name="MeetingList"
+              component={MeetingListScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Meetings",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
+            />
             <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} />
-            <Stack.Screen name="LeadList" component={LeadListScreen} />
+            <Stack.Screen
+              name="LeadList"
+              component={LeadListScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Leads",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
+            />
             <Stack.Screen name="LeadDetail" component={LeadDetailScreen} />
-            <Stack.Screen name="Kanban" component={KanbanScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="Kanban"
+              component={KanbanScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Pipeline",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
+            />
 
             {/* Modal screens — slide up with scale-behind effect */}
             <Stack.Screen
