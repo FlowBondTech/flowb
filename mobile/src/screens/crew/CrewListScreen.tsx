@@ -76,6 +76,18 @@ export function CrewListScreen() {
     [navigation],
   );
 
+  const handleBizPress = useCallback(
+    (crew: CrewInfo) => {
+      haptics.tap();
+      navigation.navigate('CrewBiz', {
+        crewId: crew.id,
+        crewName: crew.name,
+        crewEmoji: crew.emoji,
+      });
+    },
+    [navigation],
+  );
+
   const handleCreate = useCallback(() => {
     haptics.tap();
     navigation.navigate('CreateCrew');
@@ -103,6 +115,13 @@ export function CrewListScreen() {
                 </Text>
               ) : null}
             </View>
+            <Pressable
+              onPress={() => handleBizPress(item)}
+              style={styles.bizButton}
+              hitSlop={8}
+            >
+              <Ionicons name="briefcase-outline" size={16} color={colors.accent.primary} />
+            </Pressable>
           </View>
 
           <GlassPill
@@ -117,7 +136,7 @@ export function CrewListScreen() {
         </View>
       </GlassCard>
     ),
-    [handleCrewPress],
+    [handleCrewPress, handleBizPress],
   );
 
   const keyExtractor = useCallback((item: CrewInfo) => item.id, []);
@@ -308,6 +327,16 @@ const styles = StyleSheet.create({
   description: {
     ...typography.caption,
     color: colors.text.secondary,
+  },
+  bizButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.glass.subtle,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border.subtle,
   },
   empty: {
     flex: 1,

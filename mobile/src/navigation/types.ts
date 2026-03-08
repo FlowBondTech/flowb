@@ -7,6 +7,8 @@ export type RootStackParamList = {
   MainTabs: undefined;
   EventDetail: { eventId: string };
   CrewDetail: { crewId: string; crewName: string; crewEmoji: string };
+  CrewBiz: { crewId: string; crewName: string; crewEmoji?: string };
+  CrewBizSettings: { crewId: string; crewName: string };
   CreateCrew: undefined;
   Checkin: { crewId: string; crewName: string };
   Preferences: undefined;
@@ -24,12 +26,16 @@ export type RootStackParamList = {
   CreateMeeting: undefined;
   LeadList: undefined;
   LeadDetail: { leadId: string };
+  CreateLead: undefined;
+  EditLead: { leadId: string };
+  Kanban: undefined;
 };
 
 export type TabParamList = {
   HomeTab: undefined;
   ScheduleTab: undefined;
   ChatTab: undefined;
+  BizTab: undefined;
   CrewTab: undefined;
   PointsTab: undefined;
   ProfileTab: undefined;

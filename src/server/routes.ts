@@ -2744,6 +2744,363 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // CREW BIZ: Get crew biz settings (requires auth, admin)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/biz-settings",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { settings: null };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      const crew = await sbFetch<any[]>(
+        cfg,
+        `flowb_groups?id=eq.${id}&select=biz_enabled,share_locations,share_leads,share_meetings,share_referrals,share_earnings,share_pipeline,notify_lead_updates,notify_meeting_updates,notify_checkins,notify_wins&limit=1`,
+      );
+
+      // Also get member's personal settings
+      const memberSettings = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_member_settings?crew_id=eq.${id}&user_id=eq.${jwt.sub}&limit=1`,
+      );
+
+      return {
+        settings: crew?.[0] || {},
+        memberSettings: memberSettings?.[0] || null,
+        role: membership[0].role,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Update crew biz settings (requires auth, admin/creator)
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/flow/crews/:id/biz-settings",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length || !["creator", "admin"].includes(membership[0].role)) {
+        return { ok: false, error: "Only crew admins can update biz settings" };
+      }
+
+      const allowed = [
+        "biz_enabled", "share_locations", "share_leads", "share_meetings",
+        "share_referrals", "share_earnings", "share_pipeline",
+        "notify_lead_updates", "notify_meeting_updates", "notify_checkins", "notify_wins",
+      ];
+      const updates: Record<string, any> = {};
+      for (const key of allowed) {
+        if (request.body[key] !== undefined) updates[key] = request.body[key];
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return { ok: false, error: "Nothing to update" };
+      }
+
+      await sbFetch(cfg, `flowb_groups?id=eq.${id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify(updates),
+      });
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Update member personal settings (requires auth)
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/flow/crews/:id/my-settings",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const allowed = ["share_my_location", "share_my_leads", "share_my_meetings", "mute_notifications"];
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      for (const key of allowed) {
+        if (request.body[key] !== undefined) updates[key] = request.body[key];
+      }
+
+      // Upsert member settings
+      await sbFetch(cfg, "flowb_crew_member_settings", {
+        method: "POST",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({ crew_id: id, user_id: jwt.sub, ...updates }),
+      });
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Get crew activity feed (requires auth, member)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string }; Querystring: { limit?: string; before?: string; type?: string } }>(
+    "/api/v1/flow/crews/:id/biz-feed",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { activities: [] };
+
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      const limit = Math.min(parseInt(request.query.limit || "30"), 100);
+      let query = `flowb_crew_activities?crew_id=eq.${id}&select=id,user_id,display_name,activity_type,title,description,metadata,created_at&order=created_at.desc&limit=${limit}`;
+
+      if (request.query.before) {
+        query += `&created_at=lt.${request.query.before}`;
+      }
+      if (request.query.type) {
+        query += `&activity_type=eq.${request.query.type}`;
+      }
+
+      const activities = await sbFetch<any[]>(cfg, query);
+      return { activities: activities || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Post activity to crew feed (requires auth, member)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { activity_type: string; title: string; description?: string; metadata?: Record<string, any> } }>(
+    "/api/v1/flow/crews/:id/biz-feed",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      // Get display name
+      const session = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name&limit=1`,
+      );
+
+      const activity = await sbPost(cfg, "flowb_crew_activities", {
+        crew_id: id,
+        user_id: jwt.sub,
+        display_name: session?.[0]?.display_name || jwt.sub,
+        activity_type: request.body.activity_type,
+        title: request.body.title,
+        description: request.body.description || null,
+        metadata: request.body.metadata || {},
+      });
+
+      return { ok: true, activity };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Share lead with crew (requires auth, member)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { lead_id: string; visibility?: string } }>(
+    "/api/v1/flow/crews/:id/share-lead",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      // Verify membership
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      // Check crew has share_leads enabled
+      const crew = await sbFetch<any[]>(
+        cfg,
+        `flowb_groups?id=eq.${id}&select=share_leads&limit=1`,
+      );
+      if (!crew?.[0]?.share_leads) {
+        return { ok: false, error: "Lead sharing is not enabled for this crew" };
+      }
+
+      await sbFetch(cfg, "flowb_crew_leads", {
+        method: "POST",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify({
+          crew_id: id,
+          lead_id: request.body.lead_id,
+          shared_by: jwt.sub,
+          visibility: request.body.visibility || "team",
+        }),
+      });
+
+      // Post activity
+      const session = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=display_name&limit=1`,
+      );
+      const lead = await sbFetch<any[]>(
+        cfg,
+        `flowb_leads?id=eq.${request.body.lead_id}&select=name,company&limit=1`,
+      );
+
+      await sbPost(cfg, "flowb_crew_activities", {
+        crew_id: id,
+        user_id: jwt.sub,
+        display_name: session?.[0]?.display_name || jwt.sub,
+        activity_type: "lead_shared",
+        title: `Shared lead: ${lead?.[0]?.name || "Unknown"}`,
+        description: lead?.[0]?.company ? `Company: ${lead[0].company}` : null,
+        metadata: { lead_id: request.body.lead_id },
+      });
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Get shared leads for crew (requires auth, member)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/shared-leads",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { leads: [] };
+
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      const sharedLeads = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_leads?crew_id=eq.${id}&select=lead_id,shared_by,visibility,created_at,flowb_leads(id,name,email,company,stage,value,created_at,updated_at)&order=created_at.desc`,
+      );
+
+      return {
+        leads: (sharedLeads || []).map((sl: any) => ({
+          ...sl.flowb_leads,
+          shared_by: sl.shared_by,
+          visibility: sl.visibility,
+          shared_at: sl.created_at,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // CREW BIZ: Get crew pipeline summary (requires auth, member)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/pipeline",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { pipeline: {} };
+
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length) return { error: "Not a member" };
+
+      // Check if pipeline sharing enabled
+      const crew = await sbFetch<any[]>(
+        cfg,
+        `flowb_groups?id=eq.${id}&select=share_pipeline&limit=1`,
+      );
+      if (!crew?.[0]?.share_pipeline) {
+        return { ok: false, error: "Pipeline sharing is not enabled for this crew" };
+      }
+
+      // Get all members
+      const members = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${id}&select=user_id`,
+      );
+      const memberIds = (members || []).map((m: any) => m.user_id);
+
+      if (!memberIds.length) return { pipeline: {}, stats: {} };
+
+      // Get all leads for crew members
+      const leads = await sbFetch<any[]>(
+        cfg,
+        `flowb_leads?user_id=in.(${memberIds.join(",")})&select=id,name,company,stage,value,user_id,created_at,updated_at&order=updated_at.desc`,
+      );
+
+      // Group by stage
+      const pipeline: Record<string, any[]> = {};
+      let totalValue = 0;
+      for (const lead of leads || []) {
+        if (!pipeline[lead.stage]) pipeline[lead.stage] = [];
+        pipeline[lead.stage].push(lead);
+        totalValue += lead.value || 0;
+      }
+
+      return {
+        pipeline,
+        stats: {
+          total_leads: (leads || []).length,
+          total_value: totalValue,
+          members: memberIds.length,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // MEETINGS: CRUD + share links
   // ------------------------------------------------------------------
 

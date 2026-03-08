@@ -383,3 +383,107 @@ export async function getAdminUsers(opts?: {
   if (opts?.search) url += `search=${encodeURIComponent(opts.search)}&`;
   return get<{ users: any[] }>(url);
 }
+
+// ── Leads ──────────────────────────────────────────────────────────────
+export async function getLeads(opts?: { stage?: string; limit?: number; offset?: number; q?: string }) {
+  let url = "/api/v1/leads?";
+  if (opts?.stage) url += `stage=${opts.stage}&`;
+  if (opts?.limit) url += `limit=${opts.limit}&`;
+  if (opts?.offset) url += `offset=${opts.offset}&`;
+  if (opts?.q) url += `q=${encodeURIComponent(opts.q)}&`;
+  return get<{ leads: any[]; total: number }>(url);
+}
+
+export async function getLead(id: string) {
+  return get<any>(`/api/v1/leads/${id}`);
+}
+
+export async function createLead(data: {
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  source?: string;
+  value?: number;
+  notes?: string;
+  tags?: string[];
+}) {
+  return post<any>("/api/v1/leads", data);
+}
+
+export async function updateLead(id: string, data: Record<string, any>) {
+  return patch<any>(`/api/v1/leads/${id}`, data);
+}
+
+export async function deleteLead(id: string) {
+  return del<{ success: boolean }>(`/api/v1/leads/${id}`);
+}
+
+export async function getLeadPipeline() {
+  return get<{ pipeline: Record<string, any[]>; total: number }>("/api/v1/leads/pipeline");
+}
+
+export async function getLeadTimeline(id: string) {
+  return get<{ activities: any[] }>(`/api/v1/leads/${id}/timeline`);
+}
+
+export async function scheduleLeadMeeting(leadId: string) {
+  return post<{ meeting_id: string; title: string; share_link: string }>(`/api/v1/leads/${leadId}/schedule-meeting`);
+}
+
+// ── Meetings ───────────────────────────────────────────────────────────
+export async function getMeetings(filter?: string) {
+  return get<{ meetings: any[] }>(`/api/v1/meetings?filter=${filter || "upcoming"}`);
+}
+
+export async function getMeeting(id: string) {
+  return get<any>(`/api/v1/meetings/${id}`);
+}
+
+export async function createMeeting(data: {
+  title: string;
+  description?: string;
+  starts_at: string;
+  duration_min?: number;
+  location?: string;
+  meeting_type?: string;
+  notes?: string;
+}) {
+  return post<any>("/api/v1/meetings", data);
+}
+
+export async function updateMeeting(id: string, data: Record<string, any>) {
+  return patch<{ success: boolean }>(`/api/v1/meetings/${id}`, data);
+}
+
+export async function deleteMeeting(id: string) {
+  return del<{ success: boolean }>(`/api/v1/meetings/${id}`);
+}
+
+export async function completeMeeting(id: string, data?: { outcome_notes?: string; action_items?: string[] }) {
+  return post<{ success: boolean }>(`/api/v1/meetings/${id}/complete`, data);
+}
+
+export async function getMeetingBriefing(id: string) {
+  return post<{ briefing: string }>(`/api/v1/meetings/${id}/briefing`);
+}
+
+export async function getMeetingFollowUp(id: string) {
+  return post<{ follow_up: string }>(`/api/v1/meetings/${id}/follow-up`);
+}
+
+export async function inviteMeetingAttendee(id: string, data: { user_id?: string; name?: string; email?: string }) {
+  return post<any>(`/api/v1/meetings/${id}/invite`, data);
+}
+
+export async function createMeetingFromLead(leadId: string) {
+  return post<{ meeting_id: string; title: string; share_link: string }>(`/api/v1/meetings/from-lead/${leadId}`);
+}
+
+export async function getMeetingNotes(id: string) {
+  return get<{ notes: any[] }>(`/api/v1/meetings/${id}/notes`);
+}
+
+export async function addMeetingNote(id: string, data: { content: string; note_type?: string }) {
+  return post<any>(`/api/v1/meetings/${id}/notes`, data);
+}

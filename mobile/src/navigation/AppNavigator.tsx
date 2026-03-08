@@ -11,6 +11,8 @@ import { EventDetailScreen } from "../screens/home/EventDetailScreen";
 import { CrewDetailScreen } from "../screens/crew/CrewDetailScreen";
 import { CreateCrewScreen } from "../screens/crew/CreateCrewScreen";
 import { CheckinScreen } from "../screens/crew/CheckinScreen";
+import { CrewBizScreen } from "../screens/crew/CrewBizScreen";
+import { CrewBizSettingsScreen } from "../screens/crew/CrewBizSettingsScreen";
 import { AdminDashboard } from "../screens/admin/AdminDashboard";
 import { PluginManager } from "../screens/admin/PluginManager";
 import { EventCurator } from "../screens/admin/EventCurator";
@@ -26,6 +28,9 @@ import { MeetingDetailScreen } from "../screens/meetings/MeetingDetailScreen";
 import { CreateMeetingScreen } from "../screens/meetings/CreateMeetingScreen";
 import { LeadListScreen } from "../screens/leads/LeadListScreen";
 import { LeadDetailScreen } from "../screens/leads/LeadDetailScreen";
+import { CreateLeadScreen } from "../screens/leads/CreateLeadScreen";
+import { EditLeadScreen } from "../screens/leads/EditLeadScreen";
+import { KanbanScreen } from "../screens/leads/KanbanScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -101,6 +106,16 @@ export function AppNavigator() {
             {/* Push screens — slide from right */}
             <Stack.Screen name="EventDetail" component={EventDetailScreen} />
             <Stack.Screen name="CrewDetail" component={CrewDetailScreen} />
+            <Stack.Screen
+              name="CrewBiz"
+              component={CrewBizScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CrewBizSettings"
+              component={CrewBizSettingsScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
@@ -114,6 +129,7 @@ export function AppNavigator() {
             <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} />
             <Stack.Screen name="LeadList" component={LeadListScreen} />
             <Stack.Screen name="LeadDetail" component={LeadDetailScreen} />
+            <Stack.Screen name="Kanban" component={KanbanScreen} options={{ headerShown: false }} />
 
             {/* Modal screens — slide up with scale-behind effect */}
             <Stack.Screen
@@ -150,6 +166,22 @@ export function AppNavigator() {
                 presentation: "modal",
                 animation: "slide_from_bottom",
                 gestureDirection: "vertical",
+              }}
+            />
+            <Stack.Screen
+              name="CreateLead"
+              component={CreateLeadScreen}
+              options={{
+                presentation: "modal",
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="EditLead"
+              component={EditLeadScreen}
+              options={{
+                presentation: "modal",
+                headerShown: false,
               }}
             />
           </>

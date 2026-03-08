@@ -210,15 +210,33 @@ export function LeadDetailScreen() {
     }
   }, [lead, token, fetchTimeline]);
 
-  const handleScheduleMeeting = useCallback(() => {
+  const handleScheduleMeeting = useCallback(async () => {
     haptics.tap();
-    Alert.alert('Schedule Meeting', 'Meeting scheduler coming soon');
-  }, []);
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/leads/${leadId}/schedule-meeting`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      haptics.success();
+      Alert.alert('Meeting Scheduled', `Meeting created: ${data.title}`, [
+        { text: 'View', onPress: () => navigation.navigate('MeetingDetail', { meetingId: data.meeting_id }) },
+        { text: 'OK' },
+      ]);
+    } catch {
+      // Fallback to CreateMeeting screen
+      navigation.navigate('CreateMeeting');
+    }
+  }, [leadId, token, navigation]);
 
   const handleEdit = useCallback(() => {
     haptics.tap();
-    Alert.alert('Edit Lead', 'Lead editor coming soon');
-  }, []);
+    navigation.navigate('EditLead', { leadId });
+  }, [navigation, leadId]);
 
   const handleDelete = useCallback(() => {
     if (!lead) return;

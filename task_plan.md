@@ -2,9 +2,11 @@
 
 ## Vision
 
-Transform FlowB from an event discovery tool into a **full-stack AI-powered business platform** where meetings, contacts, automation, and team workflows all live under one roof. Two tiers: **FlowB** (personal/social) and **FlowB.biz** (business/teams). The mobile app becomes the flagship product -- polished, delightful, and indispensable.
+Transform FlowB from an event discovery tool into a **full-stack AI-powered business platform and Command Center** where meetings, contacts, automation, and team workflows all live under one roof. Two tiers: **FlowB** (personal/social) and **FlowB.biz** (business/teams). The mobile app becomes the flagship product -- polished, delightful, and indispensable.
 
-**Core Thesis**: Every professional interaction (meeting, follow-up, introduction, pipeline move) can be AI-assisted. FlowB's agents (OpenClaw) don't just find events -- they schedule meetings, prep briefings, send follow-ups, and keep your business flowing.
+**Core Thesis**: Every professional interaction (meeting, follow-up, introduction, pipeline move) can be AI-assisted. Flowb acts as the **Chief Operations AI** -- not just a tool, but the operational brain of the organization. It schedules meetings, preps briefings, sends follow-ups, routes tasks to the right person, surfaces what matters, and keeps the entire business flowing.
+
+**Command Center Principle** (from Steph, March 7): Flowb is FlowBond's AI Headquarters -- a layer above tasks and messages where the company runs from one strategic command interface. Projects, deals, team, strategy, and intelligence all flow through Flowb.
 
 ---
 
@@ -17,19 +19,28 @@ Transform FlowB from an event discovery tool into a **full-stack AI-powered busi
                      |   Plugins)        |
                      +--------+----------+
                               |
-           +------------------+------------------+
-           |          |           |               |
-      +----+----+ +---+---+ +----+----+  +-------+-------+
-      | Meeting | | Kanban| | Contacts|  |  AI Services  |
-      | Plugin  | | Plugin| | (Flow)  |  |  (Automation) |
-      +----+----+ +---+---+ +----+----+  +-------+-------+
-           |          |           |               |
-     +-----+----------+-----------+-------+-------+
-     |                |                   |
-  Mobile App      flowb.me           biz.flowb.me
-  (Expo/RN)      (Personal)         (Business)
-  iOS + Android   Social tier        Pro/Team tier
+     +------------+-----------+-----------+---------------+
+     |            |           |           |               |
++----+----+ +----+----+ +----+----+ +----+----+  +-------+-------+
+| Meeting | | Command | | Kanban  | | Contacts|  |  AI Services  |
+| Plugin  | | Center  | | Plugin  | | (Flow)  |  |  (Automation) |
++----+----+ +----+----+ +----+----+ +----+----+  +-------+-------+
+     |            |           |           |               |
+     +-----+------+----------+-----------+-------+-------+
+           |                  |                   |
+        Mobile App        flowb.me           biz.flowb.me
+        (Expo/RN)        (Personal)         (Command Center)
+        iOS + Android     Social tier        Operations HQ
 ```
+
+### Command Center Layer (NEW — from Steph)
+The Command Center sits above individual features and orchestrates them:
+- **Daily Mission Briefing** — auto-generated priorities, tasks, follow-ups
+- **Smart Routing** — items auto-route to correct project/person/pipeline
+- **Task Acknowledgment** — forced receipt confirmation on critical tasks
+- **Priority Pin System** — surfaces urgent decisions and blocked items
+- **Strategic Intelligence** — knowledge base of references, decisions, patterns
+- **Weekly Strategy Report** — automated progress/risks/opportunities analysis
 
 ### Two Product Surfaces
 
@@ -1119,6 +1130,205 @@ User's "active chat context" tracked per platform so replies route correctly.
 
 ---
 
+## FlowBond Command Center (Spans All Phases — from Steph, March 7)
+**Status**: `pending`
+**Goal**: Transform Flowb into FlowBond's AI Headquarters — the operational brain that coordinates projects, deals, teams, strategy, and intelligence from one strategic command interface.
+
+### Flowb's Roles
+Flowb acts as:
+- **Chief Operations AI** — runs daily operations, surfaces priorities
+- **Project Coordinator** — tracks all projects, milestones, team assignments
+- **Strategic Intelligence System** — captures patterns, opportunities, risks
+- **CRM Manager** — deal pipeline, lead tracking, follow-ups
+- **Internal Communication Hub** — routes messages/tasks/reminders to the right person at the right time
+
+### 1. Direct Task Messaging + Acknowledgment System
+Every task created auto-notifies the responsible person with:
+- Task description, project, deadline, checklist, reference links
+- Comment thread attached to the task
+- **"Acknowledge Task"** button — must confirm receipt
+- Unacknowledged tasks escalate
+
+**Database changes:**
+```sql
+ALTER TABLE flowb_kanban_tasks ADD COLUMN IF NOT EXISTS
+  assigned_to text;                    -- responsible user_id
+ALTER TABLE flowb_kanban_tasks ADD COLUMN IF NOT EXISTS
+  acknowledged_at timestamptz;         -- null until acknowledged
+ALTER TABLE flowb_kanban_tasks ADD COLUMN IF NOT EXISTS
+  require_acknowledgment boolean DEFAULT false;
+ALTER TABLE flowb_kanban_tasks ADD COLUMN IF NOT EXISTS
+  is_pinned boolean DEFAULT false;     -- for priority pin system
+ALTER TABLE flowb_kanban_tasks ADD COLUMN IF NOT EXISTS
+  follow_up_date timestamptz;          -- follow-up reminder
+```
+
+**Touches**: Phase 5 (Automations), Phase 8 (Backend)
+
+### 2. Automatic Reminder & Escalation Engine
+Reminder ladder:
+1. Task assigned → immediate notification (P1)
+2. 24h before deadline → reminder (P1)
+3. Day of deadline → reminder (P0)
+4. Overdue → escalation to person + project lead (P0)
+
+If not acknowledged within threshold → escalation notification.
+
+**Touches**: Phase 5 (Automations — cron engine), Cross-Platform Notifications (priority routing)
+
+### 3. Universal Quick Create (Mini Command Form)
+One form to create anything, available on every surface:
+
+| Field | Required | Values |
+|-------|----------|--------|
+| Item Type | Yes | Task, Lead, Contact, Idea, Link/Reference, Question, Decision |
+| Title | Yes | Free text |
+| Description | No | Free text |
+| Responsible Person | No | Team member selector |
+| Project | No | FlowBond AI OS, Website, Partnerships, Fundraising, Marketing, Web3 Infra, Client Projects |
+| Priority | No | Low, Medium, High, Critical |
+| Deadline | No | Date picker |
+| Checklist | No | Multi-line steps |
+| Attachments | No | Links / files |
+| Pin for Review | No | Toggle → appears in Priority Dashboard |
+| Require Acknowledgment | No | Toggle → forces confirm |
+| Follow-Up Reminder | No | Date picker |
+
+Flowb infers missing fields when possible (project from context, priority from urgency words).
+
+**Surfaces**: TG bot (natural language + /create), mobile app (FAB button), biz.flowb.me (Ctrl+K command palette), AI chat
+
+**Touches**: Phase 2 (App Design), Phase 7 (Mobile Build), Phase 8 (Backend — new unified item creation endpoint)
+
+### 4. Smart Routing Engine
+After item creation, auto-route based on type:
+
+| Item Type | Auto-Actions |
+|-----------|-------------|
+| **Task** | Create in project board → notify person → add to task list → attach discussion thread |
+| **Lead** | Add to CRM → ask for follow-up date → link to relevant project → score |
+| **Contact** | Add to contacts → enrich → link to project if applicable |
+| **Idea** | Store in Strategic Intelligence → tag project → notify relevant team |
+| **Link/Reference** | Store in reference library → auto-categorize → generate summary |
+| **Question** | Pin for team review → notify relevant person → track until answered |
+| **Decision** | Log with rationale → notify stakeholders → store in decisions archive |
+
+**Touches**: Phase 5 (Automations), Phase 8 (Backend — routing rules engine)
+
+### 5. Conversation-to-Task AI Detection
+Flowb monitors conversations across all channels:
+- TG group/DM messages → detect implied work
+- Meeting chat messages → detect action items
+- AI chat → detect commitments
+
+When work is implied, Flowb asks:
+> "This sounds like a task. Should I create it?"
+> [Create Task] [Create Lead] [Ignore]
+
+Pre-fills the Quick Create form with extracted info.
+
+**Touches**: Phase 5 (AI Automations), TG bot message handlers, OpenClaw
+
+### 6. Six Command Center Dashboards
+
+#### Dashboard 1: Daily Mission Control
+Auto-generated daily briefing containing:
+- **Priority Tasks Today** — most important across all projects
+- **Tasks Per Person** — who's doing what
+- **Urgent/Overdue** — anything past deadline
+- **Pinned Messages** — items requiring review/confirmation
+- **Follow-Ups Due** — contacts/leads needing action today
+- **Strategic Notes** — patterns/insights noticed
+
+**Delivery**: Push notification (P1) + email digest + dashboard card on biz.flowb.me + mobile home screen
+
+#### Dashboard 2: Project Command Boards
+Each initiative = a board with: tasks, pinned discussions, references, decisions, contacts, milestones.
+Projects: FlowBond AI OS, Website, Partnerships, Fundraising, Web3 Infrastructure, Marketing, Client Projects.
+
+**Maps to**: Existing kanban boards + project-level grouping layer
+
+#### Dashboard 3: Opportunity & Deal Pipeline
+Enhanced lead pipeline with deal tracking:
+- Contact + Organization + Opportunity type + Value potential
+- Stages: New Lead → Initial Conversation → Opportunity Identified → Proposal → Negotiation → Won
+- Next action + follow-up date + auto-reminders
+
+**Maps to**: Phase 3 (CRM) + existing `flowb_leads` table enhanced with deal fields:
+```sql
+ALTER TABLE flowb_leads ADD COLUMN IF NOT EXISTS
+  organization text;
+ALTER TABLE flowb_leads ADD COLUMN IF NOT EXISTS
+  opportunity_type text;               -- partnership, client, investor, vendor
+ALTER TABLE flowb_leads ADD COLUMN IF NOT EXISTS
+  deal_value numeric(12,2);
+ALTER TABLE flowb_leads ADD COLUMN IF NOT EXISTS
+  deal_probability numeric(3,2);       -- 0.00 to 1.00
+ALTER TABLE flowb_leads ADD COLUMN IF NOT EXISTS
+  expected_close_date date;
+```
+
+#### Dashboard 4: Strategic Intelligence Memory
+Knowledge management:
+- **References**: Links, tools, inspiration, research (auto-categorized)
+- **Market Intelligence**: Competitors, technologies, trends
+- **Strategic Ideas**: Team-contributed concepts
+- **Decisions Log**: What was decided + why
+
+New table:
+```sql
+CREATE TABLE flowb_intelligence (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id text NOT NULL,
+  item_type text NOT NULL,             -- reference, market_intel, idea, decision
+  title text NOT NULL,
+  content text,
+  url text,                            -- for links/references
+  category text,                       -- auto or manual
+  tags text[] DEFAULT '{}',
+  project text,                        -- linked FlowBond project
+  is_pinned boolean DEFAULT false,
+  metadata jsonb DEFAULT '{}',
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+```
+
+#### Dashboard 5: Team Coordination
+Per-person operational view:
+- My tasks today + weekly tasks
+- Waiting for my response (unacknowledged items)
+- My follow-ups (contacts/leads needing action)
+- Project updates (recent activity in my projects)
+
+#### Dashboard 6: Weekly Strategy Overview
+Auto-generated weekly report:
+- **Progress**: Completed tasks + milestones across all projects
+- **Opportunities**: New partnerships, leads, investor contacts
+- **Risks**: Delayed tasks, blocked projects, stale leads
+- **Strategic Signals**: Patterns across conversations + market intelligence
+
+**Delivery**: Email (Sunday night or Monday morning) + pinned in Mission Control
+
+### Implementation Across Phases
+| Command Center Feature | Primary Phase | Also Touches |
+|----------------------|---------------|-------------|
+| Task acknowledgment tracking | Phase 8 (Backend) | Phase 2, 7 (UI) |
+| Reminder escalation engine | Phase 5 (Automations) | Notifications |
+| Universal Quick Create | Phase 2 (App Design) | Phase 7, 8 |
+| Smart routing engine | Phase 5 (Automations) | Phase 8 |
+| Conversation-to-task AI | Phase 5 (Automations) | TG bot, OpenClaw |
+| Daily Mission Briefing | Phase 5 (Automations) | Notifications, Phase 6 |
+| Project Command Boards | Phase 3 (CRM) | Kanban |
+| Deal pipeline enhancements | Phase 3 (CRM) | Phase 8 |
+| Strategic Intelligence | Phase 6 (Business Tier) | Phase 8 |
+| Team coordination dashboard | Phase 6 (Business Tier) | Phase 2, 7 |
+| Weekly strategy report | Phase 5 (Automations) | Phase 6 |
+| Priority Pin System | Phase 8 (Backend) | Phase 2, 7 |
+| Ecosystem Map | Phase 3 (CRM) | Future |
+
+---
+
 ## Phase 9: Deploy, Connect & Launch
 **Status**: `pending`
 **Goal**: Ship everything to production. Connect all the pieces. Launch publicly.
@@ -1163,31 +1373,37 @@ User's "active chat context" tracked per platform so replies route correctly.
 Phase 1 (Meetings Engine)
   |
   v
-Phase 2 (App Design) -----> Phase 3 (Contacts/CRM)
+Phase 2 (App Design) -----> Phase 3 (Contacts/CRM + Deal Pipeline)
   |                              |
   v                              v
 Phase 4 (Referral Engine) <--- [needs events + crews + engagement tracking]
   |
   v
-Phase 5 (AI Automations) <--- [needs meetings + contacts + referrals]
-  |
+Phase 5 (AI Automations + Command Center Engine)
+  |   [needs meetings + contacts + referrals]
+  |   [reminder engine, smart routing, conversation-to-task, daily/weekly briefings]
   v
-Phase 6 (Business Tier) --- [needs automations + CRM + referral payouts]
-  |
+Phase 6 (Business Tier + Command Center Dashboards)
+  |   [needs automations + CRM + referral payouts]
+  |   [mission control, project boards, strategic intelligence, team coordination]
   v
-Phase 7 (Mobile Build) ---- [implements Phase 2 design + all features]
+Phase 7 (Mobile Build) ---- [implements Phase 2 design + all features + Quick Create]
   |
   v
 Phase 8 (Backend Build) --- [can parallelize with Phase 7]
-  |
+  |   [acknowledgment tracking, pin system, intelligence table, routing rules]
   v
 Phase 9 (Deploy & Launch)
+
+Cross-cutting: Command Center features integrated across phases (see table above)
+Cross-cutting: Cross-Platform Notifications with priority routing (P0/P1/P2)
 ```
 
 **Parallelization opportunities:**
 - Phase 4 (Referrals) can start alongside Phase 3 (CRM) -- both build on events/crews
 - Phase 7 (Mobile) + Phase 8 (Backend) can run in parallel
 - Phase 5 (Automations) can start once Phase 1 + 3 are done
+- Command Center features build incrementally across Phases 5-8
 
 ## Decision Points
 
@@ -1201,8 +1417,11 @@ Phase 9 (Deploy & Launch)
 8. **Commission attribution window**: How long after a click does attribution last? (30 days recommended)
 9. **Referral payout minimum**: $5 USDC? Or allow micro-payouts via points conversion?
 10. **Crew vs individual referrals**: Always split across crew, or allow individual-only mode?
+11. **Command Center scope**: Full 6-dashboard rollout in v1, or start with Mission Control + Task Acknowledgment?
+12. **Strategic Intelligence storage**: Dedicated `flowb_intelligence` table vs extending existing tables with type fields?
+13. **Conversation-to-task AI**: Active monitoring (scans all messages) vs passive (only when mentioned/prompted)?
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-| (none yet) | | |
+| Duplicate leads routes | Removed old block in routes.ts | Fixed, deployed |

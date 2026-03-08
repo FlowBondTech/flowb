@@ -852,3 +852,186 @@ CREATE TABLE IF NOT EXISTS flowb_digest_queue (
 8. **WhatsApp bridge** -- template messages + reply capture
 9. **Signal bridge** -- message relay via existing Signal API
 10. **FC DC relay** -- DC notifications for FC-primary users
+
+---
+
+## FlowBond Command Center Discovery (March 7, 2026 — from Steph)
+
+### Source
+Steph shared a comprehensive system design for "Flowb as FlowBond's AI Headquarters." This elevates Flowb from a tool into an **operational AI brain / Command Center** for the entire FlowBond organization.
+
+### Key Concept: Flowb = Chief Operations AI
+Flowb is not just a task manager. It acts as:
+- **Chief Operations AI** — runs the organization's daily operations
+- **Project Coordinator** — tracks all projects, milestones, teams
+- **Strategic Intelligence System** — surfaces patterns, opportunities, risks
+- **CRM Manager** — deal pipeline, lead tracking, follow-ups
+- **Internal Communication Hub** — routes messages, tasks, reminders to the right person
+
+### 1. Direct Task Messaging System
+Every task created must automatically notify the responsible person with:
+- Notification + task description + project + deadline + checklist + reference links
+- Comment threads inside each task
+- **Acknowledge Task** button — responsible person must confirm receipt
+- This maps to our existing notification service but adds **task-level threading** and **acknowledgment tracking**
+
+### 2. Automatic Reminder System
+Reminder logic (escalation ladder):
+- Task assigned → immediate notification
+- 24h before deadline → reminder
+- Day of deadline → reminder
+- Overdue → escalation to responsible person + optional alert to project lead
+
+**Maps to**: Phase 5 (AI Automations) — needs cron-based reminder engine
+
+### 3. Smart Command Input System (Mini Command Form)
+Universal creation form with fields:
+- **Item Type**: Task, Lead, Contact, Idea, Link/Reference, Question, Decision
+- **Title**, **Description**, **Responsible Person**, **Project**
+- **Priority**: Low / Medium / High / Critical
+- **Deadline**, **Checklist**, **Attachments**
+- **Pin for Review** toggle → appears in Priority Dashboard
+- **Require Acknowledgment** toggle → forces confirm
+- **Follow-Up Reminder** date
+
+**Maps to**: Needs a new universal "Quick Create" UI component across all surfaces (mobile, web, TG bot, biz dashboard)
+
+### 4. Smart Routing Engine
+After submission, Flowb auto-routes items:
+- Task → create in project board + notify person + add to task list + attach discussion thread
+- Lead → add to CRM + ask for follow-up date + link to project
+- Link/Reference → store in reference library + categorize + add summary
+- Idea → store in strategic intelligence + tag project
+- Decision → log with rationale + notify stakeholders
+
+**Maps to**: Phase 5 (Automations) routing engine + new item type system in Phase 8 backend
+
+### 5. Conversation-to-Task Conversion
+Flowb monitors conversations and detects implied work:
+- "We need to integrate the shop into the website" → suggests creating a task
+- Asks: "Should I convert this into a task, lead, or project item?"
+
+**Maps to**: TG bot AI layer + OpenClaw agent skill. Already partially designed in Phase 5.
+
+### 6. Personal Task Dashboard
+Each team member gets:
+- **My Tasks Today** — due today
+- **My Weekly Tasks** — upcoming
+- **Waiting for My Response** — pinned items / acknowledgments needed
+- **Follow-Ups** — contacts/conversations needing action
+
+**Maps to**: Phase 2 (App Design) business mode home screen + biz.flowb.me dashboard
+
+### 7. Priority Pin System
+Pinned items collected in Priority Dashboard:
+- Urgent decisions, links to review, strategic questions, tasks needing confirmation
+- Stay visible until acknowledged, completed, or unpinned
+
+**Maps to**: New concept — needs `is_pinned` field on tasks/items + Priority Dashboard view
+
+### 8. Simplified Command Mode
+Natural language commands:
+- "Assign website design revision to Alex for Thursday"
+- "Add Maria from Somalab. Discussed collaboration."
+- "Save this link as AI SaaS inspiration"
+- "Pin this for team review"
+- "Remind me to follow up with Maria next Wednesday"
+
+**Maps to**: TG bot natural language + OpenClaw + AI chat on all surfaces
+
+### Command Center: 6 Operational Dashboards
+
+#### Dashboard 1: Daily Mission Control
+Daily Mission Briefing auto-generated:
+- Priority tasks today (all projects)
+- Tasks per person breakdown
+- Urgent/overdue items
+- Pinned messages needing review
+- Follow-ups due today
+- Strategic notes / patterns
+
+**Maps to**: New "Mission Briefing" feature — daily digest on steroids. Could be P1 push notification + email + dashboard card.
+
+#### Dashboard 2: Project Command Boards
+Every initiative = a Project Command Board with:
+- Tasks, pinned discussions, references, decisions, project contacts, milestones
+- Example projects: FlowBond AI OS, Website, Partnerships, Fundraising, Web3 Infra, Marketing, Client Projects
+
+**Maps to**: Kanban boards (already scaffolded) + project-level organization layer
+
+#### Dashboard 3: Opportunity & Deal Pipeline
+Full deal pipeline for partnerships, clients, investors:
+- Contact, Organization, Opportunity type, Value potential
+- Stage: New Lead → Initial Conversation → Opportunity Identified → Proposal → Negotiation → Won
+- Next action + follow-up date
+- Auto-reminders when opportunities need attention
+
+**Maps to**: Phase 3 (CRM) + Phase 4 (Referrals) — our existing leads pipeline but elevated with deal tracking
+
+#### Dashboard 4: Strategic Intelligence Memory
+Knowledge management system:
+- **References**: Links, tools, inspiration, research
+- **Market Intelligence**: Competitors, technologies, trends
+- **Strategic Ideas**: Concepts discussed by team
+- **Decisions**: Important decisions + rationale
+- Auto-ask: "Should this be stored in the intelligence library?"
+
+**Maps to**: New concept — needs `flowb_intelligence` table or similar. Could leverage existing `flowb_group_messages` with special types.
+
+#### Dashboard 5: Team Coordination System
+Per-person operational dashboard:
+- My tasks today, waiting for response, follow-ups, project updates
+- Direct notifications for every assigned task
+- Escalation reminders for ignored tasks
+
+**Maps to**: Phase 6 (Business Tier) team features + Phase 2 business mode home screen
+
+#### Dashboard 6: Weekly Strategy Overview
+Auto-generated weekly report:
+- **Progress**: Completed tasks and milestones
+- **Opportunities**: New partnerships, leads, contacts
+- **Risks**: Delayed tasks, blocked projects
+- **Strategic Signals**: Patterns across conversations
+
+**Maps to**: Phase 5 (Automations) — weekly digest automation + AI analysis
+
+### Two Future Layers (Steph's recommendation)
+
+#### AI Meeting Memory
+Flowb summarizes meetings and extracts: decisions, tasks, follow-ups
+**Maps to**: Phase 1 (Smart Meetings) — already designed with briefings, action items, follow-ups
+
+#### Ecosystem Map
+Visual network: partners, investors, clients, collaborators — see FlowBond's network growing
+**Maps to**: New concept for Phase 3 (Contacts/CRM) — relationship graph visualization
+
+### Alignment Assessment
+
+| Steph's Concept | Our Existing Plan | Gap |
+|----------------|-------------------|-----|
+| Task messaging + acknowledgment | Notifications exist, no ack tracking | Need `acknowledged_at` field + UI |
+| Reminder escalation ladder | Basic reminders designed | Need cron engine + escalation logic |
+| Universal creation form | Each type has separate creation | Need unified "Quick Create" component |
+| Smart routing engine | Partially in automation plugin | Need item type routing rules |
+| Conversation-to-task | OpenClaw + AI designed | Need TG bot message monitoring |
+| Personal dashboard | Business mode home designed | Aligned, need per-person views |
+| Priority pin system | Not designed | Need `is_pinned` + Priority Dashboard |
+| Daily Mission Briefing | Email digest designed | Expand to full briefing format |
+| Project Command Boards | Kanban exists | Need project-level organization |
+| Deal pipeline | Leads pipeline exists | Need deal value + organization fields |
+| Strategic Intelligence | Not designed | New feature: knowledge base |
+| Weekly Strategy Report | Not designed | New automation: weekly analysis |
+| Ecosystem map | Not designed | Future: relationship graph viz |
+
+### Key Takeaway
+Steph's vision **validates and extends** our 9-phase plan. The core architecture (meetings, leads, automations, notifications) is the same. What Steph adds is:
+1. **Acknowledgment tracking** on tasks/messages
+2. **Universal Quick Create** form across all surfaces
+3. **Priority Pin System** for surfacing what matters
+4. **Daily Mission Briefing** (elevated daily digest)
+5. **Strategic Intelligence Memory** (knowledge base)
+6. **Weekly Strategy Reports** (automated analysis)
+7. **Ecosystem Map** (network visualization)
+8. **Conversation-to-task AI monitoring** in all chat channels
+
+These map cleanly into our existing phases — mainly enhancing Phase 1 (meetings), Phase 2 (dashboards), Phase 5 (automations), and Phase 6 (business tier).

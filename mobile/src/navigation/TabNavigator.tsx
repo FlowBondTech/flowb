@@ -5,9 +5,11 @@ import { GlassTabBar } from "../components/glass/GlassTabBar";
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { ScheduleScreen } from "../screens/schedule/ScheduleScreen";
 import { ChatScreen } from "../screens/chat/ChatScreen";
+import { LeadListScreen } from "../screens/leads/LeadListScreen";
 import { CrewListScreen } from "../screens/crew/CrewListScreen";
 import { PointsScreen } from "../screens/points/PointsScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
+import { colors } from "../theme/colors";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -55,6 +57,20 @@ export function TabNavigator() {
               name={focused ? "chatbubble" : "chatbubble-outline"}
               size={24}
               color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="BizTab"
+        component={LeadListScreen}
+        options={{
+          tabBarLabel: "Biz",
+          tabBarIcon: ({ focused }) => (
+            <Ionicons
+              name={focused ? "briefcase" : "briefcase-outline"}
+              size={22}
+              color={focused ? colors.accent.primary : colors.text.tertiary}
             />
           ),
         }}

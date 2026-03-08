@@ -10,7 +10,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -182,8 +181,13 @@ export function LeadListScreen() {
 
   const handleAddLead = useCallback(() => {
     haptics.tap();
-    Alert.alert('New Lead', 'Lead creation coming soon');
-  }, []);
+    navigation.navigate('CreateLead');
+  }, [navigation]);
+
+  const handleOpenKanban = useCallback(() => {
+    haptics.tap();
+    navigation.navigate('Kanban');
+  }, [navigation]);
 
   // ── Renderers ─────────────────────────────────────────────────────
 
@@ -264,17 +268,34 @@ export function LeadListScreen() {
       {/* Title row */}
       <View style={styles.titleRow}>
         <Text style={styles.hero}>Leads</Text>
-        <Pressable
-          onPress={handleAddLead}
-          hitSlop={12}
-          style={styles.addButton}
-        >
-          <Ionicons
-            name="add-circle"
-            size={32}
-            color={colors.accent.primary}
-          />
-        </Pressable>
+        <View style={styles.titleActions}>
+          <Pressable
+            onPress={handleOpenKanban}
+            hitSlop={12}
+            style={styles.kanbanButton}
+            accessibilityLabel="Open Kanban view"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="grid-outline"
+              size={24}
+              color={colors.text.secondary}
+            />
+          </Pressable>
+          <Pressable
+            onPress={handleAddLead}
+            hitSlop={12}
+            style={styles.addButton}
+            accessibilityLabel="Create new lead"
+            accessibilityRole="button"
+          >
+            <Ionicons
+              name="add-circle"
+              size={32}
+              color={colors.accent.primary}
+            />
+          </Pressable>
+        </View>
       </View>
 
       {/* Pipeline stage chips */}
@@ -370,6 +391,14 @@ const styles = StyleSheet.create({
   },
   hero: {
     ...typography.hero,
+  },
+  titleActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  kanbanButton: {
+    padding: spacing.xs,
   },
   addButton: {
     padding: spacing.xs,
