@@ -36,7 +36,7 @@ export interface EventResult {
 
 export interface UserProfile {
   id: string;
-  platform: "telegram" | "farcaster" | "app";
+  platform: "telegram" | "farcaster" | "app" | "web";
   tg_id?: number;
   fid?: number;
   username?: string;

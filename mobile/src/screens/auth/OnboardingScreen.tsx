@@ -44,11 +44,11 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const TOTAL_STEPS = 3;
 
-const ATTENDANCE_OPTIONS = [
-  { id: 'already-here', label: 'Already here' },
-  { id: 'full-week', label: 'Full week' },
-  { id: 'few-days', label: 'Few days' },
-  { id: 'virtual', label: 'Virtual' },
+const PURPOSE_OPTIONS = [
+  { id: 'personal', label: 'Personal' },
+  { id: 'business', label: 'Business' },
+  { id: 'both', label: 'Both' },
+  { id: 'exploring', label: 'Just exploring' },
 ] as const;
 
 // -- Component ----------------------------------------------------------------
@@ -58,7 +58,7 @@ export function OnboardingScreen() {
   const { token } = useAuthStore();
 
   const [step, setStep] = useState(0);
-  const [attendance, setAttendance] = useState<string | null>(null);
+  const [purpose, setPurpose] = useState<string | null>(null);
   const [selectedCircles, setSelectedCircles] = useState<string[]>([]);
   const [inviteCode, setInviteCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,7 +76,7 @@ export function OnboardingScreen() {
 
   const canAdvance =
     step === 0
-      ? attendance !== null
+      ? purpose !== null
       : step === 1
         ? selectedCircles.length > 0
         : true;
@@ -93,7 +93,7 @@ export function OnboardingScreen() {
     setError(null);
     try {
       await api.updatePreferences({
-        attendance,
+        purpose,
         circles: selectedCircles,
         inviteCode: inviteCode.trim() || undefined,
       });
@@ -120,7 +120,7 @@ export function OnboardingScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [step, attendance, selectedCircles, inviteCode, token, navigation]);
+  }, [step, purpose, selectedCircles, inviteCode, token, navigation]);
 
   const handleSkip = useCallback(() => {
     haptics.tap();
@@ -134,15 +134,15 @@ export function OnboardingScreen() {
 
   const renderStep0 = () => (
     <GlassCard variant="subtle" style={styles.stepCard}>
-      <Text style={styles.stepTitle}>When are you attending?</Text>
+      <Text style={styles.stepTitle}>What brings you to FlowB?</Text>
       <View style={styles.optionsColumn}>
-        {ATTENDANCE_OPTIONS.map((opt) => (
+        {PURPOSE_OPTIONS.map((opt) => (
           <GlassPill
             key={opt.id}
             label={opt.label}
-            active={attendance === opt.id}
+            active={purpose === opt.id}
             onPress={() => {
-              setAttendance(opt.id);
+              setPurpose(opt.id);
               haptics.select();
             }}
             style={styles.attendancePill}

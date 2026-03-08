@@ -1,10 +1,14 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { useAuthStore } from "../stores/useAuthStore";
+import { usePushNotifications } from "../hooks/usePushNotifications";
+import { IntroCarouselScreen } from "../screens/auth/IntroCarouselScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
+import { PrivyLoginScreen } from "../screens/auth/PrivyLoginScreen";
 import { OnboardingScreen } from "../screens/auth/OnboardingScreen";
 import { TabNavigator } from "./TabNavigator";
 import { EventDetailScreen } from "../screens/home/EventDetailScreen";
@@ -35,14 +39,31 @@ import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const INTRO_SEEN_KEY = "flowb_intro_seen";
+
 export function AppNavigator() {
   const { token, isLoading, restore } = useAuthStore();
+  const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
+
+  // Register for push notifications when authenticated
+  usePushNotifications();
 
   useEffect(() => {
-    restore();
+    async function init() {
+      // Check intro flag
+      const seen = await SecureStore.getItemAsync(INTRO_SEEN_KEY);
+      setHasSeenIntro(seen === "true");
+      // Restore auth
+      await restore();
+      // Mark intro as seen for next launch
+      if (!seen) {
+        await SecureStore.setItemAsync(INTRO_SEEN_KEY, "true");
+      }
+    }
+    init();
   }, []);
 
-  if (isLoading) {
+  if (isLoading || hasSeenIntro === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#050510" }}>
         <ActivityIndicator size="large" color="#7c6cf0" />
@@ -84,9 +105,16 @@ export function AppNavigator() {
       >
         {!token ? (
           <>
+            {!hasSeenIntro && (
+              <Stack.Screen
+                name="IntroCarousel"
+                component={IntroCarouselScreen}
+                options={{ animation: "fade" }}
+              />
+            )}
             <Stack.Screen
               name="Login"
-              component={LoginScreen}
+              component={PrivyLoginScreen}
               options={{ animation: "fade" }}
             />
             <Stack.Screen

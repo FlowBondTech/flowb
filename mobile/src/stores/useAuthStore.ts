@@ -11,6 +11,7 @@ interface AuthState {
   error: string | null;
 
   login: (username: string, password: string) => Promise<void>;
+  loginWithPrivy: (token: string, user: UserProfile) => Promise<void>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   isAdmin: () => boolean;
@@ -44,7 +45,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  loginWithPrivy: async (token: string, user: UserProfile) => {
+    api.setToken(token);
+    await SecureStore.setItemAsync("flowb_token", token);
+    await SecureStore.setItemAsync("flowb_user", JSON.stringify(user));
+    set({ token, user, isLoading: false, error: null });
+  },
+
   logout: async () => {
+    // Unregister push token before clearing auth
+    try {
+      await api.unregisterPushToken();
+    } catch {
+      // Best-effort — don't block logout
+    }
     api.clearAuth();
     await SecureStore.deleteItemAsync("flowb_token");
     await SecureStore.deleteItemAsync("flowb_user");

@@ -472,6 +472,109 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // AUTH: Privy (Mobile) — verify Privy access token, issue FlowB JWT
+  // ------------------------------------------------------------------
+  app.post<{ Body: { privyAccessToken: string; displayName?: string; email?: string } }>(
+    "/api/v1/auth/privy",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["privyAccessToken"],
+          properties: {
+            privyAccessToken: { type: "string" },
+            displayName: { type: "string" },
+            email: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { privyAccessToken, displayName, email } = request.body || {};
+      if (!privyAccessToken) {
+        return reply.status(400).send({ error: "Missing privyAccessToken" });
+      }
+
+      const privyAppId = process.env.PRIVY_APP_ID;
+      const privyAppSecret = process.env.PRIVY_APP_SECRET;
+      if (!privyAppId || !privyAppSecret) {
+        return reply.status(500).send({ error: "Privy not configured" });
+      }
+
+      // Verify the access token with Privy's API
+      let privyUserId: string;
+      try {
+        const credentials = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+        const verifyRes = await fetch("https://auth.privy.io/api/v1/token/verify", {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${credentials}`,
+            "privy-app-id": privyAppId,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token: privyAccessToken }),
+        });
+
+        if (!verifyRes.ok) {
+          const errText = await verifyRes.text().catch(() => "");
+          log.warn("[auth/privy]", `Token verification failed: ${verifyRes.status}`, { errText });
+          return reply.status(401).send({ error: "Invalid Privy token" });
+        }
+
+        const verifyData = await verifyRes.json() as any;
+        privyUserId = verifyData.user_id || verifyData.sub;
+        if (!privyUserId) {
+          return reply.status(401).send({ error: "Could not extract user ID from Privy token" });
+        }
+      } catch (err: any) {
+        log.error("[auth/privy]", "Token verification error", { error: err.message });
+        return reply.status(500).send({ error: "Privy verification failed" });
+      }
+
+      const userId = `web_${privyUserId}`;
+
+      // Ensure user exists in points table
+      fireAndForget(core.awardPoints(userId, "app", "miniapp_open"), "award points");
+
+      // Upsert session
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        const sessionData: any = {
+          user_id: userId,
+          display_name: displayName || privyUserId,
+        };
+        if (email) sessionData.email = email;
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", sessionData,
+          "return=minimal,resolution=merge-duplicates"), "upsert privy session");
+      }
+
+      // Resolve cross-platform identity
+      if (cfg) {
+        try {
+          await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
+        } catch {}
+      }
+
+      const token = signJwt({
+        sub: userId,
+        platform: "app" as any,
+        username: displayName || "User",
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "app",
+          username: displayName || email || "User",
+          displayName: displayName || email || "User",
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // AUTH: WhatsApp Mini App (HMAC-based phone verification)
   // Bot sends CTA URL: wa.flowb.me?phone={phone}&ts={timestamp}&sig={hmac}
   // ------------------------------------------------------------------
@@ -3564,6 +3667,108 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PUSH TOKENS: Register / unregister Expo push tokens (mobile app)
+  // ------------------------------------------------------------------
+
+  app.post<{ Body: { push_token: string; device_type?: string } }>(
+    "/api/v1/me/push-token",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { push_token, device_type } = request.body || {};
+      if (!push_token) return reply.status(400).send({ error: "Missing push_token" });
+
+      // Upsert token (dedup on user_id + push_token)
+      await sbPost(cfg, "flowb_push_tokens?on_conflict=user_id,push_token", {
+        user_id: jwt.sub,
+        push_token,
+        device_type: device_type || "unknown",
+        platform: jwt.platform || "app",
+        active: true,
+        updated_at: new Date().toISOString(),
+      }, "return=minimal,resolution=merge-duplicates");
+
+      return { ok: true };
+    },
+  );
+
+  app.delete(
+    "/api/v1/me/push-token",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const body = request.body as { push_token?: string } | undefined;
+      const pushToken = body?.push_token;
+
+      if (pushToken) {
+        // Deactivate specific token
+        await sbPatch(cfg, "flowb_push_tokens", {
+          user_id: `eq.${jwt.sub}`,
+          push_token: `eq.${pushToken}`,
+        }, { active: false });
+      } else {
+        // Deactivate all tokens for this user (logout)
+        await sbPatch(cfg, "flowb_push_tokens", {
+          user_id: `eq.${jwt.sub}`,
+        }, { active: false });
+      }
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // DASHBOARD: Aggregate KPIs for biz dashboard (mobile)
+  // ------------------------------------------------------------------
+
+  app.get(
+    "/api/v1/me/dashboard",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { meetings_today: 0, total_leads: 0, pipeline_value: 0, tasks_due: 0, recent_activity: [] };
+
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+      // Run queries in parallel
+      const [meetingsToday, leads, recentActivity] = await Promise.all([
+        // Count today's meetings
+        sbFetch<any[]>(cfg,
+          `flowb_meetings?creator_id=eq.${jwt.sub}&starts_at=gte.${todayStart}&starts_at=lt.${todayEnd}&status=neq.cancelled&select=id`,
+        ),
+        // Get all leads for pipeline value
+        sbFetch<any[]>(cfg,
+          `flowb_leads?owner_id=eq.${jwt.sub}&status=neq.lost&select=id,value,stage`,
+        ),
+        // Recent activity (last 10 items from biz feed)
+        sbFetch<any[]>(cfg,
+          `flowb_biz_activity?user_id=eq.${jwt.sub}&order=created_at.desc&limit=10&select=id,activity_type,title,description,metadata,created_at`,
+        ),
+      ]);
+
+      const totalLeads = leads?.length || 0;
+      const pipelineValue = (leads || []).reduce((sum: number, l: any) => sum + (l.value || 0), 0);
+
+      return {
+        meetings_today: meetingsToday?.length || 0,
+        total_leads: totalLeads,
+        pipeline_value: pipelineValue,
+        tasks_due: 0,
+        recent_activity: recentActivity || [],
+      };
     },
   );
 

@@ -21,6 +21,7 @@ import { sendFarcasterNotification } from "./farcaster-notify.js";
 import { sendWhatsAppNotification } from "../whatsapp/templates.js";
 import { sendSignalNotification } from "../signal/api.js";
 import { sendEmailNotification } from "./email.js";
+import { sendExpoPushToUser } from "./expo-push.js";
 import { sbQuery, sbFetch, sbInsert, sbPatch, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 
@@ -1046,6 +1047,14 @@ async function sendToUser(
   // Email users
   if (userId.startsWith("email_")) {
     return sendEmailNotification(ctx.supabase, userId, "FlowB Notification", message);
+  }
+
+  // Expo push: try for any user with registered push tokens (mobile app)
+  try {
+    const pushSent = await sendExpoPushToUser(ctx.supabase, userId, "FlowB", message);
+    if (pushSent) return true;
+  } catch (err) {
+    console.error(`[notify] Expo push failed for ${userId}:`, err);
   }
 
   // Fallback: try email for any user that has one linked (secondary channel)

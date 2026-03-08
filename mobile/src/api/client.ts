@@ -487,3 +487,37 @@ export async function getMeetingNotes(id: string) {
 export async function addMeetingNote(id: string, data: { content: string; note_type?: string }) {
   return post<any>(`/api/v1/meetings/${id}/notes`, data);
 }
+
+// ── Privy Auth ──────────────────────────────────────────────────────
+export async function authPrivy(privyAccessToken: string, displayName?: string, email?: string) {
+  const data = await post<{ token: string; user: any }>("/api/v1/auth/privy", {
+    privyAccessToken,
+    displayName,
+    email,
+  });
+  authToken = data.token;
+  return data;
+}
+
+// ── Push Notifications ──────────────────────────────────────────────
+export async function registerPushToken(token: string, deviceType: string) {
+  return post<{ ok: boolean }>("/api/v1/me/push-token", {
+    push_token: token,
+    device_type: deviceType,
+  });
+}
+
+export async function unregisterPushToken(token?: string) {
+  return del<{ ok: boolean }>("/api/v1/me/push-token");
+}
+
+// ── Dashboard Aggregate ─────────────────────────────────────────────
+export async function getDashboard() {
+  return get<{
+    meetings_today: number;
+    total_leads: number;
+    pipeline_value: number;
+    tasks_due: number;
+    recent_activity: any[];
+  }>("/api/v1/me/dashboard");
+}

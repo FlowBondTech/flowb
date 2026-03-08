@@ -2,6 +2,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 
 export type RootStackParamList = {
+  IntroCarousel: undefined;
   Login: undefined;
   Onboarding: undefined;
   MainTabs: undefined;

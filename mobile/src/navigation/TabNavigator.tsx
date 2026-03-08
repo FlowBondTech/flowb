@@ -5,7 +5,7 @@ import { GlassTabBar } from "../components/glass/GlassTabBar";
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { ScheduleScreen } from "../screens/schedule/ScheduleScreen";
 import { ChatScreen } from "../screens/chat/ChatScreen";
-import { LeadListScreen } from "../screens/leads/LeadListScreen";
+import { BizDashboardScreen } from "../screens/biz/BizDashboardScreen";
 import { CrewListScreen } from "../screens/crew/CrewListScreen";
 import { PointsScreen } from "../screens/points/PointsScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
@@ -63,7 +63,7 @@ export function TabNavigator() {
       />
       <Tab.Screen
         name="BizTab"
-        component={LeadListScreen}
+        component={BizDashboardScreen}
         options={{
           tabBarLabel: "Biz",
           tabBarIcon: ({ focused }) => (
