@@ -1876,10 +1876,16 @@ export function startTelegramBot(
   }
 
   // Helper: parse "add lead" natural language
-  function parseLeadInput(text: string): { name: string; company?: string; email?: string; notes?: string } {
+  // Handles many formats:
+  //   "Sarah CEO at StartupX"
+  //   "Mike from Acme mike@acme.com"
+  //   "John Smith (TechCorp) - interested in partnership"
+  //   "met Sarah at the conference, she runs a DeFi startup"
+  function parseLeadInput(text: string): { name: string; company?: string; email?: string; phone?: string; notes?: string } {
     let name = text;
     let company: string | undefined;
     let email: string | undefined;
+    let phone: string | undefined;
     let notes: string | undefined;
 
     // Extract email
@@ -1889,29 +1895,51 @@ export function startTelegramBot(
       name = name.replace(emailMatch[0], "").trim();
     }
 
-    // Extract company with "at" or parentheses
+    // Extract phone number
+    const phoneMatch = name.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
+    if (phoneMatch) {
+      phone = phoneMatch[0];
+      name = name.replace(phoneMatch[0], "").trim();
+    }
+
+    // Extract trailing notes after dash, comma-clause, or "about/interested/wants"
+    const notesMatch = name.match(/^(.+?)\s*(?:[-–—]\s*(.+)|,\s*(interested in .+|wants .+|looking for .+|needs .+|she .+|he .+|they .+))$/i);
+    if (notesMatch) {
+      name = notesMatch[1].trim();
+      notes = (notesMatch[2] || notesMatch[3])?.trim();
+    }
+
+    // Extract company with "at", "@", or "from" + parentheses
     const atMatch = name.match(/^(.+?)\s+(?:at|@)\s+(.+)$/i);
+    const fromMatch = name.match(/^(.+?)\s+from\s+(.+)$/i);
     const parenMatch = name.match(/^(.+?)\s*\((.+?)\)\s*$/);
     if (atMatch) {
       name = atMatch[1].trim();
       company = atMatch[2].trim();
+    } else if (fromMatch) {
+      name = fromMatch[1].trim();
+      company = fromMatch[2].trim();
     } else if (parenMatch) {
       name = parenMatch[1].trim();
       company = parenMatch[2].trim();
     }
 
     // Extract role/title before the name
-    const titleWords = ["ceo", "cto", "cfo", "coo", "vp", "director", "manager", "founder", "cofounder", "head", "lead", "engineer", "designer"];
+    const titleWords = ["ceo", "cto", "cfo", "coo", "vp", "director", "manager", "founder", "cofounder", "head", "lead", "engineer", "designer", "partner", "president", "chief"];
     const nameParts = name.split(/\s+/);
     if (nameParts.length > 1) {
       const firstLower = nameParts[0].toLowerCase();
       if (titleWords.includes(firstLower)) {
-        notes = nameParts[0];
+        const title = nameParts[0];
         name = nameParts.slice(1).join(" ");
+        notes = notes ? `${title}. ${notes}` : title;
       }
     }
 
-    return { name: name.trim(), company, email, notes };
+    // Clean up trailing punctuation and filler words
+    name = name.replace(/[,;.!]+$/, "").trim();
+
+    return { name: name.trim(), company, email, phone, notes };
   }
 
   // /lead — lead CRUD
@@ -2042,6 +2070,51 @@ export function startTelegramBot(
     });
   });
 
+  // /biz — business dashboard
+  bot.command("biz", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.reply(
+      [
+        "<b>\u{1F4BC} FlowB Business</b>",
+        "",
+        "\u{1F4CA} <b>Quick Actions</b>",
+        "\u{2022} <i>add lead Sarah at Acme</i> — save a lead",
+        "\u{2022} <i>met Mike from TechCo</i> — log a contact",
+        "\u{2022} <i>leads</i> — view your pipeline",
+        "\u{2022} <i>schedule coffee with Sarah tomorrow</i> — book a meeting",
+        "\u{2022} <i>meetings</i> — view upcoming",
+        "",
+        "\u{1F517} <a href=\"https://kanban.flowb.me\">Open Kanban Board</a>",
+        "\u{1F517} <a href=\"https://flowb.me/biz\">Open Business Dashboard</a>",
+      ].join("\n"),
+      { parse_mode: "HTML", reply_markup: buildPipelineKeyboard() },
+    );
+  });
+
+  // /earnings — commission summary
+  bot.command("earnings", async (ctx) => {
+    const tgId = ctx.from!.id;
+    await ensureVerified(tgId);
+    await ctx.reply(
+      [
+        "<b>\u{1F4B0} Earnings</b>",
+        "",
+        "Commission tracking is coming soon!",
+        "",
+        "When referral programs are active, you'll see:",
+        "\u{2022} Referral commissions earned",
+        "\u{2022} Pending payouts",
+        "\u{2022} Top referring events",
+        "",
+        "In the meantime, keep building your pipeline:",
+        "<code>/leads</code> — view your leads",
+        "<code>met Sarah at Acme</code> — log new contacts",
+      ].join("\n"),
+      { parse_mode: "HTML", reply_markup: buildPipelineKeyboard() },
+    );
+  });
+
   bot.command("help", async (ctx) => {
     const tgId = ctx.from!.id;
     fireAndForget(core.awardPoints(userId(tgId), "telegram", "help_viewed"), "award points");
@@ -2065,14 +2138,25 @@ export function startTelegramBot(
       "<b>Meetings</b>",
       "/meet <i>description</i> - Create a meeting",
       "/meetings - View upcoming meetings",
+      "<i>schedule coffee with Sarah tomorrow</i>",
+      "<i>book call with Mike on Friday 2pm</i>",
       "",
       "<b>Leads / CRM</b>",
       "/lead - Pipeline overview",
       "/lead add <i>name details</i> - Add a lead",
-      "/lead <i>name</i> - View a lead",
-      "/lead update <i>name stage</i> - Move stage",
       "/leads - List all leads",
       "/pipeline - Pipeline summary",
+      "",
+      "Or just type naturally:",
+      "<i>met Sarah at the conference</i>",
+      "<i>talked to Mike from Acme</i>",
+      "<i>save contact John john@acme.com</i>",
+      "<i>move sarah to qualified</i>",
+      "<i>advance mike</i>",
+      "",
+      "<b>Business</b>",
+      "<i>biz</i> - Business dashboard",
+      "<i>earnings</i> - Commission summary",
       "",
       "<b>Social</b>",
       "/whatsup - What's happening in your flow",
@@ -5086,6 +5170,199 @@ export function startTelegramBot(
       return;
     }
 
+    // Conversational lead creation:
+    //   "met Sarah at the conference"
+    //   "talked to Mike from Acme"
+    //   "just chatted with John CEO at TechCo"
+    //   "ran into Lisa, she's interested in partnering"
+    //   "connected with Dave from Polygon"
+    //   "save contact Sarah sarah@acme.com"
+    //   "remember Sarah from Acme"
+    const conversationalLeadMatch = lower.match(
+      /^(?:met|talked to|spoke (?:to|with)|chatted with|just (?:met|talked to|spoke (?:to|with)|chatted with)|ran into|connected with|save contact|remember|log|note)\s+(.+)/i,
+    );
+    if (conversationalLeadMatch) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      const rawInput = text.slice(text.length - conversationalLeadMatch[1].length).trim();
+      const parsed = parseLeadInput(rawInput);
+      // Only create if we got a reasonable name (at least 2 chars, not just filler)
+      if (parsed.name.length >= 2) {
+        const lead = await createLead(tgId, parsed);
+        if (lead) {
+          setSession(tgId, { leadCache: [lead, ...(getSession(tgId)?.leadCache || [])] });
+          await ctx.reply(
+            `\u{2705} <b>Lead saved!</b>\n\n` + formatLeadDetailHtml(lead),
+            { parse_mode: "HTML", reply_markup: buildLeadDetailKeyboard(lead.id) },
+          );
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_created"), "award points");
+          alertAdmins(`New lead: <b>${lead.name}</b> by ${ctx.from?.username || tgId}`, "info");
+          return;
+        }
+      }
+      // Fall through to LLM chat if parsing fails
+    }
+
+    // Natural lead stage updates:
+    //   "move sarah to qualified"
+    //   "mark mike as won"
+    //   "sarah is now a proposal"
+    //   "update john contacted"
+    //   "advance sarah"
+    const moveLeadMatch = lower.match(
+      /^(?:move|update|set|change|mark)\s+(.+?)\s+(?:to|as|→)\s+(new|contacted|qualified|proposal|won|lost)$/i,
+    );
+    const isNowMatch = lower.match(
+      /^(.+?)\s+(?:is now|is|moved to|→)\s+(?:a\s+)?(new|contacted|qualified|proposal|won|lost)$/i,
+    );
+    const advanceMatch = lower.match(/^advance\s+(.+)/i);
+    const stageUpdateMatch = moveLeadMatch || isNowMatch;
+    if (stageUpdateMatch) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      const nameQuery = stageUpdateMatch[1].trim().toLowerCase();
+      const newStage = stageUpdateMatch[2].toLowerCase() as LeadStage;
+      const leads = await fetchLeads(tgId);
+      const match = leads.find((l) => l.name.toLowerCase().includes(nameQuery));
+      if (match) {
+        const updated = await updateLeadStage(tgId, match.id, newStage);
+        if (updated) {
+          await ctx.reply(formatLeadUpdatedHtml(updated.name, updated.stage as LeadStage), {
+            parse_mode: "HTML",
+            reply_markup: buildLeadDetailKeyboard(updated.id),
+          });
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_updated"), "award points");
+          return;
+        }
+      }
+      await ctx.reply(`No lead matching "<b>${escapeHtml(nameQuery)}</b>".`, { parse_mode: "HTML" });
+      return;
+    }
+    if (advanceMatch) {
+      await ensureVerified(tgId);
+      await ctx.replyWithChatAction("typing");
+      const nameQuery = advanceMatch[1].trim().toLowerCase();
+      const leads = await fetchLeads(tgId);
+      const match = leads.find((l) => l.name.toLowerCase().includes(nameQuery));
+      if (match) {
+        const next = nextStage(match.stage);
+        if (!next) {
+          await ctx.reply(`<b>${escapeHtml(match.name)}</b> is already at the final stage.`, { parse_mode: "HTML" });
+          return;
+        }
+        const updated = await updateLeadStage(tgId, match.id, next);
+        if (updated) {
+          await ctx.reply(formatLeadUpdatedHtml(updated.name, updated.stage as LeadStage), {
+            parse_mode: "HTML",
+            reply_markup: buildLeadDetailKeyboard(updated.id),
+          });
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "lead_updated"), "award points");
+          return;
+        }
+      }
+      await ctx.reply(`No lead matching "<b>${escapeHtml(nameQuery)}</b>".`, { parse_mode: "HTML" });
+      return;
+    }
+
+    // Natural meeting triggers:
+    //   "schedule coffee with sarah tomorrow"
+    //   "set up a call with mike on friday"
+    //   "book a meeting with john next week"
+    //   "coffee with lisa tomorrow at 2pm"
+    const meetingNlMatch = lower.match(
+      /^(?:schedule|set up|book|plan|arrange)\s+(?:a\s+)?(?:meeting|call|coffee|lunch|demo|chat|catch ?up|sync|1:1|one.on.one)\s+(?:with\s+)?(.+)/i,
+    ) || lower.match(
+      /^(?:coffee|call|lunch|demo|chat|catch ?up|sync|1:1|one.on.one)\s+with\s+(.+)/i,
+    );
+    if (meetingNlMatch) {
+      await ensureVerified(tgId);
+      const meetingPlugin = core.getMeetingPlugin();
+      const meetingCfg = core.getMeetingConfig();
+      if (!meetingPlugin || !meetingCfg) {
+        await ctx.reply("Meetings are not configured.");
+        return;
+      }
+      await ctx.replyWithChatAction("typing");
+      const meetingText = text.trim();
+      const meeting = await meetingPlugin.createFromNaturalLanguage(meetingCfg, userId(tgId), meetingText);
+      if (meeting) {
+        const shareLink = meetingPlugin.getShareLink(meeting.share_code);
+        await ctx.reply(
+          formatMeetingCreatedHtml(meeting.title, meeting.starts_at, meeting.duration_min, meeting.meeting_type, meeting.location, shareLink),
+          { parse_mode: "HTML", reply_markup: buildMeetingDetailKeyboard(meeting.id, true, meeting.share_code) },
+        );
+        fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_created"), "award points");
+        return;
+      }
+      await ctx.reply("Couldn't parse that meeting. Try: <code>schedule coffee with Sarah tomorrow 2pm</code>", { parse_mode: "HTML" });
+      return;
+    }
+
+    // Natural meeting list: "meetings", "my meetings", "upcoming meetings", "upcoming"
+    if (/^(meetings|my meetings|upcoming meetings|upcoming|show meetings|next meetings)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      const meetingPlugin = core.getMeetingPlugin();
+      const meetingCfg = core.getMeetingConfig();
+      if (!meetingPlugin || !meetingCfg) { await ctx.reply("Meetings not configured."); return; }
+      const result = await meetingPlugin.list(meetingCfg, userId(tgId), { action: "meeting-list", meeting_filter: "upcoming" });
+      try {
+        const parsed = JSON.parse(result);
+        if (parsed.type === "meeting_list") {
+          await ctx.reply(formatMeetingListHtml(parsed.meetings, parsed.filter), {
+            parse_mode: "HTML",
+            reply_markup: buildMeetingListKeyboard(parsed.meetings),
+          });
+          return;
+        }
+      } catch { /* fallback */ }
+      await ctx.reply(result);
+      return;
+    }
+
+    // /biz — open biz dashboard
+    if (/^(biz|business|dashboard|command center|hq)$/i.test(lower)) {
+      await ctx.reply(
+        [
+          "<b>\u{1F4BC} FlowB Business</b>",
+          "",
+          "\u{1F4CA} <b>Quick Actions</b>",
+          "\u{2022} <i>add lead Sarah at Acme</i> — save a lead",
+          "\u{2022} <i>met Mike from TechCo</i> — log a contact",
+          "\u{2022} <i>leads</i> — view your pipeline",
+          "\u{2022} <i>schedule coffee with Sarah tomorrow</i> — book a meeting",
+          "\u{2022} <i>meetings</i> — view upcoming",
+          "",
+          "\u{1F517} <a href=\"https://kanban.flowb.me\">Open Kanban Board</a>",
+          "\u{1F517} <a href=\"https://flowb.me/biz\">Open Business Dashboard</a>",
+        ].join("\n"),
+        { parse_mode: "HTML", reply_markup: buildPipelineKeyboard() },
+      );
+      return;
+    }
+
+    // /earnings — commission summary (placeholder until referral system is wired)
+    if (/^(earnings|commissions?|my earnings|my commissions?|revenue|income)$/i.test(lower)) {
+      await ensureVerified(tgId);
+      await ctx.reply(
+        [
+          "<b>\u{1F4B0} Earnings</b>",
+          "",
+          "Commission tracking is coming soon!",
+          "",
+          "When referral programs are active, you'll see:",
+          "\u{2022} Referral commissions earned",
+          "\u{2022} Pending payouts",
+          "\u{2022} Top referring events",
+          "",
+          "In the meantime, keep building your pipeline:",
+          "<code>leads</code> — view your leads",
+          "<code>met Sarah at Acme</code> — log new contacts",
+        ].join("\n"),
+        { parse_mode: "HTML", reply_markup: buildPipelineKeyboard() },
+      );
+      return;
+    }
+
     // Check in: "check in", "checkin", "check in at X", "im at X", "i'm at X"
     const checkinMatch = lower.match(/^(?:check\s*in|checkin)(?:\s+(?:at\s+)?(.+))?$/i)
       || lower.match(/^(?:i'?m at|im at|at)\s+(.+)/i);
@@ -5216,6 +5493,11 @@ export function startTelegramBot(
         `<b>What's up</b> — social feed from your crew\n` +
         `<b>After party</b> — where is everyone heading\n` +
         `<b>Who's here</b> — who's at this event or city\n` +
+        `<b>Met Sarah at Acme</b> — save a lead instantly\n` +
+        `<b>Schedule coffee with Mike</b> — book a meeting\n` +
+        `<b>Meetings</b> — view upcoming meetings\n` +
+        `<b>Move sarah to qualified</b> — update pipeline\n` +
+        `<b>Biz</b> — business dashboard\n` +
         `<b>Add my event</b> — list your own event\n` +
         `<b>Suggest a feature</b> — send us an idea\n` +
         `<b>Report a bug</b> — let us know what's broken\n\n` +
@@ -5413,9 +5695,12 @@ export function startTelegramBot(
     { command: "sponsor", description: "View or create sponsorships" },
     { command: "topsponsor", description: "Top sponsored leaderboard" },
     { command: "leaderboard", description: "Global points leaderboard" },
+    { command: "meet", description: "Schedule a meeting" },
+    { command: "meetings", description: "View upcoming meetings" },
     { command: "lead", description: "Add or view a lead" },
     { command: "leads", description: "View your lead pipeline" },
     { command: "pipeline", description: "Pipeline overview by stage" },
+    { command: "biz", description: "Business dashboard & tools" },
     { command: "suggestfeature", description: "Suggest a new feature" },
     { command: "reportbug", description: "Report a bug" },
     { command: "register", description: "Connect your account" },
