@@ -95,6 +95,10 @@ export interface Lead {
   value: number | null
   notes: string | null
   metadata: Record<string, unknown>
+  tags: string[]
+  score: number | null
+  platform: string | null
+  platform_id: string | null
   created_by: string
   created_at: string
   updated_at: string
