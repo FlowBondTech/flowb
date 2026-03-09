@@ -5376,6 +5376,30 @@ export function startTelegramBot(
       return;
     }
 
+    // Changelog / what's new
+    const changelogMatch = lower.match(/^(?:what'?s?\s*new|changelog|updates|changes|new features?|recent updates?|what changed|what'?s?\s*been (?:done|shipped|built|added)|ship ?log)(?:\s+(.+))?$/i);
+    if (changelogMatch) {
+      await ctx.replyWithChatAction("typing");
+      const arg = (changelogMatch[1] || "").trim().toLowerCase();
+      let period: "today" | "week" | "month" | "all" = "week";
+      let query: string | undefined;
+      if (arg === "today" || arg === "day") period = "today";
+      else if (arg === "week" || arg === "this week") period = "week";
+      else if (arg === "month" || arg === "this month") period = "month";
+      else if (arg === "all") period = "all";
+      else if (arg) query = arg;
+      const changelog = await fetchGitChangelog(period, query);
+      fireAndForget(core.awardPoints(userId(tgId), "telegram", "changelog_viewed"), "award points");
+      await ctx.reply(changelog, {
+        parse_mode: "HTML",
+        reply_markup: new InlineKeyboard()
+          .text("Today", "changelog_today")
+          .text("This Week", "changelog_week")
+          .text("This Month", "changelog_month"),
+      });
+      return;
+    }
+
     // Share / invite
     if (/^(share|invite|invite link|share link|referral|my link|get link)$/i.test(lower)) {
       await ensureVerified(tgId);
