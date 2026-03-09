@@ -65,6 +65,7 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 | `m_` | `flowb.me/m/{code}` | — |
 | `checkin_` | `flowb.me/checkin/{code}` | — |
 | `ref_` | `flowb.me/ref/{code}` | Referral — tracks referral signup |
+| `crew_` | `flowb.me/crew/{code}` | — |
 
 ## Callback Actions
 
@@ -176,4 +177,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-09 19:15:59 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-09 19:21:50 UTC*

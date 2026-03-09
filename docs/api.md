@@ -89,6 +89,13 @@ FlowB exposes two backend servers:
 | `POST` | `unknown` | No |  |
 | `PATCH` | `unknown` | No |  |
 | `POST` | `/api/v1/admin/egator/scan` | No |  |
+| `POST` | `/api/v1/admin/egator/cities` | No |  |
+| `POST` | `/api/v1/admin/egator/cities/:city/toggle` | No |  |
+| `DELETE` | `/api/v1/admin/egator/cities/:city` | No |  |
+| `POST` | `/api/v1/admin/egator/events/bulk` | No |  |
+| `DELETE` | `/api/v1/admin/egator/events/stale` | No |  |
+| `POST` | `/api/v1/admin/egator/events/:id/feature` | No |  |
+| `POST` | `/api/v1/admin/egator/events/:id/hide` | No |  |
 | `GET` | `/api/v1/shared-results/:code` | No |  |
 | `POST` | `/api/v1/shared-results/:code/interact` | No |  |
 | `POST` | `/api/v1/shared-results` | No |  |
@@ -290,6 +297,8 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/admin/venues` | No | Create venue |
 | `GET` | `/api/v1/admin/users` | No | All users (for user manager) |
 | `GET` | `/api/v1/admin/egator/stats` | No | eGator Stats & Scan |
+| `GET` | `/api/v1/admin/egator/cities` | No | eGator Scan City Management |
+| `GET` | `unknown` | No | eGator Event Management (list, bulk, stale purge, feature, hide) |
 
 ## ZONES
 
@@ -426,12 +435,24 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/e/:id` | No |  |
 
-## that redirect to the Telegram bot deep link.
+## Prefixes that need bot-side processing (flow accept, invite tracking, referral)
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | `GET` | `/${path}/:code` | No |  |
 
+## Crew join links → smart landing page with tg
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/g/:code` | No | // protocol for direct app open |
+
+## Meeting short links → bot deep link (meeting detail rendering)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/m/:code` | No |  |
+
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-09 19:15:59 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-09 19:21:50 UTC*
