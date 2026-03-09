@@ -78,7 +78,7 @@ export function EventDetail({ eventId }: Props) {
 
   const handleShareTelegram = (ev: EventResult) => {
     const tg = (window as any).Telegram?.WebApp;
-    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
     const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`;
     if (tg?.openTelegramLink) {
@@ -90,7 +90,7 @@ export function EventDetail({ eventId }: Props) {
 
   const handleShareX = (ev: EventResult) => {
     const tg = (window as any).Telegram?.WebApp;
-    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
     const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`;
     if (tg?.openLink) {
@@ -101,7 +101,7 @@ export function EventDetail({ eventId }: Props) {
   };
 
   const handleCopyLink = async (ev: EventResult) => {
-    const url = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const url = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     try {
       await navigator.clipboard.writeText(url);
       setLinkCopied(true);

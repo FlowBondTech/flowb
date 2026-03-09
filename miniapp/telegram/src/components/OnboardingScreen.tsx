@@ -24,7 +24,7 @@ const CREW_OPTIONS = [
   { value: "skip", label: "Skip for now", emoji: "", sub: "You can join later" },
 ];
 
-const BOT_LINK = "https://t.me/Flow_b_bot?startapp=home";
+const BOT_LINK = "https://t.me/Flow_b_bot/flowb?startapp=home";
 
 interface Props {
   onComplete: () => void;

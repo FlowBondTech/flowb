@@ -11,8 +11,8 @@
 
 [[redirects]]
   from = "/g/:code"
-  to = "https://t.me/Flow_b_bot?start=g_:code"
-  status = 302
+  to = "/join.html"
+  status = 200
   force = true
 
 [[redirects]]
@@ -30,7 +30,7 @@
 # QR check-in links -> Telegram mini app deep link
 [[redirects]]
   from = "/c/:code"
-  to = "https://t.me/Flow_b_bot?startapp=checkin_:code"
+  to = "https://t.me/Flow_b_bot/flowb?startapp=checkin_:code"
   status = 302
   force = true
 

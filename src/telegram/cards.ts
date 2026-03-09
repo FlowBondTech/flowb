@@ -304,7 +304,7 @@ export function buildEventCardKeyboard(
   // Row 5: Mini app deep link
   if (botUsername) {
     kb.row();
-    kb.url("\u26a1 View in FlowB", `https://t.me/${botUsername}?startapp=event_${short}`);
+    kb.url("\u26a1 View in FlowB", `https://t.me/${botUsername}/flowb?startapp=event_${short}`);
   }
 
   return kb;
@@ -721,7 +721,7 @@ export function buildFlowMenuKeyboard(botUsername?: string): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
   if (botUsername) {
-    kb.url("\u26a1 Open App", `https://t.me/${botUsername}?startapp=schedule`);
+    kb.url("\u26a1 Open App", `https://t.me/${botUsername}/flowb?startapp=schedule`);
   }
   return kb;
 }
@@ -781,7 +781,7 @@ export function buildCrewMenuKeyboard(botUsername?: string): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
   if (botUsername) {
-    kb.url("\u26a1 Open in App", `https://t.me/${botUsername}?startapp=crew`);
+    kb.url("\u26a1 Open in App", `https://t.me/${botUsername}/flowb?startapp=crew`);
   }
   return kb;
 }

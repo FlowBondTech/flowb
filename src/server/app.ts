@@ -10,10 +10,12 @@ import { registerMiniAppRoutes } from "./routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 import { runContextNotifications } from "../services/context-notifications.js";
-import { alertDaily } from "../services/admin-alerts.js";
+import { alertAdmins, alertDaily, alertNewEvents } from "../services/admin-alerts.js";
+import type { ScanResult } from "../services/event-scanner.js";
 import { runEmailDigest } from "../services/email-digest.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
+import { sbFetch, sbPatchRaw } from "../utils/supabase.js";
 import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
 import { registerSignalWebhook } from "../signal/bot.js";
 
@@ -53,8 +55,73 @@ export async function buildApp(core: FlowBCore) {
   const supabaseKey = process.env.SUPABASE_KEY;
 
   if (supabaseUrl && supabaseKey) {
-    // NOTE: Event scanner moved to standalone scraper on IONOS VPS (216.225.205.69)
-    // Manual scans still available via POST /api/v1/admin/scan-events
+    // Event scanner: scan DB-configured cities every 2 hours
+    const SCAN_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
+    const envFallbackCities = (process.env.SCRAPER_CITIES || "austin,denver")
+      .split(",")
+      .map((c) => c.trim())
+      .filter(Boolean);
+    let isScanningEvents = false;
+
+    async function runEventScan() {
+      if (isScanningEvents) return;
+      isScanningEvents = true;
+      try {
+        const cfg = { supabaseUrl: supabaseUrl!, supabaseKey: supabaseKey! };
+
+        // Read enabled cities from DB, fall back to env var
+        const dbCities = await sbFetch<any[]>(cfg, "flowb_scan_cities?enabled=eq.true&select=city&order=created_at.asc");
+        const cities = dbCities?.length
+          ? dbCities.map((r: any) => r.city)
+          : envFallbackCities;
+
+        const results: ScanResult[] = [];
+        for (const city of cities) {
+          console.log(`[event-scanner] Scanning ${city}...`);
+          try {
+            const result = await scanForNewEvents(
+              cfg,
+              (opts) => core.discoverEventsRaw(opts),
+              city,
+            );
+            results.push(result);
+            // Update last_scan_* on city row (fire-and-forget)
+            fireAndForget(
+              sbPatchRaw(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(city)}`, {
+                last_scan_at: new Date().toISOString(),
+                last_scan_status: "ok",
+                last_scan_new: result.newCount,
+                last_scan_updated: result.updatedCount,
+              }),
+              "update scan city status",
+            );
+          } catch (cityErr) {
+            console.error(`[event-scanner] Scan failed for ${city}:`, cityErr);
+            fireAndForget(
+              sbPatchRaw(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(city)}`, {
+                last_scan_at: new Date().toISOString(),
+                last_scan_status: `error: ${cityErr instanceof Error ? cityErr.message : String(cityErr)}`,
+              }),
+              "update scan city error status",
+            );
+          }
+        }
+        alertNewEvents(results, cities);
+      } catch (err) {
+        console.error("[event-scanner] Scheduled scan error:", err);
+        alertAdmins(
+          `Event scan failed: ${err instanceof Error ? err.message : String(err)}`,
+          "urgent",
+        );
+      } finally {
+        isScanningEvents = false;
+      }
+    }
+
+    // Initial scan after 60s warmup
+    setTimeout(() => runEventScan(), 60 * 1000);
+    setInterval(() => runEventScan(), SCAN_INTERVAL);
+    console.log(`[scheduler] Event scanner scheduled (every 2h, cities from DB or fallback: ${envFallbackCities.join(", ")})`);
 
     // Time-slot based Farcaster posting: check every 5 minutes
     // Posts crew-focused content at 9am, 1pm, 4pm, 7pm MST
@@ -91,7 +158,7 @@ export async function buildApp(core: FlowBCore) {
       }
     }, 5 * 60 * 1000);
 
-    console.log("[scheduler] Farcaster time-slot poster scheduled (event scanner on IONOS VPS)");
+    console.log("[scheduler] Farcaster time-slot poster scheduled");
 
     // SocialB poller: check for new Farcaster casts every 2 minutes
     const neynarApiKey = process.env.NEYNAR_API_KEY;
@@ -558,14 +625,14 @@ export async function buildApp(core: FlowBCore) {
   // that redirect to the Telegram bot deep link.
   // ==========================================================================
 
-  const deepLinkPrefixes: Record<string, string> = {
+  // Prefixes that need bot-side processing (flow accept, invite tracking, referral)
+  const botDeepLinkPrefixes: Record<string, string> = {
     f: "f",      // personal flow invite
-    g: "g",      // crew join code
-    gi: "gi",    // personal tracked crew invite
+    gi: "gi",    // personal tracked crew invite (attribution tracking)
     ref: "ref",  // referral
   };
 
-  for (const [path, prefix] of Object.entries(deepLinkPrefixes)) {
+  for (const [path, prefix] of Object.entries(botDeepLinkPrefixes)) {
     app.get<{ Params: { code: string } }>(
       `/${path}/:code`,
       async (request, reply) => {
@@ -588,12 +655,123 @@ export async function buildApp(core: FlowBCore) {
     );
   }
 
+  // Crew join links → smart landing page with tg:// protocol for direct app open
+  app.get<{ Params: { code: string } }>(
+    "/g/:code",
+    async (request, reply) => {
+      const ua = (request.headers["user-agent"] || "").toLowerCase();
+      const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
+      const code = request.params.code;
+
+      if (ua.includes("whatsapp")) {
+        const waNumber = process.env.WHATSAPP_PHONE_NUMBER || "";
+        if (waNumber) {
+          return reply.redirect(`https://wa.me/${waNumber}?text=${encodeURIComponent(`join g_${code}`)}`);
+        }
+      }
+
+      // Telegram in-app browser: redirect directly
+      if (ua.includes("telegram") || ua.includes("tgweb")) {
+        return reply.redirect(`https://t.me/${botUser}/flowb?startapp=crew_${code}`);
+      }
+
+      // All other browsers: serve landing page that tries tg:// protocol first
+      const tgDeepLink = `https://t.me/${botUser}/flowb?startapp=crew_${code}`;
+      const tgProtocol = `tg://resolve?domain=${botUser}&appname=flowb&startapp=crew_${code}`;
+      return reply.type("text/html").send(crewJoinLandingPage(code, tgDeepLink, tgProtocol));
+    },
+  );
+
+  // Meeting short links → bot deep link (meeting detail rendering)
+  app.get<{ Params: { code: string } }>(
+    "/m/:code",
+    async (request, reply) => {
+      const ua = (request.headers["user-agent"] || "").toLowerCase();
+      const botUser = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
+      const code = request.params.code;
+
+      if (ua.includes("whatsapp")) {
+        const waNumber = process.env.WHATSAPP_PHONE_NUMBER || "";
+        if (waNumber) {
+          return reply.redirect(`https://wa.me/${waNumber}?text=${encodeURIComponent(`meeting m_${code}`)}`);
+        }
+      }
+
+      return reply.redirect(`https://t.me/${botUser}?start=m_${code}`);
+    },
+  );
+
   return app;
 }
 
 // ==========================================================================
 // HTML pages (minimal, no deps)
 // ==========================================================================
+
+function crewJoinLandingPage(code: string, tgDeepLink: string, tgProtocol: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Join Crew on FlowB</title>
+<meta property="og:title" content="Join a Crew on FlowB">
+<meta property="og:description" content="Tap to join this crew and coordinate with friends at events.">
+<meta property="og:image" content="https://flowb.me/icon-512.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#e8e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.c{text-align:center;padding:32px 24px;max-width:400px;width:100%}
+.logo{width:80px;height:80px;border-radius:20px;margin:0 auto 20px}
+h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sub{font-size:15px;color:#9ca3af;margin-bottom:32px;line-height:1.5}
+.btn{display:block;width:100%;padding:14px 24px;border-radius:12px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:12px;transition:transform .15s}
+.btn:active{transform:scale(.97)}
+.bt{background:linear-gradient(135deg,#2AABEE,#229ED9);color:#fff}
+.bw{background:rgba(255,255,255,.08);color:#e8e8f0;border:1px solid rgba(255,255,255,.12)}
+.hint{font-size:12px;color:#6b7280;margin-top:20px}
+.sp{width:24px;height:24px;border:3px solid rgba(255,255,255,.15);border-top-color:#60a5fa;border-radius:50%;animation:s .8s linear infinite;margin:0 auto 16px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="c">
+  <img src="https://flowb.me/icon-512.png" alt="FlowB" class="logo" onerror="this.style.display='none'">
+  <h1>Join Crew on FlowB</h1>
+  <p class="sub" id="sub">Opening Telegram...</p>
+  <div class="sp" id="sp"></div>
+  <a href="${tgDeepLink}" id="bt" class="btn bt" style="display:none">Open in Telegram</a>
+  <a href="https://flowb.me" class="btn bw" style="display:none" id="bw">Visit flowb.me</a>
+  <p class="hint" id="h" style="display:none">Make sure you have Telegram installed on your device.</p>
+</div>
+<script>
+(function(){
+  var mob=/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  var done=false;
+  function show(){
+    if(done)return;done=true;
+    document.getElementById('sp').style.display='none';
+    document.getElementById('sub').textContent='Tap below to join this crew';
+    document.getElementById('bt').style.display='block';
+    document.getElementById('bw').style.display='block';
+    document.getElementById('h').style.display='block';
+  }
+  if(mob){
+    window.location.href='${tgProtocol}';
+    setTimeout(function(){
+      window.location.href='${tgDeepLink}';
+      setTimeout(show,1500);
+    },2000);
+  }else{
+    window.location.href='${tgDeepLink}';
+    setTimeout(show,3000);
+  }
+  document.addEventListener('visibilitychange',function(){if(document.hidden){done=true;}});
+})();
+</script>
+</body>
+</html>`;
+}
 
 function connectPage(botUsername: string, callbackUrl: string): string {
   return `<!DOCTYPE html>
