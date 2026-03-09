@@ -8,7 +8,7 @@ FlowB exposes two backend servers:
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **eGator API** | `egator-api.fly.dev` | Event discovery (categories, discover, tonight) |
+| **eGator API** | `egator-api.fly.dev` | Event search (categories, discover, tonight) |
 | **FlowB API** | `flowb.fly.dev` | User auth, social, crews, points, RSVP, calendar |
 
 ---
@@ -405,7 +405,7 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `/api/v1/action` | No |  |
 
-## Convenience endpoint for event discovery
+## Convenience endpoint for event search
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -455,4 +455,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-09 23:05:17 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-09 23:14:35 UTC*
