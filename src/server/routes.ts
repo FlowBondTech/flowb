@@ -40,8 +40,8 @@ import {
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
 import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, sbQuery, sbDelete, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
-import { alertAdmins } from "../services/admin-alerts.js";
-import { scanForNewEvents } from "../services/event-scanner.js";
+import { alertAdmins, alertNewEvents } from "../services/admin-alerts.js";
+import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js";
 import { registerAgentRoutes } from "./agent-routes.js";
 
 
@@ -1518,8 +1518,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Fire notifications in background
       const notifyCtx = getNotifyContext();
       if (notifyCtx && eventTitle !== id) {
-        fireAndForget(notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle), "notify friend rsvp");
-        fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle), "notify crew member rsvp");
+        fireAndForget(notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify friend rsvp");
+        fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify crew member rsvp");
       }
 
       return { ok: true, status, attendance };
@@ -7010,7 +7010,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     },
   );
 
-  app.post(
+  app.post<{ Body: { city?: string; cities?: string[] } }>(
     "/api/v1/admin/egator/scan",
     { config: { rateLimit: { max: 2, timeWindow: "5 minutes" } } },
     async (request, reply) => {
@@ -7018,18 +7018,313 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
 
+      const body = request.body || {};
+      let cities: string[];
+      if (body.cities?.length) {
+        cities = body.cities;
+      } else if (body.city) {
+        cities = [body.city];
+      } else {
+        // Read enabled cities from DB, fall back to env var
+        const dbCities = await sbFetch<any[]>(cfg, "flowb_scan_cities?enabled=eq.true&select=city&order=created_at.asc");
+        cities = dbCities?.length
+          ? dbCities.map((r: any) => r.city)
+          : (process.env.SCRAPER_CITIES || "austin,denver").split(",").map((c) => c.trim()).filter(Boolean);
+      }
+
       try {
-        const result = await scanForNewEvents(
-          cfg,
-          (opts) => core.discoverEventsRaw(opts),
+        const results: ScanResult[] = [];
+        for (const city of cities) {
+          const result = await scanForNewEvents(
+            cfg,
+            (opts) => core.discoverEventsRaw(opts),
+            city,
+          );
+          results.push(result);
+          // Update last_scan_* on the city row
+          sbPatchRaw(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(city)}`, {
+            last_scan_at: new Date().toISOString(),
+            last_scan_status: "ok",
+            last_scan_new: result.newCount,
+            last_scan_updated: result.updatedCount,
+          });
+        }
+        alertNewEvents(results, cities);
+
+        const totals = results.reduce(
+          (acc, r) => ({
+            newCount: acc.newCount + r.newCount,
+            updatedCount: acc.updatedCount + r.updatedCount,
+            skippedCount: acc.skippedCount + r.skippedCount,
+          }),
+          { newCount: 0, updatedCount: 0, skippedCount: 0 },
         );
-        return { ok: true, ...result };
+        return { ok: true, cities, ...totals };
       } catch (err) {
         return reply.status(500).send({
           error: "Scan failed",
           detail: err instanceof Error ? err.message : String(err),
         });
       }
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: eGator Scan City Management
+  // ------------------------------------------------------------------
+
+  // GET /api/v1/admin/egator/cities — list all scan cities
+  app.get(
+    "/api/v1/admin/egator/cities",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const rows = await sbFetch<any[]>(cfg, "flowb_scan_cities?select=*&order=created_at.asc");
+      return { cities: rows || [] };
+    },
+  );
+
+  // POST /api/v1/admin/egator/cities — add a scan city
+  app.post<{ Body: { city: string } }>(
+    "/api/v1/admin/egator/cities",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const city = (request.body?.city || "").trim().toLowerCase();
+      if (!city) return reply.status(400).send({ error: "city is required" });
+
+      const row = await sbInsert(cfg, "flowb_scan_cities", { city });
+      if (!row) return reply.status(409).send({ error: "City already exists or insert failed" });
+      return { ok: true, city: row };
+    },
+  );
+
+  // POST /api/v1/admin/egator/cities/:city/toggle — toggle enabled
+  app.post<{ Params: { city: string } }>(
+    "/api/v1/admin/egator/cities/:city/toggle",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const city = request.params.city.toLowerCase();
+      // Fetch current state
+      const rows = await sbFetch<any[]>(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(city)}&select=enabled&limit=1`);
+      if (!rows?.length) return reply.status(404).send({ error: "City not found" });
+
+      const newEnabled = !rows[0].enabled;
+      await sbPatch(cfg, "flowb_scan_cities", { city: `eq.${city}` }, { enabled: newEnabled });
+      return { ok: true, city, enabled: newEnabled };
+    },
+  );
+
+  // DELETE /api/v1/admin/egator/cities/:city — remove a city
+  app.delete<{ Params: { city: string } }>(
+    "/api/v1/admin/egator/cities/:city",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const city = request.params.city.toLowerCase();
+      const ok = await sbDelete(cfg, "flowb_scan_cities", { city: `eq.${city}` });
+      if (!ok) return reply.status(404).send({ error: "City not found or delete failed" });
+      return { ok: true, city };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: eGator Event Management (list, bulk, stale purge, feature, hide)
+  // ------------------------------------------------------------------
+
+  // GET /api/v1/admin/egator/events — paginated event list with filters
+  app.get<{
+    Querystring: {
+      page?: string; limit?: string; search?: string;
+      city?: string; source?: string; stale?: string;
+      featured?: string; hidden?: string; free?: string;
+      quality_min?: string; quality_max?: string;
+      from?: string; to?: string; sort?: string; order?: string;
+    };
+  }>(
+    "/api/v1/admin/egator/events",
+    { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const q = request.query;
+      const page = Math.max(1, parseInt(q.page || "1", 10));
+      const limit = Math.min(100, Math.max(1, parseInt(q.limit || "50", 10)));
+      const offset = (page - 1) * limit;
+
+      // Build filter string
+      const filters: string[] = [];
+      if (q.city) filters.push(`city=eq.${encodeURIComponent(q.city)}`);
+      if (q.source) filters.push(`source=eq.${encodeURIComponent(q.source)}`);
+      if (q.stale === "true") filters.push("stale=eq.true");
+      if (q.stale === "false") filters.push("stale=eq.false");
+      if (q.featured === "true") filters.push("featured=eq.true");
+      if (q.featured === "false") filters.push("featured=eq.false");
+      if (q.hidden === "true") filters.push("hidden=eq.true");
+      if (q.hidden === "false") filters.push("hidden=eq.false");
+      if (q.free === "true") filters.push("is_free=eq.true");
+      if (q.free === "false") filters.push("is_free=eq.false");
+      if (q.quality_min) filters.push(`quality_score=gte.${q.quality_min}`);
+      if (q.quality_max) filters.push(`quality_score=lte.${q.quality_max}`);
+      if (q.from) filters.push(`starts_at=gte.${encodeURIComponent(q.from)}`);
+      if (q.to) filters.push(`starts_at=lte.${encodeURIComponent(q.to)}`);
+
+      // Search (title or description)
+      if (q.search) {
+        filters.push(`or=(title.ilike.*${encodeURIComponent(q.search)}*,description.ilike.*${encodeURIComponent(q.search)}*,venue_name.ilike.*${encodeURIComponent(q.search)}*)`);
+      }
+
+      const sortCol = q.sort || "created_at";
+      const sortDir = q.order === "asc" ? "asc" : "desc";
+      const filterStr = filters.length ? "&" + filters.join("&") : "";
+
+      const selectFields = "id,title,title_slug,source,city,starts_at,ends_at,venue_name,is_free,price,image_url,quality_score,stale,featured,hidden,url,organizer_name,description,tags,created_at,last_seen";
+
+      // Fetch with count header
+      const url = `${cfg.supabaseUrl}/rest/v1/flowb_events?select=${selectFields}&order=${sortCol}.${sortDir}&limit=${limit}&offset=${offset}${filterStr}`;
+      try {
+        const res = await fetch(url, {
+          headers: {
+            apikey: cfg.supabaseKey,
+            Authorization: `Bearer ${cfg.supabaseKey}`,
+            Prefer: "count=exact",
+          },
+        });
+        if (!res.ok) return reply.status(res.status).send({ error: "Query failed" });
+
+        const events = await res.json();
+        const total = parseInt(res.headers.get("content-range")?.split("/")[1] || "0", 10);
+        return { events, total, page, limit, pages: Math.ceil(total / limit) };
+      } catch (err) {
+        return reply.status(500).send({ error: "Query failed" });
+      }
+    },
+  );
+
+  // POST /api/v1/admin/egator/events/bulk — bulk feature/hide/delete
+  app.post<{ Body: { ids: string[]; action: string } }>(
+    "/api/v1/admin/egator/events/bulk",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const { ids, action } = request.body || {};
+      if (!ids?.length || !action) {
+        return reply.status(400).send({ error: "Missing ids or action" });
+      }
+      if (ids.length > 200) {
+        return reply.status(400).send({ error: "Max 200 IDs per request" });
+      }
+
+      const idFilter = `id=in.(${ids.join(",")})`;
+
+      try {
+        if (action === "feature") {
+          await sbPatchRaw(cfg, `flowb_events?${idFilter}`, { featured: true });
+        } else if (action === "unfeature") {
+          await sbPatchRaw(cfg, `flowb_events?${idFilter}`, { featured: false });
+        } else if (action === "hide") {
+          await sbPatchRaw(cfg, `flowb_events?${idFilter}`, { hidden: true });
+        } else if (action === "unhide") {
+          await sbPatchRaw(cfg, `flowb_events?${idFilter}`, { hidden: false });
+        } else if (action === "delete") {
+          await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_events?${idFilter}`, {
+            method: "DELETE",
+            headers: {
+              apikey: cfg.supabaseKey,
+              Authorization: `Bearer ${cfg.supabaseKey}`,
+            },
+          });
+        } else {
+          return reply.status(400).send({ error: `Unknown action: ${action}` });
+        }
+        return { ok: true, action, count: ids.length };
+      } catch (err) {
+        return reply.status(500).send({ error: "Bulk action failed" });
+      }
+    },
+  );
+
+  // DELETE /api/v1/admin/egator/events/stale — purge stale events older than N days
+  app.delete<{ Querystring: { days?: string } }>(
+    "/api/v1/admin/egator/events/stale",
+    { config: { rateLimit: { max: 5, timeWindow: "5 minutes" } } },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
+
+      const days = Math.max(1, parseInt(request.query.days || "7", 10));
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+      try {
+        const res = await fetch(
+          `${cfg.supabaseUrl}/rest/v1/flowb_events?stale=eq.true&created_at=lt.${encodeURIComponent(cutoff)}`,
+          {
+            method: "DELETE",
+            headers: {
+              apikey: cfg.supabaseKey,
+              Authorization: `Bearer ${cfg.supabaseKey}`,
+              Prefer: "count=exact",
+            },
+          },
+        );
+        const deleted = parseInt(res.headers.get("content-range")?.split("/")[1] || "0", 10);
+        return { ok: true, deleted, days };
+      } catch (err) {
+        return reply.status(500).send({ error: "Purge failed" });
+      }
+    },
+  );
+
+  // POST /api/v1/admin/egator/events/:id/feature — toggle featured
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/admin/egator/events/:id/feature",
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const existing = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${request.params.id}&select=featured&limit=1`);
+      if (!existing?.length) return reply.status(404).send({ error: "Event not found" });
+
+      const newVal = !existing[0].featured;
+      await sbPatchRaw(cfg, `flowb_events?id=eq.${request.params.id}`, { featured: newVal });
+      return { ok: true, featured: newVal };
+    },
+  );
+
+  // POST /api/v1/admin/egator/events/:id/hide — toggle hidden
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/admin/egator/events/:id/hide",
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const existing = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${request.params.id}&select=hidden&limit=1`);
+      if (!existing?.length) return reply.status(404).send({ error: "Event not found" });
+
+      const newVal = !existing[0].hidden;
+      await sbPatchRaw(cfg, `flowb_events?id=eq.${request.params.id}`, { hidden: newVal });
+      return { ok: true, hidden: newVal };
     },
   );
 
@@ -7214,6 +7509,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }), "log lead creation");
 
       fireAndForget(core.awardPoints(jwt.sub, jwt.platform || "web", "lead_created"), "award points");
+
+      // Fire lead_stage automations for new lead (user-owned + global)
+      const automationPlugin = core.getAutomationPlugin();
+      if (automationPlugin) {
+        const triggerData = {
+          lead_id: lead.id, from_stage: null, to_stage: "new",
+          name, email, phone, company, value, source,
+        };
+        fireAndForget(automationPlugin.processTrigger(cfg, jwt.sub, "lead_stage", triggerData), "fire user lead_stage automations");
+        fireAndForget(automationPlugin.processTrigger(cfg, "web_system", "lead_stage", triggerData), "fire global lead_stage automations");
+      }
+
       return lead;
     },
   );
@@ -7298,7 +7605,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       await sbPatch(cfg, "flowb_leads", { id: `eq.${request.params.id}` }, updates);
 
-      // Log stage change
+      // Log stage change + fire automations
       if (stage && current?.[0]?.stage !== stage) {
         fireAndForget(sbInsert(cfg, "flowb_lead_activities", {
           lead_id: request.params.id, user_id: jwt.sub,
@@ -7306,6 +7613,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           description: `Stage: ${current?.[0]?.stage || "?"} → ${stage}`,
           metadata: { from_stage: current?.[0]?.stage, to_stage: stage },
         }), "log stage change");
+
+        // Fire lead_stage automations (user-owned + global)
+        const automationPlugin = core.getAutomationPlugin();
+        if (automationPlugin) {
+          const triggerData = {
+            lead_id: request.params.id, from_stage: current?.[0]?.stage, to_stage: stage,
+            name, email, phone, company, value, source,
+          };
+          fireAndForget(automationPlugin.processTrigger(cfg, jwt.sub, "lead_stage", triggerData), "fire user lead_stage automations");
+          fireAndForget(automationPlugin.processTrigger(cfg, "web_system", "lead_stage", triggerData), "fire global lead_stage automations");
+        }
       }
 
       return { success: true };

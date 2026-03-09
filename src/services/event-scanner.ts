@@ -8,6 +8,21 @@ import type { EventResult } from "../core/types.js";
 import { createHash } from "crypto";
 import { sbFetch, sbPatchRaw, sbInsert, type SbConfig } from "../utils/supabase.js";
 
+export interface ScanResultEvent {
+  title: string;
+  source: string;
+  city: string | null;
+  startTime: string | null;
+  url: string | null;
+}
+
+export interface ScanResult {
+  newCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  newEvents: ScanResultEvent[];
+}
+
 interface CategoryRow { id: string; slug: string; name: string }
 interface VenueRow { id: string; name: string; slug: string }
 
@@ -109,10 +124,11 @@ export async function scanForNewEvents(
   cfg: SbConfig,
   discoverFn: (opts: any) => Promise<EventResult[]>,
   city?: string,
-): Promise<{ newCount: number; updatedCount: number; skippedCount: number }> {
+): Promise<ScanResult> {
   let newCount = 0;
   let updatedCount = 0;
   let skippedCount = 0;
+  const newEvents: ScanResultEvent[] = [];
 
   try {
     // Load categories and venues for matching
@@ -221,6 +237,13 @@ export async function scanForNewEvents(
           await updateCategories(cfg, inserted.id, event, categoryMap);
         }
         newCount++;
+        newEvents.push({
+          title: event.title || "Untitled",
+          source,
+          city: event.locationCity || city || null,
+          startTime: event.startTime || null,
+          url: event.url || null,
+        });
       }
     }
 
@@ -234,7 +257,7 @@ export async function scanForNewEvents(
   }
 
   console.log(`[event-scanner] Scan complete: ${newCount} new, ${updatedCount} updated, ${skippedCount} unchanged`);
-  return { newCount, updatedCount, skippedCount };
+  return { newCount, updatedCount, skippedCount, newEvents };
 }
 
 async function updateCategories(

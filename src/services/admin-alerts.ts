@@ -15,6 +15,7 @@
 
 import { log } from "../utils/logger.js";
 import { sbFetch, type SbConfig } from "../utils/supabase.js";
+import type { ScanResult } from "./event-scanner.js";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -71,6 +72,7 @@ export function alertAdmins(
         chat_id: chatId,
         text,
         parse_mode: "HTML",
+        link_preview_options: { is_disabled: true },
       }),
     }).catch((err) =>
       log.warn("[admin-alert]", `Failed to DM admin ${chatId}`, {
@@ -78,6 +80,57 @@ export function alertAdmins(
       }),
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// Event Scanner Alerts
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a batched alert to admins with new event scan results.
+ * Fire-and-forget — skips if nothing new/updated.
+ */
+export function alertNewEvents(
+  results: ScanResult[],
+  cities: string[],
+): void {
+  const totalNew = results.reduce((s, r) => s + r.newCount, 0);
+  const totalUpdated = results.reduce((s, r) => s + r.updatedCount, 0);
+
+  if (totalNew === 0 && totalUpdated === 0) return;
+
+  const allNewEvents = results.flatMap((r) => r.newEvents);
+  const priority = totalNew >= 10 ? "important" : "info";
+
+  const lines: string[] = [
+    `<b>Event Scan Complete</b>`,
+    `Cities: ${cities.join(", ")}`,
+    `New: <b>${totalNew}</b> | Updated: <b>${totalUpdated}</b>`,
+  ];
+
+  if (allNewEvents.length > 0) {
+    lines.push("");
+    const displayEvents = allNewEvents.slice(0, 30);
+    for (const ev of displayEvents) {
+      const date = ev.startTime
+        ? new Date(ev.startTime).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        : "TBD";
+      const city = ev.city || "?";
+      const titlePart = ev.url ? `<a href="${ev.url}">${ev.title}</a>` : ev.title;
+      lines.push(`• ${titlePart} <i>(${ev.source}, ${city}, ${date})</i>`);
+    }
+    if (allNewEvents.length > 30) {
+      lines.push(`<i>... and ${allNewEvents.length - 30} more</i>`);
+    }
+  }
+
+  // Truncate to TG limit (4096 chars, leave margin)
+  let msg = lines.join("\n");
+  if (msg.length > 4000) {
+    msg = msg.slice(0, 3990) + "\n...";
+  }
+
+  alertAdmins(msg, priority);
 }
 
 // ---------------------------------------------------------------------------

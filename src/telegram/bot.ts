@@ -111,7 +111,7 @@ import {
   type LeadData,
   type LeadStage,
 } from "./cards.js";
-import { sbQuery, sbFetch } from "../utils/supabase.js";
+import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
@@ -942,6 +942,24 @@ export function startTelegramBot(
       return;
     }
 
+    // --- Mini app deep link params received by bot (redirect to mini app) ---
+    // These happen when ?startapp= links somehow reach the bot, or user manually types them
+    const miniAppParams = ["crew_", "event_", "checkin_"];
+    const miniAppScreens = ["schedule", "chat", "socialb", "addevent", "home"];
+    if (args && (miniAppParams.some((p) => args.startsWith(p)) || miniAppScreens.includes(args))) {
+      const appUrl = miniAppUrl
+        ? `${miniAppUrl}?startapp=${encodeURIComponent(args)}`
+        : `https://t.me/${botUsername}/flowb?startapp=${encodeURIComponent(args)}`;
+      await ctx.reply(
+        "<b>Opening FlowB...</b>\n\nTap the button below to continue.",
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard().url("Open FlowB", `https://t.me/${botUsername}/flowb?startapp=${args}`),
+        },
+      );
+      return;
+    }
+
     // Update daily streak
     const streakResult = await core.updateStreak(userId(tgId), "telegram");
 
@@ -1352,7 +1370,7 @@ export function startTelegramBot(
           fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
           // Fire notifications in background
-          fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), currentEvent.id, currentEvent.title, bot), "notify flow about rsvp");
+          fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), currentEvent.id, currentEvent.title, bot, currentEvent.startTime, currentEvent.url), "notify flow about rsvp");
           return;
         }
       }
@@ -2734,21 +2752,125 @@ export function startTelegramBot(
       return;
     }
 
-    if (sub === "scan") {
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+    // --- cities: list all scan cities ---
+    if (sub === "cities") {
+      await ctx.replyWithChatAction("typing");
+      try {
+        const rows = await sbFetch<any[]>(cfg, "flowb_scan_cities?select=*&order=created_at.asc");
+        if (!rows?.length) {
+          await ctx.reply("No scan cities configured.");
+          return;
+        }
+        const lines = ["<b>Scan Cities</b>", ""];
+        for (const r of rows) {
+          const status = r.enabled ? "\u2705" : "\u274C";
+          const lastScan = r.last_scan_at
+            ? new Date(r.last_scan_at).toLocaleString("en-US", { timeZone: "America/Denver", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })
+            : "never";
+          const scanInfo = r.last_scan_status === "ok"
+            ? `+${r.last_scan_new || 0} new, ${r.last_scan_updated || 0} upd`
+            : (r.last_scan_status || "—");
+          lines.push(`${status} <b>${r.city}</b> — last: ${lastScan} (${scanInfo})`);
+        }
+        lines.push("", "<i>/egator addcity &lt;name&gt; | rmcity | toggle</i>");
+        await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+      } catch (err) {
+        await ctx.reply(`Failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+      return;
+    }
+
+    // --- addcity <name> ---
+    if (sub.startsWith("addcity")) {
+      const cityName = sub.replace("addcity", "").trim().toLowerCase();
+      if (!cityName) {
+        await ctx.reply("Usage: /egator addcity <city>");
+        return;
+      }
+      const row = await sbInsert(cfg, "flowb_scan_cities", { city: cityName });
+      if (!row) {
+        await ctx.reply(`Failed to add "${cityName}" — may already exist.`);
+      } else {
+        await ctx.reply(`\u2705 Added <b>${cityName}</b> (enabled)`, { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // --- rmcity <name> ---
+    if (sub.startsWith("rmcity")) {
+      const cityName = sub.replace("rmcity", "").trim().toLowerCase();
+      if (!cityName) {
+        await ctx.reply("Usage: /egator rmcity <city>");
+        return;
+      }
+      const ok = await sbDelete(cfg, "flowb_scan_cities", { city: `eq.${cityName}` });
+      if (!ok) {
+        await ctx.reply(`Failed to remove "${cityName}" — not found.`);
+      } else {
+        await ctx.reply(`\u{1F5D1} Removed <b>${cityName}</b>`, { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // --- toggle <name> ---
+    if (sub.startsWith("toggle")) {
+      const cityName = sub.replace("toggle", "").trim().toLowerCase();
+      if (!cityName) {
+        await ctx.reply("Usage: /egator toggle <city>");
+        return;
+      }
+      const rows = await sbFetch<any[]>(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(cityName)}&select=enabled&limit=1`);
+      if (!rows?.length) {
+        await ctx.reply(`City "${cityName}" not found.`);
+        return;
+      }
+      const newEnabled = !rows[0].enabled;
+      await sbPatch(cfg, "flowb_scan_cities", { city: `eq.${cityName}` }, { enabled: newEnabled });
+      await ctx.reply(
+        `${newEnabled ? "\u2705" : "\u274C"} <b>${cityName}</b> is now <b>${newEnabled ? "enabled" : "disabled"}</b>`,
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    // --- scan [city] ---
+    if (sub === "scan" || sub.startsWith("scan ")) {
+      const scanArg = sub.replace("scan", "").trim().toLowerCase();
       await ctx.replyWithChatAction("typing");
       try {
         const { scanForNewEvents } = await import("../services/event-scanner.js");
-        const result = await scanForNewEvents(
-          { supabaseUrl: sbUrl, supabaseKey: sbKey },
-          (opts) => core.discoverEventsRaw(opts),
-        );
-        await ctx.reply(
-          `<b>Scan Complete</b>\n\n` +
-          `New: <b>${result.newCount}</b>\n` +
-          `Updated: <b>${result.updatedCount}</b>\n` +
-          `Unchanged: <b>${result.skippedCount}</b>`,
-          { parse_mode: "HTML" },
-        );
+        let cities: string[];
+        if (scanArg) {
+          cities = [scanArg];
+        } else {
+          const dbCities = await sbFetch<any[]>(cfg, "flowb_scan_cities?enabled=eq.true&select=city&order=created_at.asc");
+          cities = dbCities?.length
+            ? dbCities.map((r: any) => r.city)
+            : ["austin", "denver"];
+        }
+        const results: any[] = [];
+        for (const city of cities) {
+          const result = await scanForNewEvents(
+            { supabaseUrl: sbUrl, supabaseKey: sbKey },
+            (opts) => core.discoverEventsRaw(opts),
+            city,
+          );
+          results.push({ city, ...result });
+          // Update last_scan_* (fire-and-forget)
+          sbPatchRaw(cfg, `flowb_scan_cities?city=eq.${encodeURIComponent(city)}`, {
+            last_scan_at: new Date().toISOString(),
+            last_scan_status: "ok",
+            last_scan_new: result.newCount,
+            last_scan_updated: result.updatedCount,
+          });
+        }
+        const lines = ["<b>Scan Complete</b>", ""];
+        for (const r of results) {
+          lines.push(`<b>${r.city}</b>: +${r.newCount} new, ${r.updatedCount} upd, ${r.skippedCount} skip`);
+        }
+        await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
       } catch (err) {
         await ctx.reply(`Scan failed: ${err instanceof Error ? err.message : String(err)}`);
       }
@@ -2778,7 +2900,6 @@ export function startTelegramBot(
     // Default: stats
     await ctx.replyWithChatAction("typing");
     try {
-      const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
       const [allEvents, staleRows] = await Promise.all([
         sbFetch<any[]>(cfg, "flowb_events?select=source,city,quality_score,image_url,description,venue_name,stale,is_free,created_at&limit=50000"),
         sbFetch<any[]>(cfg, "flowb_events?stale=eq.true&select=id&limit=50000"),
@@ -2995,7 +3116,7 @@ export function startTelegramBot(
       if (action === "crew") {
         // Share event with user's crews via flow notify
         fireAndForget(
-          notifyFlowAboutRsvp(core, userId(tgId), title, title, bot),
+          notifyFlowAboutRsvp(core, userId(tgId), title, title, bot, tracked.eventDate, tracked.eventUrl),
           "notify flow about event share",
         );
         fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_shared_crew"), "award points");
@@ -3486,7 +3607,7 @@ export function startTelegramBot(
         fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
         // Notify flow in background
-        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
+        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot, event.startTime, event.url), "notify flow about rsvp");
 
         await ctx.answerCallbackQuery({ text: "Shared with your flow!" });
         await ctx.reply(
@@ -3507,7 +3628,7 @@ export function startTelegramBot(
         fireAndForget(core.awardPoints(userId(tgId), "telegram", "event_rsvp"), "award points");
 
         // Notify flow in background
-        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
+        fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot, event.startTime, event.url), "notify flow about rsvp");
 
         await ctx.answerCallbackQuery({ text: `\u2705 ${event.title}` });
         await ctx.reply(
@@ -3856,7 +3977,7 @@ export function startTelegramBot(
 
           // Notify flow in background
           if (action === "going") {
-            fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot), "notify flow about rsvp");
+            fireAndForget(notifyFlowAboutRsvp(core, userId(tgId), event.id, event.title, bot, event.startTime, event.url), "notify flow about rsvp");
           }
         }
         return;
@@ -6109,6 +6230,8 @@ async function notifyFlowAboutRsvp(
   eventId: string,
   eventName: string,
   bot: Bot,
+  eventStartTime?: string | null,
+  eventUrl?: string | null,
 ): Promise<void> {
   const flowPlugin = core.getFlowPlugin();
   const flowCfg = core.getFlowConfig();
@@ -6116,6 +6239,18 @@ async function notifyFlowAboutRsvp(
 
   const targets = await flowPlugin.computeNotifyTargets(flowCfg, uid, eventId);
   const senderName = uid.replace("telegram_", "@");
+
+  // Build event detail lines
+  const details: string[] = [];
+  if (eventStartTime) {
+    const d = new Date(eventStartTime);
+    const timeStr = d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Denver" });
+    details.push(`\ud83d\udcc5 ${timeStr} MST`);
+  }
+  if (eventUrl) {
+    details.push(`\ud83d\udd17 <a href="${eventUrl}">${eventUrl}</a>`);
+  }
+  const detailBlock = details.length ? "\n" + details.join("\n") : "";
 
   // Notify friends
   for (const friendId of targets.friends) {
@@ -6125,9 +6260,10 @@ async function notifyFlowAboutRsvp(
     try {
       await bot.api.sendMessage(
         Number(tgId),
-        `<b>${senderName}</b> is going to <b>${eventName}</b>! You in?`,
+        `<b>${senderName}</b> is going to <b>${eventName}</b>!${detailBlock}\n\nYou in?`,
         {
           parse_mode: "HTML",
+          link_preview_options: { is_disabled: true },
           reply_markup: new InlineKeyboard()
             .text("\u2705 I'm going too", `fl:going:${eventId.slice(0, 8)}`)
             .text("\ud83e\udd14 Maybe", `fl:maybe:${eventId.slice(0, 8)}`),
@@ -6149,9 +6285,10 @@ async function notifyFlowAboutRsvp(
       try {
         await bot.api.sendMessage(
           Number(tgId),
-          `<b>${senderName}</b> from <b>${crewLabel}</b> is going to <b>${eventName}</b>!`,
+          `<b>${senderName}</b> from <b>${crewLabel}</b> is going to <b>${eventName}</b>!${detailBlock}`,
           {
             parse_mode: "HTML",
+            link_preview_options: { is_disabled: true },
             reply_markup: new InlineKeyboard()
               .text("\u2705 I'm going too", `fl:going:${eventId.slice(0, 8)}`)
               .text("\ud83e\udd14 Maybe", `fl:maybe:${eventId.slice(0, 8)}`),

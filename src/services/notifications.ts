@@ -350,7 +350,7 @@ export async function notifyCrewCheckin(
   );
   const joinCode = crewDetails?.[0]?.join_code;
   const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
-  const crewLink = joinCode ? `https://t.me/${botUsername}?startapp=crew_${joinCode}` : "";
+  const crewLink = joinCode ? `https://t.me/${botUsername}/flowb?startapp=crew_${joinCode}` : "";
 
   const message = `${crewEmoji} ${displayName} checked in at ${venueName} (${crewName}) (+5 pts)${crewLink ? `\n\nView crew: ${crewLink}` : ""}`;
 
@@ -385,6 +385,35 @@ export async function notifyCrewCheckin(
   return sent;
 }
 
+/** Format event time + link for RSVP notification messages */
+function formatEventDetails(startTime?: string | null, url?: string | null): string {
+  const parts: string[] = [];
+  if (startTime) {
+    const d = new Date(startTime);
+    const timeStr = d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/Denver" });
+    parts.push(`\n\ud83d\udcc5 ${timeStr} MST`);
+  }
+  if (url) parts.push(`\n\ud83d\udd17 <a href="${url}">${url}</a>`);
+  return parts.join("");
+}
+
+/** Build Telegram inline keyboard with RSVP buttons for an event */
+function buildRsvpButtons(eventId: string): { parse_mode: string; link_preview_options: any; reply_markup: any } {
+  const id8 = eventId.slice(0, 8);
+  return {
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "\u2705 I'm going too", callback_data: `fl:going:${id8}` },
+          { text: "\ud83e\udd14 Maybe", callback_data: `fl:maybe:${id8}` },
+        ],
+      ],
+    },
+  };
+}
+
 // ============================================================================
 // Friend RSVP Notification
 // ============================================================================
@@ -398,6 +427,8 @@ export async function notifyFriendRsvp(
   eventId: string,
   eventName: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+  eventStartTime?: string | null,
+  eventUrl?: string | null,
 ): Promise<number> {
 
   // Get active friends
@@ -410,7 +441,9 @@ export async function notifyFriendRsvp(
   if (!friends?.length) return 0;
 
   const displayName = await resolveDisplayName(ctx.supabase, userId);
-  const message = `${displayName} is going to ${eventName}!`;
+  const details = formatEventDetails(eventStartTime, eventUrl);
+  const message = `<b>${displayName}</b> is going to <b>${eventName}</b>!${details}\n\nYou in?`;
+  const rsvpButtons = buildRsvpButtons(eventId);
 
   let sent = 0;
   for (const friend of friends) {
@@ -430,7 +463,7 @@ export async function notifyFriendRsvp(
     );
     if (alreadySent) continue;
 
-    const didSend = await sendToUser(ctx, friend.friend_id, message, sendTelegramMessage);
+    const didSend = await sendToUser(ctx, friend.friend_id, message, sendTelegramMessage, rsvpButtons);
     if (didSend) {
       await logNotification(ctx.supabase, friend.friend_id, "friend_rsvp", eventId, userId);
       sent++;
@@ -644,6 +677,8 @@ export async function notifyCrewMemberRsvp(
   eventId: string,
   eventName: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+  eventStartTime?: string | null,
+  eventUrl?: string | null,
 ): Promise<number> {
   // Get crews this user is in
   const memberships = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
@@ -655,13 +690,16 @@ export async function notifyCrewMemberRsvp(
   if (!memberships?.length) return 0;
 
   const displayName = await resolveDisplayName(ctx.supabase, userId);
+  const details = formatEventDetails(eventStartTime, eventUrl);
+  const rsvpButtons = buildRsvpButtons(eventId);
   const notifiedSet = new Set<string>();
   let sent = 0;
 
   for (const m of memberships) {
     if (!m.flowb_groups) continue;
     const crewEmoji = m.flowb_groups.emoji || "";
-    const message = `${crewEmoji} ${displayName} is going to ${eventName}! (+5 pts)`;
+    const crewName = m.flowb_groups.name || "";
+    const message = `<b>${crewEmoji} ${displayName}</b> from <b>${crewName}</b> is going to <b>${eventName}</b>!${details}`;
 
     // Get other members of this crew
     const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
@@ -690,7 +728,7 @@ export async function notifyCrewMemberRsvp(
       );
       if (alreadySent) continue;
 
-      const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage);
+      const didSend = await sendToUser(ctx, member.user_id, message, sendTelegramMessage, rsvpButtons);
       if (didSend) {
         await logNotification(ctx.supabase, member.user_id, "crew_rsvp", eventId, userId);
         notifiedSet.add(member.user_id);
@@ -984,23 +1022,24 @@ async function sendToUser(
   userId: string,
   message: string,
   sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+  tgExtras?: { parse_mode?: string; reply_markup?: any; link_preview_options?: any },
 ): Promise<boolean> {
   // Telegram users
   if (userId.startsWith("telegram_")) {
     const chatId = parseInt(userId.replace("telegram_", ""), 10);
     if (!isNaN(chatId)) {
       try {
-        if (sendTelegramMessage) {
+        if (sendTelegramMessage && !tgExtras) {
           await sendTelegramMessage(chatId, message);
           return true;
         }
-        // Fallback: call TG Bot API directly
+        // Call TG Bot API directly (supports extras like inline keyboards)
         const botToken = ctx.botToken || process.env.FLOWB_TELEGRAM_BOT_TOKEN;
         if (botToken) {
           const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ chat_id: chatId, text: message }),
+            body: JSON.stringify({ chat_id: chatId, text: message, ...tgExtras }),
           });
           if (res.ok) return true;
           console.error(`[notify] TG API send failed for ${userId}: ${res.status}`);
