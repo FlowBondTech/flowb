@@ -2234,6 +2234,9 @@ export function startTelegramBot(
       "/sponsor - View or create sponsorships",
       "/topsponsor - Top sponsored leaderboard",
       "/leaderboard - Global points leaderboard",
+      "/whatsnew - What's new this week",
+      "/whatsnew today - Today's updates",
+      "/whatsnew <i>keyword</i> - Search updates",
       "/todo - View or add project todos",
       "",
       "<b>Account</b>",
@@ -2249,6 +2252,141 @@ export function startTelegramBot(
       parse_mode: "HTML",
       reply_markup: buildBackToMenuKeyboard(),
     });
+  });
+
+  // ========================================================================
+  // /whatsnew, /changelog - Show recent development updates from GitHub
+  // ========================================================================
+
+  async function fetchGitChangelog(period: "today" | "week" | "month" | "all" = "week", query?: string): Promise<string> {
+    const repo = "FlowBondTech/flowb";
+    const perPage = period === "today" ? 20 : period === "week" ? 50 : 30;
+    const since = period === "today"
+      ? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      : period === "week"
+        ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+        : period === "month"
+          ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+          : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+    try {
+      const url = `https://api.github.com/repos/${repo}/commits?sha=main&since=${since}&per_page=${perPage}`;
+      const ghToken = process.env.GITHUB_TOKEN;
+      const headers: Record<string, string> = {
+        Accept: "application/vnd.github.v3+json",
+        "User-Agent": "FlowB-Bot",
+      };
+      if (ghToken) headers.Authorization = `Bearer ${ghToken}`;
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) return "Couldn't fetch updates right now. Try again later.";
+
+      const commits = (await res.json()) as any[];
+
+      // Filter out auto-generated docs commits
+      const meaningful = commits.filter((c: any) => {
+        const msg = c.commit?.message || "";
+        return !msg.startsWith("docs: auto-generate");
+      });
+
+      // Filter by search query if provided
+      const filtered = query
+        ? meaningful.filter((c: any) => {
+            const msg = (c.commit?.message || "").toLowerCase();
+            return msg.includes(query.toLowerCase());
+          })
+        : meaningful;
+
+      if (filtered.length === 0) {
+        return query
+          ? `No commits matching "${query}" found in the ${period} period.`
+          : `No meaningful updates in the ${period} period.`;
+      }
+
+      // Categorize commits
+      const categories: Record<string, string[]> = {};
+      for (const c of filtered) {
+        const msg = (c.commit?.message || "").split("\n")[0];
+        const lower = msg.toLowerCase();
+        let cat = "Other";
+        if (lower.startsWith("fix") || lower.includes("bug")) cat = "Bug Fixes";
+        else if (lower.startsWith("add") || lower.startsWith("feat") || lower.startsWith("new")) cat = "New Features";
+        else if (lower.startsWith("improve") || lower.startsWith("update") || lower.startsWith("enhance")) cat = "Improvements";
+        else if (lower.startsWith("refactor")) cat = "Refactoring";
+        else if (lower.startsWith("remove") || lower.startsWith("delete")) cat = "Removed";
+        else if (lower.startsWith("switch") || lower.startsWith("change")) cat = "Changes";
+        else if (lower.startsWith("close") || lower.startsWith("polish")) cat = "Improvements";
+        else cat = "Updates";
+
+        if (!categories[cat]) categories[cat] = [];
+        const date = new Date(c.commit?.author?.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        categories[cat].push(`  \u2022 ${escapeHtml(msg)} <i>(${date})</i>`);
+      }
+
+      const periodLabel = period === "today" ? "Today" : period === "week" ? "This Week" : period === "month" ? "This Month" : "Recent";
+      const lines = [`<b>\u{1F4CB} FlowB ${periodLabel}${query ? ` — "${escapeHtml(query)}"` : ""}</b>`, `<i>${filtered.length} update${filtered.length !== 1 ? "s" : ""}</i>`, ""];
+
+      const order = ["New Features", "Improvements", "Bug Fixes", "Changes", "Refactoring", "Removed", "Updates"];
+      const icons: Record<string, string> = {
+        "New Features": "\u2728", "Improvements": "\uD83D\uDD3C", "Bug Fixes": "\uD83D\uDC1B",
+        "Changes": "\uD83D\uDD04", "Refactoring": "\u267B\uFE0F", "Removed": "\uD83D\uDDD1\uFE0F", "Updates": "\uD83D\uDCE6",
+      };
+
+      for (const cat of order) {
+        if (categories[cat]?.length) {
+          lines.push(`${icons[cat] || "\uD83D\uDCE6"} <b>${cat}</b>`);
+          lines.push(...categories[cat].slice(0, 10));
+          if (categories[cat].length > 10) lines.push(`  <i>...and ${categories[cat].length - 10} more</i>`);
+          lines.push("");
+        }
+      }
+
+      return lines.join("\n");
+    } catch (err) {
+      console.error("[changelog] fetch error:", err);
+      return "Couldn't fetch updates right now. Try again later.";
+    }
+  }
+
+  bot.command(["whatsnew", "changelog", "updates"], async (ctx) => {
+    const tgId = ctx.from!.id;
+    fireAndForget(core.awardPoints(userId(tgId), "telegram", "changelog_viewed"), "award points");
+
+    const args = ctx.match?.trim().toLowerCase() || "";
+    let period: "today" | "week" | "month" | "all" = "week";
+    let query: string | undefined;
+
+    if (args === "today" || args === "day") period = "today";
+    else if (args === "week" || args === "") period = "week";
+    else if (args === "month") period = "month";
+    else if (args === "all") period = "all";
+    else query = ctx.match?.trim(); // Treat as search query
+
+    const changelog = await fetchGitChangelog(period, query);
+    await ctx.reply(changelog, {
+      parse_mode: "HTML",
+      reply_markup: new InlineKeyboard()
+        .text("Today", "changelog_today")
+        .text("This Week", "changelog_week")
+        .text("This Month", "changelog_month"),
+    });
+  });
+
+  // Callback buttons for changelog time periods
+  bot.callbackQuery(/^changelog_(today|week|month)$/, async (ctx) => {
+    const period = ctx.match![1] as "today" | "week" | "month";
+    const changelog = await fetchGitChangelog(period);
+    await ctx.editMessageText(changelog, {
+      parse_mode: "HTML",
+      reply_markup: {
+        inline_keyboard: [[
+          { text: period === "today" ? "\u2705 Today" : "Today", callback_data: "changelog_today" },
+          { text: period === "week" ? "\u2705 This Week" : "This Week", callback_data: "changelog_week" },
+          { text: period === "month" ? "\u2705 This Month" : "This Month", callback_data: "changelog_month" },
+        ]],
+      },
+    });
+    await ctx.answerCallbackQuery();
   });
 
   // /todo - View and manage project todos
@@ -5925,6 +6063,8 @@ export function startTelegramBot(
     { command: "leads", description: "View your lead pipeline" },
     { command: "pipeline", description: "Pipeline overview by stage" },
     { command: "biz", description: "Business dashboard & tools" },
+    { command: "whatsnew", description: "What's new - recent updates & features" },
+    { command: "changelog", description: "Development changelog" },
     { command: "suggestfeature", description: "Suggest a new feature" },
     { command: "reportbug", description: "Report a bug" },
     { command: "register", description: "Connect your account" },
