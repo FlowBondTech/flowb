@@ -35,6 +35,9 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
   <a id="btn-tg" class="btn btn-telegram" style="display:none">
     Open in Telegram
   </a>
+  <a id="btn-bot" class="btn btn-web" style="display:none">
+    Join via Bot Chat
+  </a>
   <a href="https://flowb.me" class="btn btn-web" style="display:none" id="btn-web">
     Visit flowb.me
   </a>
@@ -60,8 +63,10 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
 
   var tgLink = 'https://t.me/Flow_b_bot/flowb?startapp=crew_' + code;
   var tgProto = 'tg://resolve?domain=Flow_b_bot&appname=flowb&startapp=crew_' + code;
+  var botLink = 'https://t.me/Flow_b_bot?start=crew_' + code;
   var btnTg = document.getElementById('btn-tg');
   btnTg.href = tgLink;
+  document.getElementById('btn-bot').href = botLink;
 
   var done = false;
   function show() {
@@ -69,6 +74,7 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
     document.getElementById('sp').style.display = 'none';
     document.getElementById('sub').textContent = 'Tap below to join this crew';
     btnTg.style.display = 'block';
+    document.getElementById('btn-bot').style.display = 'block';
     document.getElementById('btn-web').style.display = 'block';
     document.getElementById('hint').style.display = 'block';
   }

@@ -741,6 +741,7 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
   <p class="sub" id="sub">Opening Telegram...</p>
   <div class="sp" id="sp"></div>
   <a href="${tgDeepLink}" id="bt" class="btn bt" style="display:none">Open in Telegram</a>
+  <a href="https://t.me/${code.includes('/') ? '' : `Flow_b_bot?start=crew_${code}`}" id="bb" class="btn bw" style="display:none">Join via Bot Chat</a>
   <a href="https://flowb.me" class="btn bw" style="display:none" id="bw">Visit flowb.me</a>
   <p class="hint" id="h" style="display:none">Make sure you have Telegram installed on your device.</p>
 </div>
@@ -753,6 +754,7 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
     document.getElementById('sp').style.display='none';
     document.getElementById('sub').textContent='Tap below to join this crew';
     document.getElementById('bt').style.display='block';
+    document.getElementById('bb').style.display='block';
     document.getElementById('bw').style.display='block';
     document.getElementById('h').style.display='block';
   }

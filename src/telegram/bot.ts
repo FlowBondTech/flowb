@@ -942,14 +942,50 @@ export function startTelegramBot(
       return;
     }
 
+    // --- Crew deep link via bot: /start crew_CODE → auto-join + open mini app ---
+    if (args?.startsWith("crew_")) {
+      const crewCode = args.slice(5);
+      const flowPlugin = core.getFlowPlugin();
+      const flowCfg = core.getFlowConfig();
+      let joinMsg = "";
+      if (flowPlugin && flowCfg) {
+        try {
+          const result = await flowPlugin.crewJoin(flowCfg, userId(tgId), { action: "crew-join", referral_code: crewCode });
+          if (result.includes('"join_request_created"')) {
+            await handleJoinRequestCreated(result, core, flowPlugin, flowCfg, bot, tgId);
+            return;
+          }
+          joinMsg = result;
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_joined"), "award points");
+        } catch (err: any) {
+          const errMsg = err?.message || String(err);
+          if (errMsg.includes("already")) {
+            joinMsg = "You're already in this crew!";
+          } else {
+            joinMsg = `Couldn't join: ${errMsg}`;
+          }
+        }
+      } else {
+        joinMsg = "Crew system is not available right now.";
+      }
+      await ctx.reply(
+        `${markdownToHtml(joinMsg)}\n\n<i>Tap below to open your crew.</i>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: new InlineKeyboard()
+            .webApp("Open Crew", miniAppUrl ? `${miniAppUrl}?startapp=crew_${crewCode}` : `https://tg.flowb.me`)
+            .row()
+            .url("Share Link", `https://t.me/${botUsername}/flowb?startapp=crew_${crewCode}`),
+        },
+      );
+      return;
+    }
+
     // --- Mini app deep link params received by bot (redirect to mini app) ---
     // These happen when ?startapp= links somehow reach the bot, or user manually types them
-    const miniAppParams = ["crew_", "event_", "checkin_"];
+    const miniAppParams = ["event_", "checkin_"];
     const miniAppScreens = ["schedule", "chat", "socialb", "addevent", "home"];
     if (args && (miniAppParams.some((p) => args.startsWith(p)) || miniAppScreens.includes(args))) {
-      const appUrl = miniAppUrl
-        ? `${miniAppUrl}?startapp=${encodeURIComponent(args)}`
-        : `https://t.me/${botUsername}/flowb?startapp=${encodeURIComponent(args)}`;
       await ctx.reply(
         "<b>Opening FlowB...</b>\n\nTap the button below to continue.",
         {
@@ -5785,6 +5821,73 @@ export function startTelegramBot(
       reply_markup: PERSISTENT_KEYBOARD,
     });
     fireAndForget(core.awardPoints(userId(tgId), "telegram", "chat"), "award points");
+  });
+
+  // ========================================================================
+  // Inline query: share crews/events in any Telegram chat
+  // ========================================================================
+
+  bot.on("inline_query", async (ctx) => {
+    const query = (ctx.inlineQuery.query || "").trim().toLowerCase();
+    const tgId = ctx.from.id;
+
+    try {
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (!sbUrl || !sbKey) {
+        await ctx.answerInlineQuery([]);
+        return;
+      }
+
+      // Get user's crews
+      const memRes = await fetch(
+        `${sbUrl}/rest/v1/flowb_group_members?user_id=eq.telegram_${tgId}&select=group_id,role,flowb_groups(id,name,emoji,description,join_code,max_members)`,
+        { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } },
+      );
+      const memberships = memRes.ok ? (await memRes.json()) as any[] : [];
+
+      const results = memberships
+        .filter((m: any) => m.flowb_groups)
+        .filter((m: any) => {
+          if (!query) return true;
+          const g = m.flowb_groups;
+          return (g.name || "").toLowerCase().includes(query) ||
+                 (g.description || "").toLowerCase().includes(query);
+        })
+        .slice(0, 10)
+        .map((m: any) => {
+          const g = m.flowb_groups;
+          const joinLink = `https://t.me/${botUsername}/flowb?startapp=crew_${g.join_code}`;
+          const desc = g.description ? `${g.description}\n` : "";
+          return {
+            type: "article" as const,
+            id: g.id,
+            title: `${g.emoji || "\uD83D\uDC65"} ${g.name}`,
+            description: g.description || "Tap to share crew invite",
+            input_message_content: {
+              message_text:
+                `<b>${escapeHtml(g.emoji || "\uD83D\uDC65")} ${escapeHtml(g.name)}</b>\n` +
+                (desc ? `${escapeHtml(desc)}\n` : "") +
+                `Join my crew on FlowB!\n` +
+                `\u{1F449} <a href="${joinLink}">Tap here to join</a>`,
+              parse_mode: "HTML" as const,
+            },
+            reply_markup: {
+              inline_keyboard: [[
+                { text: "Join Crew", url: joinLink },
+              ]],
+            },
+          };
+        });
+
+      await ctx.answerInlineQuery(results as any, {
+        cache_time: 30,
+        is_personal: true,
+      });
+    } catch (err) {
+      console.error("[inline_query] error:", err);
+      await ctx.answerInlineQuery([]);
+    }
   });
 
   // ========================================================================

@@ -659,6 +659,12 @@ export function Crew({ crewId, checkinCode, onNavigate }: Props) {
 
   const shareCrewLink = () => {
     if (!selectedCrew) return;
+    // Use switchInlineQuery to share via bot inline mode (stays in Telegram, no browser)
+    if (tg?.switchInlineQuery) {
+      tg.switchInlineQuery(selectedCrew.name, ["users", "groups", "channels"]);
+      return;
+    }
+    // Fallback: use Telegram share dialog with t.me link
     const botUsername = "Flow_b_bot";
     const link = `https://t.me/${botUsername}/flowb?startapp=crew_${selectedCrew.join_code}`;
     tg?.openTelegramLink?.(
