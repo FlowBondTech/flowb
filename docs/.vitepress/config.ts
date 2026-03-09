@@ -87,6 +87,13 @@ export default defineConfig({
             { text: 'Points System', link: '/points' },
           ],
         },
+        {
+          text: 'FlowBond Platform',
+          collapsed: false,
+          items: [
+            { text: 'Email Provisioning', link: '/email' },
+          ],
+        },
       ],
     },
 
