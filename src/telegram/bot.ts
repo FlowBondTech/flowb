@@ -2,7 +2,7 @@
  * FlowB Telegram Bot (Grammy)
  *
  * Runs alongside the Fastify server in the same process.
- * Uses FlowBCore directly for event discovery and action routing.
+ * Uses FlowBCore directly for event search and action routing.
  */
 
 import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";

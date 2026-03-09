@@ -4,7 +4,7 @@
  * Webhook handler for WhatsApp Cloud API. Registers GET (verification)
  * and POST (message handling) routes on the Fastify instance.
  *
- * Uses FlowBCore directly for event discovery and action routing,
+ * Uses FlowBCore directly for event search and action routing,
  * mirroring the Telegram bot pattern.
  */
 

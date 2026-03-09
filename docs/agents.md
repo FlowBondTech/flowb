@@ -30,7 +30,7 @@ Skills are defined in `flowb_agent_skills` and cost USDC to equip:
 | Skill | Category | Price | Description |
 |-------|----------|-------|-------------|
 | `basic-search` | discovery | free | Basic event search |
-| `event-discovery` | discovery | $0.10 | Advanced event discovery |
+| `event-discovery` | discovery | $0.10 | Advanced event search |
 | `social-connector` | social | $0.25 | Social matching capabilities |
 | `mood-matcher` | social | $0.50 | AI-powered mood-based matching |
 

@@ -1,7 +1,7 @@
 /**
  * eGator Plugin for FlowB (Multi-Source)
  *
- * Event discovery aggregated from all configured sources:
+ * Event aggregation from all configured sources:
  * Luma, Tavily, Eventbrite, Brave, Resident Advisor, Lemonade, Sheeets, Google Places.
  * Uses Luma as the primary source with official API for rich features.
  */
@@ -37,7 +37,7 @@ import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
   id = "egator";
   name = "eGator Events";
-  description = "Multi-source event discovery and RSVP";
+  description = "Multi-source event aggregation and RSVP";
   eventSource = "egator";
 
   actions: Record<string, { description: string }> = {

@@ -246,7 +246,7 @@ FlowB exposes two backend servers:
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **eGator API** | \`egator-api.fly.dev\` | Event discovery (categories, discover, tonight) |
+| **eGator API** | \`egator-api.fly.dev\` | Event search (categories, discover, tonight) |
 | **FlowB API** | \`flowb.fly.dev\` | User auth, social, crews, points, RSVP, calendar |
 
 ---
@@ -452,7 +452,7 @@ title: Architecture
      +--------+--------+
      |                  |
 egator-api.fly.dev   flowb.fly.dev
-(Event Discovery)    (User/Social/Auth)
+(Events + Search)    (User/Social/Auth)
      |                  |
      +--------+---------+
               |
@@ -474,14 +474,14 @@ egator-api.fly.dev   flowb.fly.dev
 
 | Server | Domain | Purpose |
 |--------|--------|---------|
-| **eGator API** | \`egator-api.fly.dev\` | Event discovery, categories, search, tonight |
+| **eGator API** | \`egator-api.fly.dev\` | Event search, categories, tonight |
 | **FlowB API** | \`flowb.fly.dev\` | Auth, user profiles, crews, RSVP, points, calendar |
 
 ## Frontend Apps
 
 | App | Domain | Tech | Purpose |
 |-----|--------|------|---------|
-| **Web** | \`flowb.me\` | Static HTML/JS | Event discovery, auth, dashboard |
+| **Web** | \`flowb.me\` | Static HTML/JS | Events, auth, dashboard |
 | **Farcaster Mini App** | \`flowb-farcaster.netlify.app\` | Next.js static export | Farcaster frame mini app |
 | **Telegram Mini App** | \`flowb-telegram.netlify.app\` | Vite | Telegram WebApp mini app |
 | **Mobile** | App Store / TestFlight | Expo React Native | Native mobile app |

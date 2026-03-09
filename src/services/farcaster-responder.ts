@@ -203,7 +203,7 @@ export async function handleMention(event: MentionEvent, cfg: SbConfig): Promise
     }
 
     default: {
-      replyText = "Hey! I'm FlowB - your SXSW companion. Ask me about events tonight, free events, or the crew leaderboard. Or just open the app!";
+      replyText = "Hey! I'm FlowB -- helping you stay in the flow. Ask me about events tonight, free events, or the crew leaderboard. Or just open the app!";
       break;
     }
   }

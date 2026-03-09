@@ -9,7 +9,7 @@ interface Props {
 const FAQ_ITEMS = [
   {
     q: "What is FlowB?",
-    a: "FlowB is your event discovery companion. We aggregate side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore together.",
+    a: "FlowB helps you stay in the flow. We pull together side events, hackathons, parties, and meetups so you never miss what matters. Form crews with friends, earn points, and explore together.",
   },
   {
     q: "How do I earn points?",

@@ -3,7 +3,7 @@
  *
  * A privacy-centric assistant that helps users flow and bond.
  * Loads plugins for domain-specific capabilities:
- *   - egator: Aggregated multi-source event discovery
+ *   - egator: Aggregated multi-source event search
  *   - danz:   Dance community (optional plugin)
  *   - (more plugins coming: harmonik, etc.)
  */

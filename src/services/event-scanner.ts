@@ -119,7 +119,7 @@ function fuzzyMatchVenue(
   return null;
 }
 
-/** Scan for new events using the FlowBCore event discovery */
+/** Scan for new events using the FlowBCore event search */
 export async function scanForNewEvents(
   cfg: SbConfig,
   discoverFn: (opts: any) => Promise<EventResult[]>,

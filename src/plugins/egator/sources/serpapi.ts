@@ -2,7 +2,7 @@
  * SerpAPI Source Adapter
  *
  * Uses SerpAPI (serpapi.com) for:
- * 1. Event discovery via Google Search (EventSourceAdapter)
+ * 1. Event search via Google Search (EventSourceAdapter)
  * 2. General web search skill for FlowB
  *
  * Supports Google Search, Google Events, and Google Maps/Local results.

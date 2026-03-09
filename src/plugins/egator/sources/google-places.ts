@@ -1,6 +1,6 @@
 /**
  * Google Places Event Source Adapter
- * Uses Google Places API for venue-based event discovery
+ * Uses Google Places API for venue-based event search
  */
 
 import type { EventQuery, EventResult, EventSourceAdapter } from "../../../core/types.js";

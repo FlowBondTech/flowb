@@ -4,7 +4,7 @@
  * Webhook handler for signal-cli-rest-api. Registers a POST route on the
  * Fastify instance to receive incoming messages from Signal.
  *
- * Uses FlowBCore for event discovery and action routing, mirroring the
+ * Uses FlowBCore for event search and action routing, mirroring the
  * WhatsApp/Telegram bot pattern. Since Signal doesn't have interactive
  * buttons, navigation uses text commands and numbered selections.
  */

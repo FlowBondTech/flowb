@@ -503,7 +503,7 @@ export async function buildApp(core: FlowBCore) {
     return { action: input.action, result };
   });
 
-  // Convenience endpoint for event discovery
+  // Convenience endpoint for event search
   app.post<{ Body: ToolInput }>("/api/v1/events", async (request, reply) => {
     const input = request.body || {};
     const result = await core.discoverEvents({ ...input, action: "events" });

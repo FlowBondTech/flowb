@@ -1,7 +1,7 @@
 /**
  * HomeScreen
  *
- * Event discovery screen with animated collapsing header, search bar,
+ * Home screen with animated collapsing header, search bar,
  * horizontal filter chips, a buzz feed section, and event cards.
  * All content enters with staggered animations. Uses Reanimated scroll
  * handler for the collapsing glass header.
