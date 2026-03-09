@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
 
 import { BottomNav } from "./components/BottomNav";
+import { DesktopLanding } from "./components/DesktopLanding";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { Home } from "./screens/Home";
 import { EventDetail } from "./screens/EventDetail";
@@ -14,6 +15,17 @@ import { Settings } from "./screens/Settings";
 import { Agents } from "./screens/Agents";
 import { SocialB } from "./screens/SocialB";
 import { AddEvent } from "./screens/AddEvent";
+
+/** Detect whether we are running inside the Telegram WebApp context */
+function isInsideTelegram(): boolean {
+  const tg = (window as any).Telegram?.WebApp;
+  // initData is only populated when opened inside Telegram
+  if (tg?.initData && tg.initData.length > 0) return true;
+  // Also check the UA for the Telegram in-app browser
+  const ua = navigator.userAgent.toLowerCase();
+  if (ua.includes("telegram") || ua.includes("tgweb")) return true;
+  return false;
+}
 
 export type Screen =
   | { name: "home" }
@@ -34,6 +46,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>({ name: "home" });
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  // Detect if we're running outside Telegram (e.g. desktop browser)
+  const inTelegram = isInsideTelegram();
 
   // Parse deep link from startapp parameter
   const hasDeepLink = (() => {
@@ -104,6 +119,15 @@ export default function App() {
     if (screen.name === "crew" && "id" in screen) props.crew_id = screen.id;
     // screen tracking removed
   }, [screen]);
+
+  // If opened outside Telegram (e.g. desktop browser), show a landing page
+  // that directs the user to open the app in Telegram instead.
+  if (!inTelegram) {
+    // Forward any URL search params as a startapp deep link hint
+    const urlParam = new URLSearchParams(window.location.search).get("startapp");
+    const tgStart = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param;
+    return <DesktopLanding startParam={urlParam || tgStart || undefined} />;
+  }
 
   if (loading) {
     return (
