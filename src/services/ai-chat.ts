@@ -13,6 +13,7 @@ import { sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "./email.js
 import {
   createLead, listLeads, updateLead, getPipeline, getLeadTimeline,
   createMeeting, listMeetings, completeMeeting,
+  createTodo, listTodos,
   getMySettings, updateMySettings, getCrewSettings, updateCrewSettings,
   adminCrewAction,
   listAutomations, createAutomation, toggleAutomation,
@@ -483,6 +484,38 @@ const BIZ_TOOLS = [
           notes: { type: "string", description: "Meeting notes or action items" },
         },
         required: ["meeting_id"],
+      },
+    },
+  },
+  // Todo tools
+  {
+    type: "function" as const,
+    function: {
+      name: "create_todo",
+      description: "Create a new todo/task. Use when user says 'add todo', 'new task', 'remind me to', 'todo: [text]', or any variation of adding a task or reminder.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Todo title or description" },
+          priority: { type: "string", enum: ["low", "medium", "high", "critical"], description: "Priority level (default medium)" },
+          category: { type: "string", description: "Category tag (e.g. general, dev, design, ops)" },
+          assigned_to: { type: "string", description: "Person to assign to (name or user ID)" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_todos",
+      description: "List todos/tasks. Use when user says 'my todos', 'task list', 'show tasks', 'what needs to be done'.",
+      parameters: {
+        type: "object",
+        properties: {
+          status: { type: "string", enum: ["open", "in_progress", "done"], description: "Filter by status (default open)" },
+          limit: { type: "number", description: "Max results (default 20)" },
+        },
       },
     },
   },
@@ -1923,6 +1956,11 @@ LEADS & CRM:
 - When someone says "pipeline" or "how many leads", call get_pipeline.
 - For details on a specific lead, call get_lead_timeline.
 
+TODOS & TASKS:
+- When someone says "add todo", "new task", "remind me to", "todo: [text]", call create_todo.
+- When someone says "my todos", "task list", "show tasks", "what needs done", call list_todos.
+- When someone asks you to "set a reminder", create a todo as the reminder (we don't have push reminders yet, but tracking the task is the first step).
+
 MEETINGS:
 - When someone says "schedule coffee with [name]" or "meet with [name]", call create_meeting.
 - When someone says "my meetings" or "upcoming meetings", call list_meetings.
@@ -2171,6 +2209,12 @@ export async function handleChat(
             break;
           case "complete_meeting":
             result = await completeMeeting(args, bizUser, sb);
+            break;
+          case "create_todo":
+            result = await createTodo(args, bizUser, sb);
+            break;
+          case "list_todos":
+            result = await listTodos(args, bizUser, sb);
             break;
           case "get_my_settings":
             result = await getMySettings(args, bizUser, sb);
