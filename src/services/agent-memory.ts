@@ -2,6 +2,7 @@
  * Agent Memory Service — RAG-based persistent memory for FlowB AI
  *
  * Uses Supabase pgvector for hybrid search (vector + BM25 via RRF).
+ * Falls back to FTS-only when no embedding API key is configured.
  * Memories are extracted from conversations and stored per-user,
  * shared across all platforms (Telegram, Farcaster, Web).
  */
@@ -25,8 +26,12 @@ export interface Memory {
 
 export interface MemoryConfig {
   sb: SbConfig;
+  /** OpenAI-compatible API key for embeddings. If unset, FTS-only mode. */
   openaiKey?: string;
+  /** Embedding model name (default: text-embedding-3-small) */
   embeddingModel?: string;
+  /** Base URL for embedding API (default: https://api.openai.com) */
+  embeddingBaseUrl?: string;
 }
 
 // ─── Embedding Generation ────────────────────────────────────────────
@@ -34,15 +39,21 @@ export interface MemoryConfig {
 const EMBEDDING_CACHE = new Map<string, number[]>();
 const CACHE_MAX = 500;
 
-async function generateEmbedding(text: string, config: MemoryConfig): Promise<number[]> {
+function hasEmbeddingKey(config: MemoryConfig): boolean {
+  return !!(config.openaiKey || process.env.OPENAI_API_KEY);
+}
+
+async function generateEmbedding(text: string, config: MemoryConfig): Promise<number[] | null> {
+  const apiKey = config.openaiKey || process.env.OPENAI_API_KEY;
+  if (!apiKey) return null; // FTS-only mode
+
   const cacheKey = text.slice(0, 200);
   const cached = EMBEDDING_CACHE.get(cacheKey);
   if (cached) return cached;
 
-  const apiKey = config.openaiKey || process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("No OpenAI API key for embeddings");
+  const baseUrl = config.embeddingBaseUrl || process.env.EMBEDDING_BASE_URL || "https://api.openai.com";
 
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
+  const res = await fetch(`${baseUrl}/v1/embeddings`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -50,13 +61,14 @@ async function generateEmbedding(text: string, config: MemoryConfig): Promise<nu
     },
     body: JSON.stringify({
       input: text,
-      model: config.embeddingModel || "text-embedding-3-small",
+      model: config.embeddingModel || process.env.EMBEDDING_MODEL || "text-embedding-3-small",
     }),
   });
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Embedding API error ${res.status}: ${err}`);
+    console.error(`[agent-memory] Embedding API error ${res.status}: ${err}`);
+    return null; // Fallback to FTS-only
   }
 
   const data = await res.json();
@@ -84,6 +96,19 @@ export async function storeMemory(
   try {
     const embedding = await generateEmbedding(content, config);
 
+    const body: Record<string, any> = {
+      user_id: userId,
+      memory_type: type,
+      content,
+      metadata,
+      importance: Math.min(Math.max(importance, 0), 1),
+    };
+
+    // Only include embedding if we got one
+    if (embedding) {
+      body.embedding = `[${embedding.join(",")}]`;
+    }
+
     const res = await fetch(`${config.sb.supabaseUrl}/rest/v1/flowb_agent_memories`, {
       method: "POST",
       headers: {
@@ -92,14 +117,7 @@ export async function storeMemory(
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
-      body: JSON.stringify({
-        user_id: userId,
-        memory_type: type,
-        content,
-        embedding: `[${embedding.join(",")}]`,
-        metadata,
-        importance: Math.min(Math.max(importance, 0), 1),
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -115,7 +133,7 @@ export async function storeMemory(
   }
 }
 
-// ─── Memory Retrieval (Hybrid Search) ────────────────────────────────
+// ─── Memory Retrieval (Hybrid or FTS-only) ───────────────────────────
 
 export async function searchMemories(
   config: MemoryConfig,
@@ -129,63 +147,115 @@ export async function searchMemories(
   } = {},
 ): Promise<Memory[]> {
   try {
-    const embedding = await generateEmbedding(query, config);
     const { types, limit = 10, threshold = 0.3, hybrid = true } = options;
+    const embedding = await generateEmbedding(query, config);
 
-    const res = await fetch(`${config.sb.supabaseUrl}/rest/v1/rpc/match_agent_memories`, {
+    // If we have an embedding, use the hybrid/vector RPC
+    if (embedding) {
+      return await searchWithVector(config, userId, query, embedding, { types, limit, threshold, hybrid });
+    }
+
+    // No embedding key → FTS-only search
+    return await searchFtsOnly(config, userId, query, { types, limit });
+  } catch (err) {
+    console.error("[agent-memory] searchMemories error:", err);
+    return [];
+  }
+}
+
+async function searchWithVector(
+  config: MemoryConfig,
+  userId: string,
+  query: string,
+  embedding: number[],
+  options: { types?: MemoryType[]; limit: number; threshold: number; hybrid: boolean },
+): Promise<Memory[]> {
+  const res = await fetch(`${config.sb.supabaseUrl}/rest/v1/rpc/match_agent_memories`, {
+    method: "POST",
+    headers: {
+      apikey: config.sb.supabaseKey,
+      Authorization: `Bearer ${config.sb.supabaseKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query_embedding: `[${embedding.join(",")}]`,
+      query_text: options.hybrid ? query : "",
+      match_user_id: userId,
+      match_types: options.types || null,
+      match_count: options.limit,
+      similarity_threshold: options.threshold,
+      use_hybrid: options.hybrid,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("[agent-memory] search RPC error:", res.status);
+    return [];
+  }
+
+  const rows = await res.json();
+  touchMemories(config, rows);
+  return mapRows(rows);
+}
+
+async function searchFtsOnly(
+  config: MemoryConfig,
+  userId: string,
+  query: string,
+  options: { types?: MemoryType[]; limit: number },
+): Promise<Memory[]> {
+  const res = await fetch(`${config.sb.supabaseUrl}/rest/v1/rpc/search_memories_fts`, {
+    method: "POST",
+    headers: {
+      apikey: config.sb.supabaseKey,
+      Authorization: `Bearer ${config.sb.supabaseKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      query_text: query,
+      match_user_id: userId,
+      match_types: options.types || null,
+      match_count: options.limit,
+    }),
+  });
+
+  if (!res.ok) {
+    console.error("[agent-memory] FTS search error:", res.status);
+    return [];
+  }
+
+  const rows = await res.json();
+  touchMemories(config, rows);
+  return mapRows(rows);
+}
+
+function touchMemories(config: MemoryConfig, rows: any[]) {
+  if (rows?.length) {
+    const ids = rows.map((r: any) => r.id);
+    fetch(`${config.sb.supabaseUrl}/rest/v1/rpc/touch_memories`, {
       method: "POST",
       headers: {
         apikey: config.sb.supabaseKey,
         Authorization: `Bearer ${config.sb.supabaseKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        query_embedding: `[${embedding.join(",")}]`,
-        query_text: hybrid ? query : "",
-        match_user_id: userId,
-        match_types: types || null,
-        match_count: limit,
-        similarity_threshold: threshold,
-        use_hybrid: hybrid,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error("[agent-memory] search RPC error:", res.status);
-      return [];
-    }
-
-    const rows = await res.json();
-
-    // Touch accessed memories (fire-and-forget)
-    if (rows?.length) {
-      const ids = rows.map((r: any) => r.id);
-      fetch(`${config.sb.supabaseUrl}/rest/v1/rpc/touch_memories`, {
-        method: "POST",
-        headers: {
-          apikey: config.sb.supabaseKey,
-          Authorization: `Bearer ${config.sb.supabaseKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ memory_ids: ids }),
-      }).catch(() => {});
-    }
-
-    return (rows || []).map((r: any) => ({
-      id: r.id,
-      userId: r.user_id,
-      memoryType: r.memory_type,
-      content: r.content,
-      metadata: r.metadata,
-      importance: r.importance,
-      similarity: r.similarity,
-      combinedScore: r.combined_score,
-      createdAt: r.created_at,
-    }));
-  } catch (err) {
-    console.error("[agent-memory] searchMemories error:", err);
-    return [];
+      body: JSON.stringify({ memory_ids: ids }),
+    }).catch(() => {});
   }
+}
+
+function mapRows(rows: any[]): Memory[] {
+  return (rows || []).map((r: any) => ({
+    id: r.id,
+    userId: r.user_id,
+    memoryType: r.memory_type,
+    content: r.content,
+    metadata: r.metadata || {},
+    importance: r.importance,
+    similarity: r.similarity,
+    combinedScore: r.combined_score,
+    createdAt: r.created_at,
+  }));
 }
 
 // ─── Memory Extraction from Conversations ────────────────────────────
@@ -287,7 +357,7 @@ export async function getMemoryContext(
 
 /**
  * Post-conversation: extract facts and store as memories.
- * Deduplicates against existing memories (cosine > 0.85).
+ * Deduplicates against existing memories (cosine > 0.85 or FTS match).
  * Fire-and-forget — call without awaiting.
  */
 export async function processConversationMemories(
@@ -300,25 +370,33 @@ export async function processConversationMemories(
 
   const extracted = await extractMemories(messages, xaiKey);
   let stored = 0;
+  const useVectors = hasEmbeddingKey(config);
 
   for (const mem of extracted) {
     // Deduplicate: check for very similar existing memory
+    const dedupThreshold = useVectors ? 0.85 : 0.5;
     const existing = await searchMemories(config, userId, mem.content, {
       limit: 1,
-      threshold: 0.85,
+      threshold: dedupThreshold,
     });
 
-    if (existing.length && existing[0].similarity && existing[0].similarity > 0.85) {
-      // Reinforce existing memory instead of duplicating
-      await sbPatchRaw(
-        config.sb,
-        `flowb_agent_memories?id=eq.${existing[0].id}`,
-        {
-          importance: Math.min(existing[0].importance + 0.1, 1.0),
-          updated_at: new Date().toISOString(),
-        },
-      );
-      continue;
+    if (existing.length) {
+      const isDuplicate = useVectors
+        ? (existing[0].similarity && existing[0].similarity > 0.85)
+        : true; // FTS returned a match, treat as duplicate
+
+      if (isDuplicate) {
+        // Reinforce existing memory instead of duplicating
+        await sbPatchRaw(
+          config.sb,
+          `flowb_agent_memories?id=eq.${existing[0].id}`,
+          {
+            importance: Math.min(existing[0].importance + 0.1, 1.0),
+            updated_at: new Date().toISOString(),
+          },
+        );
+        continue;
+      }
     }
 
     const id = await storeMemory(
@@ -334,7 +412,7 @@ export async function processConversationMemories(
   }
 
   if (stored > 0) {
-    console.log(`[agent-memory] Stored ${stored} new memories for ${userId}`);
+    console.log(`[agent-memory] Stored ${stored} new memories for ${userId}${useVectors ? "" : " (FTS-only mode)"}`);
   }
 
   return stored;
