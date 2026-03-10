@@ -61,6 +61,7 @@ FlowB exposes two backend servers:
 | `DELETE` | `/api/v1/me/push-token` | Yes |  |
 | `GET` | `/api/v1/me/notifications` | Yes |  |
 | `POST` | `/api/v1/me/notifications/read` | Yes |  |
+| `GET` | `/api/v1/me/notifications/stream` | Yes |  |
 | `GET` | `/api/v1/me/preferences` | Yes |  |
 | `PATCH` | `unknown` | No |  |
 | `GET` | `/api/v1/flow/friends/nearby` | Yes |  |
@@ -475,4 +476,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-10 22:04:03 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-10 22:53:23 UTC*
