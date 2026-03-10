@@ -72,9 +72,9 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
       this.adapters.push(this.luma);
       console.log("[egator] Source: Luma (official + discover)");
     }
-    if (src.tavily?.apiKey) {
-      this.adapters.push(new TavilyAdapter(src.tavily.apiKey));
-      console.log("[egator] Source: Tavily (universal scraper)");
+    if (src.tavily?.apiKey || src.tavily?.enabled) {
+      this.adapters.push(new TavilyAdapter());
+      console.log("[egator] Source: DuckDuckGo Events (free, replaces Tavily)");
     }
     if (src.eventbrite?.apiKey) {
       this.adapters.push(new EventbriteAdapter(src.eventbrite.apiKey));

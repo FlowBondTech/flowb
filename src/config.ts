@@ -117,8 +117,10 @@ function buildEgatorConfig(): EGatorPluginConfig | undefined {
     sources.luma = { apiKey: process.env.LUMA_API_KEY };
     hasAny = true;
   }
-  if (process.env.TAVILY_API_KEY) {
-    sources.tavily = { apiKey: process.env.TAVILY_API_KEY };
+  // DuckDuckGo adapter (free, replaces Tavily - no API key needed)
+  // Enable with TAVILY_API_KEY (compat, ignored) or DDG_EVENTS=1
+  if (process.env.TAVILY_API_KEY || process.env.DDG_EVENTS) {
+    sources.tavily = { apiKey: process.env.TAVILY_API_KEY || "", enabled: true };
     hasAny = true;
   }
   if (process.env.EVENTBRITE_API_KEY) {

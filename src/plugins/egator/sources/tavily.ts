@@ -1,18 +1,26 @@
 /**
- * Tavily Event Source Adapter
+ * DuckDuckGo Event Source Adapter (replaces Tavily - no API key needed)
  *
  * Two-phase approach:
- *   1. Search: Find event page URLs on lu.ma, eventbrite, dice.fm, ra.co, etc.
- *   2. Extract: Scrape those pages for structured event data (title, date, venue, price)
+ *   1. Search: DuckDuckGo HTML search with site: filters to find event page URLs
+ *   2. Extract: Direct fetch + JSON-LD / text parsing for structured event data
  *
- * This turns Tavily into a universal event scraper that works across any event platform.
+ * Universal event scraper that works across any event platform, completely free.
  */
 
 import type { EventQuery, EventResult, EventSourceAdapter } from "../../../core/types.js";
-import { isEventPage, parseEventContent, extractSource, hashString, fetchOgImage } from "./parse-utils.js";
+import {
+  isEventPage,
+  parseEventContent,
+  extractSource,
+  hashString,
+  fetchHtml,
+  fetchOgImage,
+  parseJsonLd,
+  jsonLdToEventResult,
+} from "./parse-utils.js";
 
-const TAVILY_SEARCH = "https://api.tavily.com/search";
-const TAVILY_EXTRACT = "https://api.tavily.com/extract";
+const DDG_HTML = "https://html.duckduckgo.com/html/";
 
 const EVENT_DOMAINS = [
   "lu.ma", "eventbrite.com", "ra.co", "dice.fm",
@@ -20,157 +28,165 @@ const EVENT_DOMAINS = [
 ];
 
 export class TavilyAdapter implements EventSourceAdapter {
-  id = "tavily";
-  name = "Tavily";
+  id = "ddg";
+  name = "DuckDuckGo Events";
 
-  constructor(private apiKey: string) {}
+  // apiKey kept for interface compat but unused
+  constructor(private apiKey?: string) {}
 
   async fetchEvents(params: EventQuery): Promise<EventResult[]> {
     try {
-      // Phase 1: Search for event page URLs (multiple queries for better coverage)
+      // Phase 1: Search for event page URLs
       const urls = await this.searchEventUrls(params);
       if (!urls.length) {
-        console.log("[egator:tavily] No event URLs found");
+        console.log("[egator:ddg] No event URLs found");
         return [];
       }
-      console.log(`[egator:tavily] Found ${urls.length} event URLs`);
+      console.log(`[egator:ddg] Found ${urls.length} event URLs`);
 
-      // Phase 2: Extract structured content from event pages
+      // Phase 2: Fetch & parse each page directly
       const events = await this.extractEvents(urls, params);
-      console.log(`[egator:tavily] Parsed ${events.length} events from ${urls.length} pages`);
+      console.log(`[egator:ddg] Parsed ${events.length} events from ${urls.length} pages`);
       return events;
     } catch (err: any) {
-      console.error("[egator:tavily] Fetch error:", err.message);
+      console.error("[egator:ddg] Fetch error:", err.message);
       return [];
     }
   }
 
   // ==========================================================================
-  // Phase 1: Search for event URLs
+  // Phase 1: Search for event URLs via DuckDuckGo
   // ==========================================================================
 
   private async searchEventUrls(params: EventQuery): Promise<string[]> {
-    // Build multiple search queries for better coverage
     const queries = this.buildSearchQueries(params);
     const allUrls = new Set<string>();
 
-    // Run searches in parallel
-    const results = await Promise.allSettled(
-      queries.map((query) => this.runSearch(query))
-    );
-
-    for (const result of results) {
-      if (result.status === "fulfilled") {
-        for (const url of result.value) allUrls.add(url);
-      }
+    // Run searches sequentially to avoid DDG rate limiting
+    for (const query of queries) {
+      const urls = await this.runSearch(query);
+      for (const url of urls) allUrls.add(url);
+      // Small delay between queries
+      if (queries.length > 1) await sleep(500);
     }
 
-    return [...allUrls].slice(0, 10); // Extract up to 10 pages
+    return Array.from(allUrls).slice(0, 10);
   }
 
   private buildSearchQueries(params: EventQuery): string[] {
     const queries: string[] = [];
     const city = params.city || "Austin";
+    const siteFilter = EVENT_DOMAINS.map((d) => `site:${d}`).join(" OR ");
 
-    // Primary: category/style specific
     if (params.danceStyle || params.category) {
       const focus = params.danceStyle || params.category;
-      queries.push(`${focus} events ${city} March 2026`);
+      queries.push(`(${siteFilter}) ${focus} events ${city} 2026`);
     }
 
-    // SXSW focus (always include for Austin)
     if (city.toLowerCase().includes("austin")) {
-      queries.push("SXSW 2026 side event RSVP register");
-      queries.push("SXSW Austin March 2026 party showcase");
-      queries.push("Austin tech music film event March 12 13 14 15 16 17 18 2026");
+      queries.push(`(${siteFilter}) SXSW 2026 event RSVP`);
+      queries.push(`(${siteFilter}) Austin March 2026 party showcase`);
     }
 
-    // General city events
-    queries.push(`upcoming event ${city} March 2026 RSVP`);
+    queries.push(`(${siteFilter}) upcoming event ${city} 2026`);
 
     return queries;
   }
 
   private async runSearch(query: string): Promise<string[]> {
-    console.log(`[egator:tavily] Search: "${query}"`);
+    console.log(`[egator:ddg] Search: "${query}"`);
 
-    const res = await fetch(TAVILY_SEARCH, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: this.apiKey,
-        query,
-        max_results: 10,
-        search_depth: "basic",
-        include_domains: EVENT_DOMAINS,
-      }),
-    });
+    try {
+      const body = new URLSearchParams({ q: query });
+      const res = await fetch(DDG_HTML, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "FlowB-EventScanner/1.0 (https://flowb.me; events@flowb.me)",
+        },
+        body: body.toString(),
+        signal: AbortSignal.timeout(15000),
+      });
 
-    if (!res.ok) {
-      console.error(`[egator:tavily] Search ${res.status}: ${await res.text()}`);
+      if (!res.ok) {
+        console.error(`[egator:ddg] Search HTTP ${res.status}`);
+        return [];
+      }
+
+      const html = await res.text();
+      return this.parseSearchResults(html);
+    } catch (err: any) {
+      console.error(`[egator:ddg] Search error: ${err.message}`);
       return [];
     }
+  }
 
-    const data = await res.json();
-    const results = data.results || [];
+  private parseSearchResults(html: string): string[] {
+    const urls: string[] = [];
 
-    // Filter for actual event pages (not listing/index pages)
-    const urls = results
-      .map((r: any) => r.url as string)
-      .filter((url: string) => isEventPage(url));
+    // DDG HTML results have links in <a class="result__a" href="...">
+    // or redirect URLs like //duckduckgo.com/l/?uddg=ENCODED_URL
+    const linkRegex = /class="result__a"[^>]*href="([^"]+)"/g;
+    let match;
 
-    console.log(`[egator:tavily] Search returned ${results.length} results, ${urls.length} event pages`);
+    while ((match = linkRegex.exec(html)) !== null) {
+      let href = match[1];
+
+      // DDG wraps URLs in redirect: //duckduckgo.com/l/?uddg=ENCODED_URL
+      if (href.includes("uddg=")) {
+        const encoded = href.split("uddg=")[1]?.split("&")[0];
+        if (encoded) href = decodeURIComponent(encoded);
+      }
+
+      // Only keep event page URLs
+      if (href.startsWith("http") && isEventPage(href)) {
+        urls.push(href);
+      }
+    }
+
+    // Also try extracting from result snippets that contain URLs
+    const snippetUrlRegex = /href="(https?:\/\/(?:lu\.ma|.*eventbrite\.com|.*ra\.co|.*dice\.fm|.*partiful\.com)[^"]+)"/g;
+    while ((match = snippetUrlRegex.exec(html)) !== null) {
+      if (isEventPage(match[1]) && !urls.includes(match[1])) {
+        urls.push(match[1]);
+      }
+    }
+
+    console.log(`[egator:ddg] Parsed ${urls.length} event URLs from search results`);
     return urls;
   }
 
   // ==========================================================================
-  // Phase 2: Extract structured event data from pages
+  // Phase 2: Direct fetch + parse event pages
   // ==========================================================================
 
   private async extractEvents(urls: string[], params: EventQuery): Promise<EventResult[]> {
     if (!urls.length) return [];
 
-    const res = await fetch(TAVILY_EXTRACT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: this.apiKey,
-        urls,
-        extract_depth: "basic",
-        format: "text",
-        chunks_per_source: 3,
-      }),
-    });
-
-    if (!res.ok) {
-      console.error(`[egator:tavily] Extract ${res.status}: ${await res.text()}`);
-      return [];
-    }
-
-    const data = await res.json();
-    const results = data.results || [];
-
+    // Fetch pages in parallel (max 5 concurrent)
     const events: EventResult[] = [];
+    const chunks = chunkArray(urls, 5);
 
-    for (const result of results) {
-      const parsed = parseEventContent(result.raw_content, result.url, params);
-      if (parsed) {
-        // Tavily includes images array when available
-        if (!parsed.imageUrl && result.images?.length) {
-          parsed.imageUrl = result.images[0];
+    for (const chunk of chunks) {
+      const results = await Promise.allSettled(
+        chunk.map((url) => this.extractSingleEvent(url, params))
+      );
+
+      for (const result of results) {
+        if (result.status === "fulfilled" && result.value) {
+          events.push(result.value);
         }
-        events.push(parsed);
       }
     }
 
     // Backfill og:image for events still missing images
-    const needsImage = events.filter(e => !e.imageUrl && e.url);
+    const needsImage = events.filter((e) => !e.imageUrl && e.url);
     if (needsImage.length) {
-      const results2 = await Promise.allSettled(
-        needsImage.map(e => fetchOgImage(e.url!))
+      const imgResults = await Promise.allSettled(
+        needsImage.map((e) => fetchOgImage(e.url!))
       );
       for (let i = 0; i < needsImage.length; i++) {
-        const r = results2[i];
+        const r = imgResults[i];
         if (r.status === "fulfilled" && r.value) {
           needsImage[i].imageUrl = r.value;
         }
@@ -179,55 +195,113 @@ export class TavilyAdapter implements EventSourceAdapter {
 
     return events;
   }
+
+  private async extractSingleEvent(url: string, params: EventQuery): Promise<EventResult | null> {
+    const html = await fetchHtml(url, { retries: 1, timeoutMs: 10000 });
+    if (!html) return null;
+
+    // Try JSON-LD first (most structured, best data)
+    const jsonLdEvents = parseJsonLd(html);
+    if (jsonLdEvents.length) {
+      const source = extractSource(url);
+      const event = jsonLdToEventResult(jsonLdEvents[0], url, source, params.city);
+      if (event) return event;
+    }
+
+    // Fall back to text-based parsing
+    // Strip HTML tags for text content (simple approach)
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+
+    return parseEventContent(text, url, params);
+  }
 }
 
 // Parsing utilities re-exported from shared module
 export { isEventPage, parseEventContent, extractSource, hashString } from "./parse-utils.js";
 
 // ============================================================================
-// Single-URL extraction (used by event-link action)
+// Single-URL extraction (used by event-link action) - now free, no API key
 // ============================================================================
 
 export async function extractEventFromUrl(
-  apiKey: string,
+  _apiKey: string,
   url: string,
   city?: string,
 ): Promise<EventResult | null> {
   try {
-    const res = await fetch(TAVILY_EXTRACT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        api_key: apiKey,
-        urls: [url],
-        extract_depth: "basic",
-        format: "text",
-        chunks_per_source: 3,
-      }),
-    });
+    const html = await fetchHtml(url, { retries: 1, timeoutMs: 10000 });
+    if (!html) return null;
 
-    if (!res.ok) {
-      console.error(`[egator:tavily] Extract single ${res.status}: ${await res.text()}`);
-      return null;
+    // Try JSON-LD first
+    const jsonLdEvents = parseJsonLd(html);
+    if (jsonLdEvents.length) {
+      const source = extractSource(url);
+      const event = jsonLdToEventResult(jsonLdEvents[0], url, source, city);
+      if (event) {
+        if (!event.imageUrl) {
+          const ogImg = extractOgImageFromHtml(html);
+          if (ogImg) event.imageUrl = ogImg;
+        }
+        return event;
+      }
     }
 
-    const data = await res.json();
-    const results = data.results || [];
-    if (!results.length) return null;
+    // Fall back to text-based parsing
+    const text = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<[^>]+>/g, "\n")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
 
-    const result = results[0];
-    const parsed = parseEventContent(result.raw_content, result.url || url, { city });
+    const parsed = parseEventContent(text, url, { city });
     if (parsed && !parsed.imageUrl) {
-      // Try Tavily images first, then og:image
-      if (result.images?.length) {
-        parsed.imageUrl = result.images[0];
-      } else {
-        parsed.imageUrl = await fetchOgImage(url) || undefined;
-      }
+      parsed.imageUrl = extractOgImageFromHtml(html) || undefined;
     }
     return parsed;
   } catch (err: any) {
-    console.error("[egator:tavily] extractEventFromUrl error:", err.message);
+    console.error("[egator:ddg] extractEventFromUrl error:", err.message);
     return null;
   }
+}
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+function extractOgImageFromHtml(html: string): string | undefined {
+  const head = html.slice(0, 50_000);
+  const ogMatch = head.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+    || head.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  if (ogMatch?.[1] && ogMatch[1].startsWith("http")) return ogMatch[1];
+  return undefined;
+}
+
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }

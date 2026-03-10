@@ -26,7 +26,7 @@ export interface DANZPluginConfig {
 export interface EGatorPluginConfig {
   sources?: {
     luma?: { apiKey: string };
-    tavily?: { apiKey: string };
+    tavily?: { apiKey?: string; enabled?: boolean };
     eventbrite?: { apiKey: string };
     brave?: { apiKey: string };
     ra?: { enabled: boolean };
