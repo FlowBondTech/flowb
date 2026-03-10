@@ -4,9 +4,22 @@
  * Gives FlowB's AI assistant real access to events, crews, friends,
  * locations, points, and the full platform via function calling.
  * Each tool maps to existing Supabase tables.
+ *
+ * Business tools (leads, meetings, settings, admin, billing) are in
+ * chat-tools-biz.ts and wired into the executor switch below.
  */
 import { sbFetch, sbPost, sbPatch, type SbConfig } from "../utils/supabase.js";
 import { sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "./email.js";
+import {
+  createLead, listLeads, updateLead, getPipeline, getLeadTimeline,
+  createMeeting, listMeetings, completeMeeting,
+  getMySettings, updateMySettings, getCrewSettings, updateCrewSettings,
+  adminCrewAction,
+  listAutomations, createAutomation, toggleAutomation,
+  getMyPlan,
+  fetchUserBizContext,
+  type BizUserContext,
+} from "./chat-tools-biz.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -16,11 +29,15 @@ export interface UserContext {
   displayName: string | null;
 }
 
+export type Platform = "telegram" | "web" | "farcaster" | "openclaw";
+
 export interface ChatConfig {
   sb: SbConfig;
   xaiKey: string;
   user: UserContext;
   model?: string;
+  /** Platform hint for formatting. Defaults to "web". */
+  platform?: Platform;
 }
 
 export interface ChatMessage {
@@ -300,6 +317,257 @@ const TOOLS = [
           title: { type: "string", description: "Optional title for the shared results page" },
         },
       },
+    },
+  },
+];
+
+// ─── Business tool definitions ───────────────────────────────────────
+
+const BIZ_TOOLS = [
+  // Lead tools
+  {
+    type: "function" as const,
+    function: {
+      name: "create_lead",
+      description: "Create a new business lead/contact. Use when user says 'met [name]', 'add lead', 'new contact'. Extracts name, company, email, phone, notes from natural language.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Person's name" },
+          company: { type: "string", description: "Company or organization name" },
+          email: { type: "string", description: "Email address" },
+          phone: { type: "string", description: "Phone number" },
+          notes: { type: "string", description: "Notes about the lead (context, interests, follow-up)" },
+          tags: { type: "string", description: "Comma-separated tags" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_leads",
+      description: "List the user's leads/contacts. Use when user says 'my leads', 'show leads', 'contacts'. Supports stage filtering and search.",
+      parameters: {
+        type: "object",
+        properties: {
+          stage: { type: "string", enum: ["new", "contacted", "qualified", "proposal", "won", "lost"], description: "Filter by pipeline stage" },
+          search: { type: "string", description: "Search by name, company, or notes" },
+          limit: { type: "number", description: "Max results (default 20)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_lead",
+      description: "Update a lead's stage, notes, or contact info. Use when user says 'move [name] to qualified', 'update [name]', 'add notes to [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          name_query: { type: "string", description: "Lead name to search for (partial match)" },
+          lead_id: { type: "string", description: "Lead ID (if known)" },
+          new_stage: { type: "string", enum: ["new", "contacted", "qualified", "proposal", "won", "lost"], description: "New pipeline stage" },
+          notes: { type: "string", description: "New or additional notes" },
+          company: { type: "string", description: "Update company" },
+          email: { type: "string", description: "Update email" },
+          phone: { type: "string", description: "Update phone" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_pipeline",
+      description: "Get pipeline summary with lead counts per stage. Use when user says 'pipeline', 'my pipeline', 'lead summary', 'how many leads'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_lead_timeline",
+      description: "Get full details and activity history for a specific lead. Use when user asks about a specific person or lead.",
+      parameters: {
+        type: "object",
+        properties: {
+          name_query: { type: "string", description: "Lead name to search for" },
+          lead_id: { type: "string", description: "Lead ID (if known)" },
+        },
+      },
+    },
+  },
+  // Meeting tools
+  {
+    type: "function" as const,
+    function: {
+      name: "create_meeting",
+      description: "Schedule a meeting. Use when user says 'schedule coffee with [name]', 'meet with [name]', 'book a meeting'. Parses natural language for time, type, and attendees.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Meeting title or description" },
+          attendee_name: { type: "string", description: "Name of the person to meet" },
+          starts_at: { type: "string", description: "ISO date-time string for when the meeting starts" },
+          duration: { type: "number", description: "Duration in minutes (default 30)" },
+          type: { type: "string", enum: ["coffee", "call", "lunch", "workshop", "demo", "general"], description: "Meeting type" },
+          location: { type: "string", description: "Meeting location or venue" },
+          description: { type: "string", description: "Meeting description or agenda" },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_meetings",
+      description: "List meetings. Use when user says 'my meetings', 'upcoming meetings', 'meetings today'.",
+      parameters: {
+        type: "object",
+        properties: {
+          filter: { type: "string", enum: ["upcoming", "past", "today"], description: "Time filter (default upcoming)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "complete_meeting",
+      description: "Mark a meeting as completed with optional notes and action items.",
+      parameters: {
+        type: "object",
+        properties: {
+          meeting_id: { type: "string", description: "Meeting ID" },
+          notes: { type: "string", description: "Meeting notes or action items" },
+        },
+        required: ["meeting_id"],
+      },
+    },
+  },
+  // Settings tools
+  {
+    type: "function" as const,
+    function: {
+      name: "get_my_settings",
+      description: "Get the user's FlowB settings (biz mode, DND, quiet hours, digest frequency). Use when user asks 'my settings', 'what are my settings'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_my_settings",
+      description: "Update a user setting. Use when user says 'turn on biz mode', 'set quiet hours', 'enable DND', 'change digest to weekly'.",
+      parameters: {
+        type: "object",
+        properties: {
+          key: { type: "string", description: "Setting key: biz_mode, dnd, quiet_hours_start, quiet_hours_end, notification_limit, digest" },
+          value: { type: "string", description: "New value (on/off for booleans, time string for hours, frequency for digest)" },
+        },
+        required: ["key", "value"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_crew_settings",
+      description: "View crew settings (sharing, notifications, privacy). Use when user asks 'crew settings', 'show settings for [crew]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          crew_id: { type: "string", description: "Crew name or ID" },
+        },
+        required: ["crew_id"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "update_crew_settings",
+      description: "Change a crew setting (admin-only). Use when user says 'turn on lead sharing for my crew', 'make crew private', 'enable notifications'.",
+      parameters: {
+        type: "object",
+        properties: {
+          crew_id: { type: "string", description: "Crew name or ID" },
+          key: { type: "string", description: "Setting: share_leads, share_meetings, share_locations, is_public, join_mode, notify_lead_updates, etc." },
+          value: { type: "string", description: "New value" },
+        },
+        required: ["crew_id", "key", "value"],
+      },
+    },
+  },
+  // Admin/Crew tools
+  {
+    type: "function" as const,
+    function: {
+      name: "admin_crew_action",
+      description: "Perform an admin action on a crew member (promote, demote, remove, approve, deny join request). Requires admin role. Use when user says 'promote [name]', 'remove [name] from crew', 'approve [name]'.",
+      parameters: {
+        type: "object",
+        properties: {
+          crew_id: { type: "string", description: "Crew name or ID" },
+          action: { type: "string", enum: ["promote", "demote", "remove", "approve", "deny"], description: "Admin action to perform" },
+          target_name: { type: "string", description: "Name of the person to act on" },
+        },
+        required: ["crew_id", "action", "target_name"],
+      },
+    },
+  },
+  // Automation tools
+  {
+    type: "function" as const,
+    function: {
+      name: "list_automations",
+      description: "List the user's automations. Use when user asks 'my automations', 'show automations'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "create_automation",
+      description: "Create a new automation rule (tier-gated). Use when user says 'automate [something]', 'create automation'.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Automation name" },
+          trigger_type: { type: "string", description: "Trigger: checkin, rsvp, lead_stage_change, schedule, manual" },
+          trigger_config: { type: "object", description: "Trigger configuration (event-specific)" },
+          action_type: { type: "string", description: "Action: notification, email, webhook, lead_update" },
+          action_config: { type: "object", description: "Action configuration" },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "toggle_automation",
+      description: "Enable or disable an automation by ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          automation_id: { type: "string", description: "Automation ID" },
+        },
+        required: ["automation_id"],
+      },
+    },
+  },
+  // Billing tool
+  {
+    type: "function" as const,
+    function: {
+      name: "get_my_plan",
+      description: "Get the user's current plan, tier, usage stats, and upgrade link. Use when user asks 'my plan', 'what plan am I on', 'usage', 'how many leads left'.",
+      parameters: { type: "object", properties: {} },
     },
   },
 ];
@@ -1183,7 +1451,13 @@ function fmtTime(iso: string): string {
 
 // ─── System prompt ───────────────────────────────────────────────────
 
-function buildSystemPrompt(user: UserContext, userCity?: string): string {
+interface BizContext {
+  tier: string;
+  crewRoles: Array<{ name: string; role: string; id: string }>;
+  usageSummary: string;
+}
+
+function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContext, platform?: Platform): string {
   const now = new Date();
   const nowStr = now.toLocaleString("en-US", {
     timeZone: "America/Denver",
@@ -1268,9 +1542,50 @@ SHARING & EMAIL:
 - If user asks to email and no email on file, ask them to provide one.
 - When sharing, show the flowb.me/r/{code} link prominently.
 
+LEADS & CRM:
+- When someone says "met [name] at [place]" or "add lead [name]", call create_lead.
+- When someone says "my leads", "show leads", or "contacts", call list_leads.
+- When someone says "move [name] to qualified" or "update [name]", call update_lead.
+- When someone says "pipeline" or "how many leads", call get_pipeline.
+- For details on a specific lead, call get_lead_timeline.
+
+MEETINGS:
+- When someone says "schedule coffee with [name]" or "meet with [name]", call create_meeting.
+- When someone says "my meetings" or "upcoming meetings", call list_meetings.
+- Parse relative dates: "tomorrow 10am", "friday at 3pm", "next week".
+
+SETTINGS:
+- When someone asks "my settings" or "what are my settings", call get_my_settings.
+- When someone says "turn on biz mode", "set quiet hours", "enable DND", call update_my_settings.
+- When someone asks about crew settings or wants to change them, use get_crew_settings / update_crew_settings.
+
+ADMIN ACTIONS:
+- When someone wants to promote, demote, remove a crew member, or approve/deny join requests, call admin_crew_action.
+- Always check user's role first — only admins/creators can perform these actions.
+
+AUTOMATIONS:
+- When someone asks about automations, call list_automations.
+- When someone wants to create or toggle automations, use create_automation / toggle_automation.
+
+BILLING:
+- When someone asks "my plan", "what plan", "usage", call get_my_plan.
+- If a user hits a tier limit, inform them of their usage and suggest upgrading.
+
+${platform === "telegram" ? `PLATFORM FORMAT (Telegram):
+- Keep responses under 2000 characters.
+- Use markdown bold/italic (will be converted to HTML).
+- Be concise and scannable.` : platform === "farcaster" ? `PLATFORM FORMAT (Farcaster):
+- Keep responses under 1024 characters.
+- Plain text, no markdown links.
+- Use plain URLs only.` : `PLATFORM FORMAT (Web):
+- Longer responses OK, full markdown supported.
+- Include links and rich formatting.`}
+
 Current time: ${nowStr} MST
 ${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}
-${userCity ? `User's city: ${userCity}` : ""}`;
+${userCity ? `User's city: ${userCity}` : ""}
+${biz ? `\nUSER PLAN: ${biz.tier}${biz.usageSummary ? ` (usage: ${biz.usageSummary})` : ""}` : ""}
+${biz?.crewRoles?.length ? `\nUSER CREW ROLES:\n${biz.crewRoles.map(c => `- ${c.name}: ${c.role}`).join("\n")}\n\nADMIN CAPABILITIES (for crews where you are admin/creator):\n- Change crew settings, promote/demote members, approve join requests, remove members` : ""}`;
 }
 
 // ─── Main chat handler ───────────────────────────────────────────────
@@ -1281,25 +1596,27 @@ export async function handleChat(
   messages: ChatMessage[],
   config: ChatConfig,
 ): Promise<{ role: string; content: string }> {
-  const { sb, xaiKey, user, model } = config;
+  const { sb, xaiKey, user, model, platform } = config;
 
   // Fetch user's current city for context-aware search
   let userCity: string | undefined;
+  let bizCtx: BizContext | undefined;
   if (user.userId) {
     try {
-      const sessions = await sbFetch<any[]>(
-        sb,
-        `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`,
-      );
+      const [sessions, bctx] = await Promise.all([
+        sbFetch<any[]>(sb, `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`),
+        fetchUserBizContext(sb, user.userId).catch(() => undefined),
+      ]);
       const session = sessions?.[0];
       userCity = session?.current_city || session?.destination_city || undefined;
+      bizCtx = bctx;
     } catch { /* non-critical */ }
   }
 
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
   const chatMessages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(user, userCity) },
+    { role: "system", content: buildSystemPrompt(user, userCity, bizCtx, platform) },
     ...userMessages,
   ];
 
@@ -1307,10 +1624,18 @@ export async function handleChat(
   let capturedEvents: any[] = [];
   let capturedContext: any = {};
 
+  // BizUserContext for biz tool executors
+  const bizUser: BizUserContext = {
+    userId: user.userId || "",
+    platform: user.platform,
+    displayName: user.displayName,
+  };
+
   // Limit tools for unauthenticated users — public tools include event search + discovery
   const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results"];
+  const allTools = [...TOOLS, ...BIZ_TOOLS];
   const tools = user.userId
-    ? TOOLS
+    ? allTools
     : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -1422,6 +1747,58 @@ export async function handleChat(
             break;
           case "share_results":
             result = await shareResults(args, user, sb, capturedEvents, capturedContext);
+            break;
+          // ── Business tools (from chat-tools-biz.ts) ──
+          case "create_lead":
+            result = await createLead(args, bizUser, sb);
+            break;
+          case "list_leads":
+            result = await listLeads(args, bizUser, sb);
+            break;
+          case "update_lead":
+            result = await updateLead(args, bizUser, sb);
+            break;
+          case "get_pipeline":
+            result = await getPipeline(args, bizUser, sb);
+            break;
+          case "get_lead_timeline":
+            result = await getLeadTimeline(args, bizUser, sb);
+            break;
+          case "create_meeting":
+            result = await createMeeting(args, bizUser, sb);
+            break;
+          case "list_meetings":
+            result = await listMeetings(args, bizUser, sb);
+            break;
+          case "complete_meeting":
+            result = await completeMeeting(args, bizUser, sb);
+            break;
+          case "get_my_settings":
+            result = await getMySettings(args, bizUser, sb);
+            break;
+          case "update_my_settings":
+            result = await updateMySettings(args, bizUser, sb);
+            break;
+          case "get_crew_settings":
+            result = await getCrewSettings(args, bizUser, sb);
+            break;
+          case "update_crew_settings":
+            result = await updateCrewSettings(args, bizUser, sb);
+            break;
+          case "admin_crew_action":
+            result = await adminCrewAction(args, bizUser, sb);
+            break;
+          case "list_automations":
+            result = await listAutomations(args, bizUser, sb);
+            break;
+          case "create_automation":
+            result = await createAutomation(args, bizUser, sb);
+            break;
+          case "toggle_automation":
+            result = await toggleAutomation(args, bizUser, sb);
+            break;
+          case "get_my_plan":
+            result = await getMyPlan(args, bizUser, sb);
             break;
           default:
             result = `Unknown tool: ${fn}`;

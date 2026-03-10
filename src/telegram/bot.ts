@@ -115,12 +115,16 @@ import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../ut
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
+import { handleChat, type ChatConfig, type ChatMessage } from "../services/ai-chat.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const MOD_BOT_USERNAME = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
 const MOD_MINIAPP_URL = process.env.FLOWB_MINIAPP_URL || "";
 const FLOWB_CHAT_URL = "https://flowb.fly.dev";
+
+/** When true, unmatched text goes to handleChat() directly with full tool set. */
+const LLM_PRIMARY = process.env.FLOWB_LLM_PRIMARY === "true";
 
 const PERSISTENT_KEYBOARD = new Keyboard()
   .text("Events").text("Flow").row()
@@ -5696,7 +5700,10 @@ export function startTelegramBot(
         // Direct check-in to a venue via chat API
         await ctx.replyWithChatAction("typing");
         const chatSession = getSession(tgId) || setSession(tgId, {});
-        const response = await sendFlowBChat(chatSession.chatHistory, `I'm at ${venue}`, userId(tgId));
+        const dn = ctx.from?.first_name || ctx.from?.username || undefined;
+        const response = LLM_PRIMARY
+          ? await sendFlowBChatDirect(chatSession.chatHistory, `I'm at ${venue}`, tgId, dn)
+          : await sendFlowBChat(chatSession.chatHistory, `I'm at ${venue}`, userId(tgId));
         setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: `I'm at ${venue}` }, { role: "assistant" as const, content: response }].slice(-20) });
         await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
         return;
@@ -5726,7 +5733,10 @@ export function startTelegramBot(
     if (/^(where.?s? my crew|where.?s? (?:the )?crew|where is (?:my )?crew|find (?:my )?crew|locate crew)$/i.test(lower)) {
       await ctx.replyWithChatAction("typing");
       const chatSession = getSession(tgId) || setSession(tgId, {});
-      const response = await sendFlowBChat(chatSession.chatHistory, "where's my crew?", userId(tgId));
+      const dn2 = ctx.from?.first_name || ctx.from?.username || undefined;
+      const response = LLM_PRIMARY
+        ? await sendFlowBChatDirect(chatSession.chatHistory, "where's my crew?", tgId, dn2)
+        : await sendFlowBChat(chatSession.chatHistory, "where's my crew?", userId(tgId));
       setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: "where's my crew?" }, { role: "assistant" as const, content: response }].slice(-20) });
       await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
       return;
@@ -5967,7 +5977,10 @@ export function startTelegramBot(
     await ctx.replyWithChatAction("typing");
 
     const session = getSession(tgId) || setSession(tgId, {});
-    const response = await sendFlowBChat(session.chatHistory, text, userId(tgId));
+    const displayName = ctx.from?.first_name || ctx.from?.username || undefined;
+    const response = LLM_PRIMARY
+      ? await sendFlowBChatDirect(session.chatHistory, text, tgId, displayName)
+      : await sendFlowBChat(session.chatHistory, text, userId(tgId));
 
     // Update chat history (keep last 20 messages = 10 turns)
     const updatedHistory = [
@@ -6390,6 +6403,48 @@ CRITICAL RULES:
     return data?.choices?.[0]?.message?.content || "Sorry, I couldn't process that.";
   } catch (err: any) {
     console.error("[flowb-telegram] Chat API error:", err.message);
+    return "Sorry, something went wrong. Try again!";
+  }
+}
+
+/**
+ * Direct in-process chat via handleChat() — tool-augmented LLM with
+ * full access to leads, meetings, settings, admin, events, etc.
+ * Used when LLM_PRIMARY is enabled.
+ */
+async function sendFlowBChatDirect(
+  chatHistory: Array<{ role: "user" | "assistant"; content: string }>,
+  userMessage: string,
+  tgId: number,
+  displayName?: string,
+): Promise<string> {
+  const xaiKey = process.env.XAI_API_KEY;
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
+  if (!xaiKey || !sbUrl || !sbKey) {
+    console.error("[flowb-telegram] Missing XAI_API_KEY or Supabase config for direct chat");
+    return sendFlowBChat(chatHistory, userMessage, userId(tgId));
+  }
+
+  const messages: ChatMessage[] = [
+    ...chatHistory.slice(-20).map(m => ({ role: m.role, content: m.content })),
+    { role: "user", content: userMessage },
+  ];
+
+  try {
+    const result = await handleChat(messages, {
+      sb: { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      xaiKey,
+      user: {
+        userId: userId(tgId),
+        platform: "telegram",
+        displayName: displayName || null,
+      },
+      platform: "telegram",
+    });
+    return result.content || "Sorry, I couldn't process that.";
+  } catch (err: any) {
+    console.error("[flowb-telegram] Direct chat error:", err.message);
     return "Sorry, something went wrong. Try again!";
   }
 }
