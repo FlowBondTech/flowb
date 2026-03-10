@@ -388,6 +388,13 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `/api/v1/billing/portal` | No | integrate Stripe when STRIPE_SECRET_KEY is set |
 
+## QUESTIONNAIRE
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/questionnaire/gate-pass` | No | Gate-pass notification (unauthenticated) |
+| `POST` | `/api/v1/questionnaire` | No | Submit (unauthenticated) |
+
 ## NOTE
 
 | Method | Path | Auth | Description |
@@ -468,4 +475,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-10 09:55:51 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-10 10:04:38 UTC*
