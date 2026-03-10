@@ -1253,3 +1253,75 @@ body {
   font-weight: 600;
   margin-bottom: 8px;
 }
+
+/* ===== Desktop Landing (outside Telegram) ===== */
+.desktop-landing {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background: var(--bg);
+}
+.desktop-landing-content {
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+.desktop-landing-logo { margin-bottom: 20px; }
+.desktop-landing-title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, var(--accent-light), var(--purple), #ec4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.desktop-landing-subtitle {
+  font-size: 15px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+.desktop-landing-hint {
+  font-size: 13px;
+  color: var(--hint);
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+.desktop-landing-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.desktop-landing-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  transition: opacity 0.15s, transform 0.1s;
+  cursor: pointer;
+  border: none;
+}
+.desktop-landing-btn:active { transform: scale(0.98); }
+.desktop-landing-btn-primary {
+  background: #2AABEE;
+  color: #fff;
+}
+.desktop-landing-btn-primary:hover { opacity: 0.9; }
+.desktop-landing-btn-secondary {
+  background: var(--bg-card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.desktop-landing-btn-secondary:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
