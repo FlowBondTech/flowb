@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS flowb_agent_memories (
     CHECK (memory_type IN ('fact', 'preference', 'summary', 'episode', 'entity', 'goal')),
   content       TEXT NOT NULL,
   content_tsv   TSVECTOR GENERATED ALWAYS AS (to_tsvector('english', content)) STORED,
-  embedding     VECTOR(1536),
+  embedding     VECTOR(1024),
 
   metadata      JSONB NOT NULL DEFAULT '{}',
   importance    FLOAT NOT NULL DEFAULT 0.5 CHECK (importance >= 0 AND importance <= 1),
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS flowb_conversation_summaries (
   user_id       TEXT NOT NULL,
   platform      TEXT NOT NULL,
   summary       TEXT NOT NULL,
-  embedding     VECTOR(1536),
+  embedding     VECTOR(1024),
   message_count INT NOT NULL DEFAULT 0,
   key_topics    TEXT[] DEFAULT '{}',
   sentiment     TEXT,
@@ -84,7 +84,7 @@ CREATE INDEX idx_memories_expires ON flowb_agent_memories (expires_at)
 -- RPC: Hybrid memory search (vector + BM25 via RRF)
 -- ============================================================================
 CREATE OR REPLACE FUNCTION match_agent_memories(
-  query_embedding vector(1536),
+  query_embedding vector(1024),
   query_text text DEFAULT '',
   match_user_id text DEFAULT NULL,
   match_types text[] DEFAULT NULL,
