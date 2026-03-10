@@ -9,6 +9,7 @@ Backend services that power FlowB's cross-platform features.
 | Service | File | Exports |
 |---------|------|---------|
 | admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone` |
+| agent memory | `src/services/agent-memory.ts` | `storeMemory`, `searchMemories`, `extractMemories`, `getMemoryContext`, `processConversationMemories` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
 | chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `fetchUserBizContext` |
@@ -38,6 +39,14 @@ Admin Alert Service
 **Source**: `src/services/admin-alerts.ts`
 
 **Exports**: `getAdminIds()`, `alertAdmins()`, `alertNewEvents()`, `alertDaily()`, `checkMilestone()`
+
+### agent memory
+
+Agent Memory Service — RAG-based persistent memory for FlowB AI
+
+**Source**: `src/services/agent-memory.ts`
+
+**Exports**: `storeMemory()`, `searchMemories()`, `extractMemories()`, `getMemoryContext()`, `processConversationMemories()`
 
 ### ai chat
 
@@ -189,4 +198,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-10 08:08:30 UTC*
+*Auto-generated on 2026-03-10 08:16:49 UTC*
