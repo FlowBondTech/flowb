@@ -11,6 +11,7 @@ Backend services that power FlowB's cross-platform features.
 | admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | cdp | `src/services/cdp.ts` | — |
+| chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `fetchUserBizContext` |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
 | email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
@@ -50,6 +51,14 @@ AI Chat Service — Tool-augmented chat
 Coinbase CDP REST API v2 client for Base network
 
 **Source**: `src/services/cdp.ts`
+
+### chat tools biz
+
+Business Chat Tool Executors
+
+**Source**: `src/services/chat-tools-biz.ts`
+
+**Exports**: `createLead()`, `listLeads()`, `updateLead()`, `getPipeline()`, `getLeadTimeline()`, `createMeeting()`, `listMeetings()`, `completeMeeting()`, `getMySettings()`, `updateMySettings()`, `getCrewSettings()`, `updateCrewSettings()`, `adminCrewAction()`, `listAutomations()`, `createAutomation()`, `toggleAutomation()`, `getMyPlan()`, `fetchUserBizContext()`
 
 ### context notifications
 
@@ -171,4 +180,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-10 02:53:16 UTC*
+*Auto-generated on 2026-03-10 03:25:22 UTC*
