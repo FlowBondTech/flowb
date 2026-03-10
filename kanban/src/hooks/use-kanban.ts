@@ -14,6 +14,7 @@ interface UseKanbanReturn {
   boards: KanbanBoard[]
   currentBoard: KanbanBoard | null
   tasks: KanbanTask[]
+  allTasks: KanbanTask[]
   columns: BoardColumn[]
   loading: boolean
   error: string | null
@@ -43,12 +44,12 @@ function buildColumns(tasks: KanbanTask[]): BoardColumn[] {
   }))
 }
 
-export function useKanban(userId: string): UseKanbanReturn {
+export function useKanban(userId: string, crewId?: string | null): UseKanbanReturn {
   const [boards, setBoards] = useState<KanbanBoard[]>([])
   const [currentBoard, setCurrentBoardState] = useState<KanbanBoard | null>(
     null,
   )
-  const [tasks, setTasks] = useState<KanbanTask[]>([])
+  const [allTasks, setAllTasks] = useState<KanbanTask[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
@@ -95,7 +96,7 @@ export function useKanban(userId: string): UseKanbanReturn {
   // Fetch tasks when current board changes
   useEffect(() => {
     if (!currentBoard) {
-      setTasks([])
+      setAllTasks([])
       return
     }
 
@@ -120,7 +121,7 @@ export function useKanban(userId: string): UseKanbanReturn {
         return
       }
 
-      setTasks((data ?? []) as KanbanTask[])
+      setAllTasks((data ?? []) as KanbanTask[])
       setLoading(false)
     }
 
@@ -157,7 +158,7 @@ export function useKanban(userId: string): UseKanbanReturn {
 
           if (eventType === 'INSERT') {
             const newTask = newRecord as KanbanTask
-            setTasks((prev) => {
+            setAllTasks((prev) => {
               // Avoid duplicates from optimistic updates
               if (prev.some((t) => t.id === newTask.id)) {
                 return prev.map((t) => (t.id === newTask.id ? newTask : t))
@@ -168,14 +169,14 @@ export function useKanban(userId: string): UseKanbanReturn {
 
           if (eventType === 'UPDATE') {
             const updated = newRecord as KanbanTask
-            setTasks((prev) =>
+            setAllTasks((prev) =>
               prev.map((t) => (t.id === updated.id ? updated : t)),
             )
           }
 
           if (eventType === 'DELETE') {
             const deleted = oldRecord as { id: string }
-            setTasks((prev) => prev.filter((t) => t.id !== deleted.id))
+            setAllTasks((prev) => prev.filter((t) => t.id !== deleted.id))
           }
         },
       )
@@ -188,6 +189,11 @@ export function useKanban(userId: string): UseKanbanReturn {
       channelRef.current = null
     }
   }, [currentBoard])
+
+  // Filter tasks by crewId (client-side, since realtime gives us all board tasks)
+  const tasks = crewId
+    ? allTasks.filter((t) => t.crew_id === crewId)
+    : allTasks
 
   // Derived columns
   const columns = buildColumns(tasks)
@@ -217,8 +223,8 @@ export function useKanban(userId: string): UseKanbanReturn {
       const now = new Date().toISOString()
       const columnName = taskData.column_name ?? 'backlog'
 
-      // Calculate next position in column
-      const columnTasks = tasks.filter((t) => t.column_name === columnName)
+      // Calculate next position in column (use allTasks for accurate positioning)
+      const columnTasks = allTasks.filter((t) => t.column_name === columnName)
       const maxPosition = columnTasks.reduce(
         (max, t) => Math.max(max, t.position),
         -1,
@@ -248,51 +254,69 @@ export function useKanban(userId: string): UseKanbanReturn {
         updated_at: now,
       }
 
+      // Build the insert payload with optional FlowB fields
+      const insertPayload: Record<string, unknown> = {
+        id: newTask.id,
+        board_id: newTask.board_id,
+        title: newTask.title,
+        description: newTask.description,
+        column_name: newTask.column_name,
+        position: newTask.position,
+        priority: newTask.priority,
+        assigned_to: newTask.assigned_to,
+        due_date: newTask.due_date,
+        labels: newTask.labels,
+        subtasks: newTask.subtasks,
+        blocked_by: newTask.blocked_by,
+        estimated_hours: newTask.estimated_hours,
+        actual_hours: newTask.actual_hours,
+        created_by: newTask.created_by,
+        source: newTask.source,
+        metadata: newTask.metadata,
+        tags: newTask.tags,
+        column_entered_at: newTask.column_entered_at,
+      }
+
+      // Include crew_id if provided in task data or from current crew filter
+      if (taskData.crew_id) {
+        insertPayload.crew_id = taskData.crew_id
+        newTask.crew_id = taskData.crew_id
+      } else if (crewId) {
+        insertPayload.crew_id = crewId
+        newTask.crew_id = crewId
+      }
+
+      // Include lead_id if provided
+      if (taskData.lead_id) {
+        insertPayload.lead_id = taskData.lead_id
+        newTask.lead_id = taskData.lead_id
+      }
+
       // Optimistic update
-      setTasks((prev) => [...prev, newTask])
+      setAllTasks((prev) => [...prev, newTask])
       setError(null)
 
       const { data, error: insertError } = await supabase
         .from('kanban_tasks')
-        .insert({
-          id: newTask.id,
-          board_id: newTask.board_id,
-          title: newTask.title,
-          description: newTask.description,
-          column_name: newTask.column_name,
-          position: newTask.position,
-          priority: newTask.priority,
-          assigned_to: newTask.assigned_to,
-          due_date: newTask.due_date,
-          labels: newTask.labels,
-          subtasks: newTask.subtasks,
-          blocked_by: newTask.blocked_by,
-          estimated_hours: newTask.estimated_hours,
-          actual_hours: newTask.actual_hours,
-          created_by: newTask.created_by,
-          source: newTask.source,
-          metadata: newTask.metadata,
-          tags: newTask.tags,
-          column_entered_at: newTask.column_entered_at,
-        })
+        .insert(insertPayload)
         .select()
         .single()
 
       if (insertError) {
         // Roll back optimistic update
-        setTasks((prev) => prev.filter((t) => t.id !== newTask.id))
+        setAllTasks((prev) => prev.filter((t) => t.id !== newTask.id))
         setError(insertError.message)
         return null
       }
 
       // Reconcile with server response
       const serverTask = data as KanbanTask
-      setTasks((prev) =>
+      setAllTasks((prev) =>
         prev.map((t) => (t.id === newTask.id ? serverTask : t)),
       )
       return serverTask
     },
-    [currentBoard, tasks, userId],
+    [currentBoard, allTasks, userId, crewId],
   )
 
   const updateTask = useCallback(
@@ -300,7 +324,7 @@ export function useKanban(userId: string): UseKanbanReturn {
       taskId: string,
       updates: Partial<KanbanTask>,
     ): Promise<KanbanTask | null> => {
-      const existing = tasks.find((t) => t.id === taskId)
+      const existing = allTasks.find((t) => t.id === taskId)
       if (!existing) {
         setError('Task not found')
         return null
@@ -310,7 +334,7 @@ export function useKanban(userId: string): UseKanbanReturn {
       const updatedFields = { ...updates, updated_at: now }
 
       // Optimistic update
-      setTasks((prev) =>
+      setAllTasks((prev) =>
         prev.map((t) => (t.id === taskId ? { ...t, ...updatedFields } : t)),
       )
       setError(null)
@@ -324,7 +348,7 @@ export function useKanban(userId: string): UseKanbanReturn {
 
       if (updateError) {
         // Roll back
-        setTasks((prev) =>
+        setAllTasks((prev) =>
           prev.map((t) => (t.id === taskId ? existing : t)),
         )
         setError(updateError.message)
@@ -332,12 +356,12 @@ export function useKanban(userId: string): UseKanbanReturn {
       }
 
       const serverTask = data as KanbanTask
-      setTasks((prev) =>
+      setAllTasks((prev) =>
         prev.map((t) => (t.id === taskId ? serverTask : t)),
       )
       return serverTask
     },
-    [tasks],
+    [allTasks],
   )
 
   const moveTask = useCallback(
@@ -346,7 +370,7 @@ export function useKanban(userId: string): UseKanbanReturn {
       toColumn: ColumnName,
       position: number,
     ): Promise<void> => {
-      const existing = tasks.find((t) => t.id === taskId)
+      const existing = allTasks.find((t) => t.id === taskId)
       if (!existing) {
         setError('Task not found')
         return
@@ -363,7 +387,7 @@ export function useKanban(userId: string): UseKanbanReturn {
       }
 
       // Optimistic update -- also reorder other tasks in target column
-      setTasks((prev) => {
+      setAllTasks((prev) => {
         const updated = prev.map((t) => {
           if (t.id === taskId) {
             return { ...t, ...moveUpdates }
@@ -397,22 +421,22 @@ export function useKanban(userId: string): UseKanbanReturn {
 
       if (moveError) {
         // Roll back
-        setTasks((prev) =>
+        setAllTasks((prev) =>
           prev.map((t) => (t.id === taskId ? existing : t)),
         )
         setError(moveError.message)
       }
     },
-    [tasks],
+    [allTasks],
   )
 
   const deleteTask = useCallback(
     async (taskId: string): Promise<void> => {
-      const existing = tasks.find((t) => t.id === taskId)
+      const existing = allTasks.find((t) => t.id === taskId)
       if (!existing) return
 
       // Optimistic delete
-      setTasks((prev) => prev.filter((t) => t.id !== taskId))
+      setAllTasks((prev) => prev.filter((t) => t.id !== taskId))
       setError(null)
 
       const { error: deleteError } = await supabase
@@ -422,11 +446,11 @@ export function useKanban(userId: string): UseKanbanReturn {
 
       if (deleteError) {
         // Roll back
-        setTasks((prev) => [...prev, existing])
+        setAllTasks((prev) => [...prev, existing])
         setError(deleteError.message)
       }
     },
-    [tasks],
+    [allTasks],
   )
 
   const addComment = useCallback(
@@ -473,6 +497,7 @@ export function useKanban(userId: string): UseKanbanReturn {
     boards,
     currentBoard,
     tasks,
+    allTasks,
     columns,
     loading,
     error,

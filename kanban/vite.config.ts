@@ -20,6 +20,7 @@ export default defineConfig({
           vendor: ['react', 'react-dom'],
           supabase: ['@supabase/supabase-js'],
           'date-fns': ['date-fns'],
+          markdown: ['react-markdown', 'remark-gfm'],
         },
       },
     },

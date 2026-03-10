@@ -3,16 +3,18 @@ import {
   Paperclip,
   Lock,
 } from 'lucide-react'
+import { TimeTrackingMiniArc } from './task-modal/time-tracking'
 import { formatDistanceToNow, isPast, isToday, isTomorrow, parseISO } from 'date-fns'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
-import type { KanbanTask, LabelColor } from '@/types/kanban'
+import type { KanbanTask, LabelColor, Crew } from '@/types/kanban'
 import { PRIORITY_CONFIG, LABEL_COLORS, USERS } from '@/types/kanban'
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
 interface TaskCardProps {
   task: KanbanTask
+  crews?: Crew[]
   onEdit: (task: KanbanTask) => void
   onContextMenu?: (task: KanbanTask, position: { x: number; y: number }) => void
   isDragging?: boolean
@@ -79,10 +81,27 @@ function getAssigneeName(userId: string): string {
   return user?.name ?? userId
 }
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/#{1,6}\s/g, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/__(.+?)__/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/_(.+?)_/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
+    .replace(/`(.+?)`/g, '$1')
+    .replace(/\[(.+?)\]\(.+?\)/g, '$1')
+    .replace(/^[-*+]\s/gm, '')
+    .replace(/^\d+\.\s/gm, '')
+    .replace(/\n+/g, ' ')
+    .trim()
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export function TaskCard({
   task,
+  crews = [],
   onEdit,
   onContextMenu,
   isDragging = false,
@@ -101,6 +120,9 @@ export function TaskCard({
   const attachmentCount = (task.metadata?.attachments as { id: string }[])
     ?.length ?? 0
   const isNonHumanSource = task.source !== 'human'
+
+  // Find crew for this task
+  const taskCrew = task.crew_id ? crews.find((c) => c.id === task.crew_id) : null
 
   // Labels: show max 4 dots, +N for rest
   const visibleLabels = task.labels.slice(0, 4)
@@ -173,7 +195,7 @@ export function TaskCard({
         isBlocked && 'border-l-2 border-l-red-400 dark:border-l-red-500'
       )}
     >
-      {/* Priority dot — top right */}
+      {/* Priority dot -- top right */}
       <div
         className={cn(
           'absolute top-2.5 right-2.5 h-2 w-2 rounded-full',
@@ -186,6 +208,13 @@ export function TaskCard({
       <h3 className="pr-5 text-sm font-semibold leading-snug text-foreground line-clamp-2">
         {task.title}
       </h3>
+
+      {/* Description snippet */}
+      {task.description && (
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground line-clamp-1">
+          {stripMarkdown(task.description).slice(0, 80)}
+        </p>
+      )}
 
       {/* Labels row */}
       {task.labels.length > 0 && (
@@ -247,10 +276,21 @@ export function TaskCard({
           </span>
         )}
 
+        {/* Time tracking mini arc */}
+        {task.estimated_hours != null && task.estimated_hours > 0 && (
+          <TimeTrackingMiniArc
+            estimated={task.estimated_hours}
+            actual={task.actual_hours ?? 0}
+          />
+        )}
+
         {/* Blocked indicator */}
         {isBlocked && (
-          <span className="inline-flex items-center text-red-400" title="Blocked">
+          <span className="inline-flex items-center gap-0.5 text-red-400" title="Blocked">
             <Lock className="h-3 w-3" />
+            {task.blocked_by.length > 1 && (
+              <span className="text-[9px] font-medium">{task.blocked_by.length}</span>
+            )}
           </span>
         )}
 
@@ -265,7 +305,17 @@ export function TaskCard({
         )}
       </div>
 
-      {/* Assignee avatar — bottom right */}
+      {/* Crew badge -- bottom left */}
+      {taskCrew && (
+        <span
+          className="absolute bottom-2.5 left-2.5 text-xs"
+          title={taskCrew.name}
+        >
+          {taskCrew.emoji}
+        </span>
+      )}
+
+      {/* Assignee avatar -- bottom right */}
       {task.assigned_to && (
         <div
           className={cn(

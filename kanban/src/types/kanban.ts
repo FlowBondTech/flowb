@@ -53,6 +53,14 @@ export interface KanbanTask {
   flowb_user_id?: string
   crew_id?: string
   lead_id?: string
+  // Sync fields
+  todo_id?: string
+  sync_source?: string
+}
+
+export interface TimeEntry {
+  estimated: number | null
+  actual: number | null
 }
 
 export interface KanbanBoard {
@@ -77,6 +85,14 @@ export interface KanbanUser {
   id: string
   name: string
   avatar?: string
+}
+
+export interface Crew {
+  id: string
+  name: string
+  emoji: string
+  description: string | null
+  biz_enabled: boolean
 }
 
 // Lead types for CRM pipeline

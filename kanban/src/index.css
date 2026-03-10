@@ -200,5 +200,25 @@
   backdrop-filter: blur(4px);
 }
 
+/* ============================================
+   Dialog reset — prevent UA stylesheet color leaks
+   ============================================ */
+
+dialog {
+  color: inherit;
+  background: transparent;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.5);
+  backdrop-filter: blur(4px);
+}
+
+/* Select/option dark mode fixes */
+.dark select option {
+  background-color: var(--color-card);
+  color: var(--color-card-foreground);
+}
+
 .line-clamp-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

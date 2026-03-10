@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthContext } from '@/contexts/auth-context'
 import { useKanban } from '@/hooks/use-kanban'
+import { useCrews } from '@/hooks/use-crews'
 import { useNotifications } from '@/hooks/use-notifications'
 import { KanbanBoard } from '@/components/kanban/kanban-board'
-import { TaskModal } from '@/components/kanban/task-modal'
+import { TaskModal } from '@/components/kanban/task-modal/index'
 import { CommandPalette } from '@/components/kanban/command-palette'
 import { LeadPipeline } from '@/components/leads/lead-pipeline'
+import { IS_BIZ } from '@/lib/constants'
 import type { KanbanTask, ColumnName, Priority } from '@/types/kanban'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
@@ -16,8 +18,10 @@ function getInitialView(): AppView {
   try {
     const params = new URLSearchParams(window.location.search)
     if (params.get('view') === 'leads') return 'leads'
+    if (params.get('view') === 'tasks') return 'tasks'
   } catch { /* ignore */ }
-  return 'tasks'
+  // Default to leads on biz.flowb.me
+  return IS_BIZ ? 'leads' : 'tasks'
 }
 
 export function KanbanApp() {
@@ -26,17 +30,21 @@ export function KanbanApp() {
 
   const [view, setView] = useState<AppView>(getInitialView)
 
+  const { crews, currentCrew, setCurrentCrew } = useCrews(userId)
+
   const {
     boards,
     currentBoard,
     tasks,
+    allTasks,
     loading,
     setCurrentBoard,
     createTask,
     updateTask,
     moveTask,
     deleteTask,
-  } = useKanban(userId)
+    addComment: _addComment,
+  } = useKanban(userId, currentCrew?.id ?? null)
   const { notifications } = useNotifications(userId)
 
   const [editingTask, setEditingTask] = useState<KanbanTask | null>(null)
@@ -166,6 +174,9 @@ export function KanbanApp() {
             boards={boards}
             currentBoard={currentBoard}
             notifications={notifications}
+            crews={crews}
+            currentCrew={currentCrew}
+            onSelectCrew={setCurrentCrew}
             onMoveTask={handleMoveTask}
             onEditTask={setEditingTask}
             onCreateTask={handleCreateTask}
@@ -175,6 +186,9 @@ export function KanbanApp() {
           {editingTask && (
             <TaskModal
               task={editingTask}
+              crews={crews}
+              currentCrewId={currentCrew?.id}
+              allTasks={allTasks}
               onClose={() => setEditingTask(null)}
               onUpdate={(updates) => handleUpdateTask(editingTask.id, updates)}
               onDelete={() => handleDeleteTask(editingTask.id)}
@@ -186,6 +200,9 @@ export function KanbanApp() {
             <TaskModal
               task={null}
               defaultColumn={createColumn}
+              crews={crews}
+              currentCrewId={currentCrew?.id}
+              allTasks={allTasks}
               onClose={() => setIsCreating(false)}
               onCreate={(task) => {
                 handleCreateTask({
@@ -231,6 +248,9 @@ function ViewSwitcher({
   view: AppView
   onViewChange: (view: AppView) => void
 }) {
+  const tasksLabel = IS_BIZ ? 'Board' : 'Tasks'
+  const leadsLabel = IS_BIZ ? 'Pipeline' : 'Leads'
+
   return (
     <div className="flex items-center gap-1 border-b bg-card px-4 py-1.5">
       <button
@@ -242,7 +262,7 @@ function ViewSwitcher({
             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         )}
       >
-        Tasks
+        {tasksLabel}
       </button>
       <button
         onClick={() => onViewChange('leads')}
@@ -253,7 +273,7 @@ function ViewSwitcher({
             : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
         )}
       >
-        Leads
+        {leadsLabel}
       </button>
     </div>
   )
