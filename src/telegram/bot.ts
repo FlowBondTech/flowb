@@ -6383,9 +6383,14 @@ CRITICAL RULES:
   ];
 
   try {
+    // Sign a JWT so the server can identify the user for memory + biz tools
+    const token = signJwt({ sub: userIdStr, platform: "telegram" });
     const res = await fetch(`${FLOWB_CHAT_URL}/v1/chat/completions`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         model: "flowb",
         messages,

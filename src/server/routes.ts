@@ -3739,11 +3739,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       try {
+        // Map JWT platform to ChatConfig platform for formatting hints
+        const chatPlatform = jwt?.platform === "telegram" ? "telegram" as const
+          : jwt?.platform === "farcaster" ? "farcaster" as const
+          : "web" as const;
+
         const result = await handleChat(messages, {
           sb: cfg,
           xaiKey: apiKey,
           user: userContext,
           model,
+          platform: chatPlatform,
         });
 
         // Return OpenAI-compatible format for backward compat
@@ -3911,7 +3917,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // PUSH TOKENS: Register / unregister Expo push tokens (mobile app)
   // ------------------------------------------------------------------
 
-  app.post<{ Body: { push_token: string; device_type?: string } }>(
+  app.post<{ Body: { push_token: string; device_type?: string; app_id?: string } }>(
     "/api/v1/me/push-token",
     { preHandler: authMiddleware },
     async (request, reply) => {
@@ -3919,7 +3925,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      const { push_token, device_type } = request.body || {};
+      const { push_token, device_type, app_id } = request.body || {};
       if (!push_token) return reply.status(400).send({ error: "Missing push_token" });
 
       // Upsert token (dedup on user_id + push_token)
@@ -3930,6 +3936,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         platform: jwt.platform || "app",
         active: true,
         updated_at: new Date().toISOString(),
+        ...(app_id ? { app_id } : {}),
       }, "return=minimal,resolution=merge-duplicates");
 
       return { ok: true };
@@ -3958,6 +3965,67 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         await sbPatch(cfg, "flowb_push_tokens", {
           user_id: `eq.${jwt.sub}`,
         }, { active: false });
+      }
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // NOTIFICATION FEED: Paginated notification history for StephAlert
+  // ------------------------------------------------------------------
+
+  app.get(
+    "/api/v1/me/notifications",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const qs = request.query as Record<string, string>;
+      const limit = Math.min(parseInt(qs.limit || "50", 10), 100);
+      const offset = parseInt(qs.offset || "0", 10);
+      const unreadOnly = qs.unread === "true";
+
+      let path = `flowb_notification_log?recipient_id=eq.${jwt.sub}&order=sent_at.desc&limit=${limit}&offset=${offset}&select=id,notification_type,reference_id,triggered_by,sent_at,title,body,priority,read_at,data`;
+      if (unreadOnly) path += "&read_at=is.null";
+
+      const rows = await sbFetch<any[]>(cfg, path);
+
+      // Get unread count
+      const unreadRows = await sbFetch<any[]>(cfg, `flowb_notification_log?recipient_id=eq.${jwt.sub}&read_at=is.null&select=id`);
+
+      return {
+        notifications: rows || [],
+        unread_count: unreadRows?.length || 0,
+      };
+    },
+  );
+
+  app.post(
+    "/api/v1/me/notifications/read",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const body = request.body as { ids?: string[]; all?: boolean } | undefined;
+      const now = new Date().toISOString();
+
+      if (body?.all) {
+        // Mark all unread as read
+        await sbPatch(cfg, "flowb_notification_log", {
+          recipient_id: `eq.${jwt.sub}`,
+          read_at: "is.null",
+        }, { read_at: now });
+      } else if (body?.ids?.length) {
+        // Mark specific IDs as read
+        const idList = body.ids.join(",");
+        await sbPatchRaw(cfg, `flowb_notification_log?recipient_id=eq.${jwt.sub}&id=in.(${idList})`, { read_at: now });
+      } else {
+        return reply.status(400).send({ error: "Provide ids[] or all:true" });
       }
 
       return { ok: true };

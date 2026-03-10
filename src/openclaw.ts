@@ -177,7 +177,7 @@ export default function register(api: any) {
       sb: { supabaseUrl: sbUrl, supabaseKey: sbKey },
       xaiKey,
       user: { userId, platform: "openclaw", displayName: null },
-      platform: "web",
+      platform: "openclaw",
     };
 
     try {
