@@ -17,10 +17,19 @@ import {
   adminCrewAction,
   listAutomations, createAutomation, toggleAutomation,
   getMyPlan,
+  manageGroupIntelligence, getGroupSignalsTool, routeSignalTool,
   fetchUserBizContext,
   type BizUserContext,
 } from "./chat-tools-biz.js";
 import { getMemoryContext, processConversationMemories, type MemoryConfig } from "./agent-memory.js";
+import {
+  siteList, siteStatus, siteRebuild, siteActivity,
+  siteListProducts, siteAddProduct, siteUpdateProduct, siteDeleteProduct,
+  siteListArticles, siteCreateArticle, siteUpdateArticle, siteScheduleArticle, sitePublishArticle,
+  siteSeoStatus, siteSeoCheckArticle, siteSeoSuggestions,
+  stripeListProducts as ecStripeListProducts, stripeCreateCheckout, stripeListOrders,
+  stripeRefund, stripeRevenue, stripeSyncProducts,
+} from "./chat-tools-websites.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -598,6 +607,87 @@ const BIZ_TOOLS = [
       parameters: { type: "object", properties: {} },
     },
   },
+  // Group Intelligence tools
+  {
+    type: "function" as const,
+    function: {
+      name: "manage_group_intelligence",
+      description: "Enable, disable, configure, or check status of group intelligence for a crew/group. Use when user says 'enable intelligence', 'turn on listening', 'show my groups with intel', 'turn off todo tracking'.",
+      parameters: {
+        type: "object",
+        properties: {
+          action: { type: "string", enum: ["enable", "disable", "status", "configure", "list_active"], description: "Action to perform" },
+          crew_id: { type: "string", description: "Crew name or ID (for enable/disable/configure/status)" },
+          settings: { type: "object", description: "Listener toggles and routing config, e.g. { listen_todos: false, listen_expenses: true, digest_frequency: 'weekly' }" },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_group_signals",
+      description: "View extracted signals from a group. Use when user asks 'what's happening in [group]?', 'show signals', 'recent leads from group'.",
+      parameters: {
+        type: "object",
+        properties: {
+          crew_id: { type: "string", description: "Crew name or ID" },
+          signal_type: { type: "string", enum: ["lead", "todo", "meeting", "deadline", "decision", "action_item", "blocker", "event", "followup", "expense", "idea", "feedback"], description: "Filter by signal type" },
+          limit: { type: "number", description: "Max results (default 20)" },
+          unrouted_only: { type: "boolean", description: "Only show unrouted signals" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "route_signal",
+      description: "Manually route or dismiss an extracted signal. Use when user says 'route that lead', 'dismiss that signal', 'create a task from that'.",
+      parameters: {
+        type: "object",
+        properties: {
+          signal_id: { type: "string", description: "Signal UUID" },
+          route_to: { type: "string", enum: ["kanban", "lead", "meeting", "automation", "dismiss"], description: "Where to route the signal" },
+          override_data: { type: "object", description: "Override extracted data fields" },
+        },
+        required: ["signal_id", "route_to"],
+      },
+    },
+  },
+];
+
+// ─── FlowB EC Website Tools ─────────────────────────────────────────
+
+const WEBSITE_TOOLS = [
+  // Site management
+  { type: "function" as const, function: { name: "site_list", description: "List managed websites. Use when user says 'my sites', 'list sites'.", parameters: { type: "object", properties: {} } } },
+  { type: "function" as const, function: { name: "site_status", description: "Get status and recent activity for a managed site.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug (default: nored-farms)" } } } } },
+  { type: "function" as const, function: { name: "site_rebuild", description: "Trigger a site rebuild via Netlify build hook.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug" } } } } },
+  { type: "function" as const, function: { name: "site_activity", description: "View recent activity log for a managed site.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug" }, limit: { type: "number", description: "Max entries (default 20)" } } } } },
+  // Products
+  { type: "function" as const, function: { name: "site_list_products", description: "List products on a managed site. Supports category and search filtering.", parameters: { type: "object", properties: { site: { type: "string" }, category: { type: "string" }, search: { type: "string" } } } } },
+  { type: "function" as const, function: { name: "site_add_product", description: "Add a new product to a managed site. Creates in DB and optionally Stripe.", parameters: { type: "object", properties: { site: { type: "string" }, name: { type: "string", description: "Product name" }, price: { type: "number", description: "Price in dollars" }, category: { type: "string" }, description: { type: "string" }, images: { type: "string", description: "Comma-separated image URLs" } }, required: ["name", "price"] } } },
+  { type: "function" as const, function: { name: "site_update_product", description: "Update a product on a managed site.", parameters: { type: "object", properties: { site: { type: "string" }, product_id: { type: "string" }, name: { type: "string" }, price: { type: "number" }, category: { type: "string" }, description: { type: "string" }, stock_status: { type: "string", enum: ["in_stock", "low_stock", "out_of_stock"] } }, required: ["product_id"] } } },
+  { type: "function" as const, function: { name: "site_delete_product", description: "Remove a product (unpublish) from a managed site.", parameters: { type: "object", properties: { site: { type: "string" }, product_id: { type: "string" } }, required: ["product_id"] } } },
+  { type: "function" as const, function: { name: "site_sync_stripe", description: "Sync all products on a site with Stripe catalog.", parameters: { type: "object", properties: { site: { type: "string" } } } } },
+  // Articles
+  { type: "function" as const, function: { name: "site_list_articles", description: "List blog articles on a managed site.", parameters: { type: "object", properties: { site: { type: "string" }, status: { type: "string", enum: ["published", "draft", "all"] }, category: { type: "string" } } } } },
+  { type: "function" as const, function: { name: "site_create_article", description: "Create a new blog article draft.", parameters: { type: "object", properties: { site: { type: "string" }, title: { type: "string" }, tags: { type: "string", description: "Comma-separated tags" }, category: { type: "string" }, excerpt: { type: "string" } }, required: ["title"] } } },
+  { type: "function" as const, function: { name: "site_update_article", description: "Update article metadata (SEO title, description, tags, etc).", parameters: { type: "object", properties: { site: { type: "string" }, article_id: { type: "string" }, title: { type: "string" }, seo_title: { type: "string" }, seo_description: { type: "string" }, category: { type: "string" }, tags: { type: "string" }, excerpt: { type: "string" }, featured_image: { type: "string" } }, required: ["article_id"] } } },
+  { type: "function" as const, function: { name: "site_schedule_article", description: "Schedule an article for future publishing.", parameters: { type: "object", properties: { site: { type: "string" }, article_id: { type: "string" }, publish_at: { type: "string", description: "ISO datetime for publishing" } }, required: ["article_id", "publish_at"] } } },
+  { type: "function" as const, function: { name: "site_publish_article", description: "Publish an article immediately and trigger site rebuild.", parameters: { type: "object", properties: { site: { type: "string" }, article_id: { type: "string" } }, required: ["article_id"] } } },
+  // SEO
+  { type: "function" as const, function: { name: "site_seo_status", description: "Get overall SEO health report for a managed site.", parameters: { type: "object", properties: { site: { type: "string" } } } } },
+  { type: "function" as const, function: { name: "site_seo_check_article", description: "Run SEO check on a specific article.", parameters: { type: "object", properties: { site: { type: "string" }, article_id: { type: "string" } }, required: ["article_id"] } } },
+  { type: "function" as const, function: { name: "site_seo_suggestions", description: "Get AI-generated SEO improvement suggestions for a site.", parameters: { type: "object", properties: { site: { type: "string" } } } } },
+  // Stripe
+  { type: "function" as const, function: { name: "stripe_list_products", description: "List Stripe products for a managed site.", parameters: { type: "object", properties: { site: { type: "string" } } } } },
+  { type: "function" as const, function: { name: "stripe_create_checkout", description: "Create a Stripe checkout link.", parameters: { type: "object", properties: { site: { type: "string" }, price_id: { type: "string", description: "Stripe price ID" }, quantity: { type: "number" } }, required: ["price_id"] } } },
+  { type: "function" as const, function: { name: "stripe_list_orders", description: "List recent Stripe orders/payments.", parameters: { type: "object", properties: { site: { type: "string" }, status: { type: "string" }, limit: { type: "number" } } } } },
+  { type: "function" as const, function: { name: "stripe_refund", description: "Process a Stripe refund.", parameters: { type: "object", properties: { site: { type: "string" }, payment_id: { type: "string" }, amount: { type: "number", description: "Refund amount in dollars (partial refund), omit for full" } }, required: ["payment_id"] } } },
+  { type: "function" as const, function: { name: "stripe_revenue", description: "Get revenue summary for a period.", parameters: { type: "object", properties: { site: { type: "string" }, period: { type: "string", enum: ["daily", "weekly", "monthly"] } } } } },
 ];
 
 // ─── Tool executors ──────────────────────────────────────────────────
@@ -1756,9 +1846,16 @@ function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContex
   const nextSunday = new Date(nextMonday.getTime() + 6 * 86400_000);
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
-  return `You are FlowB, your go-with-the-flow assistant for events, crews, and good vibes.
+  return `You are FlowB, your go-with-the-flow assistant for events, crews, business, and good vibes.
 
-You help people stay in the flow -- find events anywhere, link up with friends & crew, manage crews, RSVP, share locations, and check points. You have access to a database of events across multiple cities from sources including Luma, EventBrite, Meetup, and community submissions.
+You help people stay in the flow -- find events anywhere, link up with friends & crew, manage crews, RSVP, share locations, check points, AND handle business tasks like leads, meetings, project notes, operations, and more. You have access to a database of events across multiple cities from sources including Luma, EventBrite, Meetup, and community submissions.
+
+BUSINESS ASSISTANT (for admins and crew creators):
+- You are a FULL business assistant, not just an events bot.
+- When users share operation notes, project updates, meeting notes, app design feedback, or any business-related info — accept it, acknowledge it, and store it using the appropriate tool (create_lead, create_meeting, complete_meeting with notes, update_lead with notes, or agent memory).
+- If someone shares notes that relate to an existing lead or meeting, update that record.
+- If the notes don't fit a specific lead or meeting, acknowledge them warmly and remember the context for future conversations.
+- Never say "I can only help with events" or "that's outside my scope" — you handle everything business-related.
 
 EVENT SEARCH STRATEGY:
 - For broad queries ("what's happening in Austin this month?"), call get_event_summary FIRST for an overview, then search_events for details.
@@ -1921,7 +2018,7 @@ export async function handleChat(
 
   // Limit tools for unauthenticated users — public tools include event search + discovery
   const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "get_whats_new"];
-  const allTools = [...TOOLS, ...BIZ_TOOLS];
+  const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS];
   const tools = user.userId
     ? allTools
     : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
@@ -2101,6 +2198,83 @@ export async function handleChat(
             break;
           case "get_my_plan":
             result = await getMyPlan(args, bizUser, sb);
+            break;
+          // ── Group Intelligence tools ──
+          case "manage_group_intelligence":
+            result = await manageGroupIntelligence(args, bizUser, sb);
+            break;
+          case "get_group_signals":
+            result = await getGroupSignalsTool(args, bizUser, sb);
+            break;
+          case "route_signal":
+            result = await routeSignalTool(args, bizUser, sb);
+            break;
+          // ── Website tools (from chat-tools-websites.ts) ──
+          case "site_list":
+            result = await siteList(args, bizUser, sb);
+            break;
+          case "site_status":
+            result = await siteStatus(args, bizUser, sb);
+            break;
+          case "site_rebuild":
+            result = await siteRebuild(args, bizUser, sb);
+            break;
+          case "site_activity":
+            result = await siteActivity(args, bizUser, sb);
+            break;
+          case "site_list_products":
+            result = await siteListProducts(args, bizUser, sb);
+            break;
+          case "site_add_product":
+            result = await siteAddProduct(args, bizUser, sb);
+            break;
+          case "site_update_product":
+            result = await siteUpdateProduct(args, bizUser, sb);
+            break;
+          case "site_delete_product":
+            result = await siteDeleteProduct(args, bizUser, sb);
+            break;
+          case "site_sync_stripe":
+            result = await stripeSyncProducts(args, bizUser, sb);
+            break;
+          case "site_list_articles":
+            result = await siteListArticles(args, bizUser, sb);
+            break;
+          case "site_create_article":
+            result = await siteCreateArticle(args, bizUser, sb);
+            break;
+          case "site_update_article":
+            result = await siteUpdateArticle(args, bizUser, sb);
+            break;
+          case "site_schedule_article":
+            result = await siteScheduleArticle(args, bizUser, sb);
+            break;
+          case "site_publish_article":
+            result = await sitePublishArticle(args, bizUser, sb);
+            break;
+          case "site_seo_status":
+            result = await siteSeoStatus(args, bizUser, sb);
+            break;
+          case "site_seo_check_article":
+            result = await siteSeoCheckArticle(args, bizUser, sb);
+            break;
+          case "site_seo_suggestions":
+            result = await siteSeoSuggestions(args, bizUser, sb);
+            break;
+          case "stripe_list_products":
+            result = await ecStripeListProducts(args, bizUser, sb);
+            break;
+          case "stripe_create_checkout":
+            result = await stripeCreateCheckout(args, bizUser, sb);
+            break;
+          case "stripe_list_orders":
+            result = await stripeListOrders(args, bizUser, sb);
+            break;
+          case "stripe_refund":
+            result = await stripeRefund(args, bizUser, sb);
+            break;
+          case "stripe_revenue":
+            result = await stripeRevenue(args, bizUser, sb);
             break;
           default:
             result = `Unknown tool: ${fn}`;
