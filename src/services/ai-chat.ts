@@ -20,6 +20,7 @@ import {
   fetchUserBizContext,
   type BizUserContext,
 } from "./chat-tools-biz.js";
+import { getMemoryContext, processConversationMemories, type MemoryConfig } from "./agent-memory.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -1879,25 +1880,31 @@ export async function handleChat(
 ): Promise<{ role: string; content: string }> {
   const { sb, xaiKey, user, model, platform } = config;
 
-  // Fetch user's current city for context-aware search
+  // Fetch user's current city, biz context, and memory context in parallel
   let userCity: string | undefined;
   let bizCtx: BizContext | undefined;
+  let memoryCtx = "";
   if (user.userId) {
+    const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
+    const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content || "";
     try {
-      const [sessions, bctx] = await Promise.all([
+      const [sessions, bctx, memCtx] = await Promise.all([
         sbFetch<any[]>(sb, `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`),
         fetchUserBizContext(sb, user.userId).catch(() => undefined),
+        lastUserMsg ? getMemoryContext(memCfg, user.userId, lastUserMsg).catch(() => "") : Promise.resolve(""),
       ]);
       const session = sessions?.[0];
       userCity = session?.current_city || session?.destination_city || undefined;
       bizCtx = bctx;
+      memoryCtx = memCtx;
     } catch { /* non-critical */ }
   }
 
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
+  const systemPrompt = buildSystemPrompt(user, userCity, bizCtx, platform) + memoryCtx;
   const chatMessages: ChatMessage[] = [
-    { role: "system", content: buildSystemPrompt(user, userCity, bizCtx, platform) },
+    { role: "system", content: systemPrompt },
     ...userMessages,
   ];
 
@@ -1952,7 +1959,14 @@ export async function handleChat(
 
     // No tool calls → return final answer
     if (!msg.tool_calls?.length) {
-      return { role: "assistant", content: msg.content || "" };
+      const reply = msg.content || "";
+      // Fire-and-forget: extract memories from this conversation
+      if (user.userId && xaiKey) {
+        const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
+        const fullConvo = [...userMessages, { role: "assistant", content: reply }];
+        processConversationMemories(memCfg, user.userId, fullConvo, xaiKey).catch(() => {});
+      }
+      return { role: "assistant", content: reply };
     }
 
     // Execute tool calls
@@ -2100,5 +2114,10 @@ export async function handleChat(
     }
   }
 
+  // Fire-and-forget memory extraction even on max-round fallback
+  if (user.userId && xaiKey) {
+    const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
+    processConversationMemories(memCfg, user.userId, userMessages, xaiKey).catch(() => {});
+  }
   return { role: "assistant", content: "Got a bit lost. Can you rephrase?" };
 }
