@@ -13,6 +13,7 @@ interface IdentityRow {
   platform: string;
   platform_user_id: string;
   privy_id?: string;
+  supabase_uid?: string;
   display_name?: string;
   avatar_url?: string;
 }
@@ -44,7 +45,19 @@ export async function resolveCanonicalId(
   // 2. Determine platform from user ID prefix
   const platform = detectPlatform(platformUserId);
 
-  // 3. Try Privy lookup for cross-platform links
+  // 2.5. Try local passport lookup (Supabase Auth) before Privy
+  const passportLinks = await lookupPassportLinks(cfg, platformUserId);
+  if (passportLinks && passportLinks.linkedIds.length > 0) {
+    const canonicalId = platformUserId;
+    await ensureIdentityRow(cfg, canonicalId, platformUserId, platform, undefined, opts);
+    for (const lid of passportLinks.linkedIds) {
+      const lPlatform = detectPlatform(lid);
+      await ensureIdentityRow(cfg, canonicalId, lid, lPlatform);
+    }
+    return canonicalId;
+  }
+
+  // 3. Try Privy lookup for cross-platform links (legacy, dual mode)
   const privyLinks = await lookupPrivyLinks(platformUserId, platform);
 
   if (privyLinks && privyLinks.linkedIds.length > 0) {
@@ -134,6 +147,43 @@ async function ensureIdentityRow(
     });
   } catch {
     // Non-critical - identity linking is best-effort
+  }
+}
+
+interface PassportLinkResult {
+  supabaseUid: string;
+  linkedIds: string[];
+}
+
+/**
+ * Look up linked identities via flowb_passport + flowb_identities (local, no external API).
+ */
+async function lookupPassportLinks(
+  cfg: SbConfig,
+  platformUserId: string,
+): Promise<PassportLinkResult | null> {
+  try {
+    // Check if this platform user has a supabase_uid in flowb_identities
+    const rows = await sbFetch<{ supabase_uid: string }[]>(
+      cfg,
+      `flowb_identities?platform_user_id=eq.${encodeURIComponent(platformUserId)}&select=supabase_uid&limit=1`,
+    );
+    const supabaseUid = rows?.[0]?.supabase_uid;
+    if (!supabaseUid) return null;
+
+    // Find all other platform_user_ids with the same supabase_uid
+    const linked = await sbFetch<{ platform_user_id: string }[]>(
+      cfg,
+      `flowb_identities?supabase_uid=eq.${supabaseUid}&select=platform_user_id`,
+    );
+    const linkedIds = (linked || [])
+      .map((r) => r.platform_user_id)
+      .filter((id) => id !== platformUserId);
+
+    if (!linkedIds.length) return null;
+    return { supabaseUid, linkedIds };
+  } catch {
+    return null;
   }
 }
 

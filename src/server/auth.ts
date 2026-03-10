@@ -26,8 +26,12 @@ export interface JWTPayload {
   fid?: number;
   /** Username if known */
   username?: string;
-  /** Privy DID (if linked via Privy) */
+  /** Privy DID (if linked via Privy) -- legacy, kept for backwards compat */
   privyUserId?: string;
+  /** Supabase Auth user UUID (FlowB Passport) */
+  supabase_uid?: string;
+  /** User email if known */
+  email?: string;
   /** Issued at (epoch seconds) */
   iat: number;
   /** Expires at (epoch seconds) */

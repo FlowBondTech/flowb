@@ -17,6 +17,8 @@ import {
   verifyJwt,
   type JWTPayload,
 } from "./auth.js";
+import { getOrCreateSupabaseUser, verifySupabaseToken } from "../services/supabase-auth.js";
+import { isSupabaseAuthEnabled, isPrivyEnabled } from "../config.js";
 import {
   upsertNotificationToken,
   disableNotificationToken,
@@ -116,11 +118,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         alertAdmins(`New user: <b>${who}</b> on telegram`, "info");
       }
 
+      // Create/link Supabase Auth user (FlowB Passport)
+      let supabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "telegram", {
+          displayName,
+        });
+        if (sbUser) supabaseUid = sbUser.uid;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "telegram",
         tg_id: user.id,
         username: user.username,
+        ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
       });
 
       return {
@@ -134,6 +146,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           firstName: user.first_name,
           lastName: user.last_name,
           photoUrl: user.photo_url,
+          ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
         },
       };
     },
@@ -260,12 +273,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             }
           }
 
+          // Create/link Supabase Auth user (FlowB Passport)
+          let supabaseUid: string | undefined;
+          if (isSupabaseAuthEnabled()) {
+            const sbUser = await getOrCreateSupabaseUser(userId, "farcaster", {
+              displayName: displayName || username,
+              avatarUrl: pfpUrl,
+            });
+            if (sbUser) supabaseUid = sbUser.uid;
+          }
+
           const token = signJwt({
             sub: userId,
             platform: "farcaster",
             fid,
             username,
             ...(privyUserId ? { privyUserId } : {}),
+            ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
           });
 
           return {
@@ -279,6 +303,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               displayName,
               pfpUrl,
               ...(privyUserId ? { privyUserId } : {}),
+              ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
             },
           };
         } catch (err: any) {
@@ -310,11 +335,22 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         if (sessions?.[0]?.locale) fcLegacyLocale = sessions[0].locale;
       }
 
+      // Create/link Supabase Auth user (FlowB Passport)
+      let legacyFcSupabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "farcaster", {
+          displayName: user.displayName || user.username,
+          avatarUrl: user.pfpUrl,
+        });
+        if (sbUser) legacyFcSupabaseUid = sbUser.uid;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "farcaster",
         fid: user.fid,
         username: user.username,
+        ...(legacyFcSupabaseUid ? { supabase_uid: legacyFcSupabaseUid } : {}),
       });
 
       return {
@@ -327,6 +363,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           username: user.username,
           displayName: user.displayName,
           pfpUrl: user.pfpUrl,
+          ...(legacyFcSupabaseUid ? { supabase_uid: legacyFcSupabaseUid } : {}),
         },
       };
     },
@@ -393,24 +430,52 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // AUTH: Web (Privy) - issues a FlowB JWT for web users
+  // AUTH: Web (Privy legacy + Supabase Auth dual mode)
+  // Accepts { privyUserId } (legacy) OR { supabaseAccessToken } (new)
   // ------------------------------------------------------------------
-  app.post<{ Body: { privyUserId: string; displayName?: string } }>(
+  app.post<{ Body: { privyUserId?: string; supabaseAccessToken?: string; displayName?: string } }>(
     "/api/v1/auth/web",
     {
       config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
       schema: {
         body: {
           type: "object",
-          required: ["privyUserId"],
-          properties: { privyUserId: { type: "string" }, displayName: { type: "string" } },
+          properties: {
+            privyUserId: { type: "string" },
+            supabaseAccessToken: { type: "string" },
+            displayName: { type: "string" },
+          },
         },
       },
     },
     async (request, reply) => {
-      const { privyUserId, displayName } = request.body || {};
+      const { privyUserId, supabaseAccessToken, displayName } = request.body || {};
+
+      // --- New Supabase Auth path ---
+      if (supabaseAccessToken && isSupabaseAuthEnabled()) {
+        const verified = await verifySupabaseToken(supabaseAccessToken);
+        if (!verified) {
+          return reply.status(401).send({ error: "Invalid Supabase Auth token" });
+        }
+        // Redirect to passport endpoint logic
+        const passportRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/v1/auth/passport`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: supabaseAccessToken, displayName }),
+        });
+        if (!passportRes.ok) {
+          return reply.status(passportRes.status).send(await passportRes.json());
+        }
+        return passportRes.json();
+      }
+
+      // --- Legacy Privy path ---
       if (!privyUserId) {
-        return reply.status(400).send({ error: "Missing privyUserId" });
+        return reply.status(400).send({ error: "Missing privyUserId or supabaseAccessToken" });
+      }
+
+      if (!isPrivyEnabled()) {
+        return reply.status(503).send({ error: "Privy auth is disabled. Use /api/v1/auth/passport instead." });
       }
 
       const userId = `web_${privyUserId}`;
@@ -422,7 +487,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (cfg) {
         try {
-          const { resolveCanonicalId } = await import("../services/identity.js");
           await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
         } catch {}
       }
@@ -455,10 +519,20 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
+      // Create/link Supabase Auth user in dual mode
+      let supabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "web", {
+          displayName: displayName || undefined,
+        });
+        if (sbUser) supabaseUid = sbUser.uid;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "web" as any,
         username: displayName || "User",
+        ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
       });
 
       return {
@@ -467,6 +541,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           id: userId,
           platform: "web",
           username: displayName,
+          ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
         },
       };
     },
@@ -633,10 +708,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }, "return=minimal,resolution=merge-duplicates"), "upsert wa session");
       }
 
+      // Create/link Supabase Auth user (FlowB Passport)
+      let waSupabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "whatsapp");
+        if (sbUser) waSupabaseUid = sbUser.uid;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "whatsapp",
         username: phone,
+        ...(waSupabaseUid ? { supabase_uid: waSupabaseUid } : {}),
       });
 
       return {
@@ -645,6 +728,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           id: userId,
           platform: "whatsapp",
           username: phone,
+          ...(waSupabaseUid ? { supabase_uid: waSupabaseUid } : {}),
         },
       };
     },
@@ -702,10 +786,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }, "return=minimal,resolution=merge-duplicates"), "upsert signal session");
       }
 
+      // Create/link Supabase Auth user (FlowB Passport)
+      let sigSupabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "signal");
+        if (sbUser) sigSupabaseUid = sbUser.uid;
+      }
+
       const token = signJwt({
         sub: userId,
         platform: "signal",
         username: phone,
+        ...(sigSupabaseUid ? { supabase_uid: sigSupabaseUid } : {}),
       });
 
       return {
@@ -714,6 +806,105 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           id: userId,
           platform: "signal",
           username: phone,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: FlowB Passport (Supabase Auth) — primary new auth endpoint
+  // Accepts a Supabase Auth access token, verifies it, and issues a FlowB JWT.
+  // Used by web and mobile clients after Supabase Auth login.
+  // ------------------------------------------------------------------
+  app.post<{ Body: { accessToken: string; displayName?: string } }>(
+    "/api/v1/auth/passport",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["accessToken"],
+          properties: {
+            accessToken: { type: "string" },
+            displayName: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      if (!isSupabaseAuthEnabled()) {
+        return reply.status(503).send({ error: "Supabase Auth not enabled" });
+      }
+
+      const { accessToken, displayName } = request.body || {};
+      if (!accessToken) {
+        return reply.status(400).send({ error: "Missing accessToken" });
+      }
+
+      // Verify Supabase Auth token
+      const verified = await verifySupabaseToken(accessToken);
+      if (!verified) {
+        return reply.status(401).send({ error: "Invalid Supabase Auth token" });
+      }
+
+      const { uid: supabaseUid, email } = verified;
+
+      // Determine canonical user ID: check if this Supabase UID already has a passport
+      const cfg = getSupabaseConfig();
+      let canonicalId = `web_${supabaseUid}`;
+
+      if (cfg) {
+        const existing = await sbFetch<any[]>(
+          cfg,
+          `flowb_passport?supabase_uid=eq.${supabaseUid}&select=canonical_id&limit=1`,
+        );
+        if (existing?.[0]?.canonical_id) {
+          canonicalId = existing[0].canonical_id;
+        } else {
+          // Create passport entry
+          const sbUser = await getOrCreateSupabaseUser(canonicalId, "web", {
+            email: email || undefined,
+            displayName: displayName || email?.split("@")[0],
+          });
+          if (sbUser) {
+            canonicalId = `web_${supabaseUid}`;
+          }
+
+          // Resolve cross-platform identity
+          try {
+            await resolveCanonicalId(cfg, canonicalId, {
+              displayName: displayName || email?.split("@")[0],
+            });
+          } catch {}
+        }
+
+        // Upsert session
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+          user_id: canonicalId,
+          display_name: displayName || email?.split("@")[0] || "User",
+          ...(email ? { email } : {}),
+        }, "return=minimal,resolution=merge-duplicates"), "upsert passport session");
+      }
+
+      // Award points
+      fireAndForget(core.awardPoints(canonicalId, "web", "miniapp_open"), "award points");
+
+      const token = signJwt({
+        sub: canonicalId,
+        platform: "web",
+        username: displayName || email?.split("@")[0] || "User",
+        supabase_uid: supabaseUid,
+        email,
+      });
+
+      return {
+        token,
+        user: {
+          id: canonicalId,
+          supabase_uid: supabaseUid,
+          platform: "web",
+          email,
+          username: displayName || email?.split("@")[0] || "User",
         },
       };
     },
@@ -4158,8 +4349,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // SYNC LINKED ACCOUNTS: Re-resolve identity after Privy account linking
-  // Called from web after user links a new account via Privy UI
+  // SYNC LINKED ACCOUNTS: Re-resolve identity after account linking
+  // Called from web after user links a new account (Privy or Supabase Auth)
   // ------------------------------------------------------------------
   app.post(
     "/api/v1/me/sync-linked-accounts",
@@ -4169,12 +4360,22 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { ok: false, error: "Not configured" };
 
+      // In supabase-only mode, sync from local flowb_identities + flowb_passport
+      if (!isPrivyEnabled()) {
+        // Just re-resolve canonical ID from local tables
+        const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+        const linkedIds = await getLinkedIds(cfg, canonicalId);
+        return { ok: true, synced: linkedIds.length, canonical_id: canonicalId, merged_points: 0, platforms_linked: linkedIds.map(id => id.split("_")[0]) };
+      }
+
       // For web users, look up their full Privy profile and sync all linked accounts
       const privyAppId = process.env.PRIVY_APP_ID;
       const privyAppSecret = process.env.PRIVY_APP_SECRET;
 
       if (!privyAppId || !privyAppSecret) {
-        return { ok: false, error: "Privy not configured" };
+        // Fall back to local-only sync
+        const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+        return { ok: true, synced: 0, message: "Privy not configured, local sync only", canonical_id: canonicalId };
       }
 
       // Determine the Privy user ID

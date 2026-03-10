@@ -1,5 +1,28 @@
 import type { FlowBConfig, EGatorPluginConfig } from "./core/types.js";
 
+// ============================================================================
+// Auth Mode Feature Flag
+// ============================================================================
+
+export type AuthMode = "privy" | "dual" | "supabase";
+
+/** Current auth mode: privy (legacy), dual (both work), supabase (target) */
+export function getAuthMode(): AuthMode {
+  const mode = process.env.FLOWB_AUTH_MODE;
+  if (mode === "privy" || mode === "dual" || mode === "supabase") return mode;
+  return "dual"; // default to dual during migration
+}
+
+/** Whether Privy auth paths should be active */
+export function isPrivyEnabled(): boolean {
+  return getAuthMode() !== "supabase";
+}
+
+/** Whether Supabase Auth paths should be active */
+export function isSupabaseAuthEnabled(): boolean {
+  return getAuthMode() !== "privy";
+}
+
 export function loadConfig(): FlowBConfig {
   return {
     plugins: {

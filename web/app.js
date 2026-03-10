@@ -233,15 +233,13 @@ function getCatLabel(catId) {
   return cat ? cat.label : catId;
 }
 
-// Optimize image URLs - resize oversized images via proxy/params
+// Optimize image URLs - direct pass-through for source CDN images
 function optimizeImageUrl(url, w, h) {
   if (!url) return url;
-  // Eventbrite already resizes via their CDN params - leave as-is
-  if (url.includes('evbuc.com')) return url;
-  // wsrv.nl image proxy to resize and convert to webp
-  const width = w || 450;
-  const height = h || 250;
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${width}&h=${height}&fit=cover&output=webp&q=75`;
+  // Skip relative/invalid URLs
+  if (!url.startsWith('http')) return null;
+  // Use source URLs directly — wsrv.nl proxy gets blocked by ad blockers
+  return url;
 }
 
 // Platform source colors and labels

@@ -157,6 +157,8 @@ export function jsonLdToEventResult(ld: JsonLdEvent, sourceUrl: string, source: 
   if (typeof ld.image === "string") imageUrl = ld.image;
   else if (Array.isArray(ld.image)) imageUrl = ld.image[0];
   else if (ld.image && typeof ld.image === "object") imageUrl = ld.image.url;
+  // Only keep absolute URLs — relative paths are usually generic fallbacks
+  if (imageUrl && !imageUrl.startsWith("http")) imageUrl = undefined;
 
   let price: number | undefined;
   let isFree: boolean | undefined;

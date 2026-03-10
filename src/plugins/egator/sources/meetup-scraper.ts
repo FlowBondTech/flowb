@@ -190,7 +190,10 @@ function extractMeetupCards($: cheerio.CheerioAPI, city: string): EventResult[] 
         || $card.find(".venueDisplay").text().trim();
 
       const groupName = $card.find("[data-testid='group-name']").text().trim();
-      const image = $card.find("img").first().attr("src");
+      // Skip fallback/placeholder images — only keep real event/group photos
+      const rawImage = $card.find("img").first().attr("src");
+      const image = rawImage && rawImage.startsWith("http") && !/\/fallbacks\//.test(rawImage)
+        ? rawImage : undefined;
       const attendees = $card.find("[data-testid='attendee-count']").text().trim();
       const rsvpCount = attendees ? parseInt(attendees.replace(/\D/g, ""), 10) : undefined;
 
@@ -202,7 +205,7 @@ function extractMeetupCards($: cheerio.CheerioAPI, city: string): EventResult[] 
         locationCity: city,
         source: "meetup",
         url: url?.split("?")[0] || "",
-        imageUrl: image || undefined,
+        imageUrl: image,
         organizerName: groupName || undefined,
         rsvpCount: rsvpCount && !isNaN(rsvpCount) ? rsvpCount : undefined,
       });
