@@ -35,8 +35,8 @@ title: "eGator Events Plugin"
 | Sheeets | `src/plugins/egator/sources/sheeets.ts` |
 | supadata | `src/plugins/egator/sources/supadata.ts` |
 | SXSW Schedule (scraper) | `src/plugins/egator/sources/sxsw-scraper.ts` |
-| Tavily | `src/plugins/egator/sources/tavily.ts` |
+| DuckDuckGo Events | `src/plugins/egator/sources/tavily.ts` |
 
 ---
 
-*Auto-generated on 2026-03-10 10:12:07 UTC*
+*Auto-generated on 2026-03-10 10:31:29 UTC*
