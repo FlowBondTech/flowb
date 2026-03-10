@@ -8902,6 +8902,88 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     },
   );
 
+  // ------------------------------------------------------------------
+  // QUESTIONNAIRE: Gate-pass notification (unauthenticated)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { userAgent?: string; referrer?: string } }>(
+    "/api/v1/questionnaire/gate-pass",
+    {
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+    },
+    async (request) => {
+      const ua = (request.body as any)?.userAgent || request.headers["user-agent"] || "unknown";
+      const ref = (request.body as any)?.referrer || request.headers.referer || "direct";
+      const ip = request.ip || "unknown";
+
+      alertAdmins(
+        `<b>Biz Onboard: Gate Passed</b>\nIP: ${ip}\nRef: ${ref}\nUA: ${ua.slice(0, 80)}`,
+        "info",
+      );
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // QUESTIONNAIRE: Submit (unauthenticated)
+  // ------------------------------------------------------------------
+  app.post<{ Body: Record<string, any> }>(
+    "/api/v1/questionnaire",
+    {
+      config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
+    },
+    async (request) => {
+      const data = request.body as Record<string, any>;
+      const cfg = getSupabaseConfig();
+
+      // Store in Supabase if configured
+      if (cfg) {
+        try {
+          await sbInsert(cfg, "flowb_questionnaire_submissions", {
+            name: data.userName || null,
+            biz_name: data.bizName || null,
+            email: data.email || null,
+            phone: data.phone || null,
+            data: data,
+            created_at: new Date().toISOString(),
+          });
+        } catch (err) {
+          log.warn("[questionnaire]", "Failed to store submission", {
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      // Build admin notification
+      const name = data.userName || "Unknown";
+      const biz = data.bizName || "N/A";
+      const email = data.email || "N/A";
+      const needs = Array.isArray(data.needs) ? data.needs.join(", ") : "none";
+      const pricing = data._pricing || {};
+      const setup = pricing.setupTotal ? `$${pricing.setupTotal.toLocaleString()}` : "N/A";
+      const monthly = pricing.monthlyFinal ? `$${pricing.monthlyFinal.toLocaleString()}/mo` : "N/A";
+      const timeline = data.timeline || "N/A";
+
+      alertAdmins(
+        [
+          `<b>New Biz Questionnaire Submitted</b>`,
+          ``,
+          `Name: <b>${name}</b>`,
+          `Biz: ${biz}`,
+          `Email: ${email}`,
+          `Services: ${needs}`,
+          `Investment: ${setup} setup + ${monthly}`,
+          `Timeline: ${timeline}`,
+          ``,
+          `<a href="https://biz.flowb.me">View in Biz Dashboard</a>`,
+        ].join("\n"),
+        "important",
+      );
+
+      return { ok: true };
+    },
+  );
+
 } // end registerMiniAppRoutes
 
 // ============================================================================
