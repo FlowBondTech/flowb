@@ -22,7 +22,7 @@ Backend services that power FlowB's cross-platform features.
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
-| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat` |
+| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendOnboardingReminders` |
 | privy | `src/services/privy.ts` | — |
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
@@ -148,7 +148,7 @@ FlowB Notification Service
 
 **Source**: `src/services/notifications.ts`
 
-**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`
+**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`, `sendOnboardingReminders()`
 
 ### privy
 
@@ -198,4 +198,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-10 08:16:49 UTC*
+*Auto-generated on 2026-03-10 08:28:16 UTC*
