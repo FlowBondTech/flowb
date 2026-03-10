@@ -28,10 +28,11 @@ const BOT_LINK = "https://t.me/Flow_b_bot/flowb?startapp=home";
 
 interface Props {
   onComplete: () => void;
+  onSkip?: () => void;
   onNavigateCrew?: (action: "browse" | "create") => void;
 }
 
-export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
+export function OnboardingScreen({ onComplete, onSkip, onNavigateCrew }: Props) {
   const [step, setStep] = useState(0); // 0=welcome, 1=where-based, 2=where-now, 3=interests, 4=crew, 5=share, 6=done
   const [homeCity, setHomeCity] = useState("");
   const [homeCountry, setHomeCountry] = useState("");
@@ -167,6 +168,16 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             Get Started
           </button>
 
+          {onSkip && (
+            <button
+              className="btn btn-block"
+              style={{ marginTop: 10, background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+              onClick={onSkip}
+            >
+              Skip for now
+            </button>
+          )}
+
           <div className="onboarding-portal-hint" style={{ marginTop: 16, textAlign: "center" }}>
             <span
               style={{ color: "var(--accent-light)", fontWeight: 600, cursor: "pointer" }}
@@ -193,8 +204,18 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
             style={{ width: `${progressPercent}%`, transition: "width 0.3s ease" }}
           />
         </div>
-        <div className="onboarding-step-label">
-          Step {step} of {totalSteps}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="onboarding-step-label">
+            Step {step} of {totalSteps}
+          </div>
+          {onSkip && (
+            <button
+              style={{ background: "none", border: "none", color: "var(--text-muted)", fontSize: 12, cursor: "pointer", padding: "4px 0" }}
+              onClick={onSkip}
+            >
+              Skip
+            </button>
+          )}
         </div>
       </div>
 

@@ -266,6 +266,41 @@ export async function buildApp(core: FlowBCore) {
     }, CTX_NOTIFY_INTERVAL); // Reuse the 30-min interval
 
     console.log("[scheduler] Email digest scheduled (8am MST)");
+
+    // ========================================================================
+    // Onboarding Reminders: once per day at ~10am MST
+    // Nudges users who skipped onboarding to come back and complete it.
+    // ========================================================================
+    const onboardReminderFired: Record<string, boolean> = {};
+
+    setInterval(() => {
+      try {
+        const now = new Date();
+        const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
+        const parts = mstStr.split(",")[1]?.trim().split(":");
+        if (!parts) return;
+
+        const hour = parseInt(parts[0], 10);
+        const dateKey = now.toISOString().slice(0, 10);
+
+        if (hour === 10 && !onboardReminderFired[dateKey]) {
+          onboardReminderFired[dateKey] = true;
+          import("../services/notifications.js").then(({ sendOnboardingReminders }) =>
+            sendOnboardingReminders({ supabase: { supabaseUrl, supabaseKey } }).catch(
+              (err) => console.error("[scheduler] Onboarding reminder error:", err),
+            ),
+          );
+
+          for (const key of Object.keys(onboardReminderFired)) {
+            if (key !== dateKey) delete onboardReminderFired[key];
+          }
+        }
+      } catch (err) {
+        console.error("[scheduler] Onboarding reminder check error:", err);
+      }
+    }, CTX_NOTIFY_INTERVAL);
+
+    console.log("[scheduler] Onboarding reminders scheduled (10am MST)");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }

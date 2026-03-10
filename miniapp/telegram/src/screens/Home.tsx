@@ -418,49 +418,34 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
 
           {/* Featured Event Sponsorship CTA */}
           <div
-            className="featured-card"
-            style={{ cursor: "pointer" }}
+            className="featured-banner"
             onClick={() => featuredBoost ? openUrl(featuredBoost.target_id) : setShowFeaturedModal(true)}
           >
-            <div className="featured-img" />
-            <div className="featured-body">
+            <div className="featured-banner-left">
               <span className="featured-badge">
                 {featuredBoost ? "Boosted" : "Boost Spot"}
               </span>
-              <div className="featured-title">
-                {featuredBoost ? featuredBoost.target_id : "Boost Your Event Here"}
-              </div>
-              <div className="featured-meta">
-                {featuredBoost ? (
-                  <div className="featured-meta-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Boosted: ${featuredBoost.amount_usdc.toFixed(2)} USDC
-                  </div>
-                ) : (
-                  <div className="featured-meta-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Boost your event to the top with USDC
-                  </div>
-                )}
-              </div>
-              <div className="featured-footer">
-                <span className="badge badge-purple">Boost</span>
-                <button
-                  className="btn btn-sm btn-primary"
-                  style={{ fontSize: 11, padding: "4px 14px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowFeaturedModal(true);
-                  }}
-                >
-                  {featuredBoost ? "Boost More" : "Boost"}
-                </button>
+              <div className="featured-banner-text">
+                <span className="featured-banner-title">
+                  {featuredBoost ? featuredBoost.target_id : "Boost Your Event Here"}
+                </span>
+                <span className="featured-banner-sub">
+                  {featuredBoost
+                    ? `$${featuredBoost.amount_usdc.toFixed(2)} USDC`
+                    : "Get to the top with USDC"}
+                </span>
               </div>
             </div>
+            <button
+              className="btn btn-sm btn-primary"
+              style={{ fontSize: 11, padding: "4px 14px", whiteSpace: "nowrap" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFeaturedModal(true);
+              }}
+            >
+              {featuredBoost ? "Boost More" : "Boost"}
+            </button>
           </div>
 
           {showFeaturedModal && (
