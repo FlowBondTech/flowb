@@ -319,6 +319,33 @@ const TOOLS = [
       },
     },
   },
+  // ─── Public info tools (no auth required) ────────────────────────────
+  {
+    type: "function" as const,
+    function: {
+      name: "get_flowb_features",
+      description: "List all FlowB features available to the user. Use when user asks 'what can you do?', 'what features', 'help me understand FlowB', 'what's available', 'how does FlowB work'. Returns a comprehensive feature list grouped by category. No auth required.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string", enum: ["all", "events", "social", "business", "ai"], description: "Filter features by category (default: all)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_whats_new",
+      description: "Get FlowB changelog, recent updates, and what's new. Use when user asks 'what's new', 'changelog', 'updates', 'what changed', 'new features', 'release notes', 'what have you been working on'. Returns an extensive list of recent changes. No auth required.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["today", "this_week", "this_month", "all"], description: "Time period to show (default: this_week)" },
+        },
+      },
+    },
+  },
 ];
 
 // ─── Business tool definitions ───────────────────────────────────────
@@ -1457,6 +1484,255 @@ interface BizContext {
   usageSummary: string;
 }
 
+// ─── Public info tool executors ────────────────────────────────────────
+
+function getFlowBFeatures(category: string | undefined, user: UserContext): string {
+  const isLoggedIn = !!user.userId;
+  const sections: string[] = [];
+
+  const eventFeatures = `**Events & Discovery**
+- Search events in any city — real-time data from Luma, Eventbrite, Meetup, Partiful, and community submissions
+- Filter by category (DeFi, AI, Social, Music, Hackathon, Workshop, Party, etc.), date, free/paid
+- "What's happening tonight?" — instant results for your city
+- Trending events and popularity rankings
+- Event details with venue, time, price, RSVP counts
+- Submit your own events via /addmyevent
+- Smart short links: flowb.me/e/{id} to share any event`;
+
+  const socialFeatures = `**Crews & Social**
+- Create or join crews (groups) with friends and collaborators
+- Crew leaderboards and point rankings
+- Find friends: "where is @username?" — see who's nearby
+- Share your location with a 4-character code
+- Activity feed: see what's happening in your network
+- Crew invite links for easy sharing
+- RSVP to events and track who's going
+- Points system: earn points for check-ins, RSVPs, referrals, and engagement
+- Daily and weekly challenges`;
+
+  const bizFeatures = `**Business Tools** ${isLoggedIn ? "" : "(sign in to unlock)"}
+- **CRM / Leads**: "Met Sarah at Acme" → instant lead capture. Pipeline stages, search, timeline
+- **Meetings**: "Schedule coffee with Mike tomorrow at 3pm" → auto-scheduled. List upcoming, complete with notes
+- **Kanban Board**: Visual pipeline at biz.flowb.me with drag-and-drop
+- **Crew Business Settings**: Share leads, meetings, and pipeline with your crew
+- **Automations**: Set up triggers (new lead → notify crew, meeting completed → update stage)
+- **Settings**: Quiet hours, DND mode, notification preferences, digest frequency`;
+
+  const aiFeatures = `**AI Chat (You're Using It Now!)**
+- Natural language for everything — no commands to memorize
+- Tool-augmented: the AI actually searches events, creates leads, schedules meetings
+- Works on Telegram, Web (flowb.me), and Farcaster
+- Multi-turn conversations with context memory
+- Email event results or create shareable links
+- Platform-aware formatting (adapts to where you're chatting)`;
+
+  const platformFeatures = `**Platforms**
+- **Telegram Bot**: @FlowBBot — full-featured with inline buttons, group chat support, mini app
+- **Web App**: flowb.me — event discovery, chat widget, sign in with Privy
+- **Farcaster**: @flowb — mention for event search and AI assistance
+- **Mobile App**: me.flowb.app (iOS & Android via Expo)
+- **Kanban**: biz.flowb.me — visual lead pipeline and task management
+- **Docs**: docs.flowb.me — full documentation`;
+
+  const tiers = `**Plans**
+- **Free**: 10 AI chats/month, 10 leads, 3 meetings, 2 automations, 1 board
+- **Pro** ($9/mo): Unlimited AI chats, 100 leads, 20 meetings, 10 automations, 5 boards
+- **Team** ($29/mo): Everything unlimited, crew analytics, priority support
+- **Business** ($79/mo): White-label, API access, custom integrations, dedicated support`;
+
+  const cat = (category || "all").toLowerCase();
+  if (cat === "all" || cat === "events") sections.push(eventFeatures);
+  if (cat === "all" || cat === "social") sections.push(socialFeatures);
+  if (cat === "all" || cat === "business") sections.push(bizFeatures);
+  if (cat === "all" || cat === "ai") sections.push(aiFeatures);
+  if (cat === "all") {
+    sections.push(platformFeatures);
+    sections.push(tiers);
+  }
+
+  return sections.join("\n\n");
+}
+
+function getWhatsNew(period: string | undefined): string {
+  const p = (period || "this_week").toLowerCase();
+
+  // Changelog entries — most recent first, curated from real commits
+  const changelog: Array<{ date: string; title: string; description: string; category: string }> = [
+    // March 9-10
+    {
+      date: "2026-03-09",
+      title: "Seamless AI Chat Experience",
+      description: "FlowB's AI assistant now handles everything through natural language — leads, meetings, settings, crew admin, billing — no commands needed. Just talk to FlowB like you'd talk to a friend. Works across Telegram, Web, and Farcaster with the same quality.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-09",
+      title: "LLM-Primary Mode for Telegram",
+      description: "The Telegram bot now routes unmatched messages directly through the AI with full tool access. No more 'I don't understand' — FlowB actually thinks about your request and uses its tools to help.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-09",
+      title: "FlowB Passport (Dual Auth)",
+      description: "New Supabase Auth integration running alongside Privy. Unified identity across all platforms — your Telegram, Farcaster, and web accounts all link to one FlowB Passport.",
+      category: "Platform",
+    },
+    {
+      date: "2026-03-09",
+      title: "Rebrand: Find Your Flow",
+      description: "Across all surfaces, FlowB is now about 'finding your flow' — event discovery, social connections, and business tools unified under one vibe.",
+      category: "Brand",
+    },
+    {
+      date: "2026-03-09",
+      title: "Crew Invite Sharing",
+      description: "Share crew invites via inline mode in Telegram — tap the share button, pick a chat, done. Bot auto-joins groups when shared. Deep links work for instant crew joins.",
+      category: "Social",
+    },
+    {
+      date: "2026-03-09",
+      title: "Rich Notification DMs",
+      description: "Event notifications now include direct links, event times, and RSVP buttons right in your DM. No more hunting for the event page.",
+      category: "UX",
+    },
+    // March 8
+    {
+      date: "2026-03-08",
+      title: "Lead Pipeline Board",
+      description: "Visual drag-and-drop lead pipeline at biz.flowb.me. Move leads between stages (New → Contacted → Qualified → Proposal → Won/Lost). FlowB JWT auth, tab switcher between tasks and leads.",
+      category: "Business",
+    },
+    {
+      date: "2026-03-08",
+      title: "Crew Business Platform",
+      description: "Crews can now share leads, meetings, and pipeline data. New crew biz settings let admins control what's shared. Kanban board for team task management.",
+      category: "Business",
+    },
+    {
+      date: "2026-03-08",
+      title: "Meeting Guest Sharing",
+      description: "Share meeting details with guests via multi-channel delivery — Telegram DM, email, or shareable link. Meeting notes and action items included.",
+      category: "Business",
+    },
+    {
+      date: "2026-03-08",
+      title: "Natural Language Leads & Meetings",
+      description: "Say 'met Sarah at Acme' to create a lead, or 'schedule coffee with Mike tomorrow' to book a meeting — the bot parses it all naturally.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-08",
+      title: "Mobile App Push Notifications",
+      description: "Push notifications now work on the mobile app (iOS & Android). Never miss a crew update, event reminder, or lead activity.",
+      category: "Mobile",
+    },
+    // March 7
+    {
+      date: "2026-03-07",
+      title: "Business Platform Scaffolding",
+      description: "Full business platform launched: meetings, leads, kanban boards, referral tracking, and notification preferences. The foundation for FlowB's CRM capabilities.",
+      category: "Business",
+    },
+    // March 6
+    {
+      date: "2026-03-06",
+      title: "Chat Results Sharing",
+      description: "After searching events in chat, ask FlowB to email the results or create a shareable link (flowb.me/r/{code}). Share your curated event list with anyone.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-06",
+      title: "Event Reactions & Engagement Rewards",
+      description: "React to events with a tada emoji in group chats — FlowB sends you a DM with event details and RSVP options. All engagement actions (reactions, RSVPs, check-ins) now earn points.",
+      category: "Social",
+    },
+    {
+      date: "2026-03-06",
+      title: "Partiful Event Source",
+      description: "Partiful added as a worldwide event source. FlowB now aggregates events from Luma, Eventbrite, Meetup, Partiful, and community submissions.",
+      category: "Events",
+    },
+    // March 5
+    {
+      date: "2026-03-05",
+      title: "AI Chat Overhaul",
+      description: "Chat search now queries FlowB's local database instead of external APIs — faster, more accurate, and with full category/venue/price data.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-05",
+      title: "Community Event Submission",
+      description: "Submit your own events via /addmyevent on Telegram, or through the Farcaster and Telegram mini apps. Events go through a simple conversational flow.",
+      category: "Events",
+    },
+    {
+      date: "2026-03-05",
+      title: "Crew Admin Tools",
+      description: "Crew creators and admins can now promote members to moderator/admin, fix display names, and manage crew settings — all from chat.",
+      category: "Social",
+    },
+    // March 4
+    {
+      date: "2026-03-04",
+      title: "Leaderboard & Rankings",
+      description: "/leaderboard command shows top users and crews by points. Works in DMs and group chats. Crew rankings show collective scores.",
+      category: "Social",
+    },
+    {
+      date: "2026-03-04",
+      title: "Web Search Integration",
+      description: "FlowB can now search the web for events using SerpAPI — when local sources don't have what you need, it casts a wider net.",
+      category: "Events",
+    },
+    {
+      date: "2026-03-04",
+      title: "Video Transcription",
+      description: "Send a video URL and FlowB transcribes it — useful for capturing talks, panels, and event recordings.",
+      category: "AI",
+    },
+  ];
+
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const weekAgo = new Date(now.getTime() - 7 * 86400_000).toISOString().slice(0, 10);
+  const monthAgo = new Date(now.getTime() - 30 * 86400_000).toISOString().slice(0, 10);
+
+  let filtered = changelog;
+  if (p === "today") {
+    filtered = changelog.filter(e => e.date === todayStr);
+  } else if (p === "this_week") {
+    filtered = changelog.filter(e => e.date >= weekAgo);
+  } else if (p === "this_month") {
+    filtered = changelog.filter(e => e.date >= monthAgo);
+  }
+
+  if (!filtered.length) {
+    return "No updates for that period. Try asking for 'all' updates or 'this month'.";
+  }
+
+  // Group by date
+  const byDate = new Map<string, typeof filtered>();
+  for (const entry of filtered) {
+    const existing = byDate.get(entry.date) || [];
+    existing.push(entry);
+    byDate.set(entry.date, existing);
+  }
+
+  const lines: string[] = ["**What's New with FlowB**\n"];
+  for (const [date, entries] of byDate) {
+    const d = new Date(date + "T12:00:00");
+    const label = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+    lines.push(`**${label}**`);
+    for (const e of entries) {
+      lines.push(`- **${e.title}** [${e.category}]: ${e.description}`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`_${filtered.length} updates shown. FlowB ships daily — ask again anytime!_`);
+  return lines.join("\n");
+}
+
 function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContext, platform?: Platform): string {
   const now = new Date();
   const nowStr = now.toLocaleString("en-US", {
@@ -1571,6 +1847,11 @@ BILLING:
 - When someone asks "my plan", "what plan", "usage", call get_my_plan.
 - If a user hits a tier limit, inform them of their usage and suggest upgrading.
 
+FEATURES & WHAT'S NEW (available to ALL users, no login required):
+- When someone asks "what can you do?", "features", "help", "what is FlowB", call get_flowb_features.
+- When someone asks "what's new", "changelog", "updates", "what changed", "new features", "release notes", call get_whats_new.
+- Present the results warmly and enthusiastically — FlowB ships fast and users should feel the momentum.
+
 ${platform === "telegram" ? `PLATFORM FORMAT (Telegram):
 - Keep responses under 2000 characters.
 - Use markdown bold/italic (will be converted to HTML).
@@ -1632,7 +1913,7 @@ export async function handleChat(
   };
 
   // Limit tools for unauthenticated users — public tools include event search + discovery
-  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results"];
+  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "get_whats_new"];
   const allTools = [...TOOLS, ...BIZ_TOOLS];
   const tools = user.userId
     ? allTools
@@ -1747,6 +2028,13 @@ export async function handleChat(
             break;
           case "share_results":
             result = await shareResults(args, user, sb, capturedEvents, capturedContext);
+            break;
+          // ── Public info tools ──
+          case "get_flowb_features":
+            result = getFlowBFeatures(args.category, user);
+            break;
+          case "get_whats_new":
+            result = getWhatsNew(args.period);
             break;
           // ── Business tools (from chat-tools-biz.ts) ──
           case "create_lead":
