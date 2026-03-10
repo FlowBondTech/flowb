@@ -11,6 +11,7 @@ Backend services that power FlowB's cross-platform features.
 | admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone` |
 | agent memory | `src/services/agent-memory.ts` | `storeMemory`, `searchMemories`, `extractMemories`, `getMemoryContext`, `processConversationMemories` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
+| biz notifications | `src/services/biz-notifications.ts` | `notifyBizChannel` |
 | cdp | `src/services/cdp.ts` | — |
 | chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `fetchUserBizContext` |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
@@ -55,6 +56,14 @@ AI Chat Service — Tool-augmented chat
 **Source**: `src/services/ai-chat.ts`
 
 **Exports**: `handleChat()`
+
+### biz notifications
+
+Business project notification stubs.
+
+**Source**: `src/services/biz-notifications.ts`
+
+**Exports**: `notifyBizChannel()`
 
 ### cdp
 
@@ -198,4 +207,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-10 08:37:43 UTC*
+*Auto-generated on 2026-03-10 08:42:29 UTC*
