@@ -30,6 +30,11 @@ export function useAuth() {
       const result = await authTelegram(tg.initData);
       setState({ user: result.user, loading: false, error: null });
 
+      // Sync server-side onboarding flag to localStorage (TG WebView can clear it)
+      if (result.onboarding_complete) {
+        try { localStorage.setItem("flowb_onboarded", "1"); } catch {}
+      }
+
       // Claim any points earned before auth completed
       const pending = getPendingActions();
       if (pending.length > 0) {

@@ -232,6 +232,11 @@ export default function FarcasterApp() {
           if (result.user.username) setUsername(result.user.username);
           if (result.user.id) setUserId(result.user.id);
 
+          // Sync server-side onboarding flag to localStorage (WebView can clear it)
+          if (result.onboarding_complete) {
+            try { localStorage.setItem("flowb_onboarded", "1"); } catch {}
+          }
+
           const pending = getPendingActions();
           if (pending.length > 0) {
             claimPendingPoints(pending)

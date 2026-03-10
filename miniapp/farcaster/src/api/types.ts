@@ -52,6 +52,7 @@ export interface UserProfile {
 export interface AuthResponse {
   token: string;
   user: UserProfile;
+  onboarding_complete?: boolean;
 }
 
 export interface ScheduleEntry {

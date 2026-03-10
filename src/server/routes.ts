@@ -45,6 +45,7 @@ import { log, fireAndForget } from "../utils/logger.js";
 import { alertAdmins, alertNewEvents } from "../services/admin-alerts.js";
 import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js";
 import { registerAgentRoutes } from "./agent-routes.js";
+import { registerFiFlowRoutes } from "./fiflow-routes.js";
 import {
   createProject, listProjects, getProject, updateProject, deleteProject,
   testConnection, getActivityLog, createWebhook, listWebhooks, logActivity,
@@ -106,9 +107,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Look up locale from session or fallback to Telegram language_code
       let locale = user.language_code || 'en';
       let isNewTgUser = true;
+      let onboardingComplete = false;
       if (cfg) {
-        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale,created_at&limit=1`);
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale,created_at,onboarding_complete&limit=1`);
         if (sessions?.[0]?.locale) locale = sessions[0].locale;
+        if (sessions?.[0]?.onboarding_complete) onboardingComplete = true;
         // If session was created more than 60s ago, it's a returning user
         if (sessions?.[0]?.created_at) {
           const created = new Date(sessions[0].created_at).getTime();
@@ -143,6 +146,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return {
         token,
         locale,
+        onboarding_complete: onboardingComplete,
         user: {
           id: userId,
           platform: "telegram",
@@ -240,12 +244,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             } catch {}
           }
 
-          // Look up locale from session
+          // Look up locale + onboarding from session
           let locale = 'en';
+          let onboardingComplete = false;
           const fcCfg = getSupabaseConfig();
           if (fcCfg) {
-            const sessions = await sbFetch<any[]>(fcCfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+            const sessions = await sbFetch<any[]>(fcCfg, `flowb_sessions?user_id=eq.${userId}&select=locale,onboarding_complete&limit=1`);
             if (sessions?.[0]?.locale) locale = sessions[0].locale;
+            if (sessions?.[0]?.onboarding_complete) onboardingComplete = true;
           }
 
           // Upsert session row for Farcaster users
@@ -300,6 +306,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           return {
             token,
             locale,
+            onboarding_complete: onboardingComplete,
             user: {
               id: userId,
               platform: "farcaster",
@@ -332,12 +339,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       fireAndForget(core.awardPoints(userId, "farcaster", "miniapp_open"), "award points");
 
-      // Look up locale from session
+      // Look up locale + onboarding from session
       let fcLegacyLocale = 'en';
+      let fcLegacyOnboarded = false;
       const fcLegacyCfg = getSupabaseConfig();
       if (fcLegacyCfg) {
-        const sessions = await sbFetch<any[]>(fcLegacyCfg, `flowb_sessions?user_id=eq.${userId}&select=locale&limit=1`);
+        const sessions = await sbFetch<any[]>(fcLegacyCfg, `flowb_sessions?user_id=eq.${userId}&select=locale,onboarding_complete&limit=1`);
         if (sessions?.[0]?.locale) fcLegacyLocale = sessions[0].locale;
+        if (sessions?.[0]?.onboarding_complete) fcLegacyOnboarded = true;
       }
 
       // Create/link Supabase Auth user (FlowB Passport)
@@ -361,6 +370,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return {
         token,
         locale: fcLegacyLocale,
+        onboarding_complete: fcLegacyOnboarded,
         user: {
           id: userId,
           platform: "farcaster",
@@ -3972,7 +3982,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // NOTIFICATION FEED: Paginated notification history for StephAlert
+  // NOTIFICATION FEED: Paginated notification history for FlowB VIP
   // ------------------------------------------------------------------
 
   app.get(
@@ -3987,8 +3997,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const limit = Math.min(parseInt(qs.limit || "50", 10), 100);
       const offset = parseInt(qs.offset || "0", 10);
       const unreadOnly = qs.unread === "true";
+      const before = qs.before; // ISO 8601 cursor for keyset pagination
 
-      let path = `flowb_notification_log?recipient_id=eq.${jwt.sub}&order=sent_at.desc&limit=${limit}&offset=${offset}&select=id,notification_type,reference_id,triggered_by,sent_at,title,body,priority,read_at,data`;
+      let path = `flowb_notification_log?recipient_id=eq.${jwt.sub}&order=sent_at.desc&limit=${limit}&select=id,notification_type,reference_id,triggered_by,sent_at,title,body,priority,read_at,data`;
+      if (before) {
+        // Cursor-based pagination: fetch items older than the cursor
+        path += `&sent_at=lt.${before}`;
+      } else {
+        // Fallback to offset-based pagination for backwards compatibility
+        path += `&offset=${offset}`;
+      }
       if (unreadOnly) path += "&read_at=is.null";
 
       const rows = await sbFetch<any[]>(cfg, path);
@@ -4029,6 +4047,97 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // NOTIFICATION STREAM: SSE real-time notification push for FlowB VIP
+  // ------------------------------------------------------------------
+
+  app.get(
+    "/api/v1/me/notifications/stream",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return reply.status(500).send({ error: "Not configured" });
+      }
+
+      // Hijack the response from Fastify to write raw SSE
+      reply.hijack();
+
+      const headers = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      };
+      reply.raw.writeHead(200, headers);
+
+      const userId = jwt.sub;
+      const knownIds = new Set<string>();
+      let lastSentAt = new Date().toISOString();
+      let alive = true;
+
+      // Send initial unread count
+      const unreadRows = await sbFetch<any[]>(
+        cfg,
+        `flowb_notification_log?recipient_id=eq.${userId}&read_at=is.null&select=id`,
+      );
+      const initPayload = JSON.stringify({
+        unread_count: unreadRows?.length || 0,
+      });
+      reply.raw.write(`event: init\ndata: ${initPayload}\n\n`);
+
+      // Seed knownIds with recent notifications to avoid re-sending on first poll
+      const recentRows = await sbFetch<any[]>(
+        cfg,
+        `flowb_notification_log?recipient_id=eq.${userId}&order=sent_at.desc&limit=50&select=id,sent_at`,
+      );
+      if (recentRows) {
+        for (const r of recentRows) knownIds.add(r.id);
+      }
+
+      // Poll for new notifications every 10 seconds
+      const pollInterval = setInterval(async () => {
+        if (!alive) return;
+        try {
+          const newRows = await sbFetch<any[]>(
+            cfg,
+            `flowb_notification_log?recipient_id=eq.${userId}&sent_at=gt.${lastSentAt}&order=sent_at.asc&limit=50&select=id,notification_type,reference_id,triggered_by,sent_at,title,body,priority,read_at,data`,
+          );
+          if (newRows && newRows.length > 0) {
+            for (const row of newRows) {
+              if (!knownIds.has(row.id)) {
+                knownIds.add(row.id);
+                const payload = JSON.stringify(row);
+                reply.raw.write(`event: notification\ndata: ${payload}\n\n`);
+              }
+            }
+            // Advance cursor to the latest sent_at
+            lastSentAt = newRows[newRows.length - 1].sent_at;
+          }
+        } catch {
+          // Swallow poll errors to keep the stream alive
+        }
+      }, 10_000);
+
+      // Send keepalive comment every 30 seconds
+      const keepaliveInterval = setInterval(() => {
+        if (!alive) return;
+        try {
+          reply.raw.write(`: keepalive\n\n`);
+        } catch {
+          // Connection likely closed
+        }
+      }, 30_000);
+
+      // Clean up on client disconnect
+      request.raw.on("close", () => {
+        alive = false;
+        clearInterval(pollInterval);
+        clearInterval(keepaliveInterval);
+      });
     },
   );
 
@@ -6149,6 +6258,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // AGENTS — see agent-routes.ts
   // ============================================================================
   registerAgentRoutes(app, core);
+  registerFiFlowRoutes(app, core);
 
   // ------------------------------------------------------------------
   // FEEDBACK: Submit bug reports, feature requests, feedback
