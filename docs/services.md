@@ -26,6 +26,7 @@ Backend services that power FlowB's cross-platform features.
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
 | socialb repost | `src/services/socialb-repost.ts` | `handleNewCast`, `adaptContent` |
+| supabase auth | `src/services/supabase-auth.ts` | `getOrCreateSupabaseUser`, `verifySupabaseToken`, `linkPlatformIdentity` |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
@@ -170,6 +171,14 @@ SocialB Repost Engine
 
 **Exports**: `handleNewCast()`, `adaptContent()`
 
+### supabase auth
+
+Supabase Auth Admin Service
+
+**Source**: `src/services/supabase-auth.ts`
+
+**Exports**: `getOrCreateSupabaseUser()`, `verifySupabaseToken()`, `linkPlatformIdentity()`
+
 ### telegram auth
 
 Telegram Login Widget - Server-side verification
@@ -180,4 +189,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-10 04:31:38 UTC*
+*Auto-generated on 2026-03-10 04:55:42 UTC*
