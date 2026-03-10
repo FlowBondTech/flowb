@@ -7,6 +7,7 @@
 import type { EventResult } from "../core/types.js";
 import { createHash } from "crypto";
 import { sbFetch, sbPatchRaw, sbInsert, type SbConfig } from "../utils/supabase.js";
+import { fetchOgImage } from "../plugins/egator/sources/parse-utils.js";
 
 export interface ScanResultEvent {
   title: string;
@@ -139,6 +140,27 @@ export async function scanForNewEvents(
     const categoryMap = new Map((categories || []).map(c => [c.slug, c.id]));
 
     const events = await discoverFn({ action: "events", city: city || undefined });
+
+    // Backfill og:image for events missing images (parallel, max 5 at a time)
+    const needsImage = events.filter(e => !e.imageUrl && e.url);
+    if (needsImage.length) {
+      console.log(`[event-scanner] Backfilling og:image for ${needsImage.length} events`);
+      const BATCH = 5;
+      for (let i = 0; i < needsImage.length; i += BATCH) {
+        const batch = needsImage.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          batch.map(e => fetchOgImage(e.url!))
+        );
+        for (let j = 0; j < batch.length; j++) {
+          const r = results[j];
+          if (r.status === "fulfilled" && r.value) {
+            batch[j].imageUrl = r.value;
+          }
+        }
+      }
+      const filled = needsImage.filter(e => e.imageUrl).length;
+      console.log(`[event-scanner] Backfilled ${filled}/${needsImage.length} images`);
+    }
 
     for (const event of events) {
       const titleSlug = slugify(event.title || "");

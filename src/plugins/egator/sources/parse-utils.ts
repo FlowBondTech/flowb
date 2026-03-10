@@ -63,6 +63,45 @@ function sleep(ms: number): Promise<void> {
 }
 
 // ============================================================================
+// og:image extraction from event page URLs
+// ============================================================================
+
+/**
+ * Fetch a URL and extract the og:image (or twitter:image) meta tag.
+ * Returns the absolute image URL or undefined if none found.
+ * Uses a short timeout and single retry to avoid slowing scans.
+ */
+export async function fetchOgImage(url: string): Promise<string | undefined> {
+  try {
+    const html = await fetchHtml(url, { retries: 1, timeoutMs: 8000 });
+    if (!html) return undefined;
+    return extractOgImage(html);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Extract og:image / twitter:image from raw HTML without a full DOM parse.
+ */
+export function extractOgImage(html: string): string | undefined {
+  // Check first 50KB only — meta tags are always in <head>
+  const head = html.slice(0, 50_000);
+
+  // og:image (most common)
+  const ogMatch = head.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
+    || head.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
+  if (ogMatch?.[1] && ogMatch[1].startsWith("http")) return ogMatch[1];
+
+  // twitter:image fallback
+  const twMatch = head.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+    || head.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:image["']/i);
+  if (twMatch?.[1] && twMatch[1].startsWith("http")) return twMatch[1];
+
+  return undefined;
+}
+
+// ============================================================================
 // JSON-LD extraction from HTML
 // ============================================================================
 

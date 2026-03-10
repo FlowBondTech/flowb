@@ -20,6 +20,12 @@ const EVENTS_QUERY = `
       currency
       description_plain_text
       url
+      new_new_photos_expanded {
+        url
+      }
+      cover_photo_expanded {
+        url
+      }
       address {
         title
         city
@@ -72,20 +78,26 @@ export class LemonadeAdapter implements EventSourceAdapter {
 
       const events = data.data?.getEvents || [];
 
-      return events.map((e: any) => ({
-        id: `lemonade_${e._id}`,
-        title: e.title || "Untitled",
-        description: e.description_plain_text?.substring(0, 300),
-        startTime: e.start,
-        endTime: e.end,
-        locationName: e.address?.title || e.address?.street_1,
-        locationCity: e.address?.city || params.city,
-        isFree: !e.cost || e.cost === 0,
-        price: e.cost ? Number(e.cost) : undefined,
-        isVirtual: e.virtual || false,
-        source: "lemonade",
-        url: e.url || `https://lemonade.social/event/${e._id}/${e.slug}`,
-      }));
+      return events.map((e: any) => {
+        const imageUrl = e.cover_photo_expanded?.url
+          || e.new_new_photos_expanded?.[0]?.url
+          || undefined;
+        return {
+          id: `lemonade_${e._id}`,
+          title: e.title || "Untitled",
+          description: e.description_plain_text?.substring(0, 300),
+          startTime: e.start,
+          endTime: e.end,
+          locationName: e.address?.title || e.address?.street_1,
+          locationCity: e.address?.city || params.city,
+          isFree: !e.cost || e.cost === 0,
+          price: e.cost ? Number(e.cost) : undefined,
+          isVirtual: e.virtual || false,
+          source: "lemonade",
+          url: e.url || `https://lemonade.social/event/${e._id}/${e.slug}`,
+          imageUrl,
+        };
+      });
     } catch (err: any) {
       console.error("[egator:lemonade] Fetch error:", err.message);
       return [];

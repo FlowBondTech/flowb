@@ -9,7 +9,7 @@
  */
 
 import type { EventQuery, EventResult, EventSourceAdapter } from "../../../core/types.js";
-import { isEventPage, parseEventContent, extractSource, hashString } from "./parse-utils.js";
+import { isEventPage, parseEventContent, extractSource, hashString, fetchOgImage } from "./parse-utils.js";
 
 const TAVILY_SEARCH = "https://api.tavily.com/search";
 const TAVILY_EXTRACT = "https://api.tavily.com/extract";
@@ -154,7 +154,27 @@ export class TavilyAdapter implements EventSourceAdapter {
 
     for (const result of results) {
       const parsed = parseEventContent(result.raw_content, result.url, params);
-      if (parsed) events.push(parsed);
+      if (parsed) {
+        // Tavily includes images array when available
+        if (!parsed.imageUrl && result.images?.length) {
+          parsed.imageUrl = result.images[0];
+        }
+        events.push(parsed);
+      }
+    }
+
+    // Backfill og:image for events still missing images
+    const needsImage = events.filter(e => !e.imageUrl && e.url);
+    if (needsImage.length) {
+      const results2 = await Promise.allSettled(
+        needsImage.map(e => fetchOgImage(e.url!))
+      );
+      for (let i = 0; i < needsImage.length; i++) {
+        const r = results2[i];
+        if (r.status === "fulfilled" && r.value) {
+          needsImage[i].imageUrl = r.value;
+        }
+      }
     }
 
     return events;
@@ -196,7 +216,16 @@ export async function extractEventFromUrl(
     if (!results.length) return null;
 
     const result = results[0];
-    return parseEventContent(result.raw_content, result.url || url, { city });
+    const parsed = parseEventContent(result.raw_content, result.url || url, { city });
+    if (parsed && !parsed.imageUrl) {
+      // Try Tavily images first, then og:image
+      if (result.images?.length) {
+        parsed.imageUrl = result.images[0];
+      } else {
+        parsed.imageUrl = await fetchOgImage(url) || undefined;
+      }
+    }
+    return parsed;
   } catch (err: any) {
     console.error("[egator:tavily] extractEventFromUrl error:", err.message);
     return null;
