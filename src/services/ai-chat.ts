@@ -722,7 +722,7 @@ const BIZ_TOOLS = [
 const WEBSITE_TOOLS = [
   // Site management
   { type: "function" as const, function: { name: "site_list", description: "List managed websites. Use when user says 'my sites', 'list sites'.", parameters: { type: "object", properties: {} } } },
-  { type: "function" as const, function: { name: "site_status", description: "Get status and recent activity for a managed site.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug (default: nored-farms)" } } } } },
+  { type: "function" as const, function: { name: "site_status", description: "Get status and recent activity for a managed site.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug (use site_list to find available sites)" } } } } },
   { type: "function" as const, function: { name: "site_rebuild", description: "Trigger a site rebuild via Netlify build hook.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug" } } } } },
   { type: "function" as const, function: { name: "site_activity", description: "View recent activity log for a managed site.", parameters: { type: "object", properties: { site: { type: "string", description: "Site slug" }, limit: { type: "number", description: "Max entries (default 20)" } } } } },
   // Products
