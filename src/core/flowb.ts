@@ -22,6 +22,7 @@ import { AgentsPlugin } from "../plugins/agents/index.js";
 import { ReferralPlugin } from "../plugins/referral/index.js";
 import { AutomationPlugin } from "../plugins/automation/index.js";
 import { BillingPlugin } from "../plugins/billing/index.js";
+import { FiFlowPlugin } from "../plugins/fiflow/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -122,6 +123,12 @@ export class FlowBCore {
       billing.configure(this.config.plugins.billing);
     }
     this.registerPlugin(billing);
+
+    const fiflow = new FiFlowPlugin();
+    if (this.config.plugins?.cfo) {
+      fiflow.configure(this.config.plugins.cfo);
+    }
+    this.registerPlugin(fiflow);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -435,6 +442,18 @@ export class FlowBCore {
     const billing = this.plugins.get("billing") as BillingPlugin | undefined;
     if (!billing?.isConfigured()) return null;
     return billing;
+  }
+
+  /** Get the FiFlow CFO plugin for direct access. */
+  getFiFlowPlugin(): FiFlowPlugin | null {
+    const fiflow = this.plugins.get("fiflow") as FiFlowPlugin | undefined;
+    if (!fiflow?.isConfigured()) return null;
+    return fiflow;
+  }
+
+  /** Get the CFO plugin config. */
+  getCFOConfig(): import("./types.js").CFOPluginConfig | null {
+    return this.config.plugins?.cfo || null;
   }
 
   /** Get the list of all action names (for schema generation) */

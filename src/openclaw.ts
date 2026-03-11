@@ -134,6 +134,39 @@ export default function register(api: any) {
     },
   });
 
+  // 5. FiFlow CFO (admin-gated)
+  api.registerTool({
+    name: "flowb_fiflow",
+    description: "FiFlow CFO - compliance, treasury, risk assessment, and strategy for FlowBond. Admin-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "fiflow-status", "fiflow-compliance", "fiflow-treasury",
+            "fiflow-report", "fiflow-risks", "fiflow-strategy",
+            "fiflow-deadlines", "fiflow-audit-log",
+          ],
+          description: "FiFlow action to perform",
+        },
+        user_id: { type: "string", description: "Admin user identifier" },
+        days: { type: "number", description: "Number of days for deadline lookups (default 90)" },
+        report_type: { type: "string", enum: ["compliance", "treasury", "risk", "full"], description: "Report type" },
+        category: { type: "string", description: "Filter by compliance category" },
+        status: { type: "string", description: "Filter by task status" },
+      },
+      required: ["action", "user_id"],
+    },
+    async execute(input: any): Promise<string> {
+      const adminIds = (process.env.FIFLOW_ADMIN_IDS || process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
+      if (!adminIds.includes(input.user_id)) {
+        return "Access denied. FiFlow is admin-only.";
+      }
+      return core.execute(input.action, { ...input, platform: "openclaw" });
+    },
+  });
+
   // ─── Legacy monolithic tool (backward compat) ──────────────────────
 
   const legacySchema = {

@@ -3763,12 +3763,14 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         });
 
         // Return OpenAI-compatible format for backward compat
+        // Include persona metadata when FiFlow or other persona responded
         return {
           id: `chatcmpl-${Date.now()}`,
           object: "chat.completion",
           created: Math.floor(Date.now() / 1000),
           model: model || "grok-3-mini-fast",
-          choices: [{ index: 0, message: result, finish_reason: "stop" }],
+          choices: [{ index: 0, message: { role: result.role, content: result.content }, finish_reason: "stop" }],
+          ...(result.persona ? { persona: result.persona } : {}),
         };
       } catch (err: any) {
         console.error("[ai-chat] handler failed:", err.message);

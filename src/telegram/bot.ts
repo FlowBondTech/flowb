@@ -110,12 +110,24 @@ import {
   buildPipelineKeyboard,
   type LeadData,
   type LeadStage,
+  // Task Lists
+  formatTaskListHtml,
+  buildTaskListKeyboard,
+  type TaskListData,
+  type TaskListItem,
 } from "./cards.js";
 import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
-import { handleChat, type ChatConfig, type ChatMessage } from "../services/ai-chat.js";
+import { handleChat, type ChatConfig, type ChatMessage, type ChatPersona } from "../services/ai-chat.js";
+import {
+  getGroupIntelConfig,
+  processGroupMessage,
+  enableGroupIntel,
+  disableGroupIntel,
+  SIGNAL_EMOJI,
+} from "../services/group-intelligence.js";
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -158,6 +170,7 @@ interface TgSession {
   awaitingLeadName?: boolean;
   awaitingLeadDetails?: string; // lead ID being edited
   leadCache?: LeadData[];       // cached leads for callback resolution
+  awaitingTaskListItems?: string; // task list UUID when waiting for items to add
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -347,6 +360,7 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingLeadName: partial.awaitingLeadName ?? existing?.awaitingLeadName,
     awaitingLeadDetails: partial.awaitingLeadDetails ?? existing?.awaitingLeadDetails,
     leadCache: partial.leadCache ?? existing?.leadCache,
+    awaitingTaskListItems: partial.awaitingTaskListItems ?? existing?.awaitingTaskListItems,
   };
   sessions.set(userId, session);
 
@@ -1998,6 +2012,124 @@ export function startTelegramBot(
     name = name.replace(/[,;.!]+$/, "").trim();
 
     return { name: name.trim(), company, email, phone, notes };
+  }
+
+  // ==========================================================================
+  // Task List Helpers
+  // ==========================================================================
+
+  const MAX_TASK_ITEMS = 25;
+  const MAX_ITEM_LEN = 200;
+  const MAX_TITLE_LEN = 100;
+
+  function parseTaskListInput(text: string): { title: string; items: string[] } {
+    // Remove the trigger phrase
+    let body = text
+      .replace(/^(?:make|create|new)\s+(?:task\s*list|checklist|to-?do\s*list)[:\s]*/i, "")
+      .trim();
+
+    // Split title from items: first line may be the title if followed by newlines with items
+    const lines = body.split(/\n/).map((l) => l.trim()).filter(Boolean);
+    let title = "Task List";
+    let itemLines: string[];
+
+    if (lines.length > 1 && !lines[0].includes(",")) {
+      // First line is title, rest are items
+      title = lines[0].replace(/^[:#-]\s*/, "").slice(0, MAX_TITLE_LEN);
+      itemLines = lines.slice(1);
+    } else if (lines.length === 1 && lines[0].includes(",")) {
+      // Single line comma-separated
+      itemLines = lines[0].split(",").map((s) => s.trim()).filter(Boolean);
+    } else {
+      itemLines = lines;
+    }
+
+    // Strip numbering, bullets, dashes
+    const items = itemLines
+      .map((l) => l.replace(/^(?:\d+[.)]\s*|[-*\u2022]\s*)/, "").trim())
+      .filter(Boolean)
+      .slice(0, MAX_TASK_ITEMS)
+      .map((t) => t.slice(0, MAX_ITEM_LEN));
+
+    return { title, items };
+  }
+
+  async function createTaskList(
+    chatId: number,
+    tgId: number,
+    creatorName: string,
+    title: string,
+    items: TaskListItem[],
+  ): Promise<TaskListData | null> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return null;
+    return sbInsert<TaskListData>(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      {
+        chat_id: chatId,
+        creator_id: userId(tgId),
+        creator_name: creatorName,
+        title: title.slice(0, MAX_TITLE_LEN),
+        items: JSON.stringify(items),
+      },
+    );
+  }
+
+  async function fetchTaskListByShort(chatId: number, short: string): Promise<TaskListData | null> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return null;
+    const rows = await sbQuery<TaskListData[]>(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      {
+        chat_id: `eq.${chatId}`,
+        is_active: "eq.true",
+        order: "created_at.desc",
+        limit: "50",
+      },
+    );
+    if (!rows) return null;
+    const match = rows.find((r) => r.id.startsWith(short));
+    return match || null;
+  }
+
+  async function updateTaskListItems(listId: string, items: TaskListItem[]): Promise<boolean> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return false;
+    return sbPatch(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      { id: `eq.${listId}` },
+      { items: JSON.stringify(items) },
+    );
+  }
+
+  async function updateTaskListMessageId(listId: string, msgId: number): Promise<boolean> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return false;
+    return sbPatch(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      { id: `eq.${listId}` },
+      { message_id: msgId },
+    );
+  }
+
+  async function softDeleteTaskList(listId: string): Promise<boolean> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return false;
+    return sbPatch(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      { id: `eq.${listId}` },
+      { is_active: false },
+    );
   }
 
   // /lead — lead CRUD
@@ -5127,6 +5259,97 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Task List callbacks: tl:* ----
+    if (data.startsWith("tl:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+      const short = parts[2];
+      const chatId = ctx.callbackQuery.message?.chat.id;
+      if (!chatId) { await ctx.answerCallbackQuery({ text: "Error" }); return; }
+
+      // tl:t:SHORT:IDX — toggle item
+      if (action === "t") {
+        const idx = parseInt(parts[3], 10);
+        const list = await fetchTaskListByShort(chatId, short);
+        if (!list || idx < 0 || idx >= list.items.length) {
+          await ctx.answerCallbackQuery({ text: "Item not found" });
+          return;
+        }
+        const item = list.items[idx];
+        const togglerName = ctx.from?.first_name || ctx.from?.username || String(tgId);
+        if (item.done) {
+          item.done = false;
+          item.done_by = undefined;
+          item.done_by_name = undefined;
+          item.done_at = undefined;
+        } else {
+          item.done = true;
+          item.done_by = userId(tgId);
+          item.done_by_name = togglerName;
+          item.done_at = new Date().toISOString();
+        }
+        await updateTaskListItems(list.id, list.items);
+        try {
+          await ctx.editMessageText(formatTaskListHtml(list), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListKeyboard(list),
+          });
+        } catch { /* message unchanged */ }
+        await ctx.answerCallbackQuery({ text: item.done ? `\u2713 ${item.text.slice(0, 30)}` : `\u2610 ${item.text.slice(0, 30)}` });
+        return;
+      }
+
+      // tl:a:SHORT — add items
+      if (action === "a") {
+        const list = await fetchTaskListByShort(chatId, short);
+        if (!list) { await ctx.answerCallbackQuery({ text: "List not found" }); return; }
+        if (list.items.length >= MAX_TASK_ITEMS) {
+          await ctx.answerCallbackQuery({ text: `Max ${MAX_TASK_ITEMS} items reached` });
+          return;
+        }
+        setSession(tgId, { awaitingTaskListItems: list.id });
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          `Send items to add to <b>${escapeHtml(list.title)}</b> (comma or newline separated):`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // tl:d:SHORT — delete list (creator or group admin only)
+      if (action === "d") {
+        const list = await fetchTaskListByShort(chatId, short);
+        if (!list) { await ctx.answerCallbackQuery({ text: "List not found" }); return; }
+
+        // Check permission: creator or group admin
+        const isCreator = list.creator_id === userId(tgId);
+        let isAdmin = false;
+        if (!isCreator) {
+          try {
+            const member = await ctx.api.getChatMember(chatId, tgId);
+            isAdmin = member.status === "creator" || member.status === "administrator";
+          } catch { /* not admin */ }
+        }
+        if (!isCreator && !isAdmin) {
+          await ctx.answerCallbackQuery({ text: "Only the creator or an admin can delete" });
+          return;
+        }
+
+        await softDeleteTaskList(list.id);
+        try {
+          await ctx.editMessageText(
+            `<b>\ud83d\uddd1 Task list "${escapeHtml(list.title)}" deleted</b>`,
+            { parse_mode: "HTML" },
+          );
+        } catch { /* message unchanged */ }
+        await ctx.answerCallbackQuery({ text: "List deleted" });
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     await ctx.answerCallbackQuery();
   });
 
@@ -5227,6 +5450,38 @@ export function startTelegramBot(
         })();
       }
 
+      // Group Intelligence (fire-and-forget, never blocks response)
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (sbUrl && sbKey) {
+        const sb = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+        (async () => {
+          try {
+            const intelConfig = await getGroupIntelConfig(ctx.chat.id, sb);
+            if (intelConfig?.is_active) {
+              const senderName = ctx.from?.first_name || ctx.from?.username || "Unknown";
+              await processGroupMessage(
+                ctx.chat.id,
+                ctx.message!.message_id,
+                tgId,
+                senderName,
+                ctx.message!.text,
+                intelConfig,
+                sb,
+                (uid, plat, action) => core.awardPoints(uid, plat, action),
+                async (emoji) => {
+                  await ctx.api.setMessageReaction(ctx.chat.id, ctx.message!.message_id, [
+                    { type: "emoji", emoji: emoji as any },
+                  ]);
+                },
+              );
+            }
+          } catch (err: any) {
+            console.error("[group-intel] error:", err.message);
+          }
+        })();
+      }
+
       const textLower = ctx.message.text.toLowerCase();
       const isReplyToBot = ctx.message.reply_to_message?.from?.id === bot.botInfo?.id;
       const mentioned = textLower.includes("flowb")
@@ -5248,6 +5503,51 @@ export function startTelegramBot(
       .replace(/^flowb[,:]?\s*/i, "")
       .trim() || rawText;
     const lower = text.toLowerCase();
+
+    // ---- Group intelligence commands ----
+    if (isGroup && (lower === "listen" || lower === "start listening")) {
+      try {
+        const member = await ctx.api.getChatMember(ctx.chat.id, tgId);
+        if (member.status === "creator" || member.status === "administrator") {
+          const sbUrlCmd = process.env.SUPABASE_URL;
+          const sbKeyCmd = process.env.SUPABASE_KEY;
+          if (sbUrlCmd && sbKeyCmd) {
+            const ok = await enableGroupIntel(ctx.chat.id, userId(tgId), { supabaseUrl: sbUrlCmd, supabaseKey: sbKeyCmd });
+            if (ok) {
+              await ctx.reply("Group intelligence enabled. I'll extract leads, todos, meetings, and more from messages here.", { reply_to_message_id: ctx.message.message_id });
+            } else {
+              await ctx.reply("Failed to enable group intelligence. Try again.", { reply_to_message_id: ctx.message.message_id });
+            }
+          }
+        } else {
+          await ctx.reply("Only group admins can enable intelligence.", { reply_to_message_id: ctx.message.message_id });
+        }
+      } catch (err: any) {
+        console.error("[group-intel] enable error:", err.message);
+      }
+      return;
+    }
+
+    if (isGroup && (lower === "stop listening" || lower === "stop intel" || lower === "disable listening")) {
+      try {
+        const member = await ctx.api.getChatMember(ctx.chat.id, tgId);
+        if (member.status === "creator" || member.status === "administrator") {
+          const sbUrlCmd = process.env.SUPABASE_URL;
+          const sbKeyCmd = process.env.SUPABASE_KEY;
+          if (sbUrlCmd && sbKeyCmd) {
+            const ok = await disableGroupIntel(ctx.chat.id, { supabaseUrl: sbUrlCmd, supabaseKey: sbKeyCmd });
+            if (ok) {
+              await ctx.reply("Group intelligence disabled.", { reply_to_message_id: ctx.message.message_id });
+            }
+          }
+        } else {
+          await ctx.reply("Only group admins can disable intelligence.", { reply_to_message_id: ctx.message.message_id });
+        }
+      } catch (err: any) {
+        console.error("[group-intel] disable error:", err.message);
+      }
+      return;
+    }
 
     // ---- Group one-liner: "add event <title>" ----
     if (isGroup) {
@@ -5642,6 +5942,41 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Task List: natural language creation ----
+    if (/^(?:make|create|new)\s+(?:task\s*list|checklist|to-?do\s*list)/i.test(lower)) {
+      const creatorName = ctx.from?.first_name || ctx.from?.username || String(tgId);
+      const { title, items } = parseTaskListInput(text);
+
+      if (items.length === 0) {
+        // No items provided - create empty list and await items
+        const list = await createTaskList(ctx.chat.id, tgId, creatorName, title, []);
+        if (!list) {
+          await ctx.reply("Failed to create task list. Try again.");
+          return;
+        }
+        setSession(tgId, { awaitingTaskListItems: list.id });
+        await ctx.reply(
+          `<b>\ud83d\udccb ${escapeHtml(title)}</b> created!\n\nSend me the items (comma or newline separated):`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // Items provided inline
+      const taskItems: TaskListItem[] = items.map((t) => ({ text: t, done: false }));
+      const list = await createTaskList(ctx.chat.id, tgId, creatorName, title, taskItems);
+      if (!list) {
+        await ctx.reply("Failed to create task list. Try again.");
+        return;
+      }
+      const msg = await ctx.reply(formatTaskListHtml(list), {
+        parse_mode: "HTML",
+        reply_markup: buildTaskListKeyboard(list),
+      });
+      fireAndForget(updateTaskListMessageId(list.id, msg.message_id), "store msg id");
+      return;
+    }
+
     // /biz — open biz dashboard
     if (/^(biz|business|dashboard|command center|hq)$/i.test(lower)) {
       await ctx.reply(
@@ -5701,9 +6036,10 @@ export function startTelegramBot(
         await ctx.replyWithChatAction("typing");
         const chatSession = getSession(tgId) || setSession(tgId, {});
         const dn = ctx.from?.first_name || ctx.from?.username || undefined;
-        const response = LLM_PRIMARY
+        const checkinResult = LLM_PRIMARY
           ? await sendFlowBChatDirect(chatSession.chatHistory, `I'm at ${venue}`, tgId, dn)
-          : await sendFlowBChat(chatSession.chatHistory, `I'm at ${venue}`, userId(tgId));
+          : { content: await sendFlowBChat(chatSession.chatHistory, `I'm at ${venue}`, userId(tgId)) };
+        const response = checkinResult.content;
         setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: `I'm at ${venue}` }, { role: "assistant" as const, content: response }].slice(-20) });
         await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
         return;
@@ -5734,9 +6070,10 @@ export function startTelegramBot(
       await ctx.replyWithChatAction("typing");
       const chatSession = getSession(tgId) || setSession(tgId, {});
       const dn2 = ctx.from?.first_name || ctx.from?.username || undefined;
-      const response = LLM_PRIMARY
+      const crewResult = LLM_PRIMARY
         ? await sendFlowBChatDirect(chatSession.chatHistory, "where's my crew?", tgId, dn2)
-        : await sendFlowBChat(chatSession.chatHistory, "where's my crew?", userId(tgId));
+        : { content: await sendFlowBChat(chatSession.chatHistory, "where's my crew?", userId(tgId)) };
+      const response = crewResult.content;
       setSession(tgId, { chatHistory: [...chatSession.chatHistory, { role: "user" as const, content: "where's my crew?" }, { role: "assistant" as const, content: response }].slice(-20) });
       await ctx.reply(markdownToHtml(response), { parse_mode: "HTML", reply_markup: PERSISTENT_KEYBOARD });
       return;
@@ -5926,6 +6263,70 @@ export function startTelegramBot(
       }
     }
 
+    // ---- Awaiting task list items ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingTaskListItems) {
+        const listId = session.awaitingTaskListItems;
+        setSession(tgId, { awaitingTaskListItems: undefined });
+
+        // Parse items from text (comma or newline separated)
+        const newItems = text
+          .split(/[,\n]/)
+          .map((s) => s.replace(/^(?:\d+[.)]\s*|[-*\u2022]\s*)/, "").trim())
+          .filter(Boolean)
+          .slice(0, MAX_TASK_ITEMS)
+          .map((t): TaskListItem => ({ text: t.slice(0, MAX_ITEM_LEN), done: false }));
+
+        if (newItems.length === 0) {
+          await ctx.reply("No items found. Send items separated by commas or newlines.");
+          setSession(tgId, { awaitingTaskListItems: listId }); // re-set awaiting
+          return;
+        }
+
+        // Fetch the list, append items, update
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
+        if (!sbUrl || !sbKey) { await ctx.reply("Database unavailable."); return; }
+
+        const rows = await sbQuery<TaskListData[]>(
+          { supabaseUrl: sbUrl, supabaseKey: sbKey },
+          "flowb_tasklists",
+          { id: `eq.${listId}`, is_active: "eq.true" },
+        );
+        const list = rows?.[0];
+        if (!list) { await ctx.reply("Task list not found or deleted."); return; }
+
+        const combined = [...list.items, ...newItems].slice(0, MAX_TASK_ITEMS);
+        list.items = combined;
+        await updateTaskListItems(list.id, combined);
+
+        // Edit original message if it exists, otherwise post new
+        if (list.message_id) {
+          try {
+            await ctx.api.editMessageText(ctx.chat.id, list.message_id, formatTaskListHtml(list), {
+              parse_mode: "HTML",
+              reply_markup: buildTaskListKeyboard(list),
+            });
+          } catch {
+            // Original message may be too old to edit, post fresh
+            const msg = await ctx.reply(formatTaskListHtml(list), {
+              parse_mode: "HTML",
+              reply_markup: buildTaskListKeyboard(list),
+            });
+            fireAndForget(updateTaskListMessageId(list.id, msg.message_id), "store msg id");
+          }
+        } else {
+          const msg = await ctx.reply(formatTaskListHtml(list), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListKeyboard(list),
+          });
+          fireAndForget(updateTaskListMessageId(list.id, msg.message_id), "store msg id");
+        }
+        return;
+      }
+    }
+
     // ---- Awaiting lead name (conversational lead creation) ----
     {
       const session = getSession(tgId);
@@ -5978,9 +6379,10 @@ export function startTelegramBot(
 
     const session = getSession(tgId) || setSession(tgId, {});
     const displayName = ctx.from?.first_name || ctx.from?.username || undefined;
-    const response = LLM_PRIMARY
+    const chatResult = LLM_PRIMARY
       ? await sendFlowBChatDirect(session.chatHistory, text, tgId, displayName)
-      : await sendFlowBChat(session.chatHistory, text, userId(tgId));
+      : { content: await sendFlowBChat(session.chatHistory, text, userId(tgId)) };
+    const response = chatResult.content;
 
     // Update chat history (keep last 20 messages = 10 turns)
     const updatedHistory = [
@@ -5991,7 +6393,12 @@ export function startTelegramBot(
 
     setSession(tgId, { chatHistory: updatedHistory });
 
-    await ctx.reply(markdownToHtml(response), {
+    // Add persona attribution header for FiFlow responses
+    const personaHeader = chatResult.persona?.id === "fiflow"
+      ? `<b>\u{1f4ca} ${chatResult.persona.name}</b> <i>${chatResult.persona.label}</i>\n\n`
+      : "";
+
+    await ctx.reply(personaHeader + markdownToHtml(response), {
       parse_mode: "HTML",
       reply_markup: PERSISTENT_KEYBOARD,
     });
@@ -6422,13 +6829,14 @@ async function sendFlowBChatDirect(
   userMessage: string,
   tgId: number,
   displayName?: string,
-): Promise<string> {
+): Promise<{ content: string; persona?: ChatPersona }> {
   const xaiKey = process.env.XAI_API_KEY;
   const sbUrl = process.env.SUPABASE_URL;
   const sbKey = process.env.SUPABASE_KEY;
   if (!xaiKey || !sbUrl || !sbKey) {
     console.error("[flowb-telegram] Missing XAI_API_KEY or Supabase config for direct chat");
-    return sendFlowBChat(chatHistory, userMessage, userId(tgId));
+    const content = await sendFlowBChat(chatHistory, userMessage, userId(tgId));
+    return { content };
   }
 
   const messages: ChatMessage[] = [
@@ -6447,10 +6855,10 @@ async function sendFlowBChatDirect(
       },
       platform: "telegram",
     });
-    return result.content || "Sorry, I couldn't process that.";
+    return { content: result.content || "Sorry, I couldn't process that.", persona: result.persona };
   } catch (err: any) {
     console.error("[flowb-telegram] Direct chat error:", err.message);
-    return "Sorry, something went wrong. Try again!";
+    return { content: "Sorry, something went wrong. Try again!" };
   }
 }
 

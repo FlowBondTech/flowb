@@ -23,6 +23,7 @@ import {
   type BizUserContext,
 } from "./chat-tools-biz.js";
 import { getMemoryContext, processConversationMemories, type MemoryConfig } from "./agent-memory.js";
+import { FiFlowPlugin, type FiFlowPluginConfig } from "../plugins/fiflow/index.js";
 import {
   siteList, siteStatus, siteRebuild, siteActivity,
   siteListProducts, siteAddProduct, siteUpdateProduct, siteDeleteProduct,
@@ -57,6 +58,31 @@ export interface ChatMessage {
   tool_calls?: any[];
   tool_call_id?: string;
 }
+
+/** Persona metadata returned with chat responses for platform-specific rendering. */
+export interface ChatPersona {
+  /** Persona identifier - "fiflow" for FiFlow CFO, undefined for default FlowB */
+  id: string;
+  /** Display name for attribution */
+  name: string;
+  /** Short label shown before response */
+  label: string;
+}
+
+export interface ChatResponse {
+  role: string;
+  content: string;
+  /** Set when a specialized persona (e.g. FiFlow) generated the response */
+  persona?: ChatPersona;
+}
+
+export const PERSONAS = {
+  fiflow: {
+    id: "fiflow",
+    name: "FiFlow",
+    label: "Super Regenerative Finance Officer",
+  } satisfies ChatPersona,
+} as const;
 
 // ─── Tool definitions (OpenAI function-calling format) ───────────────
 
@@ -1600,6 +1626,72 @@ function fmtTime(iso: string): string {
   });
 }
 
+// ─── FiFlow CFO tools (admin-only, compliance/treasury/risk) ─────────
+
+const FIFLOW_TOOLS = [
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_status",
+      description: "Get FiFlow compliance & financial health dashboard. Use when admin asks about compliance status, financial health, or 'how are we doing on compliance?'",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_compliance",
+      description: "List compliance tasks with optional filters. Use when admin asks 'compliance tasks', 'what needs to be done for FinCEN?', 'show critical compliance items'.",
+      parameters: {
+        type: "object",
+        properties: {
+          category: { type: "string", description: "Filter: federal_registration, state_licensing, aml_kyc, sanctions, token_classification, tax_reporting, data_privacy, ai_regulation, international" },
+          status: { type: "string", description: "Filter: not_started, in_progress, blocked, completed, deferred" },
+          priority: { type: "string", description: "Filter: critical, high, medium, low" },
+          jurisdiction: { type: "string", description: "Filter: US, EU, US-CA, US-IL, Global, etc." },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_treasury",
+      description: "Get treasury summary with income, expenses, and compliance budget. Use when admin asks 'treasury', 'how much have we spent?', 'compliance budget'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_deadlines",
+      description: "Get upcoming regulatory deadlines. Use when admin asks 'what deadlines are coming up?', 'when is MiCA due?', 'compliance timeline'.",
+      parameters: {
+        type: "object",
+        properties: {
+          days: { type: "number", description: "Number of days ahead to look (default 90)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_risks",
+      description: "Get risk assessment matrix across all compliance domains. Use when admin asks 'risk assessment', 'what are our biggest risks?', 'risk matrix'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "fiflow_strategy",
+      description: "Get regenerative finance strategy recommendations based on current compliance and treasury data. Use when admin asks 'what should we prioritize?', 'strategy recommendations', 'what's most important?'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+];
+
 // ─── System prompt ───────────────────────────────────────────────────
 
 interface BizContext {
@@ -1857,7 +1949,7 @@ function getWhatsNew(period: string | undefined): string {
   return lines.join("\n");
 }
 
-function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContext, platform?: Platform): string {
+function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContext, platform?: Platform, isAdmin?: boolean): string {
   const now = new Date();
   const nowStr = now.toLocaleString("en-US", {
     timeZone: "America/Denver",
@@ -2002,7 +2094,17 @@ Current time: ${nowStr} MST
 ${user.userId ? `User: ${user.displayName || user.userId} (${user.platform || "web"})` : "User: not logged in (limited features)"}
 ${userCity ? `User's city: ${userCity}` : ""}
 ${biz ? `\nUSER PLAN: ${biz.tier}${biz.usageSummary ? ` (usage: ${biz.usageSummary})` : ""}` : ""}
-${biz?.crewRoles?.length ? `\nUSER CREW ROLES:\n${biz.crewRoles.map(c => `- ${c.name}: ${c.role}`).join("\n")}\n\nADMIN CAPABILITIES (for crews where you are admin/creator):\n- Change crew settings, promote/demote members, approve join requests, remove members` : ""}`;
+${biz?.crewRoles?.length ? `\nUSER CREW ROLES:\n${biz.crewRoles.map(c => `- ${c.name}: ${c.role}`).join("\n")}\n\nADMIN CAPABILITIES (for crews where you are admin/creator):\n- Change crew settings, promote/demote members, approve join requests, remove members` : ""}
+${isAdmin ? `
+FIFLOW CFO (admin-only):
+You have access to FiFlow, FlowBond's Super Regenerative Finance Officer.
+When the user asks about compliance, regulatory deadlines, treasury, financial health, risk assessment, or strategy:
+- Use the fiflow_* tools to get real data.
+- When presenting FiFlow data, start with "**FiFlow** |" followed by a brief label (e.g. "**FiFlow** | Compliance Dashboard").
+- Frame compliance as strategy, not burden. Every regulation is a foundation for trust.
+- Be concise but insightful — FiFlow sees the big picture.
+- Use fiflow_status for overview, fiflow_compliance for tasks, fiflow_treasury for finances,
+  fiflow_deadlines for timelines, fiflow_risks for risk matrix, fiflow_strategy for recommendations.` : ""}`;
 }
 
 // ─── Main chat handler ───────────────────────────────────────────────
@@ -2012,7 +2114,7 @@ const MAX_TOOL_ROUNDS = 5;
 export async function handleChat(
   messages: ChatMessage[],
   config: ChatConfig,
-): Promise<{ role: string; content: string }> {
+): Promise<ChatResponse> {
   const { sb, xaiKey, user, model, platform } = config;
 
   // Fetch user's current city, biz context, and memory context in parallel
@@ -2035,9 +2137,13 @@ export async function handleChat(
     } catch { /* non-critical */ }
   }
 
+  // Check if user is admin (for FiFlow tools)
+  const adminIds = (process.env.FIFLOW_ADMIN_IDS || process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
+  const isAdmin = !!(user.userId && adminIds.includes(user.userId));
+
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
-  const systemPrompt = buildSystemPrompt(user, userCity, bizCtx, platform) + memoryCtx;
+  const systemPrompt = buildSystemPrompt(user, userCity, bizCtx, platform, isAdmin) + memoryCtx;
   const chatMessages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...userMessages,
@@ -2046,6 +2152,9 @@ export async function handleChat(
   // State tracking for email/share tools
   let capturedEvents: any[] = [];
   let capturedContext: any = {};
+
+  // Persona tracking — set when FiFlow or other persona tools are invoked
+  let activePersona: ChatPersona | undefined;
 
   // BizUserContext for biz tool executors
   const bizUser: BizUserContext = {
@@ -2056,7 +2165,7 @@ export async function handleChat(
 
   // Limit tools for unauthenticated users — public tools include event search + discovery
   const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "get_whats_new"];
-  const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS];
+  const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS, ...(isAdmin ? FIFLOW_TOOLS : [])];
   const tools = user.userId
     ? allTools
     : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
@@ -2101,7 +2210,7 @@ export async function handleChat(
         const fullConvo = [...userMessages, { role: "assistant", content: reply }];
         processConversationMemories(memCfg, user.userId, fullConvo, xaiKey).catch(() => {});
       }
-      return { role: "assistant", content: reply };
+      return { role: "assistant", content: reply, persona: activePersona };
     }
 
     // Execute tool calls
@@ -2320,6 +2429,17 @@ export async function handleChat(
           case "stripe_revenue":
             result = await stripeRevenue(args, bizUser, sb);
             break;
+          // ── FiFlow CFO tools (admin-only) ──
+          case "fiflow_status":
+          case "fiflow_compliance":
+          case "fiflow_treasury":
+          case "fiflow_deadlines":
+          case "fiflow_risks":
+          case "fiflow_strategy": {
+            activePersona = PERSONAS.fiflow;
+            result = await executeFiFlowTool(fn, args, sb);
+            break;
+          }
           default:
             result = `Unknown tool: ${fn}`;
         }
@@ -2337,5 +2457,34 @@ export async function handleChat(
     const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
     processConversationMemories(memCfg, user.userId, userMessages, xaiKey).catch(() => {});
   }
-  return { role: "assistant", content: "Got a bit lost. Can you rephrase?" };
+  return { role: "assistant", content: "Got a bit lost. Can you rephrase?", persona: activePersona };
+}
+
+// ─── FiFlow tool executor ───────────────────────────────────────────
+
+async function executeFiFlowTool(fn: string, args: any, sb: SbConfig): Promise<string> {
+  const fiflow = new FiFlowPlugin();
+  fiflow.configure({ supabaseUrl: sb.supabaseUrl, supabaseKey: sb.supabaseKey });
+
+  switch (fn) {
+    case "fiflow_status": {
+      const [compliance, treasury] = await Promise.all([
+        fiflow.getComplianceStatus(sb),
+        fiflow.getTreasurySummary(sb),
+      ]);
+      return JSON.stringify({ compliance, treasury });
+    }
+    case "fiflow_compliance":
+      return JSON.stringify(await fiflow.getComplianceStatus(sb, args));
+    case "fiflow_treasury":
+      return JSON.stringify(await fiflow.getTreasurySummary(sb));
+    case "fiflow_deadlines":
+      return JSON.stringify(await fiflow.getUpcomingDeadlines(sb, args.days || 90));
+    case "fiflow_risks":
+      return JSON.stringify(await fiflow.getRiskMatrix(sb));
+    case "fiflow_strategy":
+      return JSON.stringify(await fiflow.getStrategyRecommendations(sb));
+    default:
+      return `Unknown FiFlow tool: ${fn}`;
+  }
 }

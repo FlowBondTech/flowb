@@ -85,8 +85,12 @@ async function chatResponse(text: string, fid: number, username: string, cfg: Sb
       platform: "farcaster",
     });
 
-    // Truncate to Farcaster's 1024 char limit
+    // Add persona attribution for FiFlow responses
     let reply = result.content || "Check FlowB for the latest!";
+    if (result.persona?.id === "fiflow") {
+      reply = `[${result.persona.name}] ${reply}`;
+    }
+    // Truncate to Farcaster's 1024 char limit
     if (reply.length > 1000) {
       reply = reply.slice(0, 997) + "...";
     }

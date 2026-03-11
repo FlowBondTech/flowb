@@ -14,6 +14,7 @@ export interface FlowBConfig {
     flow?: FlowPluginConfig;
     social?: SocialPluginConfig;
     meeting?: MeetingPluginConfig;
+    cfo?: CFOPluginConfig;
     [key: string]: any;
   };
 }
@@ -78,6 +79,12 @@ export interface SocialPluginConfig {
 export interface MeetingPluginConfig {
   supabaseUrl: string;
   supabaseKey: string;
+}
+
+export interface CFOPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+  adminUserIds?: string[];
 }
 
 export interface CDPPluginConfig {
