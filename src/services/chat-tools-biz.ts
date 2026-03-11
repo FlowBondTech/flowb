@@ -21,11 +21,15 @@ export interface BizUserContext {
 
 /** Tier limits per billing period (calendar month). -1 = unlimited. */
 const TIER_LIMITS: Record<string, Record<string, number>> = {
-  free:     { leads: 10,  meetings: 3,  automations: 2,  ai_chat: 10 },
-  pro:      { leads: -1,  meetings: -1, automations: -1, ai_chat: -1 },
-  team:     { leads: -1,  meetings: -1, automations: -1, ai_chat: -1 },
-  business: { leads: -1,  meetings: -1, automations: -1, ai_chat: -1 },
+  free:     { leads: 10,  meetings: 3,  automations: 2,  ai_chat: 10,  city_scans: 0 },
+  flowmium: { leads: 50,  meetings: 15, automations: 10, ai_chat: 50,  city_scans: 5 },
+  pro:      { leads: -1,  meetings: -1, automations: -1, ai_chat: -1,  city_scans: -1 },
+  team:     { leads: -1,  meetings: -1, automations: -1, ai_chat: -1,  city_scans: -1 },
+  business: { leads: -1,  meetings: -1, automations: -1, ai_chat: -1,  city_scans: -1 },
 };
+
+/** Tiers that can request city scans (flowmium and above) */
+const CITY_SCAN_TIERS = ["flowmium", "pro", "team", "business"];
 
 type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 const VALID_STAGES: LeadStage[] = ["new", "contacted", "qualified", "proposal", "won", "lost"];
@@ -620,7 +624,7 @@ export async function listAutomations(args: any, user: BizUserContext, cfg: SbCo
 
   let out = `**Your Automations** (${rows.length}):\n\n`;
   for (const a of rows) {
-    const status = a.enabled ? "ON" : "OFF";
+    const status = a.is_active ? "ON" : "OFF";
     out += `- **${a.name}** [${status}] — ${a.trigger_type} → ${a.action_type}\n`;
   }
   return out;
@@ -639,9 +643,9 @@ export async function createAutomation(args: any, user: BizUserContext, cfg: SbC
     name,
     trigger_type: args.trigger_type || "manual",
     trigger_config: args.trigger_config || {},
-    action_type: args.action_type || "notification",
+    action_type: args.action_type || "send_message",
     action_config: args.action_config || {},
-    enabled: true,
+    is_active: true,
   });
 
   if (!row) return "Failed to create automation. Try again.";
@@ -655,8 +659,8 @@ export async function toggleAutomation(args: any, user: BizUserContext, cfg: SbC
   const rows = await sbFetch<any[]>(cfg, `flowb_automations?id=eq.${encodeURIComponent(args.automation_id)}&user_id=eq.${encodeURIComponent(user.userId)}&limit=1`);
   if (!rows?.length) return "Automation not found.";
 
-  const newState = !rows[0].enabled;
-  await sbPatch(cfg, "flowb_automations", { id: `eq.${args.automation_id}` }, { enabled: newState });
+  const newState = !rows[0].is_active;
+  await sbPatch(cfg, "flowb_automations", { id: `eq.${args.automation_id}` }, { is_active: newState });
   return `Automation **${rows[0].name}** is now ${newState ? "enabled" : "disabled"}.`;
 }
 
@@ -668,22 +672,141 @@ export async function getMyPlan(args: any, user: BizUserContext, cfg: SbConfig):
   const tier = await getUserTier(cfg, user.userId);
   const limits = TIER_LIMITS[tier] || TIER_LIMITS.free;
 
-  let out = `**Your Plan: ${tier.charAt(0).toUpperCase() + tier.slice(1)}**\n\n`;
+  const tierLabel = tier === "flowmium" ? "Flowmium" : tier.charAt(0).toUpperCase() + tier.slice(1);
+  let out = `**Your Plan: ${tierLabel}**${tier === "flowmium" ? " (yes, like freemium... but Flow-ier)" : ""}\n\n`;
 
   if (tier === "free") {
+    out += "**Usage this month:**\n";
+    for (const [feature, limit] of Object.entries(limits)) {
+      if (limit === -1 || limit === 0) continue;
+      const used = await getFeatureUsage(cfg, user.userId, feature);
+      out += `- ${feature.replace(/_/g, " ")}: ${used}/${limit}\n`;
+    }
+    out += `\nWant more? Ask an admin to gift you **Flowmium** (it's like freemium, but we couldn't resist the pun).`;
+    out += `\nOr upgrade for unlimited: flowb.me/upgrade`;
+  } else if (tier === "flowmium") {
     out += "**Usage this month:**\n";
     for (const [feature, limit] of Object.entries(limits)) {
       if (limit === -1) continue;
       const used = await getFeatureUsage(cfg, user.userId, feature);
       out += `- ${feature.replace(/_/g, " ")}: ${used}/${limit}\n`;
     }
-    out += `\nUpgrade for unlimited: flowb.me/upgrade`;
+    out += `\nYou've got the Flowmium magic -- you can request eGator city scans and enjoy 5x the free tier limits.`;
+    out += `\nUpgrade for truly unlimited: flowb.me/upgrade`;
   } else {
     out += "All features unlimited on your plan.\n";
     out += `Manage billing: flowb.me/billing`;
   }
 
   return out;
+}
+
+// ─── Flowmium Tools ─────────────────────────────────────────────────
+
+/**
+ * Admin tool: gift Flowmium tier to a user.
+ * Because "freemium" was taken, so we went with something Flow-ier.
+ */
+export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
+  if (!user.userId) return "Log in to gift Flowmium.";
+
+  // Admin check is done at the tool-definition level (admin-only tool),
+  // but double-check here for safety
+  const { isFlowBAdmin } = await import("../utils/admin.js");
+  const isAdmin = await isFlowBAdmin(cfg, user.userId);
+  if (!isAdmin) return "Only admins can gift Flowmium. Nice try though!";
+
+  const targetName = (args.target_name || "").trim();
+  if (!targetName) return "Who should receive the gift of Flowmium? Provide a name.";
+
+  // Find target user by display name
+  const targets = await sbFetch<any[]>(
+    cfg,
+    `flowb_sessions?display_name=ilike.*${encodeURIComponent(targetName)}*&select=user_id,display_name&limit=3`,
+  );
+  if (!targets?.length) return `Couldn't find anyone named "${targetName}". Check the name and try again.`;
+
+  if (targets.length > 1) {
+    const names = targets.map((t: any) => `- ${t.display_name}`).join("\n");
+    return `Found multiple matches:\n${names}\n\nBe more specific about which one.`;
+  }
+
+  const target = targets[0];
+  const targetUserId = target.user_id;
+
+  // Check current tier
+  const existingRows = await sbFetch<any[]>(
+    cfg,
+    `flowb_subscriptions?user_id=eq.${encodeURIComponent(targetUserId)}&select=tier&limit=1`,
+  );
+  const currentTier = existingRows?.[0]?.tier || "free";
+
+  if (["pro", "team", "business"].includes(currentTier)) {
+    return `**${target.display_name}** is already on the **${currentTier}** plan -- that's above Flowmium. They're living the premium life already!`;
+  }
+
+  if (currentTier === "flowmium") {
+    return `**${target.display_name}** already has Flowmium! The flow is strong with this one.`;
+  }
+
+  // Upsert subscription to flowmium
+  const now = new Date().toISOString();
+  if (existingRows?.length) {
+    await sbPatch(cfg, "flowb_subscriptions", { user_id: `eq.${targetUserId}` }, {
+      tier: "flowmium",
+      flowmium_granted_by: user.userId,
+      flowmium_granted_at: now,
+    });
+  } else {
+    await sbPost(cfg, "flowb_subscriptions", {
+      user_id: targetUserId,
+      tier: "flowmium",
+      flowmium_granted_by: user.userId,
+      flowmium_granted_at: now,
+    });
+  }
+
+  return `Flowmium granted to **${target.display_name}**! (Like freemium, but with more flow.)\n\nThey now get:\n- 50 leads/mo (5x free)\n- 15 meetings/mo (5x free)\n- 10 automations/mo (5x free)\n- 50 AI chats/mo (5x free)\n- City scan requests for eGator`;
+}
+
+/**
+ * Flowmium+ users can request eGator to scan a city.
+ * Adds the city to flowb_scan_cities and optionally triggers a scan.
+ */
+export async function requestCityScan(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
+  if (!user.userId) return "Log in to request a city scan.";
+
+  // Check tier
+  const tier = await getUserTier(cfg, user.userId);
+  if (!CITY_SCAN_TIERS.includes(tier)) {
+    return `City scan requests are a **Flowmium** perk (yes, like freemium -- we know, we know). Ask an admin to gift you Flowmium, or upgrade at flowb.me/upgrade.`;
+  }
+
+  // Check usage limit
+  const check = await checkTierLimit(cfg, user.userId, "city_scans");
+  if (!check.allowed) return tierGateMessage(check.used, check.limit, check.tier, "city scans");
+
+  const cityName = (args.city || "").trim().toLowerCase();
+  if (!cityName) return "Which city should eGator scan? Provide a city name.";
+
+  // Check if city already exists and is enabled
+  const existing = await sbFetch<any[]>(
+    cfg,
+    `flowb_scan_cities?city=eq.${encodeURIComponent(cityName)}&select=city,enabled&limit=1`,
+  );
+
+  if (existing?.length && existing[0].enabled) {
+    return `**${cityName}** is already on eGator's scan list and active! Events should already be flowing in. Try searching for events in ${cityName}.`;
+  }
+
+  // Add or re-enable the city
+  if (existing?.length) {
+    await sbPatch(cfg, "flowb_scan_cities", { city: `eq.${cityName}` }, { enabled: true });
+  } else {
+    await sbPost(cfg, "flowb_scan_cities", { city: cityName, enabled: true });
+  }
+
+  return `eGator is now scanning **${cityName}**! Events will start appearing after the next scan cycle. You can ask "what's happening in ${cityName}?" to check for events.`;
 }
 
 // ─── Exported context builder ────────────────────────────────────────
@@ -706,12 +829,12 @@ export async function fetchUserBizContext(cfg: SbConfig, userId: string): Promis
     .filter((m: any) => m.flowb_groups)
     .map((m: any) => ({ name: m.flowb_groups.name, role: m.role, id: m.flowb_groups.id }));
 
-  // Usage summary for free tier
+  // Usage summary for free/flowmium tiers
   let usageSummary = "";
-  if (tier === "free") {
+  if (tier === "free" || tier === "flowmium") {
     const parts: string[] = [];
     for (const [feature, limit] of Object.entries(limits)) {
-      if (limit === -1) continue;
+      if (limit === -1 || limit === 0) continue;
       const used = await getFeatureUsage(cfg, userId, feature);
       parts.push(`${feature}: ${used}/${limit}`);
     }

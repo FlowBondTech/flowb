@@ -9,6 +9,7 @@
  * chat-tools-biz.ts and wired into the executor switch below.
  */
 import { sbFetch, sbPost, sbPatch, type SbConfig } from "../utils/supabase.js";
+import { isFlowBAdmin } from "../utils/admin.js";
 import { sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "./email.js";
 import {
   createLead, listLeads, updateLead, getPipeline, getLeadTimeline,
@@ -18,6 +19,7 @@ import {
   adminCrewAction,
   listAutomations, createAutomation, toggleAutomation,
   getMyPlan,
+  grantFlowmium, requestCityScan,
   manageGroupIntelligence, getGroupSignalsTool, routeSignalTool,
   fetchUserBizContext,
   type BizUserContext,
@@ -361,11 +363,11 @@ const TOOLS = [
     type: "function" as const,
     function: {
       name: "get_flowb_features",
-      description: "List all FlowB features available to the user. Use when user asks 'what can you do?', 'what features', 'help me understand FlowB', 'what's available', 'how does FlowB work'. Returns a comprehensive feature list grouped by category. No auth required.",
+      description: "List all FlowB features available to the user. Use when user asks 'what can you do?', 'what features', 'help me understand FlowB', 'what's available', 'how does FlowB work'. Also use when the user asks about something you can't match to a specific tool — show them relevant features. Returns a comprehensive feature list grouped by category. No auth required.",
       parameters: {
         type: "object",
         properties: {
-          category: { type: "string", enum: ["all", "events", "social", "business", "ai"], description: "Filter features by category (default: all)" },
+          category: { type: "string", enum: ["all", "events", "social", "business", "website", "finance", "ai"], description: "Filter features by category (default: all)" },
         },
       },
     },
@@ -664,6 +666,35 @@ const BIZ_TOOLS = [
       name: "get_my_plan",
       description: "Get the user's current plan, tier, usage stats, and upgrade link. Use when user asks 'my plan', 'what plan am I on', 'usage', 'how many leads left'.",
       parameters: { type: "object", properties: {} },
+    },
+  },
+  // Flowmium tools
+  {
+    type: "function" as const,
+    function: {
+      name: "grant_flowmium",
+      description: "Admin-only: Gift Flowmium tier to a user. Flowmium is FlowB's take on 'freemium' (get it?). Gives 5x free tier limits and city scan powers. Use when admin says 'give flowmium to [name]', 'gift [name] flowmium', 'upgrade [name] to flowmium'.",
+      parameters: {
+        type: "object",
+        properties: {
+          target_name: { type: "string", description: "Name of the user to gift Flowmium to" },
+        },
+        required: ["target_name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "request_city_scan",
+      description: "Request eGator to scan a new city for events. Available to Flowmium, Pro, Team, and Business tier users. Use when user says 'scan [city]', 'add [city] to eGator', 'start scanning [city]', 'find events in [city]' (when the city isn't already scanned).",
+      parameters: {
+        type: "object",
+        properties: {
+          city: { type: "string", description: "City name to scan (e.g. 'mexico city', 'berlin', 'tokyo')" },
+        },
+        required: ["city"],
+      },
     },
   },
   // Group Intelligence tools
@@ -1702,7 +1733,7 @@ interface BizContext {
 
 // ─── Public info tool executors ────────────────────────────────────────
 
-function getFlowBFeatures(category: string | undefined, user: UserContext): string {
+function getFlowBFeatures(category: string | undefined, user: UserContext, isUserAdmin = false): string {
   const isLoggedIn = !!user.userId;
   const sections: string[] = [];
 
@@ -1744,7 +1775,7 @@ function getFlowBFeatures(category: string | undefined, user: UserContext): stri
 
   const platformFeatures = `**Platforms**
 - **Telegram Bot**: @FlowBBot — full-featured with inline buttons, group chat support, mini app
-- **Web App**: flowb.me — event discovery, chat widget, sign in with Privy
+- **Web App**: flowb.me — event discovery, chat widget, FlowB Passport sign-in
 - **Farcaster**: @flowb — mention for event search and AI assistance
 - **Mobile App**: me.flowb.app (iOS & Android via Expo)
 - **Kanban**: biz.flowb.me — visual lead pipeline and task management
@@ -1756,11 +1787,31 @@ function getFlowBFeatures(category: string | undefined, user: UserContext): stri
 - **Team** ($29/mo): Everything unlimited, crew analytics, priority support
 - **Business** ($79/mo): White-label, API access, custom integrations, dedicated support`;
 
+  const fiflowFeatures = isUserAdmin
+    ? `**FiFlow CFO** (admin)
+- "How are we doing on compliance?" → Compliance dashboard with task status across all categories
+- "Treasury" / "budget" / "spending" → Financial overview with income, expenses, and compliance budget
+- "Upcoming deadlines" → Regulatory timeline (FinCEN, SEC, MiCA, state licensing, etc.)
+- "Risk assessment" → Risk matrix across AML, sanctions, licensing, token, privacy, tax, AI domains
+- "What should we prioritize?" → AI-powered strategy recommendations based on your compliance and treasury data
+- "Compliance report" → Generate formatted compliance, treasury, or risk reports`
+    : null;
+
+  const websiteFeatures = `**Website Management** ${isLoggedIn ? "" : "(sign in to unlock)"}
+- Manage sites, products, articles, and SEO from chat
+- "My sites" → list managed websites
+- "Add product [name] $[price]" → add products to your store
+- "Write article about [topic]" → draft and publish blog posts
+- "SEO status" → check your site's SEO health and get improvement suggestions
+- Stripe integration for payments, orders, and revenue reports`;
+
   const cat = (category || "all").toLowerCase();
   if (cat === "all" || cat === "events") sections.push(eventFeatures);
   if (cat === "all" || cat === "social") sections.push(socialFeatures);
   if (cat === "all" || cat === "business") sections.push(bizFeatures);
+  if (cat === "all" || cat === "website") sections.push(websiteFeatures);
   if (cat === "all" || cat === "ai") sections.push(aiFeatures);
+  if ((cat === "all" || cat === "finance" || cat === "fiflow") && fiflowFeatures) sections.push(fiflowFeatures);
   if (cat === "all") {
     sections.push(platformFeatures);
     sections.push(tiers);
@@ -1774,6 +1825,13 @@ function getWhatsNew(period: string | undefined): string {
 
   // Changelog entries — most recent first, curated from real commits
   const changelog: Array<{ date: string; title: string; description: string; category: string }> = [
+    // March 11
+    {
+      date: "2026-03-11",
+      title: "FlowB Passport — Single Auth Layer",
+      description: "FlowB has fully migrated from Privy to FlowB Passport (Supabase Auth). All 80 existing users have been migrated automatically — your points, crews, and linked accounts are intact. Sign in with email, magic link, or social login. One identity across Telegram, Farcaster, and Web.",
+      category: "Platform",
+    },
     // March 9-10
     {
       date: "2026-03-09",
@@ -1789,8 +1847,8 @@ function getWhatsNew(period: string | undefined): string {
     },
     {
       date: "2026-03-09",
-      title: "FlowB Passport (Dual Auth)",
-      description: "New Supabase Auth integration running alongside Privy. Unified identity across all platforms — your Telegram, Farcaster, and web accounts all link to one FlowB Passport.",
+      title: "FlowB Passport Launch",
+      description: "Introduced Supabase Auth as FlowB's identity layer. Unified identity across all platforms — Telegram, Farcaster, and web accounts all link to one FlowB Passport.",
       category: "Platform",
     },
     {
@@ -2023,6 +2081,30 @@ GENERAL BEHAVIOR:
 - If results are empty, suggest broadening the search (different city, wider dates, fewer filters).
 - If you can't find something, suggest checking flowb.me.
 
+INTENT RECOGNITION & GUIDED FALLBACK:
+When a user's message doesn't clearly match a tool but you can detect the TOPIC they're asking about, acknowledge their intent and guide them to the right feature. Format:
+"I noticed you're asking about [topic]. Here's what I can help with:"
+Then list the relevant features for that topic only (not the full feature list).
+
+Topic → feature mapping:
+- **Finance / money / treasury / budget / spending / revenue / income / expenses / cash flow / runway** → ${isAdmin ? "Use fiflow_treasury or fiflow_status for real financial data." : "Financial tools are available to admins. Ask your team admin for access."}
+- **Compliance / regulatory / legal / FinCEN / SEC / MiCA / KYC / AML / sanctions / license** → ${isAdmin ? "Use fiflow_compliance, fiflow_deadlines, or fiflow_risks." : "Compliance tools are admin-only. Ask your team admin for details."}
+- **Risk / threats / vulnerabilities / audit** → ${isAdmin ? "Use fiflow_risks or fiflow_status for risk assessment." : "Risk assessment is admin-only."}
+- **Strategy / priorities / what should we do / recommendations / roadmap** → ${isAdmin ? "Use fiflow_strategy for AI-powered recommendations based on your compliance and treasury data." : "Strategy tools are admin-only."}
+- **Leads / contacts / CRM / pipeline / prospects** → "Use 'my leads' to see your pipeline, or say 'met [name] at [place]' to add a new lead."
+- **Meetings / schedule / calendar / coffee chat** → "Say 'schedule coffee with [name] tomorrow at 3pm' or 'my meetings' to see upcoming."
+- **Tasks / todos / reminders** → "Say 'add todo [text]' or 'my todos' to manage your task list."
+- **Events / what's happening / things to do** → "Ask 'what's happening in [city]?' or 'events this weekend' to discover events."
+- **Crews / team / group** → "Say 'my crews' to see your crews, or ask about crew settings."
+- **Settings / preferences / notifications** → "Say 'my settings' to view or change your preferences."
+- **Billing / plan / subscription / upgrade / flowmium / freemium** → "Say 'my plan' to check your current tier and usage. Admins can gift Flowmium (our take on freemium) to users."
+- **City scanning / scan city / add city / eGator** → "Flowmium+ users can request eGator to scan new cities. Say 'scan [city name]' to add one."
+- **Website / site / products / articles / blog / SEO** → "Say 'my sites' to manage your websites, products, articles, and SEO."
+- **Automations / triggers / workflows** → "Say 'my automations' to see active automations or create new ones."
+
+If the topic is COMPLETELY unclear and you have no matching tool, call get_flowb_features to show the user what's available.
+NEVER say "I don't understand" or "that's outside my scope" without offering available alternatives.
+
 FORMAT:
 - Event titles are pre-linked in tool results — preserve the markdown links when presenting them.
 - Use **bold** for section headers (days, categories).
@@ -2071,9 +2153,18 @@ AUTOMATIONS:
 - When someone asks about automations, call list_automations.
 - When someone wants to create or toggle automations, use create_automation / toggle_automation.
 
-BILLING:
+BILLING & FLOWMIUM:
 - When someone asks "my plan", "what plan", "usage", call get_my_plan.
 - If a user hits a tier limit, inform them of their usage and suggest upgrading.
+- **Flowmium** is FlowB's "freemium" tier (yes, the name is intentional -- feel free to joke about it). It's between free and pro.
+- Flowmium gives 5x the free limits: 50 leads, 15 meetings, 10 automations, 50 AI chats, plus city scan requests.
+- Admins can gift Flowmium to users via grant_flowmium. When gifting, be playful: "Welcome to Flowmium -- it's like freemium, but with more flow."
+
+CITY SCANNING (Flowmium+ perk):
+- Users on Flowmium, Pro, Team, or Business tiers can request eGator to scan new cities for events.
+- When someone says "scan [city]", "add [city]", "start scanning [city]", or "find events in [city]" (and the city isn't in the database), call request_city_scan.
+- If a free user asks, let them know it's a Flowmium perk (with a friendly nudge about the name).
+- Currently scanning: austin, denver, mexico city (and any admin-added cities).
 
 FEATURES & WHAT'S NEW (available to ALL users, no login required):
 - When someone asks "what can you do?", "features", "help", "what is FlowB", call get_flowb_features.
@@ -2098,13 +2189,27 @@ ${biz?.crewRoles?.length ? `\nUSER CREW ROLES:\n${biz.crewRoles.map(c => `- ${c.
 ${isAdmin ? `
 FIFLOW CFO (admin-only):
 You have access to FiFlow, FlowBond's Super Regenerative Finance Officer.
-When the user asks about compliance, regulatory deadlines, treasury, financial health, risk assessment, or strategy:
-- Use the fiflow_* tools to get real data.
-- When presenting FiFlow data, start with "**FiFlow** |" followed by a brief label (e.g. "**FiFlow** | Compliance Dashboard").
+
+FIFLOW TRIGGER PHRASES — use fiflow tools when the user says ANY of these:
+- Compliance: "compliance", "regulatory", "FinCEN", "SEC", "MiCA", "KYC", "AML", "sanctions", "license", "OFAC", "BSA", "BIPA", "GENIUS Act", "travel rule", "SOC 2"
+- Treasury: "treasury", "finances", "budget", "spending", "revenue", "expenses", "cash flow", "runway", "burn rate", "how much have we spent", "financial health"
+- Deadlines: "deadlines", "due dates", "what's coming up", "timeline", "when is [X] due", "regulatory calendar"
+- Risk: "risk", "risks", "risk matrix", "threats", "vulnerabilities", "what could go wrong", "risk assessment", "audit"
+- Strategy: "strategy", "priorities", "what should we focus on", "recommendations", "what's most important", "next steps", "roadmap"
+- General: "how are we doing", "status", "dashboard", "overview", "compliance status", "are we in good shape", "fiflow"
+
+Tool mapping:
+- fiflow_status → overview/dashboard, "how are we doing"
+- fiflow_compliance → compliance tasks, specific regulations, categories
+- fiflow_treasury → money, budget, spending, revenue
+- fiflow_deadlines → timelines, due dates, upcoming deadlines
+- fiflow_risks → risk matrix, threats, vulnerabilities
+- fiflow_strategy → recommendations, priorities, what to focus on
+
+When presenting FiFlow data:
+- Start with "**FiFlow** |" followed by a brief label (e.g. "**FiFlow** | Compliance Dashboard").
 - Frame compliance as strategy, not burden. Every regulation is a foundation for trust.
-- Be concise but insightful — FiFlow sees the big picture.
-- Use fiflow_status for overview, fiflow_compliance for tasks, fiflow_treasury for finances,
-  fiflow_deadlines for timelines, fiflow_risks for risk matrix, fiflow_strategy for recommendations.` : ""}`;
+- Be concise but insightful — FiFlow sees the big picture.` : ""}`;
 }
 
 // ─── Main chat handler ───────────────────────────────────────────────
@@ -2138,8 +2243,7 @@ export async function handleChat(
   }
 
   // Check if user is admin (for FiFlow tools)
-  const adminIds = (process.env.FIFLOW_ADMIN_IDS || process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
-  const isAdmin = !!(user.userId && adminIds.includes(user.userId));
+  const isAdmin = !!(user.userId && await isFlowBAdmin(sb, user.userId, "fiflow"));
 
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
@@ -2289,7 +2393,7 @@ export async function handleChat(
             break;
           // ── Public info tools ──
           case "get_flowb_features":
-            result = getFlowBFeatures(args.category, user);
+            result = getFlowBFeatures(args.category, user, isAdmin);
             break;
           case "get_whats_new":
             result = getWhatsNew(args.period);
@@ -2351,6 +2455,13 @@ export async function handleChat(
             break;
           case "get_my_plan":
             result = await getMyPlan(args, bizUser, sb);
+            break;
+          // ── Flowmium tools ──
+          case "grant_flowmium":
+            result = await grantFlowmium(args, bizUser, sb);
+            break;
+          case "request_city_scan":
+            result = await requestCityScan(args, bizUser, sb);
             break;
           // ── Group Intelligence tools ──
           case "manage_group_intelligence":
