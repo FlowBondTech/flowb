@@ -4835,31 +4835,6 @@ a:hover { text-decoration: underline; }
 }
 .flowb-auth-link:hover { text-decoration: underline; }
 
-.flowb-auth-divider {
-  display: flex; align-items: center; gap: 0.75rem;
-  margin: 1.25rem 0; color: var(--text-dim, #6b7280); font-size: 0.75rem;
-}
-.flowb-auth-divider::before,
-.flowb-auth-divider::after {
-  content: ''; flex: 1; height: 1px; background: var(--border, #1f2937);
-}
-
-.flowb-auth-social {
-  display: flex; gap: 0.5rem; justify-content: center;
-}
-.flowb-auth-social-btn {
-  width: 44px; height: 44px; border-radius: 10px;
-  border: 1px solid var(--border, #1f2937);
-  background: transparent; cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  transition: border-color 0.2s, background 0.2s;
-  color: var(--text, #e5e7eb);
-}
-.flowb-auth-social-btn:hover {
-  border-color: var(--accent, #6366f1);
-  background: rgba(99, 102, 241, 0.1);
-}
-
 @media (max-width: 480px) {
   .flowb-auth-card { padding: 1.5rem; }
 }
