@@ -12,6 +12,9 @@ export interface FlowBConfig {
     points?: PointsPluginConfig;
     cdp?: CDPPluginConfig;
     flow?: FlowPluginConfig;
+    social?: SocialPluginConfig;
+    meeting?: MeetingPluginConfig;
+    cfo?: CFOPluginConfig;
     [key: string]: any;
   };
 }
@@ -24,6 +27,16 @@ export interface DANZPluginConfig {
 export interface EGatorPluginConfig {
   sources?: {
     luma?: { apiKey: string };
+    tavily?: { apiKey?: string; enabled?: boolean };
+    eventbrite?: { apiKey: string };
+    brave?: { apiKey: string };
+    ra?: { enabled: boolean };
+    lemonade?: { enabled: boolean };
+    sheeets?: { spreadsheetId: string; apiKey?: string };
+    googlePlaces?: { apiKey: string };
+    supadata?: { apiKey: string };
+    serpapi?: { apiKey: string };
+    partiful?: { enabled: boolean };
   };
 }
 
@@ -53,6 +66,25 @@ export interface PointsPluginConfig {
 export interface FlowPluginConfig {
   supabaseUrl: string;
   supabaseKey: string;
+}
+
+export interface SocialPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+  postizBaseUrl: string;
+  postizMasterApiKey: string;
+  encryptionKey: string;
+}
+
+export interface MeetingPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+}
+
+export interface CFOPluginConfig {
+  supabaseUrl: string;
+  supabaseKey: string;
+  adminUserIds?: string[];
 }
 
 export interface CDPPluginConfig {
@@ -106,6 +138,14 @@ export interface EventQuery {
   category?: string;
   danceStyle?: string;
   limit?: number;
+  /** ISO date string - only return events starting from this date */
+  from?: string;
+  /** ISO date string - only return events starting before this date */
+  to?: string;
+  /** Free-text search query */
+  q?: string;
+  /** Only free events */
+  free?: boolean;
 }
 
 export interface EventResult {
@@ -220,11 +260,24 @@ export interface Booth {
 export interface UserIdentity {
   id: string;
   canonicalId: string;
-  platform: 'telegram' | 'farcaster' | 'web';
+  platform: 'telegram' | 'farcaster' | 'web' | 'whatsapp' | 'signal';
   platformUserId: string;
   privyId?: string;
   displayName?: string;
   avatarUrl?: string;
+  // Profile enrichment
+  bio?: string;
+  role?: string;
+  tags?: string[];
+  // Location & i18n fields
+  homeCity?: string;
+  homeCountry?: string;
+  currentCity?: string;
+  currentCountry?: string;
+  destinationCity?: string;
+  destinationCountry?: string;
+  locale?: string;
+  locationVisibility?: 'city' | 'country' | 'hidden';
   linkedAt: string;
 }
 
@@ -256,15 +309,16 @@ export interface FlowBContext {
 export interface ToolInput {
   action: string;
   user_id?: string;
-  platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app";
+  platform?: "telegram" | "discord" | "farcaster" | "openclaw" | "app" | "whatsapp" | "signal";
   platform_username?: string;
-  danz_username?: string;
+  username?: string;
   city?: string;
   category?: string;
   dance_style?: string;
   query?: string;
   wallet_address?: string;
   challenge_id?: string;
+  danz_username?: string;
   farcaster_username?: string;
   farcaster_channel?: string;
   page?: number;
@@ -279,4 +333,34 @@ export interface ToolInput {
   event_status?: "going" | "maybe";
   visibility?: "friends" | "groups" | "public" | "private";
   url?: string;
+  // Social fields
+  org_id?: string;
+  platforms?: string[];
+  media_urls?: string[];
+  scheduled_at?: string;
+  post_id?: string;
+  integration_id?: string;
+  // Meeting fields
+  meeting_id?: string;
+  meeting_title?: string;
+  meeting_description?: string;
+  meeting_starts_at?: string;
+  meeting_duration?: number;
+  meeting_location?: string;
+  meeting_type?: string;
+  meeting_notes?: string;
+  meeting_filter?: string;
+  attendee_name?: string;
+  attendee_email?: string;
+  message_content?: string;
+  // Transcript fields
+  video_url?: string;
+  transcript_lang?: string;
+  transcript_mode?: "native" | "generate" | "auto";
+  // Search fields
+  search_query?: string;
+  search_location?: string;
+  // Automation fields
+  automation_id?: string;
+  log_limit?: number;
 }

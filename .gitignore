@@ -1,6 +1,5 @@
 node_modules/
 dist/
-.env
 *.tsbuildinfo
 
 # Mini app build artifacts
@@ -13,3 +12,4 @@ supabase/.temp/
 
 # Local Netlify folder
 .netlify
+config.bat

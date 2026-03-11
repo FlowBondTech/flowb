@@ -20,9 +20,10 @@ import type {
   Sponsorship,
   SponsorRanking,
   RankedLocation,
-  FeaturedEventBid,
+  FeaturedEventBoost,
+  AgentsResponse,
+  MyAgentResponse,
 } from "./types";
-
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 let authToken: string | null = null;
@@ -96,7 +97,7 @@ export async function authFarcaster(message: string, signature: string): Promise
 // Events
 // ============================================================================
 
-export async function getEvents(city = "Denver", limit = 50, categories?: string[]): Promise<EventResult[]> {
+export async function getEvents(city = "Austin", limit = 50, categories?: string[]): Promise<EventResult[]> {
   let path = `/api/v1/events?city=${encodeURIComponent(city)}&limit=${limit}`;
   if (categories && categories.length > 0) {
     path += `&categories=${encodeURIComponent(categories.join(","))}`;
@@ -233,6 +234,14 @@ export async function updatePreferences(data: {
   arrival_date?: string;
   interest_categories?: string[];
   onboarding_complete?: boolean;
+  home_city?: string;
+  home_country?: string;
+  current_city?: string;
+  current_country?: string;
+  destination_city?: string;
+  destination_country?: string;
+  locale?: string;
+  location_visibility?: string;
 }): Promise<any> {
   return patch("/api/v1/me/preferences", data);
 }
@@ -305,11 +314,11 @@ export async function createSponsorship(
   amountUsdc: number,
   txHash: string,
 ): Promise<{ ok: boolean; sponsorship: Sponsorship }> {
-  return post("/api/v1/sponsor", { targetType, targetId, amountUsdc, txHash });
+  return post<{ ok: boolean; sponsorship: Sponsorship }>("/api/v1/sponsor", { targetType, targetId, amountUsdc, txHash });
 }
 
-export async function getFeaturedEventBid(): Promise<FeaturedEventBid | null> {
-  const data = await get<{ featured: FeaturedEventBid | null }>("/api/v1/sponsor/featured-event");
+export async function getFeaturedEventBoost(): Promise<FeaturedEventBoost | null> {
+  const data = await get<{ featured: FeaturedEventBoost | null }>("/api/v1/sponsor/featured-event");
   return data.featured;
 }
 
@@ -332,6 +341,72 @@ export async function proximityCheckin(
   crewId?: string,
 ): Promise<{ matched: Array<{ id: string; code: string; name: string; distance_m: number; sponsored: boolean }>; checkins: number }> {
   return post("/api/v1/flow/checkin/proximity", { latitude, longitude, crewId });
+}
+
+// ============================================================================
+// Agents
+// ============================================================================
+
+export async function getAgents(): Promise<AgentsResponse> {
+  return get("/api/v1/agents");
+}
+
+export async function getMyAgent(): Promise<MyAgentResponse> {
+  return get("/api/v1/agents/me");
+}
+
+export async function claimAgent(agentName?: string): Promise<any> {
+  return post("/api/v1/agents/claim", { agentName });
+}
+
+export async function purchaseSkill(skillSlug: string): Promise<any> {
+  return post("/api/v1/agents/skills/purchase", { skillSlug });
+}
+
+export async function boostEvent(eventId: string): Promise<any> {
+  return post("/api/v1/agents/boost-event", { eventId });
+}
+
+export async function tipAgent(recipientUserId: string, amount: number, message?: string): Promise<any> {
+  return post("/api/v1/agents/tip", { recipientUserId, amount, message });
+}
+
+export async function getAgentTransactions(limit = 20): Promise<any> {
+  return get(`/api/v1/agents/transactions?limit=${limit}`);
+}
+
+// ============================================================================
+// Event Submission
+// ============================================================================
+
+export async function submitEvent(data: {
+  title?: string;
+  url?: string;
+  startTime?: string;
+  endTime?: string;
+  venue?: string;
+  city?: string;
+  description?: string;
+  isFree?: boolean;
+}): Promise<{ ok: boolean; message: string; eventId?: string }> {
+  return post("/api/v1/events/submit", data);
+}
+
+// ============================================================================
+// AI Chat
+// ============================================================================
+
+// ============================================================================
+// Feedback
+// ============================================================================
+
+export async function submitFeedback(data: {
+  type: "bug" | "feature" | "feedback";
+  message: string;
+  contact?: string;
+  screen?: string;
+}): Promise<{ ok: boolean; id: string | null }> {
+  return post<{ ok: boolean; id: string | null }>("/api/v1/feedback", data);
 }
 
 // ============================================================================

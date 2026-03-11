@@ -62,13 +62,13 @@ export function buildBackToMenuKeyboard(): InlineKeyboard {
 // ==========================================================================
 
 export function formatVerifiedGreetingHtml(
-  danzUsername: string,
+  displayName: string,
   points: number,
   streak: number,
 ): string {
   const streakBadge = streak > 0 ? `  \u00b7  ${streak}-day streak \ud83d\udd25` : "";
   return [
-    `gm <b>${escapeHtml(danzUsername)}</b>`,
+    `gm <b>${escapeHtml(displayName)}</b>`,
     "",
     `<b>${points}</b> pts${streakBadge}`,
     "",
@@ -98,9 +98,9 @@ export function formatConnectPromptHtml(): string {
   ].join("\n");
 }
 
-export function buildConnectKeyboard(danzUrl: string): InlineKeyboard {
+export function buildConnectKeyboard(connectUrl: string): InlineKeyboard {
   return new InlineKeyboard()
-    .url("\ud83d\udd17 Connect Account", danzUrl)
+    .url("\ud83d\udd17 Connect Account", connectUrl)
     .row()
     .text("\ud83d\udccd Browse Events", "mn:events");
 }
@@ -304,7 +304,7 @@ export function buildEventCardKeyboard(
   // Row 5: Mini app deep link
   if (botUsername) {
     kb.row();
-    kb.url("\u26a1 View in FlowB", `https://t.me/${botUsername}?startapp=event_${short}`);
+    kb.url("\u26a1 View in FlowB", `https://t.me/${botUsername}/flowb?startapp=event_${short}`);
   }
 
   return kb;
@@ -339,28 +339,28 @@ export function buildCategoryFilterKeyboard(activeCategory?: string): InlineKeyb
 
 export function getDateFilterLabel(dateFilter: string): string {
   if (!dateFilter || dateFilter === "all") return "All Dates";
-  const entry = ETHDENVER_DATE_FILTERS.find((df) => df.id === dateFilter);
+  const entry = SXSW_DATE_FILTERS.find((df) => df.id === dateFilter);
   return entry?.label ?? dateFilter;
 }
 
-/** ETHDenver 2026 date filters (Feb 15 - Feb 27) */
-const ETHDENVER_DATE_FILTERS = (() => {
+/** SXSW 2026 date filters (Mar 12 - Mar 18) */
+const SXSW_DATE_FILTERS = (() => {
   const filters: { id: string; label: string }[] = [{ id: "all", label: "All Dates" }];
-  for (let d = 15; d <= 27; d++) {
-    const dt = new Date(2026, 1, d);
+  for (let d = 12; d <= 18; d++) {
+    const dt = new Date(2026, 2, d); // March = 2
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
-    filters.push({ id: `2026-02-${String(d).padStart(2, "0")}`, label: `${weekday} 2/${d}` });
+    filters.push({ id: `2026-03-${String(d).padStart(2, "0")}`, label: `${weekday} 3/${d}` });
   }
   return filters;
 })();
 
 export function buildDateFilterKeyboard(activeDateFilter?: string): InlineKeyboard {
   const kb = new InlineKeyboard();
-  for (let i = 0; i < ETHDENVER_DATE_FILTERS.length; i++) {
-    const df = ETHDENVER_DATE_FILTERS[i];
+  for (let i = 0; i < SXSW_DATE_FILTERS.length; i++) {
+    const df = SXSW_DATE_FILTERS[i];
     const marker = df.id === (activeDateFilter || "all") ? "\u2713 " : "";
     kb.text(`${marker}${df.label}`, `ec:setdate:${df.id}`);
-    if (i % 3 === 2 && i < ETHDENVER_DATE_FILTERS.length - 1) kb.row();
+    if (i % 3 === 2 && i < SXSW_DATE_FILTERS.length - 1) kb.row();
   }
   kb.row();
   kb.text("\u25c0\ufe0f Back", `ec:back`);
@@ -721,7 +721,7 @@ export function buildFlowMenuKeyboard(botUsername?: string): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
   if (botUsername) {
-    kb.url("\u26a1 Open App", `https://t.me/${botUsername}?startapp=schedule`);
+    kb.url("\u26a1 Open App", `https://t.me/${botUsername}/flowb?startapp=schedule`);
   }
   return kb;
 }
@@ -768,8 +768,7 @@ export function formatCrewMenuHtml(): string {
     "",
     "Crews are group flows \u2014 your dance squad, festival friends, class cohort.",
     "",
-    "<b>/crew create Name</b> \u2014 start a new crew",
-    "Or join one via an invite link!",
+    "Tap <b>Create Crew</b> to start a new crew, or join one via an invite link!",
   ].join("\n");
 }
 
@@ -782,7 +781,7 @@ export function buildCrewMenuKeyboard(botUsername?: string): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
   if (botUsername) {
-    kb.url("\u26a1 Open in App", `https://t.me/${botUsername}?startapp=crew`);
+    kb.url("\u26a1 Open in App", `https://t.me/${botUsername}/flowb?startapp=crew`);
   }
   return kb;
 }
@@ -981,19 +980,27 @@ export function formatFlowAttendanceBadge(goingCount: number, maybeCount: number
 // ==========================================================================
 
 export function markdownToHtml(md: string): string {
-  // Protect URLs from italic replacement (underscores in URLs)
+  // Strip hidden event ID comments
+  let s = md.replace(/<!--.*?-->/g, "");
+  // Convert markdown links FIRST (before URL protection mangles them)
+  const links: string[] = [];
+  s = s.replace(/\[(.+?)\]\((.+?)\)/g, (_m, text, href) => {
+    links.push(`<a href="${href}">${text}</a>`);
+    return `\x00LINK${links.length - 1}\x00`;
+  });
+  // Protect bare URLs from italic replacement (underscores in URLs)
   const urls: string[] = [];
-  let s = md.replace(/https?:\/\/[^\s)]+/g, (url) => {
+  s = s.replace(/https?:\/\/[^\s)]+/g, (url) => {
     urls.push(url);
     return `\x00URL${urls.length - 1}\x00`;
   });
   s = s
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/_(.+?)_/g, "<i>$1</i>")
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2">$1</a>')
     .replace(/&(?!amp;|lt;|gt;|quot;)/g, "&amp;")
     .replace(/<(?!\/?(?:b|i|a|code|pre)[\s>])/g, "&lt;");
-  // Restore URLs
+  // Restore links and URLs
+  links.forEach((link, i) => { s = s.replace(`\x00LINK${i}\x00`, link); });
   urls.forEach((url, i) => { s = s.replace(`\x00URL${i}\x00`, url); });
   return s;
 }
@@ -1132,6 +1139,200 @@ export function parseTradeIntent(text: string): TradeIntent {
 }
 
 // ==========================================================================
+// Meetings
+// ==========================================================================
+
+const MEETING_TYPE_EMOJI: Record<string, string> = {
+  coffee: "\u2615",
+  call: "\ud83d\udcde",
+  lunch: "\ud83c\udf7d\ufe0f",
+  workshop: "\ud83d\udee0\ufe0f",
+  demo: "\ud83d\udcbb",
+  other: "\ud83d\udcc5",
+};
+
+export function formatMeetingCreatedHtml(
+  title: string,
+  startsAt: string,
+  durationMin: number,
+  meetingType: string,
+  location: string | null,
+  shareLink: string,
+): string {
+  const emoji = MEETING_TYPE_EMOJI[meetingType] || "\ud83d\udcc5";
+  const date = new Date(startsAt);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const lines = [
+    `${emoji} <b>${escapeHtml(title)}</b>`,
+    "",
+    `\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`,
+    `\u23f1  ${durationMin} min`,
+  ];
+
+  if (location) {
+    lines.push(`\ud83d\udccd  ${escapeHtml(location)}`);
+  }
+
+  lines.push("");
+  lines.push(`Share: ${shareLink}`);
+
+  return lines.join("\n");
+}
+
+export function formatMeetingDetailHtml(
+  title: string,
+  startsAt: string,
+  durationMin: number,
+  meetingType: string,
+  status: string,
+  location: string | null,
+  description: string | null,
+  attendeeCount: number,
+): string {
+  const emoji = MEETING_TYPE_EMOJI[meetingType] || "\ud83d\udcc5";
+  const date = new Date(startsAt);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const statusBadge = status === "cancelled" ? " \u274c cancelled" : status === "completed" ? " \u2705 done" : "";
+
+  const lines = [
+    `${emoji} <b>${escapeHtml(title)}</b>${statusBadge}`,
+    "",
+    `\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`,
+    `\u23f1  ${durationMin} min`,
+  ];
+
+  if (location) {
+    lines.push(`\ud83d\udccd  ${escapeHtml(location)}`);
+  }
+
+  if (description) {
+    const snippet = description.length > 150 ? description.slice(0, 147) + "..." : description;
+    lines.push("");
+    lines.push(`<i>${escapeHtml(snippet)}</i>`);
+  }
+
+  lines.push("");
+  lines.push(`\ud83d\udc65  ${attendeeCount} attendee${attendeeCount !== 1 ? "s" : ""}`);
+
+  return lines.join("\n");
+}
+
+export function formatMeetingListHtml(
+  meetings: { id: string; title: string; starts_at: string; meeting_type: string; status: string }[],
+  filter: string,
+): string {
+  if (!meetings.length) {
+    return filter === "upcoming"
+      ? "<b>Your Meetings</b>\n\nNo upcoming meetings. Use /meet to create one!"
+      : "<b>Past Meetings</b>\n\nNo past meetings yet.";
+  }
+
+  const headerText = filter === "upcoming" ? "Your Meetings" : "Past Meetings";
+  const lines = [`<b>${headerText}</b>  (${meetings.length})\n`];
+
+  for (const m of meetings) {
+    const emoji = MEETING_TYPE_EMOJI[m.meeting_type] || "\ud83d\udcc5";
+    const date = new Date(m.starts_at);
+    const dateStr = date.toLocaleDateString("en-US", {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+    const timeStr = date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    lines.push(`${emoji} <b>${escapeHtml(m.title)}</b>`);
+    lines.push(`    ${dateStr} \u00b7 ${timeStr}`);
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+export function formatMeetingCreatePromptHtml(): string {
+  return [
+    "<b>Create a Meeting</b>",
+    "",
+    "Use natural language:",
+    "<code>/meet sarah tomorrow coffee</code>",
+    "<code>/meet team standup friday 10am</code>",
+    "<code>/meet project demo next week 2pm</code>",
+  ].join("\n");
+}
+
+export function buildMeetingDetailKeyboard(meetingId: string, isCreator: boolean, shareCode: string): InlineKeyboard {
+  const short = meetingId.slice(0, 8);
+  const kb = new InlineKeyboard();
+
+  kb.text("\u2705 Accept", `mt:rsvp:${short}:accepted`);
+  kb.text("\ud83e\udd14 Maybe", `mt:rsvp:${short}:maybe`);
+  kb.text("\u274c Decline", `mt:rsvp:${short}:declined`);
+  kb.row();
+  kb.text("\ud83d\udce4 Share", `mt:share:${short}`);
+  kb.text("\ud83d\udcac Chat", `mt:chat:${short}`);
+
+  if (isCreator) {
+    kb.row();
+    kb.text("\u2705 Complete", `mt:complete:${short}`);
+    kb.text("\u274c Cancel", `mt:cancel:${short}`);
+  }
+
+  kb.row();
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+
+  return kb;
+}
+
+export function buildMeetingListKeyboard(
+  meetings: { id: string; title: string }[],
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const m of meetings.slice(0, 5)) {
+    const short = m.id.slice(0, 8);
+    const label = m.title.length > 25 ? m.title.slice(0, 23) + ".." : m.title;
+    kb.text(label, `mt:view:${short}`);
+    kb.row();
+  }
+  kb.text("\u2795 New Meeting", "mt:new");
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+  return kb;
+}
+
+export function buildMeetingRsvpKeyboard(meetingId: string): InlineKeyboard {
+  const short = meetingId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u2705 Accept", `mt:rsvp:${short}:accepted`)
+    .text("\ud83e\udd14 Maybe", `mt:rsvp:${short}:maybe`)
+    .text("\u274c Decline", `mt:rsvp:${short}:declined`)
+    .row()
+    .text("\ud83d\udce4 Share", `mt:share:${short}`);
+}
+
+export function buildMeetingCreateKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+// ==========================================================================
 // Farcaster
 // ==========================================================================
 
@@ -1148,6 +1349,284 @@ export function buildFarcasterMenuKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("Trending", "fc:trending")
     .text("Search Profile", "fc:profile")
+    .row()
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+// ==========================================================================
+// Event Submission (Add My Event)
+// ==========================================================================
+
+type EventStep = "title" | "date" | "time" | "venue" | "url" | "description" | "confirm";
+
+export interface PendingEvent {
+  title?: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  url?: string;
+  description?: string;
+  city?: string;
+  isFree?: boolean;
+}
+
+export function formatEventSubmitPromptHtml(step: EventStep, pending: PendingEvent): string {
+  switch (step) {
+    case "title":
+      return [
+        "<b>List Your Event</b>",
+        "",
+        "What's the event called?",
+      ].join("\n");
+    case "date":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        "",
+        "When is it? <i>(e.g. Mar 15, tomorrow, Friday)</i>",
+      ].join("\n");
+    case "time":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}`,
+        "",
+        "What time? <i>(e.g. 7pm, 2:00 PM)</i>",
+      ].join("\n");
+    case "venue":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        "",
+        "Where's it at? <i>(venue name)</i>",
+      ].join("\n");
+    case "url":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        pending.venue ? `\ud83d\udccd ${escapeHtml(pending.venue)}` : "",
+        "",
+        "Got a link? <i>(event URL)</i>",
+      ].filter(Boolean).join("\n");
+    case "description":
+      return [
+        `<b>${escapeHtml(pending.title || "")}</b>`,
+        `\ud83d\udcc5 ${escapeHtml(pending.date || "")}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`,
+        pending.venue ? `\ud83d\udccd ${escapeHtml(pending.venue)}` : "",
+        "",
+        "Short description? <i>(one or two lines)</i>",
+      ].filter(Boolean).join("\n");
+    default:
+      return "";
+  }
+}
+
+export function formatEventSubmitConfirmHtml(pending: PendingEvent): string {
+  const lines = [
+    "<b>Review Your Event</b>",
+    "",
+    `\ud83c\udfab <b>${escapeHtml(pending.title || "Untitled")}</b>`,
+  ];
+  if (pending.date) lines.push(`\ud83d\udcc5 ${escapeHtml(pending.date)}${pending.time ? ` at ${escapeHtml(pending.time)}` : ""}`);
+  if (pending.venue) lines.push(`\ud83d\udccd ${escapeHtml(pending.venue)}`);
+  if (pending.url) lines.push(`\ud83d\udd17 ${escapeHtml(pending.url)}`);
+  if (pending.description) lines.push(`\n<i>${escapeHtml(pending.description)}</i>`);
+  lines.push("", "Look good?");
+  return lines.join("\n");
+}
+
+export function buildEventSubmitConfirmKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\u2705 Submit", "evt:submit:confirm")
+    .text("\u270f\ufe0f Edit", "evt:submit:edit")
+    .row()
+    .text("\u274c Cancel", "evt:submit:cancel");
+}
+
+export function buildEventSubmitSkipKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("Skip \u25b6\ufe0f", "evt:submit:skip")
+    .text("\u274c Cancel", "evt:submit:cancel");
+}
+
+export function formatEventSubmittedHtml(title: string, eventId?: string): string {
+  return [
+    "\u2705 <b>Event Listed!</b>",
+    "",
+    `<b>${escapeHtml(title)}</b> has been added to FlowB.`,
+    "",
+    "Others can now discover it when browsing events.",
+    eventId ? `\nID: <code>${escapeHtml(eventId)}</code>` : "",
+  ].filter(Boolean).join("\n");
+}
+
+export function formatEventSubmitGroupReplyHtml(title: string): string {
+  return `\u2705 Got it! I listed <b>${escapeHtml(title)}</b> \u2014 check your DMs for details.`;
+}
+
+export function formatEventSubmitDmFollowupHtml(title: string): string {
+  return [
+    `\u2705 <b>${escapeHtml(title)}</b> has been listed on FlowB!`,
+    "",
+    "Others can now discover it when browsing events.",
+    "Next time, use <b>/addmyevent</b> in DMs to add full details (date, time, venue, description).",
+  ].join("\n");
+}
+
+export function buildEventSubmitDmFollowupKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\udccd Browse Events", "mn:events")
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+// ==========================================================================
+// Leads / CRM Pipeline
+// ==========================================================================
+
+export type LeadStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+const STAGE_EMOJI: Record<LeadStage, string> = {
+  new: "\ud83d\udfe2",        // green circle
+  contacted: "\ud83d\udfe1",  // yellow circle
+  qualified: "\ud83d\udd35",  // blue circle
+  proposal: "\ud83d\udfe3",   // purple circle
+  won: "\u2705",              // check
+  lost: "\u274c",             // X
+};
+
+const STAGE_LABEL: Record<LeadStage, string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  proposal: "Proposal",
+  won: "Won",
+  lost: "Lost",
+};
+
+export interface LeadData {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  company?: string | null;
+  stage: LeadStage;
+  source?: string | null;
+  value?: number | null;
+  notes?: string | null;
+  assigned_to?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function formatLeadDetailHtml(lead: LeadData): string {
+  const lines = [
+    `${STAGE_EMOJI[lead.stage]} <b>${escapeHtml(lead.name)}</b>`,
+    `Stage: <b>${STAGE_LABEL[lead.stage]}</b>`,
+  ];
+  if (lead.company) lines.push(`\ud83c\udfe2 ${escapeHtml(lead.company)}`);
+  if (lead.email) lines.push(`\ud83d\udce7 ${escapeHtml(lead.email)}`);
+  if (lead.phone) lines.push(`\ud83d\udcde ${escapeHtml(lead.phone)}`);
+  if (lead.value != null) lines.push(`\ud83d\udcb0 $${lead.value.toLocaleString()}`);
+  if (lead.source) lines.push(`Source: ${escapeHtml(lead.source)}`);
+  if (lead.notes) {
+    lines.push("");
+    lines.push(`<i>${escapeHtml(lead.notes.slice(0, 200))}</i>`);
+  }
+  return lines.join("\n");
+}
+
+export function formatLeadListHtml(leads: LeadData[]): string {
+  if (!leads.length) {
+    return [
+      "<b>\ud83d\udcbc Leads</b>",
+      "",
+      "<i>No leads yet. Add one:</i>",
+      "<code>/lead add Sarah CEO at StartupX</code>",
+    ].join("\n");
+  }
+  const lines = [`<b>\ud83d\udcbc Leads</b> (${leads.length})`, ""];
+  for (const lead of leads.slice(0, 10)) {
+    const val = lead.value != null ? ` \u2014 $${lead.value.toLocaleString()}` : "";
+    const co = lead.company ? ` (${escapeHtml(lead.company)})` : "";
+    lines.push(`${STAGE_EMOJI[lead.stage]} <b>${escapeHtml(lead.name)}</b>${co}${val}`);
+  }
+  if (leads.length > 10) lines.push(`\n<i>...and ${leads.length - 10} more</i>`);
+  return lines.join("\n");
+}
+
+export function formatPipelineHtml(
+  pipeline: Record<LeadStage, number>,
+  total: number,
+): string {
+  const stages: LeadStage[] = ["new", "contacted", "qualified", "proposal", "won", "lost"];
+  const lines = [`<b>\ud83d\udcca Pipeline</b> (${total} leads)`, ""];
+  for (const stage of stages) {
+    const count = pipeline[stage] || 0;
+    if (count > 0 || stage !== "lost") {
+      lines.push(`${STAGE_EMOJI[stage]} ${STAGE_LABEL[stage]}: <b>${count}</b>`);
+    }
+  }
+  return lines.join("\n");
+}
+
+export function formatLeadCreatedHtml(name: string, stage: LeadStage): string {
+  return [
+    `\u2705 <b>Lead added</b>`,
+    "",
+    `${STAGE_EMOJI[stage]} <b>${escapeHtml(name)}</b>`,
+    `Stage: ${STAGE_LABEL[stage]}`,
+  ].join("\n");
+}
+
+export function formatLeadUpdatedHtml(name: string, stage: LeadStage): string {
+  return `${STAGE_EMOJI[stage]} <b>${escapeHtml(name)}</b> moved to <b>${STAGE_LABEL[stage]}</b>`;
+}
+
+export function buildLeadDetailKeyboard(leadId: string): InlineKeyboard {
+  const short = leadId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u27a1\ufe0f Advance", `ld:advance:${short}`)
+    .text("\ud83d\udcc5 Schedule Meeting", `ld:meet:${short}`)
+    .row()
+    .text("\u270f\ufe0f Edit", `ld:edit:${short}`)
+    .text("\ud83d\uddd1 Delete", `ld:del:${short}`)
+    .row()
+    .text("\ud83d\udcbc Pipeline", "ld:pipeline")
+    .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+export function buildLeadListKeyboard(leads: LeadData[]): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const lead of leads.slice(0, 5)) {
+    const short = lead.id.slice(0, 8);
+    const label = lead.name.length > 20 ? lead.name.slice(0, 18) + ".." : lead.name;
+    kb.text(`${STAGE_EMOJI[lead.stage]} ${label}`, `ld:view:${short}`);
+    kb.row();
+  }
+  kb.text("\u2795 Add Lead", "ld:add");
+  kb.text("\ud83d\udcca Pipeline", "ld:pipeline");
+  kb.row();
+  kb.text("\u25c0\ufe0f Menu", "mn:menu");
+  return kb;
+}
+
+export function buildLeadStageKeyboard(leadId: string): InlineKeyboard {
+  const short = leadId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\ud83d\udfe2 New", `ld:stage:${short}:new`)
+    .text("\ud83d\udfe1 Contacted", `ld:stage:${short}:contacted`)
+    .row()
+    .text("\ud83d\udd35 Qualified", `ld:stage:${short}:qualified`)
+    .text("\ud83d\udfe3 Proposal", `ld:stage:${short}:proposal`)
+    .row()
+    .text("\u2705 Won", `ld:stage:${short}:won`)
+    .text("\u274c Lost", `ld:stage:${short}:lost`)
+    .row()
+    .text("\u25c0\ufe0f Back", `ld:view:${short}`);
+}
+
+export function buildPipelineKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text("\ud83d\udcbc All Leads", "ld:list")
+    .text("\u2795 Add Lead", "ld:add")
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
 }

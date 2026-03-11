@@ -33,8 +33,25 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/onbooths` | — |
 | `/sponsor` | — |
 | `/topsponsor` | — |
+| `/leaderboard` | — |
+| `/meet` | — |
+| `/meetings` | — |
+| `/lead` | — |
+| `/leads` | — |
+| `/pipeline` | — |
+| `/biz` | — |
+| `/earnings` | — |
 | `/help` | Show available commands and help text |
+| `/todo` | — |
 | `/register` | Verify your account or check status |
+| `/whatsup` | — |
+| `/afterparty` | — |
+| `/whoshere` | — |
+| `/earnings` | — |
+| `/biz` | — |
+| `/automations` | — |
+| `/reportbug` | — |
+| `/egator` | — |
 
 ## Deep Links
 
@@ -45,12 +62,20 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 | `f_` | `flowb.me/f/{code}` | Personal flow invite — connects two users as friends |
 | `g_` | `flowb.me/g/{code}` | Crew join — joins a crew via its public code |
 | `gi_` | `flowb.me/gi/{code}` | Tracked crew invite — joins via personal invite link with attribution |
+| `m_` | `flowb.me/m/{code}` | — |
 | `checkin_` | `flowb.me/checkin/{code}` | — |
 | `ref_` | `flowb.me/ref/{code}` | Referral — tracks referral signup |
+| `crew_` | `flowb.me/crew/{code}` | — |
 
 ## Callback Actions
 
 Inline keyboard callbacks used throughout the bot:
+
+**a**: `a`
+
+**add**: `add`
+
+**advance**: `advance`
 
 **approve**: `approve`
 
@@ -58,9 +83,17 @@ Inline keyboard callbacks used throughout the bot:
 
 **browse**: `browse`
 
+**cancel**: `cancel`
+
+**chat**: `chat`
+
 **claim**: `claim`
 
+**complete**: `complete`
+
 **copy-link**: `copy-link`
+
+**crew**: `crew`
 
 **crew-create**: `crew-create`
 
@@ -72,9 +105,15 @@ Inline keyboard callbacks used throughout the bot:
 
 **crew-members**: `crew-members`
 
+**d**: `d`
+
+**del**: `del`
+
 **demote**: `demote`
 
 **deny**: `deny`
+
+**edit**: `edit`
 
 **fcat**: `fcat`
 
@@ -94,17 +133,25 @@ Inline keyboard callbacks used throughout the bot:
 
 **maybe**: `maybe`
 
+**meet**: `meet`
+
 **menu**: `menu`
+
+**new**: `new`
 
 **next**: `next`
 
 **noop**: `noop`
+
+**pipeline**: `pipeline`
 
 **prev**: `prev`
 
 **profile**: `profile`
 
 **promote**: `promote`
+
+**rsvp**: `rsvp`
 
 **save**: `save`
 
@@ -118,9 +165,17 @@ Inline keyboard callbacks used throughout the bot:
 
 **share**: `share`
 
+**stage**: `stage`
+
+**submit**: `submit`
+
+**t**: `t`
+
 **toggle-public**: `toggle-public`
 
 **trending**: `trending`
+
+**view**: `view`
 
 **whos**: `whos`
 
@@ -128,4 +183,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-02-22 00:10:52 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-11 19:16:04 UTC*

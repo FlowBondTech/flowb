@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "./hooks/useAuth";
+
 import { BottomNav } from "./components/BottomNav";
 import { OnboardingScreen } from "./components/OnboardingScreen";
 import { Home } from "./screens/Home";
@@ -10,6 +11,9 @@ import { Points } from "./screens/Points";
 import { Chat } from "./screens/Chat";
 import { About } from "./screens/About";
 import { Settings } from "./screens/Settings";
+import { Agents } from "./screens/Agents";
+import { SocialB } from "./screens/SocialB";
+import { AddEvent } from "./screens/AddEvent";
 
 export type Screen =
   | { name: "home" }
@@ -19,13 +23,21 @@ export type Screen =
   | { name: "chat" }
   | { name: "crew"; id?: string; checkinCode?: string }
   | { name: "points" }
+  | { name: "agents" }
+  | { name: "socialb" }
+  | { name: "addevent" }
   | { name: "about" }
   | { name: "settings" };
 
 export default function App() {
-  const { user, loading, error } = useAuth();
+  const { user, loading } = useAuth();
   const [screen, setScreen] = useState<Screen>({ name: "home" });
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
+  const [loginSkipped, setLoginSkipped] = useState(() => {
+    try { return !!localStorage.getItem("flowb_login_skipped"); } catch { return false; }
+  });
 
   // Parse deep link from startapp parameter
   const hasDeepLink = (() => {
@@ -50,8 +62,20 @@ export default function App() {
       setScreen({ name: "points" });
     } else if (startParam === "chat") {
       setScreen({ name: "chat" });
+    } else if (startParam === "socialb") {
+      setScreen({ name: "socialb" });
+    } else if (startParam === "addevent") {
+      setScreen({ name: "addevent" });
     }
   }, []);
+
+  // Auto-dismiss splash after a brief moment once loading is done
+  useEffect(() => {
+    if (!loading) {
+      const t = setTimeout(() => setSplashDone(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
 
   // Show onboarding after auth if not completed and no deep link
   useEffect(() => {
@@ -81,65 +105,92 @@ export default function App() {
     }
   }, [screen]);
 
-  if (loading) {
-    return (
-      <div className="loading">
-        <div className="spinner" />
-      </div>
-    );
-  }
-
-  if (error || !user) {
-    const isNotTelegram = error === "Not in Telegram" || !(window as any).Telegram?.WebApp?.initData;
-    if (isNotTelegram) {
-      return (
-        <div className="web-landing">
-          <div className="web-landing-content">
-            <div className="web-landing-logo">
-              <img src="/icon.png" alt="FlowB" width={80} height={80} style={{ borderRadius: 20 }} />
-            </div>
-            <h1 className="web-landing-title gradient-text">FlowB</h1>
-            <p className="web-landing-subtitle">
-              Coordinate your crew, discover events, and earn points at EthDenver.
-            </p>
-            <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 24 }}>
-              Open in the Telegram app on your phone
-            </p>
-            <div className="web-landing-buttons">
-              <a href="https://t.me/Flow_b_bot?startapp=home" className="btn btn-primary web-landing-btn">
-                <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20" style={{ width: 20, height: 20, marginRight: 8 }}>
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                </svg>
-                Open in Telegram
-              </a>
-              <a href="https://flowb.me" className="btn btn-secondary web-landing-btn">
-                Visit flowb.me
-              </a>
-            </div>
-          </div>
-        </div>
-      );
+  // Track screen views (hooks must be before conditional returns)
+  const prevScreen = useRef(screen.name);
+  useEffect(() => {
+    if (prevScreen.current !== screen.name) {
+      prevScreen.current = screen.name;
     }
+    const props: Record<string, any> = {};
+    if (screen.name === "event" && "id" in screen) props.event_id = screen.id;
+    if (screen.name === "crew" && "id" in screen) props.crew_id = screen.id;
+    // screen tracking removed
+  }, [screen]);
+
+  // ---- Splash screen ----
+  if (loading || !splashDone) {
     return (
-      <div className="screen">
-        <div className="error-box">
-          {error || "Something went wrong. Try reopening the app."}
-        </div>
+      <div className="splash-screen">
+        <div className="splash-logo">FlowB</div>
+        <div className="splash-tagline">Get in the Flow and Just B</div>
+        <div className="spinner" style={{ marginTop: 24 }} />
       </div>
     );
   }
 
   const navigate = (s: Screen) => {
     setScreen(s);
-    // Haptic feedback
     const tg = (window as any).Telegram?.WebApp;
     tg?.HapticFeedback?.selectionChanged();
   };
+
+  // ---- Login suggestion (shown once after splash if not logged in & not skipped) ----
+  if (!user && !loginSkipped && !hasDeepLink) {
+    return (
+      <div className="login-suggest">
+        <div className="login-suggest-content">
+          <div className="splash-logo" style={{ fontSize: 32 }}>FlowB</div>
+          <p className="login-suggest-text">
+            Sign in to unlock the full experience — earn points, join crews, track your schedule, and more.
+          </p>
+          <div className="login-suggest-perks">
+            <div className="login-suggest-perk">
+              <span>+</span> Earn & track points across platforms
+            </div>
+            <div className="login-suggest-perk">
+              <span>+</span> Join or create a crew
+            </div>
+            <div className="login-suggest-perk">
+              <span>+</span> Save your schedule & favorites
+            </div>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--hint)", marginTop: 8 }}>
+            You're in Telegram — authentication is instant and automatic.
+          </div>
+          <button
+            className="btn btn-primary btn-block"
+            style={{ marginTop: 20 }}
+            onClick={() => {
+              // Telegram auto-auth happens via useAuth, just reload
+              window.location.reload();
+            }}
+          >
+            Sign In
+          </button>
+          <button
+            className="btn btn-block"
+            style={{ marginTop: 10, background: "transparent", color: "var(--text-muted)", border: "1px solid var(--border)" }}
+            onClick={() => {
+              try { localStorage.setItem("flowb_login_skipped", "1"); } catch {}
+              try { localStorage.setItem("flowb_onboard_skipped_at", new Date().toISOString()); } catch {}
+              setLoginSkipped(true);
+            }}
+          >
+            Skip for now
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (showOnboarding) {
     return (
       <OnboardingScreen
         onComplete={() => setShowOnboarding(false)}
+        onSkip={() => {
+          try { localStorage.setItem("flowb_onboard_skipped_at", new Date().toISOString()); } catch {}
+          setShowOnboarding(false);
+        }}
         onNavigateCrew={(action) => {
           setShowOnboarding(false);
           setScreen({ name: "crew" });
@@ -150,13 +201,23 @@ export default function App() {
 
   return (
     <div className="app">
+      {!user && !bannerDismissed && (
+        <div style={{ background: "var(--bg-elevated, #1a1a2e)", borderBottom: "1px solid var(--border, #333)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-muted, #999)" }}>
+          <span style={{ flex: 1 }}>Sign in via Telegram to unlock the full FlowBond ecosystem — points, leaderboards, and more.</span>
+          <button onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", color: "var(--text-muted, #999)", cursor: "pointer", padding: 4, fontSize: 16, lineHeight: 1 }}>x</button>
+        </div>
+      )}
+
       {(screen.name === "home" || screen.name === "feed") && <Home onNavigate={navigate} initialTab={screen.name === "feed" ? "feed" : "discover"} />}
       {screen.name === "event" && <EventDetail eventId={screen.id} onNavigate={navigate} />}
+      {screen.name === "about" && <About onNavigate={navigate} />}
       {screen.name === "schedule" && <Schedule onNavigate={navigate} />}
       {screen.name === "chat" && <Chat onNavigate={navigate} />}
       {screen.name === "crew" && <Crew crewId={screen.id} checkinCode={screen.checkinCode} onNavigate={navigate} />}
       {screen.name === "points" && <Points onNavigate={navigate} />}
-      {screen.name === "about" && <About onNavigate={navigate} />}
+      {screen.name === "agents" && <Agents onNavigate={navigate} />}
+      {screen.name === "socialb" && <SocialB onNavigate={navigate} />}
+      {screen.name === "addevent" && <AddEvent onNavigate={navigate} />}
       {screen.name === "settings" && <Settings onNavigate={navigate} />}
 
       <BottomNav current={screen.name === "feed" ? "feed" : screen.name} onNavigate={navigate} />

@@ -1,16 +1,21 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 import { ActivityIndicator, View } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { useAuthStore } from "../stores/useAuthStore";
+import { IntroCarouselScreen } from "../screens/auth/IntroCarouselScreen";
 import { LoginScreen } from "../screens/auth/LoginScreen";
+import { PrivyLoginScreen } from "../screens/auth/PrivyLoginScreen";
 import { OnboardingScreen } from "../screens/auth/OnboardingScreen";
 import { TabNavigator } from "./TabNavigator";
 import { EventDetailScreen } from "../screens/home/EventDetailScreen";
 import { CrewDetailScreen } from "../screens/crew/CrewDetailScreen";
 import { CreateCrewScreen } from "../screens/crew/CreateCrewScreen";
 import { CheckinScreen } from "../screens/crew/CheckinScreen";
+import { CrewBizScreen } from "../screens/crew/CrewBizScreen";
+import { CrewBizSettingsScreen } from "../screens/crew/CrewBizSettingsScreen";
 import { AdminDashboard } from "../screens/admin/AdminDashboard";
 import { PluginManager } from "../screens/admin/PluginManager";
 import { EventCurator } from "../screens/admin/EventCurator";
@@ -21,6 +26,14 @@ import { SettingsEditor } from "../screens/admin/SettingsEditor";
 import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
 import { FriendsScreen } from "../screens/profile/FriendsScreen";
 import { AboutScreen } from "../screens/profile/AboutScreen";
+import { MeetingListScreen } from "../screens/meetings/MeetingListScreen";
+import { MeetingDetailScreen } from "../screens/meetings/MeetingDetailScreen";
+import { CreateMeetingScreen } from "../screens/meetings/CreateMeetingScreen";
+import { LeadListScreen } from "../screens/leads/LeadListScreen";
+import { LeadDetailScreen } from "../screens/leads/LeadDetailScreen";
+import { CreateLeadScreen } from "../screens/leads/CreateLeadScreen";
+import { EditLeadScreen } from "../screens/leads/EditLeadScreen";
+import { KanbanScreen } from "../screens/leads/KanbanScreen";
 import ProductsScreen from "../screens/checkout/ProductsScreen";
 import CheckoutScreen from "../screens/checkout/CheckoutScreen";
 import OrderConfirmationScreen from "../screens/checkout/OrderConfirmationScreen";
@@ -29,14 +42,28 @@ import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const INTRO_SEEN_KEY = "flowb_intro_seen";
+
 export function AppNavigator() {
   const { token, isLoading, restore } = useAuthStore();
+  const [hasSeenIntro, setHasSeenIntro] = useState<boolean | null>(null);
 
   useEffect(() => {
-    restore();
+    async function init() {
+      // Check intro flag
+      const seen = await SecureStore.getItemAsync(INTRO_SEEN_KEY);
+      setHasSeenIntro(seen === "true");
+      // Restore auth
+      await restore();
+      // Mark intro as seen for next launch
+      if (!seen) {
+        await SecureStore.setItemAsync(INTRO_SEEN_KEY, "true");
+      }
+    }
+    init();
   }, []);
 
-  if (isLoading) {
+  if (isLoading || hasSeenIntro === null) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#050510" }}>
         <ActivityIndicator size="large" color="#7c6cf0" />
@@ -78,9 +105,16 @@ export function AppNavigator() {
       >
         {!token ? (
           <>
+            {!hasSeenIntro && (
+              <Stack.Screen
+                name="IntroCarousel"
+                component={IntroCarouselScreen}
+                options={{ animation: "fade" }}
+              />
+            )}
             <Stack.Screen
               name="Login"
-              component={LoginScreen}
+              component={PrivyLoginScreen}
               options={{ animation: "fade" }}
             />
             <Stack.Screen
@@ -100,6 +134,16 @@ export function AppNavigator() {
             {/* Push screens — slide from right */}
             <Stack.Screen name="EventDetail" component={EventDetailScreen} />
             <Stack.Screen name="CrewDetail" component={CrewDetailScreen} />
+            <Stack.Screen
+              name="CrewBiz"
+              component={CrewBizScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="CrewBizSettings"
+              component={CrewBizSettingsScreen}
+              options={{ headerShown: false }}
+            />
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
@@ -109,15 +153,40 @@ export function AppNavigator() {
             <Stack.Screen name="UserManager" component={UserManager} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
             <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
-
-            {/* Checkout & payments */}
-            <Stack.Screen name="Products" component={ProductsScreen} />
-            <Stack.Screen name="Checkout" component={CheckoutScreen} />
-            <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
             <Stack.Screen
-              name="OrderConfirmation"
-              component={OrderConfirmationScreen}
-              options={{ gestureEnabled: false }}
+              name="MeetingList"
+              component={MeetingListScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Meetings",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
+            />
+            <Stack.Screen name="MeetingDetail" component={MeetingDetailScreen} />
+            <Stack.Screen
+              name="LeadList"
+              component={LeadListScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Leads",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
+            />
+            <Stack.Screen name="LeadDetail" component={LeadDetailScreen} />
+            <Stack.Screen
+              name="Kanban"
+              component={KanbanScreen}
+              options={{
+                headerShown: true,
+                headerTitle: "Pipeline",
+                headerBackTitle: "Back",
+                headerStyle: { backgroundColor: "#0a0a1a" },
+                headerTintColor: "#f8f8ff",
+              }}
             />
 
             {/* Modal screens — slide up with scale-behind effect */}
@@ -147,6 +216,40 @@ export function AppNavigator() {
                 animation: "slide_from_bottom",
                 gestureDirection: "vertical",
               }}
+            />
+            <Stack.Screen
+              name="CreateMeeting"
+              component={CreateMeetingScreen}
+              options={{
+                presentation: "modal",
+                animation: "slide_from_bottom",
+                gestureDirection: "vertical",
+              }}
+            />
+            <Stack.Screen
+              name="CreateLead"
+              component={CreateLeadScreen}
+              options={{
+                presentation: "modal",
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="EditLead"
+              component={EditLeadScreen}
+              options={{
+                presentation: "modal",
+                headerShown: false,
+              }}
+            />
+            {/* Checkout & payments */}
+            <Stack.Screen name="Products" component={ProductsScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
+            <Stack.Screen
+              name="OrderConfirmation"
+              component={OrderConfirmationScreen}
+              options={{ gestureEnabled: false }}
             />
           </>
         )}

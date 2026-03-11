@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Crews -- FlowB</title>
+  <meta name="description" content="Form crews, check in together, and climb the leaderboard. Create, join, and manage your crews on FlowB.">
+  <meta property="og:title" content="FlowB Crews - Coordinate Your Squad">
+  <meta property="og:description" content="Form crews, check in together, and climb the leaderboard.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://flowb.me/crews">
+  <meta property="og:image" content="https://flowb.me/flowb.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Crews page specific styles */
+    .crews-hero {
+      text-align: center;
+      padding: 48px 0 32px;
+    }
+    .crews-hero h1 {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin-bottom: 10px;
+    }
+    .crews-hero-sub {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 480px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+
+    /* Stats bar */
+    .crews-stats {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      margin-bottom: 8px;
+    }
+    .crews-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .crews-stat-val {
+      font-size: 1.5rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+    .crews-stat-val.accent { color: var(--accent); }
+    .crews-stat-val.green { color: var(--green); }
+    .crews-stat-val.purple { color: var(--purple, #a855f7); }
+    .crews-stat-label {
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: 500;
+    }
+    .crews-stat-sep {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+    }
+
+    /* Action buttons */
+    .crews-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .crews-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 18px;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      color: var(--text);
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .crews-action-btn:hover {
+      border-color: var(--border-hover, #2a2a3a);
+      background: var(--bg-card-hover, #16161d);
+    }
+    .crews-action-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .crews-action-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .crews-action-btn.primary:hover {
+      background: var(--accent-hover, #1d4ed8);
+    }
+
+    /* Section layout */
+    .crews-section {
+      padding: 32px 0;
+    }
+    .crews-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .crews-section-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    /* My Crews panel */
+    .my-crews-gate {
+      text-align: center;
+      padding: 32px 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .my-crews-gate p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+    }
+    .my-crews-gate-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 24px;
+      border-radius: 100px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .my-crews-gate-btn:hover { background: var(--accent-hover, #1d4ed8); }
+
+    .my-crews-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .my-crew-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      transition: border-color 0.2s;
+    }
+    .my-crew-item:hover { border-color: var(--border-hover, #2a2a3a); }
+    .my-crew-emoji { font-size: 1.4rem; min-width: 28px; text-align: center; }
+    .my-crew-info { flex: 1; min-width: 0; }
+    .my-crew-name {
+      font-size: 0.92rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .my-crew-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+    .my-crew-code {
+      font-family: monospace;
+      background: rgba(255,255,255,0.05);
+      padding: 1px 5px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .my-crew-leave {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      background: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .my-crew-leave:hover {
+      border-color: var(--border);
+      color: #ef4444;
+      background: rgba(239,68,68,0.08);
+    }
+    .my-crew-leave svg { width: 14px; height: 14px; }
+
+    .my-crews-empty {
+      text-align: center;
+      padding: 28px 16px;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .my-crews-empty svg { margin-bottom: 8px; color: var(--text-dim); }
+
+    /* Discover panel */
+    .discover-panel {
+      margin-top: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .discover-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .discover-header h3 { font-size: 0.95rem; font-weight: 600; }
+    .discover-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .discover-body { padding: 8px; max-height: 360px; overflow-y: auto; }
+    .discover-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm, 8px);
+      transition: background 0.15s;
+    }
+    .discover-item:hover { background: rgba(255,255,255,0.03); }
+    .discover-item-info { flex: 1; min-width: 0; }
+    .discover-item-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+    }
+    .discover-item-meta {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 1px;
+    }
+    .discover-item-desc {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .discover-join-btn {
+      padding: 5px 14px;
+      border-radius: 100px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .discover-join-btn:hover { background: var(--accent-hover, #1d4ed8); }
+    .discover-join-btn.joined {
+      background: var(--green);
+      pointer-events: none;
+    }
+    .discover-empty {
+      text-align: center;
+      padding: 24px 16px;
+      color: var(--text-muted);
+      font-size: 0.88rem;
+    }
+
+    /* Crew modals */
+    .crew-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+    }
+    .crew-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: min(420px, 92vw);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      z-index: 201;
+      padding: 24px;
+    }
+    .crew-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .crew-modal-header h3 { font-size: 1.1rem; font-weight: 700; }
+    .crew-modal-close {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 1.4rem;
+      cursor: pointer;
+      padding: 0 4px;
+    }
+    .crew-form-group {
+      margin-bottom: 14px;
+    }
+    .crew-form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+    }
+    .crew-form-opt { font-weight: 400; color: var(--text-dim); }
+    .crew-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: var(--bg-surface, #0a0a0f);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 8px);
+      color: var(--text);
+      font-size: 0.9rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+    .crew-input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .crew-input-emoji { max-width: 80px; text-align: center; font-size: 1.2rem; }
+    .crew-form-hint {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .crew-submit-btn {
+      width: 100%;
+      padding: 11px;
+      border-radius: 100px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .crew-submit-btn:hover { background: var(--accent-hover, #1d4ed8); }
+    .crew-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .crew-form-note {
+      font-size: 0.82rem;
+      text-align: center;
+      margin-top: 10px;
+      min-height: 1.2em;
+    }
+
+    /* Responsive */
+    @media (max-width: 640px) {
+      .crews-hero { padding: 32px 0 20px; }
+      .crews-hero h1 { font-size: 1.7rem; }
+      .crews-stats { gap: 16px; flex-wrap: wrap; }
+      .crews-stat-val { font-size: 1.2rem; }
+      .crews-actions { gap: 8px; }
+      .crews-action-btn { padding: 7px 14px; font-size: 0.8rem; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+            <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/crews" class="header-nav-link active">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
+      </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-meta">
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" onclick="window.location='/settings'">Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crews Page Content -->
+  <main class="page-content">
+    <div class="container">
+
+      <!-- Hero + Stats -->
+      <section class="crews-hero">
+        <h1>FlowB <span class="gradient-text">Crews</span></h1>
+        <p class="crews-hero-sub">Coordinate your squad. Form a crew, check in together, complete missions, and climb the leaderboard.</p>
+        <div class="crews-stats">
+          <div class="crews-stat">
+            <span class="crews-stat-val accent" id="statCrews">--</span>
+            <span class="crews-stat-label">Crews Active</span>
+          </div>
+          <div class="crews-stat-sep"></div>
+          <div class="crews-stat">
+            <span class="crews-stat-val purple" id="statPoints">--</span>
+            <span class="crews-stat-label">Total Points</span>
+          </div>
+          <div class="crews-stat-sep"></div>
+          <div class="crews-stat">
+            <span class="crews-stat-val green" id="statCheckins">--</span>
+            <span class="crews-stat-label">Check-ins Today</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Buttons (auth-gated actions show login prompt) -->
+      <div class="crews-actions" id="crewsActions">
+        <button class="crews-action-btn primary" id="btnCreateCrew">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Crew
+        </button>
+        <button class="crews-action-btn" id="btnJoinCode">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+          Join by Code
+        </button>
+        <button class="crews-action-btn" id="btnDiscover">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Discover Crews
+        </button>
+      </div>
+
+      <!-- My Crews Section (auth-gated) -->
+      <section class="crews-section" id="myCrewsSection">
+        <div class="crews-section-header">
+          <h2 class="crews-section-title">My Crews</h2>
+          <span id="myCrewsCount" style="font-size:0.8rem;color:var(--text-dim)"></span>
+        </div>
+
+        <!-- Sign-in gate -->
+        <div class="my-crews-gate" id="myCrewsGate">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="36" height="36" style="color:var(--text-dim);margin-bottom:8px">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+          </svg>
+          <p>Sign in to see and manage your crews</p>
+          <button class="my-crews-gate-btn" id="myCrewsSignIn">Sign In</button>
+        </div>
+
+        <!-- Crew list (hidden until authed) -->
+        <div class="my-crews-list hidden" id="myCrewsList"></div>
+
+        <!-- Discover panel (hidden by default) -->
+        <div class="discover-panel hidden" id="discoverPanel">
+          <div class="discover-header">
+            <h3>Discover Crews</h3>
+            <button class="discover-close" id="discoverClose">&times;</button>
+          </div>
+          <div class="discover-body" id="discoverList">
+            <div class="discover-empty">Loading crews...</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Crew Leaderboard (public) -->
+      <section class="crews-section">
+        <div class="crews-section-header">
+          <h2 class="crews-section-title">Crew Leaderboard</h2>
+        </div>
+
+        <!-- Top 3 Podium -->
+        <div class="lb-podium" id="lbPodium">
+          <div class="lb-podium-loading">Loading leaderboard...</div>
+        </div>
+
+        <!-- Full Rankings -->
+        <div class="lb-rankings" id="lbRankings"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- Create Crew Modal -->
+  <div class="crew-modal-backdrop hidden" id="createBackdrop"></div>
+  <div class="crew-modal hidden" id="createModal">
+    <div class="crew-modal-header">
+      <h3>Create a Crew</h3>
+      <button class="crew-modal-close" id="createClose">&times;</button>
+    </div>
+    <div class="crew-form-group">
+      <label>Emoji</label>
+      <input type="text" id="createEmoji" maxlength="4" placeholder="Pick one..." class="crew-input crew-input-emoji">
+    </div>
+    <div class="crew-form-group">
+      <label>Crew Name</label>
+      <input type="text" id="createName" maxlength="40" placeholder="My awesome crew" class="crew-input">
+    </div>
+    <div class="crew-form-group">
+      <label>Description <span class="crew-form-opt">(optional)</span></label>
+      <input type="text" id="createDesc" maxlength="120" placeholder="What's your crew about?" class="crew-input">
+    </div>
+    <button class="crew-submit-btn" id="createSubmit">Create Crew</button>
+    <p class="crew-form-note" id="createMsg"></p>
+  </div>
+
+  <!-- Join by Code Modal -->
+  <div class="crew-modal-backdrop hidden" id="joinBackdrop"></div>
+  <div class="crew-modal hidden" id="joinModal">
+    <div class="crew-modal-header">
+      <h3>Join by Code</h3>
+      <button class="crew-modal-close" id="joinClose">&times;</button>
+    </div>
+    <p class="crew-form-hint">Enter a crew's join code or paste an invite link.</p>
+    <div class="crew-form-group">
+      <label>Join Code</label>
+      <input type="text" id="joinCode" maxlength="20" placeholder="e.g. abc123" class="crew-input">
+    </div>
+    <button class="crew-submit-btn" id="joinSubmit">Join Crew</button>
+    <p class="crew-form-note" id="joinMsg"></p>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
+        <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const FLOWB_API = 'https://flowb.fly.dev';
+    let myCrews = [];
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function formatNumber(n) {
+      if (n >= 10000) return (n / 1000).toFixed(1) + 'k';
+      if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+      return String(n);
+    }
+
+    function getAuthToken() {
+      return Auth.jwt || localStorage.getItem('flowb-jwt') || null;
+    }
+
+    async function fetchAuthed(path, opts = {}) {
+      const token = getAuthToken();
+      if (!token) return null;
+      try {
+        const res = await fetch(FLOWB_API + path, {
+          ...opts,
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token,
+            ...(opts.headers || {}),
+          },
+        });
+        if (!res.ok) return null;
+        return await res.json();
+      } catch { return null; }
+    }
+
+    // ===== Animated Counter =====
+
+    function animateCounter(el, target, duration) {
+      if (!el || target <= 0) {
+        if (el) el.textContent = target <= 0 ? '0' : String(target);
+        return;
+      }
+      var startTime = null;
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        var progress = Math.min((timestamp - startTime) / duration, 1);
+        var eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = formatNumber(Math.round(target * eased));
+        if (progress < 1) requestAnimationFrame(step);
+        else el.textContent = formatNumber(target);
+      }
+      requestAnimationFrame(step);
+    }
+
+    // ===== Load Stats =====
+
+    async function loadStats() {
+      try {
+        const res = await fetch(FLOWB_API + '/api/v1/stats');
+        if (!res.ok) return;
+        const stats = await res.json();
+        animateCounter(document.getElementById('statCrews'), stats.crewsActive || 0, 1200);
+        animateCounter(document.getElementById('statPoints'), stats.totalPoints || 0, 1600);
+        animateCounter(document.getElementById('statCheckins'), stats.checkinsToday || 0, 1000);
+      } catch {
+        ['statCrews', 'statPoints', 'statCheckins'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '0';
+        });
+      }
+    }
+
+    // ===== Leaderboard =====
+
+    async function loadLeaderboard() {
+      const podiumEl = document.getElementById('lbPodium');
+      const rankingsEl = document.getElementById('lbRankings');
+
+      try {
+        const res = await fetch(FLOWB_API + '/api/v1/flow/leaderboard');
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        const crews = data.crews || [];
+
+        if (!crews.length) {
+          podiumEl.innerHTML = '<div class="lb-empty">No crews yet. Be the first to create one!</div>';
+          return;
+        }
+
+        // Top 3 Podium
+        const top3 = crews.slice(0, 3);
+        const podiumOrder = [1, 0, 2];
+        podiumEl.innerHTML = '<div class="lb-podium-row">' + podiumOrder.map(function(i) {
+          var crew = top3[i];
+          if (!crew) return '';
+          var place = i + 1;
+          var medal = place === 1 ? '#fbbf24' : place === 2 ? '#94a3b8' : '#cd7f32';
+          var height = place === 1 ? '140px' : place === 2 ? '110px' : '90px';
+          return '<div class="lb-podium-item lb-podium-' + place + '">' +
+            '<div class="lb-podium-emoji">' + (crew.emoji || '') + '</div>' +
+            '<div class="lb-podium-name">' + escapeHtml(crew.name) + '</div>' +
+            '<div class="lb-podium-pts">' + (crew.totalPoints || 0) + ' pts</div>' +
+            (crew.memberCount ? '<div class="lb-podium-members">' + crew.memberCount + ' members</div>' : '') +
+            '<div class="lb-podium-bar" style="height:' + height + ';background:linear-gradient(to top, ' + medal + '22, ' + medal + '44);">' +
+              '<span class="lb-podium-rank" style="color:' + medal + '">' + place + '</span>' +
+            '</div>' +
+          '</div>';
+        }).join('') + '</div>';
+
+        // Full rankings (4+)
+        var rest = crews.slice(3);
+        if (rest.length) {
+          rankingsEl.innerHTML = '<div class="lb-table">' +
+            rest.map(function(crew, i) {
+              var rank = i + 4;
+              return '<div class="lb-row">' +
+                '<span class="lb-row-rank">' + rank + '</span>' +
+                '<span class="lb-row-emoji">' + (crew.emoji || '') + '</span>' +
+                '<div class="lb-row-info">' +
+                  '<span class="lb-row-name">' + escapeHtml(crew.name) + '</span>' +
+                  (crew.memberCount ? '<span class="lb-row-members">' + crew.memberCount + ' members</span>' : '') +
+                '</div>' +
+                '<span class="lb-row-pts">' + (crew.totalPoints || 0) + ' pts</span>' +
+              '</div>';
+            }).join('') +
+          '</div>';
+        }
+      } catch {
+        podiumEl.innerHTML = '<div class="lb-empty">Could not load leaderboard. Try again later.</div>';
+      }
+    }
+
+    // ===== Auth State =====
+
+    function updateCrewsPage() {
+      const gate = document.getElementById('myCrewsGate');
+      const list = document.getElementById('myCrewsList');
+
+      if (Auth.isAuthenticated && Auth.jwt) {
+        gate.classList.add('hidden');
+        list.classList.remove('hidden');
+        loadMyCrews();
+      } else {
+        gate.classList.remove('hidden');
+        list.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('flowb-auth-ready', function() { setTimeout(updateCrewsPage, 200); });
+    window.addEventListener('privy-auth-change', function() { setTimeout(updateCrewsPage, 500); });
+
+    // Sign-in buttons
+    document.getElementById('myCrewsSignIn').addEventListener('click', triggerLogin);
+
+    function triggerLogin() {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn').click();
+      }
+    }
+
+    function requireAuth(action) {
+      if (Auth.isAuthenticated && Auth.jwt) return true;
+      triggerLogin();
+      return false;
+    }
+
+    // ===== My Crews =====
+
+    async function loadMyCrews() {
+      const el = document.getElementById('myCrewsList');
+      if (!el) return;
+
+      const data = await fetchAuthed('/api/v1/flow/crews');
+      myCrews = (data && data.crews) ? data.crews : [];
+
+      const countEl = document.getElementById('myCrewsCount');
+      if (countEl) countEl.textContent = myCrews.length ? myCrews.length + ' crew' + (myCrews.length !== 1 ? 's' : '') : '';
+
+      if (!myCrews.length) {
+        el.innerHTML = '<div class="my-crews-empty">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="28" height="28"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>' +
+          '<p>No crews yet</p>' +
+          '<span style="font-size:0.82rem;color:var(--text-dim)">Create your own, join with a code, or discover crews above!</span>' +
+        '</div>';
+        return;
+      }
+
+      el.innerHTML = myCrews.map(function(crew) {
+        return '<div class="my-crew-item">' +
+          '<span class="my-crew-emoji">' + (crew.emoji || '') + '</span>' +
+          '<div class="my-crew-info">' +
+            '<div class="my-crew-name">' + escapeHtml(crew.name) + '</div>' +
+            '<div class="my-crew-meta">' +
+              '<span>' + (crew.role || 'member') + '</span>' +
+              (crew.join_code ? '<span class="my-crew-code" title="Share this code">' + escapeHtml(crew.join_code) + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+          '<button class="my-crew-leave" title="Leave crew" onclick="leaveCrew(\'' + crew.id + '\', \'' + escapeHtml(crew.name).replace(/'/g, "\\'") + '\')">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>' +
+          '</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    async function leaveCrew(crewId, crewName) {
+      if (!confirm('Leave ' + crewName + '?')) return;
+      const result = await fetchAuthed('/api/v1/flow/crews/' + crewId + '/leave', { method: 'DELETE' });
+      if (result && result.ok) loadMyCrews();
+    }
+    window.leaveCrew = leaveCrew;
+
+    // ===== Discover Crews =====
+
+    var discoverOpen = false;
+
+    document.getElementById('btnDiscover').addEventListener('click', function() {
+      var panel = document.getElementById('discoverPanel');
+      discoverOpen = !discoverOpen;
+      panel.classList.toggle('hidden', !discoverOpen);
+      if (discoverOpen) loadDiscoverCrews();
+    });
+
+    document.getElementById('discoverClose').addEventListener('click', function() {
+      discoverOpen = false;
+      document.getElementById('discoverPanel').classList.add('hidden');
+    });
+
+    async function loadDiscoverCrews() {
+      var el = document.getElementById('discoverList');
+      el.innerHTML = '<div class="discover-empty">Loading crews...</div>';
+
+      var data;
+      try {
+        var res = await fetch(FLOWB_API + '/api/v1/flow/crews/discover');
+        data = res.ok ? await res.json() : null;
+      } catch { data = null; }
+      var crews = (data && data.crews) ? data.crews : [];
+
+      if (!crews.length) {
+        el.innerHTML = '<div class="discover-empty">No crews found. Be the first to create one!</div>';
+        return;
+      }
+
+      var myIds = new Set(myCrews.map(function(c) { return c.id; }));
+      var available = crews.filter(function(c) { return !myIds.has(c.id); });
+
+      if (!available.length) {
+        el.innerHTML = '<div class="discover-empty">You\'re in all available crews!</div>';
+        return;
+      }
+
+      el.innerHTML = available.map(function(crew) {
+        return '<div class="discover-item">' +
+          '<span class="my-crew-emoji">' + (crew.emoji || '') + '</span>' +
+          '<div class="discover-item-info">' +
+            '<div class="discover-item-name">' + escapeHtml(crew.name) + '</div>' +
+            '<div class="discover-item-meta">' +
+              (crew.description ? '<span class="discover-item-desc">' + escapeHtml(crew.description) + '</span>' : '') +
+              '<span>' + (crew.member_count || 0) + ' members</span>' +
+            '</div>' +
+          '</div>' +
+          '<button class="discover-join-btn" onclick="joinCrewDiscover(\'' + crew.id + '\', this)">Join</button>' +
+        '</div>';
+      }).join('');
+    }
+
+    async function joinCrewDiscover(crewId, btnEl) {
+      btnEl.disabled = true;
+      btnEl.textContent = 'Joining...';
+
+      var result = await fetchAuthed('/api/v1/flow/crews/' + crewId + '/join', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+
+      if (result && result.ok) {
+        btnEl.textContent = 'Joined!';
+        btnEl.classList.add('joined');
+        loadMyCrews();
+      } else {
+        btnEl.textContent = result && result.message ? result.message : 'Failed';
+        btnEl.disabled = false;
+        setTimeout(function() { btnEl.textContent = 'Join'; }, 2000);
+      }
+    }
+    window.joinCrewDiscover = joinCrewDiscover;
+
+    // ===== Create Crew Modal =====
+
+    function openCreate() {
+      if (!requireAuth('create a crew')) return;
+      document.getElementById('createModal').classList.remove('hidden');
+      document.getElementById('createBackdrop').classList.remove('hidden');
+      document.getElementById('createMsg').textContent = '';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeCreate() {
+      document.getElementById('createModal').classList.add('hidden');
+      document.getElementById('createBackdrop').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('btnCreateCrew').addEventListener('click', openCreate);
+    document.getElementById('createClose').addEventListener('click', closeCreate);
+    document.getElementById('createBackdrop').addEventListener('click', closeCreate);
+
+    document.getElementById('createSubmit').addEventListener('click', async function() {
+      var name = document.getElementById('createName').value.trim();
+      var emoji = document.getElementById('createEmoji').value.trim();
+      var desc = document.getElementById('createDesc').value.trim();
+      var msgEl = document.getElementById('createMsg');
+      var btn = document.getElementById('createSubmit');
+
+      if (!name) { msgEl.textContent = 'Name is required'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+
+      var result = await fetchAuthed('/api/v1/flow/crews', {
+        method: 'POST',
+        body: JSON.stringify({ name: name, emoji: emoji || undefined, description: desc || undefined }),
+      });
+
+      if (result && result.ok) {
+        msgEl.textContent = result.message || 'Crew created!';
+        msgEl.style.color = 'var(--green, #22c55e)';
+        document.getElementById('createName').value = '';
+        document.getElementById('createEmoji').value = '';
+        document.getElementById('createDesc').value = '';
+        loadMyCrews();
+        setTimeout(closeCreate, 1500);
+      } else {
+        msgEl.textContent = (result && (result.message || result.error)) || 'Failed to create crew';
+        msgEl.style.color = '#ef4444';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Create Crew';
+    });
+
+    // ===== Join by Code Modal =====
+
+    function openJoin() {
+      if (!requireAuth('join a crew')) return;
+      document.getElementById('joinModal').classList.remove('hidden');
+      document.getElementById('joinBackdrop').classList.remove('hidden');
+      document.getElementById('joinMsg').textContent = '';
+      document.body.style.overflow = 'hidden';
+    }
+    function closeJoin() {
+      document.getElementById('joinModal').classList.add('hidden');
+      document.getElementById('joinBackdrop').classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    document.getElementById('btnJoinCode').addEventListener('click', openJoin);
+    document.getElementById('joinClose').addEventListener('click', closeJoin);
+    document.getElementById('joinBackdrop').addEventListener('click', closeJoin);
+
+    document.getElementById('joinSubmit').addEventListener('click', async function() {
+      var code = document.getElementById('joinCode').value.trim();
+      var msgEl = document.getElementById('joinMsg');
+      var btn = document.getElementById('joinSubmit');
+
+      if (!code) { msgEl.textContent = 'Enter a join code'; return; }
+
+      // Extract code from full URL if pasted
+      var urlMatch = code.match(/\/g[i]?\/([a-zA-Z0-9]+)/);
+      if (urlMatch) code = urlMatch[1];
+
+      btn.disabled = true;
+      btn.textContent = 'Joining...';
+
+      var result = await fetchAuthed('/api/v1/flow/crews/' + encodeURIComponent(code) + '/join', {
+        method: 'POST',
+        body: JSON.stringify({ joinCode: code }),
+      });
+
+      if (result && result.ok) {
+        msgEl.textContent = result.message || 'Joined!';
+        msgEl.style.color = 'var(--green, #22c55e)';
+        document.getElementById('joinCode').value = '';
+        loadMyCrews();
+        setTimeout(closeJoin, 1500);
+      } else {
+        msgEl.textContent = (result && (result.message || result.error)) || 'Could not join. Check the code and try again.';
+        msgEl.style.color = '#ef4444';
+      }
+
+      btn.disabled = false;
+      btn.textContent = 'Join Crew';
+    });
+
+    // Close modals on Escape
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeCreate();
+        closeJoin();
+      }
+    });
+
+    // ===== Init =====
+    loadStats();
+    loadLeaderboard();
+    updateCrewsPage();
+    // Auto-show discover panel with all crews on load
+    discoverOpen = true;
+    document.getElementById('discoverPanel').classList.remove('hidden');
+    loadDiscoverCrews();
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+  <script src="mobile-menu.js"></script>
+</body>
+</html>

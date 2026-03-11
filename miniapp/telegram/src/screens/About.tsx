@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import type { Screen } from "../App";
+import { FeedbackModal } from "../components/FeedbackModal";
 
 interface Props {
   onNavigate: (s: Screen) => void;
@@ -8,7 +9,7 @@ interface Props {
 const FAQ_ITEMS = [
   {
     q: "What is FlowB?",
-    a: "FlowB is your ETHDenver companion app. We aggregate 100+ side events, hackathons, parties, and meetups into one place so you never miss what matters. Form crews with friends, earn points, and explore Denver together.",
+    a: "FlowB helps you stay in the flow. We pull together side events, hackathons, parties, and meetups so you never miss what matters. Form crews with friends, earn points, and explore together.",
   },
   {
     q: "How do I earn points?",
@@ -16,7 +17,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "What are crews?",
-    a: "Crews are groups of friends exploring ETHDenver together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
+    a: "Crews are groups of friends exploring events together. Create or join a crew to coordinate schedules, check in together at events, and earn bonus crew points.",
   },
   {
     q: "Is FlowB free?",
@@ -77,6 +78,7 @@ const PLATFORMS = [
 
 export function About({ onNavigate }: Props) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
 
   const openLink = (url: string) => {
     const tg = (window as any).Telegram?.WebApp;
@@ -91,14 +93,14 @@ export function About({ onNavigate }: Props) {
     <div className="screen" style={{ paddingBottom: 100 }}>
       <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>About FlowB</h1>
       <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 20, lineHeight: 1.6 }}>
-        Your companion for navigating ETHDenver. Discover events, form crews, earn points.
+        Get in the Flow and Just B. Discover events, form crews, earn points.
       </p>
 
       {/* Mission */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 8 }}>Our Mission</div>
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6, marginBottom: 8 }}>
-          ETHDenver is massive -- hundreds of side events spread across Denver. It's easy to miss the best ones or lose track of your friends.
+          Events are everywhere -- hundreds of side events spread across the city. It's easy to miss the best ones or lose track of your friends.
         </p>
         <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.6 }}>
           FlowB aggregates every side event into one place, lets you form crews with friends, and rewards you for exploring. Built by the community, for the community.
@@ -133,6 +135,35 @@ export function About({ onNavigate }: Props) {
             </div>
           </button>
         ))}
+      </div>
+
+      {/* Feedback CTA */}
+      <div
+        className="card"
+        style={{
+          marginBottom: 20,
+          padding: 16,
+          background: "linear-gradient(135deg, rgba(99,102,241,0.12) 0%, rgba(168,85,247,0.08) 100%)",
+          border: "1.5px solid rgba(99,102,241,0.2)",
+          textAlign: "center",
+        }}
+      >
+        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Help us build the flow</div>
+        <div style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 12 }}>
+          Don't see a feature or notice a bug? Let us know so we can make FlowB better for everyone.
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            className="btn btn-primary btn-block"
+            onClick={() => setShowFeedback(true)}
+            style={{ fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+            Share Feedback
+          </button>
+        </div>
       </div>
 
       {/* FAQ */}
@@ -184,6 +215,8 @@ export function About({ onNavigate }: Props) {
           </div>
         ))}
       </div>
+
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} screen="about" />}
     </div>
   );
 }

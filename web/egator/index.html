@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>eGator Dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a; --bg-card: #1a1a1a; --bg-card-hover: #222222; --bg-surface: #111111;
+      --border: #2a2a2a; --border-hover: #3a3a3a;
+      --text: #e4e4ec; --text-muted: #8888a0; --text-dim: #555568;
+      --accent: #2563eb; --accent-light: #3b82f6; --accent-glow: rgba(37,99,235,0.15);
+      --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+      --orange: #f97316; --red: #ef4444; --purple: #a855f7; --yellow: #eab308;
+      --radius: 12px; --radius-sm: 8px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.5; }
+    a { color: var(--accent-light); text-decoration: none; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+
+    /* Header */
+    .dash-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,10,10,0.92); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border); padding: 14px 0;
+    }
+    .dash-header-inner { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .dash-title { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    .dash-title-icon { font-size: 1.4rem; }
+    .dash-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* Tabs */
+    .tab-bar { display: flex; gap: 2px; background: var(--bg-surface); border-radius: var(--radius-sm); padding: 3px; margin: 16px 0; }
+    .tab-btn {
+      padding: 8px 18px; border: none; background: transparent; color: var(--text-muted);
+      font-family: var(--font); font-size: 0.85rem; font-weight: 600; cursor: pointer;
+      border-radius: 6px; transition: all 0.15s;
+    }
+    .tab-btn:hover { color: var(--text); }
+    .tab-btn.active { background: var(--bg-card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Buttons */
+    .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.82rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-ghost { background: transparent; color: var(--text-muted); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--border-hover); }
+    .btn-sm { padding: 4px 10px; font-size: 0.75rem; }
+    .btn-icon { padding: 4px 8px; font-size: 0.9rem; border: none; background: transparent; cursor: pointer; color: var(--text-muted); }
+    .btn-icon:hover { color: var(--text); }
+
+    /* Inputs */
+    input[type="text"], input[type="number"], input[type="date"], input[type="password"], select {
+      background: var(--bg-surface); border: 1px solid var(--border); color: var(--text);
+      padding: 8px 12px; border-radius: var(--radius-sm); font-family: var(--font);
+      font-size: 0.85rem; outline: none; transition: border-color 0.15s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    select { cursor: pointer; }
+
+    /* Auth gate */
+    .auth-gate { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 16px; text-align: center; }
+    .auth-gate h2 { font-size: 1.3rem; }
+    .auth-gate p { color: var(--text-muted); font-size: 0.9rem; }
+
+    /* Dashboard grid */
+    .dash-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin: 16px 0; }
+
+    /* Cards */
+    .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .card-title { font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+    .card-value { font-size: 2rem; font-weight: 800; line-height: 1.1; }
+    .card-sub { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
+    .card-wide { grid-column: 1 / -1; }
+
+    /* Stat bars */
+    .stat-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(42,42,42,0.5); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-size: 0.82rem; min-width: 100px; color: var(--text-muted); }
+    .stat-bar-wrap { flex: 1; height: 6px; background: var(--bg-surface); border-radius: 3px; overflow: hidden; }
+    .stat-bar { height: 100%; border-radius: 3px; transition: width 0.4s ease; }
+    .stat-bar.blue { background: var(--accent-light); }
+    .stat-bar.green { background: var(--green); }
+    .stat-bar.orange { background: var(--orange); }
+    .stat-bar.purple { background: var(--purple); }
+    .stat-count { font-size: 0.82rem; font-weight: 600; min-width: 50px; text-align: right; }
+
+    /* Quality gauge */
+    .quality-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+    .quality-label { font-size: 0.82rem; color: var(--text-muted); min-width: 110px; }
+    .quality-pct { font-size: 0.82rem; font-weight: 600; min-width: 40px; text-align: right; }
+
+    /* Tables */
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .data-table th {
+      text-align: left; color: var(--text-dim); font-size: 0.7rem; font-weight: 600;
+      text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 8px;
+      border-bottom: 1px solid var(--border); cursor: pointer; user-select: none;
+      position: sticky; top: 0; background: var(--bg-card); z-index: 1;
+    }
+    .data-table th:hover { color: var(--text-muted); }
+    .data-table td { padding: 7px 8px; border-bottom: 1px solid rgba(42,42,42,0.4); vertical-align: middle; }
+    .data-table tr:hover td { background: var(--bg-card-hover); }
+    .data-table .cb-cell { width: 32px; text-align: center; }
+
+    .source-badge { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; background: var(--accent-glow); color: var(--accent-light); }
+    .badge-featured { background: var(--green-dim); color: var(--green); }
+    .badge-hidden { background: rgba(239,68,68,0.12); color: var(--red); }
+    .badge-stale { background: rgba(249,115,22,0.12); color: var(--orange); }
+
+    .health-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+    .health-dot.ok { background: var(--green); box-shadow: 0 0 4px var(--green); }
+    .health-dot.warn { background: var(--orange); box-shadow: 0 0 4px var(--orange); }
+    .health-dot.bad { background: var(--red); box-shadow: 0 0 4px var(--red); }
+
+    /* Detail row */
+    .detail-row td { background: var(--bg-surface) !important; padding: 12px 16px !important; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; }
+    .detail-grid dt { color: var(--text-dim); }
+    .detail-grid dd { color: var(--text); word-break: break-word; }
+
+    /* Filter bar */
+    .filter-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+    .filter-bar input, .filter-bar select { max-width: 160px; }
+    .filter-bar .search-input { flex: 1; min-width: 200px; max-width: 360px; }
+
+    /* Bulk actions */
+    .bulk-bar {
+      display: none; position: sticky; bottom: 16px; left: 0; right: 0;
+      background: var(--bg-card); border: 1px solid var(--accent); border-radius: var(--radius);
+      padding: 10px 16px; margin: 8px 0; z-index: 50;
+      align-items: center; gap: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .bulk-bar.visible { display: flex; }
+    .bulk-bar .bulk-count { font-weight: 700; font-size: 0.85rem; }
+
+    /* Pagination */
+    .pagination { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 16px 0; }
+    .pagination .page-info { font-size: 0.82rem; color: var(--text-muted); }
+
+    /* Scan tab */
+    .scan-config { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; margin-bottom: 20px; }
+    .scan-city-list { display: flex; flex-wrap: wrap; gap: 8px; }
+    .scan-city-label { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; cursor: pointer; padding: 6px 12px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .scan-city-label input { accent-color: var(--accent); }
+    .scan-city-label.checked { border-color: var(--accent); background: var(--accent-glow); }
+    .scan-result { margin-top: 16px; }
+    .city-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .city-table th { text-align: left; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+    .city-table td { padding: 8px; border-bottom: 1px solid var(--border); }
+    .city-table tr:last-child td { border-bottom: none; }
+    .city-toggle { cursor: pointer; font-size: 1.1rem; }
+    .city-remove { cursor: pointer; color: var(--red); font-size: 0.8rem; opacity: 0.6; }
+    .city-remove:hover { opacity: 1; }
+    .city-status-ok { color: var(--green); }
+    .city-status-err { color: var(--red); }
+    .add-city-row { display: flex; gap: 8px; margin-top: 12px; }
+
+    /* Settings */
+    .setting-row { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 0.85rem; font-weight: 600; min-width: 140px; }
+    .setting-desc { font-size: 0.78rem; color: var(--text-dim); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--accent-light); border-radius: 50%; animation: spin 0.6s linear infinite; display: inline-block; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--bg-card); border: 1px solid var(--green); color: var(--green); padding: 12px 20px; border-radius: var(--radius); font-size: 0.85rem; font-weight: 600; z-index: 1000; transition: transform 0.3s ease; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.error { border-color: var(--red); color: var(--red); }
+
+    .loading { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+    .empty-state { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: 0.9rem; }
+
+    @media (max-width: 768px) {
+      .dash-grid { grid-template-columns: 1fr; }
+      .card-value { font-size: 1.5rem; }
+      .filter-bar { flex-direction: column; }
+      .filter-bar input, .filter-bar select { max-width: 100%; }
+      .detail-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="dash-header">
+    <div class="container dash-header-inner">
+      <div class="dash-title">
+        <span class="dash-title-icon">&#x1F40A;</span>
+        <span>eGator Dashboard</span>
+      </div>
+      <div class="dash-actions">
+        <button class="btn btn-ghost" id="authBtn">Sign In</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth gate -->
+  <div class="container auth-gate" id="authGate">
+    <h2>eGator Admin Dashboard</h2>
+    <p>Sign in with your admin key to manage events.</p>
+  </div>
+
+  <!-- Main content (hidden until authed) -->
+  <main class="container" id="mainContent" style="display:none;">
+    <div class="tab-bar" id="tabBar">
+      <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-btn" data-tab="events">Events</button>
+      <button class="tab-btn" data-tab="scan">Scan</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- ==================== DASHBOARD TAB ==================== -->
+    <div class="tab-panel active" id="tab-dashboard">
+      <div class="loading" id="dashLoading">Loading stats...</div>
+      <div id="dashContent" style="display:none;">
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Active Events</span></div>
+            <div class="card-value" id="statActive">-</div>
+            <div class="card-sub" id="statActiveSub"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Stale</span></div>
+            <div class="card-value" id="statStale" style="color:var(--orange)">-</div>
+            <div class="card-sub" id="statStaleSub"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Today / Week</span></div>
+            <div class="card-value" id="statFresh">-</div>
+            <div class="card-sub" id="statFreshSub"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Avg Quality</span></div>
+            <div class="card-value" id="statQuality">-</div>
+            <div class="card-sub" id="statQualitySub"></div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card card-wide">
+            <div class="card-header"><span class="card-title">Events by Source</span></div>
+            <div id="sourceRows"></div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Events by City (Top 15)</span></div>
+            <div id="cityRows"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Data Quality</span></div>
+            <div id="qualityRows"></div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card card-wide">
+            <div class="card-header">
+              <span class="card-title">Recent Events</span>
+              <button class="btn btn-ghost btn-sm" onclick="loadDashboard()">Refresh</button>
+            </div>
+            <div style="overflow-x:auto;">
+              <table class="data-table">
+                <thead><tr><th>Title</th><th>Source</th><th>City</th><th>Quality</th><th>Img</th><th>Added</th></tr></thead>
+                <tbody id="recentBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== EVENTS TAB ==================== -->
+    <div class="tab-panel" id="tab-events">
+      <div class="filter-bar">
+        <input type="text" class="search-input" id="evSearch" placeholder="Search title, description, venue...">
+        <select id="evCity"><option value="">All cities</option></select>
+        <select id="evSource"><option value="">All sources</option></select>
+        <select id="evStale">
+          <option value="">Active + Stale</option>
+          <option value="false">Active only</option>
+          <option value="true">Stale only</option>
+        </select>
+        <select id="evFeatured">
+          <option value="">Featured: Any</option>
+          <option value="true">Featured</option>
+          <option value="false">Not featured</option>
+        </select>
+        <select id="evHidden">
+          <option value="">Hidden: Any</option>
+          <option value="true">Hidden</option>
+          <option value="false">Not hidden</option>
+        </select>
+        <select id="evFree">
+          <option value="">Price: Any</option>
+          <option value="true">Free</option>
+          <option value="false">Paid</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="loadEvents()">Apply</button>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="evTable">
+          <thead>
+            <tr>
+              <th class="cb-cell"><input type="checkbox" id="evSelectAll"></th>
+              <th data-sort="title">Title</th>
+              <th data-sort="source">Source</th>
+              <th data-sort="city">City</th>
+              <th data-sort="starts_at">Date</th>
+              <th data-sort="quality_score">Quality</th>
+              <th>Img</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="evBody"></tbody>
+        </table>
+      </div>
+
+      <div class="pagination" id="evPagination"></div>
+
+      <div class="bulk-bar" id="bulkBar">
+        <span class="bulk-count" id="bulkCount">0 selected</span>
+        <button class="btn btn-sm btn-primary" onclick="bulkAction('feature')">Feature</button>
+        <button class="btn btn-sm btn-ghost" onclick="bulkAction('unfeature')">Unfeature</button>
+        <button class="btn btn-sm btn-ghost" onclick="bulkAction('hide')">Hide</button>
+        <button class="btn btn-sm btn-ghost" onclick="bulkAction('unhide')">Unhide</button>
+        <button class="btn btn-sm btn-danger" onclick="bulkAction('delete')">Delete</button>
+      </div>
+    </div>
+
+    <!-- ==================== SCAN TAB ==================== -->
+    <div class="tab-panel" id="tab-scan">
+      <!-- Managed Cities -->
+      <div class="card" style="max-width:700px;margin-bottom:20px;">
+        <div class="card-header"><span class="card-title">Managed Cities</span></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:12px;">Cities scanned automatically every 2 hours. Toggle to enable/disable.</p>
+        <div id="cityTableWrap"><p style="color:var(--text-dim);font-size:0.85rem;">Loading...</p></div>
+        <div class="add-city-row">
+          <input type="text" id="addCityInput" placeholder="e.g. miami" style="width:160px;">
+          <button class="btn btn-primary btn-sm" onclick="addManagedCity()">Add City</button>
+        </div>
+      </div>
+
+      <!-- Run Manual Scan -->
+      <div class="card" style="max-width:700px;">
+        <div class="card-header"><span class="card-title">Run Manual Scan</span></div>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">Select cities to scan now. Enabled DB cities are pre-selected.</p>
+        <div class="scan-config">
+          <div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;font-weight:600;">CITIES</div>
+            <div class="scan-city-list" id="scanCityList"></div>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;font-weight:600;">CUSTOM</div>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="scanCustomCity" placeholder="e.g. miami" style="width:140px;">
+              <button class="btn btn-ghost btn-sm" onclick="addScanCity()">Add</button>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="scanRunBtn" onclick="runScan()">Run Scan</button>
+        <div class="scan-result" id="scanResult"></div>
+      </div>
+    </div>
+
+    <!-- ==================== SETTINGS TAB ==================== -->
+    <div class="tab-panel" id="tab-settings">
+      <div class="card" style="max-width:600px;">
+        <div class="card-header"><span class="card-title">Settings</span></div>
+
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Purge Stale Events</div>
+            <div class="setting-desc">Remove stale events older than N days</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;margin-left:auto;">
+            <input type="number" id="purgeDays" value="7" min="1" max="365" style="width:70px;">
+            <span style="font-size:0.82rem;color:var(--text-muted);">days</span>
+            <button class="btn btn-danger btn-sm" onclick="purgeStale()">Purge</button>
+          </div>
+        </div>
+
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Admin Key</div>
+            <div class="setting-desc">Change stored admin key or log out</div>
+          </div>
+          <div style="display:flex;gap:8px;margin-left:auto;">
+            <button class="btn btn-ghost btn-sm" onclick="changeKey()">Change Key</button>
+            <button class="btn btn-ghost btn-sm" onclick="logOut()">Log Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // =========================================================================
+    // State
+    // =========================================================================
+    const API = 'https://flowb.fly.dev';
+    let adminKey = localStorage.getItem('egator-admin-key') || '';
+    let authed = false;
+
+    // Events tab state
+    let evPage = 1;
+    let evSort = 'created_at';
+    let evOrder = 'desc';
+    let evTotal = 0;
+    const evSelected = new Set();
+    let evData = []; // current page events
+    let knownCities = [];
+    let knownSources = [];
+
+    // Scan tab state
+    let managedCities = []; // from DB
+    const scanCities = new Set();
+
+    const $ = (id) => document.getElementById(id);
+
+    // =========================================================================
+    // Toast
+    // =========================================================================
+    function showToast(msg, isError) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => t.className = 'toast', 3000);
+    }
+
+    function timeSince(iso) {
+      if (!iso) return 'never';
+      const sec = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+      if (sec < 60) return 'just now';
+      const min = Math.floor(sec / 60);
+      if (min < 60) return min + 'm ago';
+      const hr = Math.floor(min / 60);
+      if (hr < 24) return hr + 'h ago';
+      return Math.floor(hr / 24) + 'd ago';
+    }
+
+    function fmtDate(iso) {
+      if (!iso) return '-';
+      return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    // =========================================================================
+    // Auth
+    // =========================================================================
+    $('authBtn').addEventListener('click', () => {
+      const key = prompt('Enter admin key:');
+      if (key) {
+        adminKey = key.trim();
+        localStorage.setItem('egator-admin-key', adminKey);
+        tryAuth();
+      }
+    });
+
+    async function tryAuth() {
+      if (!adminKey) return;
+      $('authBtn').textContent = 'Checking...';
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/stats', {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          authed = true;
+          $('authGate').style.display = 'none';
+          $('mainContent').style.display = 'block';
+          $('authBtn').textContent = 'Signed In';
+          $('authBtn').style.color = 'var(--green)';
+
+          const data = await res.json();
+          renderDashboard(data);
+          populateFilters(data);
+          loadManagedCities();
+        } else {
+          localStorage.removeItem('egator-admin-key');
+          adminKey = '';
+          $('authBtn').textContent = 'Sign In';
+          showToast('Invalid admin key', true);
+        }
+      } catch (e) {
+        $('authBtn').textContent = 'Sign In';
+        showToast('Connection error', true);
+      }
+    }
+
+    // =========================================================================
+    // Tabs
+    // =========================================================================
+    $('tabBar').addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      const panel = $('tab-' + btn.dataset.tab);
+      if (panel) panel.classList.add('active');
+
+      // Lazy-load events tab
+      if (btn.dataset.tab === 'events' && evData.length === 0) {
+        loadEvents();
+      }
+    });
+
+    // =========================================================================
+    // DASHBOARD TAB
+    // =========================================================================
+    async function loadDashboard() {
+      if (!authed) return;
+      $('dashLoading').style.display = 'block';
+      $('dashContent').style.display = 'none';
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/stats', {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          renderDashboard(data);
+        } else showToast('Failed to fetch stats', true);
+      } catch (e) {
+        showToast('Connection error', true);
+      }
+    }
+
+    function renderDashboard(data) {
+      $('dashLoading').style.display = 'none';
+      $('dashContent').style.display = 'block';
+
+      const t = data.totals || {};
+      $('statActive').textContent = (t.active || 0).toLocaleString();
+      $('statActiveSub').textContent = `${t.total || 0} total / ${t.featured || 0} featured / ${t.free || 0} free`;
+      $('statStale').textContent = (t.stale || 0).toLocaleString();
+      $('statStaleSub').textContent = `${t.total ? Math.round((t.stale / t.total) * 100) : 0}% of total`;
+
+      const f = data.freshness || {};
+      $('statFresh').innerHTML = `<span>${f.createdToday || 0}</span> <span style="color:var(--text-dim);font-size:0.8em">/ ${f.createdThisWeek || 0}</span>`;
+      $('statFreshSub').textContent = `Last scan: ${timeSince(f.lastScanTime)}`;
+
+      const q = data.quality || {};
+      $('statQuality').textContent = q.avgScore || '0';
+      $('statQualitySub').textContent = `${q.withImage || 0} images / ${q.withDescription || 0} descriptions`;
+
+      // Sources
+      const sources = data.bySource || {};
+      const maxSrc = Math.max(...Object.values(sources).map(s => s.count), 1);
+      const colors = ['blue', 'green', 'orange', 'purple'];
+      const sorted = Object.entries(sources).sort((a, b) => b[1].count - a[1].count);
+      $('sourceRows').innerHTML = sorted.map(([name, s], i) =>
+        `<div class="stat-row">
+          <span class="stat-label">${esc(name)}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar ${colors[i % colors.length]}" style="width:${(s.count / maxSrc) * 100}%"></div></div>
+          <span class="stat-count">${s.count} <span style="color:var(--text-dim);font-size:0.75rem;">(q:${s.avgQuality})</span></span>
+        </div>`
+      ).join('');
+
+      // Cities
+      const cities = data.byCity || {};
+      const sortedCities = Object.entries(cities).sort((a, b) => b[1] - a[1]).slice(0, 15);
+      const maxCity = Math.max(...sortedCities.map(c => c[1]), 1);
+      $('cityRows').innerHTML = sortedCities.map(([name, count]) =>
+        `<div class="stat-row">
+          <span class="stat-label">${esc(name)}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar purple" style="width:${(count / maxCity) * 100}%"></div></div>
+          <span class="stat-count">${count}</span>
+        </div>`
+      ).join('');
+
+      // Quality
+      const qualityFields = [
+        ['Images', q.pctImage], ['Descriptions', q.pctDescription],
+        ['Venues', q.pctVenue], ['Prices', q.pctPrice], ['Organizers', q.pctOrganizer],
+      ];
+      $('qualityRows').innerHTML = qualityFields.map(([label, pct]) =>
+        `<div class="quality-row">
+          <span class="quality-label">${label}</span>
+          <div class="stat-bar-wrap"><div class="stat-bar ${pct >= 70 ? 'green' : pct >= 40 ? 'orange' : 'blue'}" style="width:${pct || 0}%"></div></div>
+          <span class="quality-pct">${pct || 0}%</span>
+        </div>`
+      ).join('');
+
+      // Recent
+      const recent = data.recentEvents || [];
+      $('recentBody').innerHTML = recent.map(e =>
+        `<tr>
+          <td style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.title)}</td>
+          <td><span class="source-badge">${esc(e.source)}</span></td>
+          <td>${esc(e.city) || '-'}</td>
+          <td>${e.qualityScore != null ? Number(e.qualityScore).toFixed(1) : '-'}</td>
+          <td>${e.hasImage ? '<span class="health-dot ok"></span>' : '<span class="health-dot bad"></span>'}</td>
+          <td style="white-space:nowrap">${timeSince(e.createdAt)}</td>
+        </tr>`
+      ).join('');
+    }
+
+    function populateFilters(data) {
+      // Populate city and source dropdowns from stats data
+      const cities = Object.keys(data.byCity || {}).sort();
+      const sources = Object.keys(data.bySource || {}).sort();
+      knownCities = cities;
+      knownSources = sources;
+
+      const citySelect = $('evCity');
+      citySelect.innerHTML = '<option value="">All cities</option>' +
+        cities.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+
+      const srcSelect = $('evSource');
+      srcSelect.innerHTML = '<option value="">All sources</option>' +
+        sources.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+    }
+
+    // =========================================================================
+    // EVENTS TAB
+    // =========================================================================
+    async function loadEvents() {
+      if (!authed) return;
+      const body = $('evBody');
+      body.innerHTML = '<tr><td colspan="9" class="loading">Loading events...</td></tr>';
+
+      const params = new URLSearchParams();
+      params.set('page', evPage);
+      params.set('limit', '50');
+      params.set('sort', evSort);
+      params.set('order', evOrder);
+
+      const search = $('evSearch').value.trim();
+      if (search) params.set('search', search);
+      const city = $('evCity').value;
+      if (city) params.set('city', city);
+      const source = $('evSource').value;
+      if (source) params.set('source', source);
+      const stale = $('evStale').value;
+      if (stale) params.set('stale', stale);
+      const featured = $('evFeatured').value;
+      if (featured) params.set('featured', featured);
+      const hidden = $('evHidden').value;
+      if (hidden) params.set('hidden', hidden);
+      const free = $('evFree').value;
+      if (free) params.set('free', free);
+
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/events?' + params.toString(), {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (!res.ok) {
+          body.innerHTML = '<tr><td colspan="9" class="empty-state">Failed to load events</td></tr>';
+          return;
+        }
+        const data = await res.json();
+        evData = data.events || [];
+        evTotal = data.total || 0;
+        evSelected.clear();
+        updateBulkBar();
+        $('evSelectAll').checked = false;
+        renderEventsTable();
+        renderPagination(data);
+      } catch (e) {
+        body.innerHTML = '<tr><td colspan="9" class="empty-state">Connection error</td></tr>';
+      }
+    }
+
+    function renderEventsTable() {
+      const body = $('evBody');
+      if (!evData.length) {
+        body.innerHTML = '<tr><td colspan="9" class="empty-state">No events found</td></tr>';
+        return;
+      }
+
+      body.innerHTML = evData.map(e => {
+        const badges = [];
+        if (e.featured) badges.push('<span class="source-badge badge-featured">Featured</span>');
+        if (e.hidden) badges.push('<span class="source-badge badge-hidden">Hidden</span>');
+        if (e.stale) badges.push('<span class="source-badge badge-stale">Stale</span>');
+
+        return `<tr data-id="${e.id}">
+          <td class="cb-cell"><input type="checkbox" class="ev-cb" data-id="${e.id}" ${evSelected.has(e.id) ? 'checked' : ''}></td>
+          <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <a href="#" class="ev-expand" data-id="${e.id}">${esc(e.title)}</a>
+          </td>
+          <td><span class="source-badge">${esc(e.source)}</span></td>
+          <td>${esc(e.city) || '-'}</td>
+          <td style="white-space:nowrap">${fmtDate(e.starts_at)}</td>
+          <td>${e.quality_score != null ? Number(e.quality_score).toFixed(1) : '-'}</td>
+          <td>${e.image_url ? '<span class="health-dot ok"></span>' : '<span class="health-dot bad"></span>'}</td>
+          <td>${badges.join(' ')}</td>
+          <td style="white-space:nowrap">
+            <button class="btn-icon" onclick="toggleFeature('${e.id}')" title="${e.featured ? 'Unfeature' : 'Feature'}">
+              ${e.featured ? '&#x2B50;' : '&#x2606;'}
+            </button>
+            <button class="btn-icon" onclick="toggleHide('${e.id}')" title="${e.hidden ? 'Unhide' : 'Hide'}">
+              ${e.hidden ? '&#x1F441;' : '&#x1F648;'}
+            </button>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderPagination(data) {
+      const pages = data.pages || 1;
+      const page = data.page || 1;
+      $('evPagination').innerHTML = `
+        <button class="btn btn-ghost btn-sm" ${page <= 1 ? 'disabled' : ''} onclick="goPage(${page - 1})">Prev</button>
+        <span class="page-info">Page ${page} of ${pages} (${data.total} events)</span>
+        <button class="btn btn-ghost btn-sm" ${page >= pages ? 'disabled' : ''} onclick="goPage(${page + 1})">Next</button>
+      `;
+    }
+
+    function goPage(p) {
+      evPage = p;
+      loadEvents();
+    }
+
+    // Search on Enter
+    $('evSearch').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { evPage = 1; loadEvents(); }
+    });
+
+    // Sort
+    $('evTable').querySelector('thead').addEventListener('click', (e) => {
+      const th = e.target.closest('th[data-sort]');
+      if (!th) return;
+      const col = th.dataset.sort;
+      if (evSort === col) {
+        evOrder = evOrder === 'desc' ? 'asc' : 'desc';
+      } else {
+        evSort = col;
+        evOrder = 'asc';
+      }
+      evPage = 1;
+      loadEvents();
+    });
+
+    // Checkbox handling
+    $('evSelectAll').addEventListener('change', (e) => {
+      const checked = e.target.checked;
+      evData.forEach(ev => {
+        if (checked) evSelected.add(ev.id);
+        else evSelected.delete(ev.id);
+      });
+      document.querySelectorAll('.ev-cb').forEach(cb => cb.checked = checked);
+      updateBulkBar();
+    });
+
+    $('evBody').addEventListener('change', (e) => {
+      if (!e.target.classList.contains('ev-cb')) return;
+      const id = e.target.dataset.id;
+      if (e.target.checked) evSelected.add(id);
+      else evSelected.delete(id);
+      updateBulkBar();
+    });
+
+    // Expand row
+    $('evBody').addEventListener('click', (e) => {
+      const link = e.target.closest('.ev-expand');
+      if (!link) return;
+      e.preventDefault();
+      const id = link.dataset.id;
+      const existing = document.querySelector(`.detail-row[data-detail="${id}"]`);
+      if (existing) { existing.remove(); return; }
+
+      // Remove any other open detail rows
+      document.querySelectorAll('.detail-row').forEach(r => r.remove());
+
+      const ev = evData.find(e => e.id === id);
+      if (!ev) return;
+
+      const row = link.closest('tr');
+      const detail = document.createElement('tr');
+      detail.className = 'detail-row';
+      detail.setAttribute('data-detail', id);
+      detail.innerHTML = `<td colspan="9">
+        <dl class="detail-grid">
+          <dt>Description</dt><dd>${esc(ev.description?.slice(0, 500)) || '-'}</dd>
+          <dt>Venue</dt><dd>${esc(ev.venue_name) || '-'}</dd>
+          <dt>Organizer</dt><dd>${esc(ev.organizer_name) || '-'}</dd>
+          <dt>URL</dt><dd>${ev.url ? '<a href="' + esc(ev.url) + '" target="_blank" rel="noopener">' + esc(ev.url.slice(0, 60)) + '</a>' : '-'}</dd>
+          <dt>Tags</dt><dd>${(ev.tags || []).map(t => '<span class="source-badge">' + esc(t) + '</span>').join(' ') || '-'}</dd>
+          <dt>Price</dt><dd>${ev.is_free ? 'Free' : ev.price != null ? '$' + ev.price : '-'}</dd>
+          <dt>Image</dt><dd>${ev.image_url ? '<a href="' + esc(ev.image_url) + '" target="_blank">View</a>' : 'None'}</dd>
+          <dt>Last seen</dt><dd>${timeSince(ev.last_seen)}</dd>
+        </dl>
+      </td>`;
+      row.after(detail);
+    });
+
+    function updateBulkBar() {
+      const bar = $('bulkBar');
+      if (evSelected.size > 0) {
+        bar.classList.add('visible');
+        $('bulkCount').textContent = evSelected.size + ' selected';
+      } else {
+        bar.classList.remove('visible');
+      }
+    }
+
+    async function bulkAction(action) {
+      if (!evSelected.size) return;
+      if (action === 'delete' && !confirm(`Delete ${evSelected.size} events? This cannot be undone.`)) return;
+
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/events/bulk', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ ids: [...evSelected], action }),
+        });
+        if (res.ok) {
+          showToast(`${action}: ${evSelected.size} events`);
+          evSelected.clear();
+          updateBulkBar();
+          loadEvents();
+        } else showToast('Bulk action failed', true);
+      } catch (e) { showToast('Bulk action error', true); }
+    }
+
+    async function toggleFeature(id) {
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/events/' + id + '/feature', {
+          method: 'POST', headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const ev = evData.find(e => e.id === id);
+          if (ev) ev.featured = data.featured;
+          renderEventsTable();
+          showToast(data.featured ? 'Featured' : 'Unfeatured');
+        }
+      } catch (e) { showToast('Failed', true); }
+    }
+
+    async function toggleHide(id) {
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/events/' + id + '/hide', {
+          method: 'POST', headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const ev = evData.find(e => e.id === id);
+          if (ev) ev.hidden = data.hidden;
+          renderEventsTable();
+          showToast(data.hidden ? 'Hidden' : 'Unhidden');
+        }
+      } catch (e) { showToast('Failed', true); }
+    }
+
+    // =========================================================================
+    // SCAN TAB — Managed Cities + Manual Scan
+    // =========================================================================
+
+    async function loadManagedCities() {
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/cities', {
+          headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          managedCities = data.cities || [];
+        } else {
+          managedCities = [];
+        }
+      } catch (e) {
+        managedCities = [];
+      }
+      renderCityTable();
+      initScanCities();
+    }
+
+    function renderCityTable() {
+      const wrap = $('cityTableWrap');
+      if (!managedCities.length) {
+        wrap.innerHTML = '<p style="color:var(--text-dim);font-size:0.85rem;">No cities configured. Add one below.</p>';
+        return;
+      }
+      const rows = managedCities.map(c => {
+        const toggle = c.enabled ? '\u2705' : '\u274C';
+        const lastScan = c.last_scan_at
+          ? new Date(c.last_scan_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
+          : '—';
+        const statusCls = c.last_scan_status === 'ok' ? 'city-status-ok' : (c.last_scan_status ? 'city-status-err' : '');
+        const statusTxt = c.last_scan_status === 'ok'
+          ? `+${c.last_scan_new || 0} new, ${c.last_scan_updated || 0} upd`
+          : (c.last_scan_status || '—');
+        return `<tr>
+          <td><b>${esc(c.city)}</b></td>
+          <td><span class="city-toggle" onclick="toggleManagedCity('${esc(c.city)}')">${toggle}</span></td>
+          <td>${lastScan}</td>
+          <td class="${statusCls}">${esc(statusTxt)}</td>
+          <td>${c.scan_interval_hours || 2}h</td>
+          <td><span class="city-remove" onclick="removeManagedCity('${esc(c.city)}')">\u2716</span></td>
+        </tr>`;
+      }).join('');
+      wrap.innerHTML = `<table class="city-table">
+        <thead><tr><th>City</th><th>On</th><th>Last Scan</th><th>Result</th><th>Interval</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+    }
+
+    async function toggleManagedCity(city) {
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/cities/' + encodeURIComponent(city) + '/toggle', {
+          method: 'POST', headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const c = managedCities.find(r => r.city === city);
+          if (c) c.enabled = data.enabled;
+          renderCityTable();
+          initScanCities();
+          showToast(`${city}: ${data.enabled ? 'enabled' : 'disabled'}`);
+        } else { showToast('Toggle failed', true); }
+      } catch (e) { showToast('Toggle error', true); }
+    }
+
+    async function removeManagedCity(city) {
+      if (!confirm(`Remove "${city}" from scan list?`)) return;
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/cities/' + encodeURIComponent(city), {
+          method: 'DELETE', headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          managedCities = managedCities.filter(r => r.city !== city);
+          renderCityTable();
+          initScanCities();
+          showToast(`Removed ${city}`);
+        } else { showToast('Remove failed', true); }
+      } catch (e) { showToast('Remove error', true); }
+    }
+
+    async function addManagedCity() {
+      const input = $('addCityInput');
+      const city = input.value.trim().toLowerCase();
+      if (!city) return;
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/cities', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ city }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          managedCities.push(data.city);
+          input.value = '';
+          renderCityTable();
+          initScanCities();
+          showToast(`Added ${city}`);
+        } else {
+          showToast('City already exists or add failed', true);
+        }
+      } catch (e) { showToast('Add error', true); }
+    }
+
+    function initScanCities() {
+      scanCities.clear();
+      for (const c of managedCities) {
+        if (c.enabled) scanCities.add(c.city);
+      }
+      renderScanCities();
+    }
+
+    function renderScanCities() {
+      const list = $('scanCityList');
+      const allCities = new Set([...scanCities, ...managedCities.map(c => c.city)]);
+      list.innerHTML = [...allCities].map(c => {
+        const checked = scanCities.has(c);
+        return `<label class="scan-city-label ${checked ? 'checked' : ''}">
+          <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleScanCity('${esc(c)}', this.checked)"> ${esc(c)}
+        </label>`;
+      }).join('');
+    }
+
+    function toggleScanCity(city, checked) {
+      if (checked) scanCities.add(city);
+      else scanCities.delete(city);
+      renderScanCities();
+    }
+
+    function addScanCity() {
+      const input = $('scanCustomCity');
+      const city = input.value.trim().toLowerCase();
+      if (!city) return;
+      scanCities.add(city);
+      input.value = '';
+      renderScanCities();
+    }
+
+    async function runScan() {
+      if (!scanCities.size) { showToast('Select at least one city', true); return; }
+      const btn = $('scanRunBtn');
+      const result = $('scanResult');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Scanning...';
+      result.innerHTML = '<p style="color:var(--text-muted);font-size:0.85rem;">Scan in progress. This may take a few minutes...</p>';
+
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-admin-key': adminKey },
+          body: JSON.stringify({ cities: [...scanCities] }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          result.innerHTML = `
+            <div class="card" style="margin-top:12px;border-color:var(--green);">
+              <div style="font-weight:700;margin-bottom:8px;color:var(--green);">Scan Complete</div>
+              <div class="stat-row"><span class="stat-label">Cities</span><span class="stat-count">${(data.cities || []).join(', ')}</span></div>
+              <div class="stat-row"><span class="stat-label">New events</span><span class="stat-count" style="color:var(--green)">${data.newCount || 0}</span></div>
+              <div class="stat-row"><span class="stat-label">Updated</span><span class="stat-count">${data.updatedCount || 0}</span></div>
+              <div class="stat-row"><span class="stat-label">Unchanged</span><span class="stat-count">${data.skippedCount || 0}</span></div>
+            </div>`;
+          showToast(`Scan done: ${data.newCount} new, ${data.updatedCount} updated`);
+          // Refresh city table to show updated last_scan_* data
+          loadManagedCities();
+        } else {
+          result.innerHTML = '<p style="color:var(--red);font-size:0.85rem;">Scan failed. Check server logs.</p>';
+          showToast('Scan failed', true);
+        }
+      } catch (e) {
+        result.innerHTML = '<p style="color:var(--red);font-size:0.85rem;">Connection error</p>';
+        showToast('Scan error', true);
+      }
+      btn.disabled = false;
+      btn.textContent = 'Run Scan';
+    }
+
+    // =========================================================================
+    // SETTINGS TAB
+    // =========================================================================
+    async function purgeStale() {
+      const days = parseInt($('purgeDays').value, 10);
+      if (!days || days < 1) { showToast('Invalid days', true); return; }
+      if (!confirm(`Permanently delete stale events older than ${days} days?`)) return;
+
+      try {
+        const res = await fetch(API + '/api/v1/admin/egator/events/stale?days=' + days, {
+          method: 'DELETE', headers: { 'x-admin-key': adminKey },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          showToast(`Purged ${data.deleted || 0} stale events`);
+          loadDashboard();
+        } else showToast('Purge failed', true);
+      } catch (e) { showToast('Purge error', true); }
+    }
+
+    function changeKey() {
+      const key = prompt('Enter new admin key:');
+      if (key) {
+        adminKey = key.trim();
+        localStorage.setItem('egator-admin-key', adminKey);
+        showToast('Admin key updated');
+        tryAuth();
+      }
+    }
+
+    function logOut() {
+      adminKey = '';
+      authed = false;
+      localStorage.removeItem('egator-admin-key');
+      $('mainContent').style.display = 'none';
+      $('authGate').style.display = 'flex';
+      $('authBtn').textContent = 'Sign In';
+      $('authBtn').style.color = '';
+      showToast('Logged out');
+    }
+
+    // =========================================================================
+    // Boot
+    // =========================================================================
+    if (adminKey) tryAuth();
+  </script>
+</body>
+</html>

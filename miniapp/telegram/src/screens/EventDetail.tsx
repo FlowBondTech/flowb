@@ -78,7 +78,7 @@ export function EventDetail({ eventId }: Props) {
 
   const handleShareTelegram = (ev: EventResult) => {
     const tg = (window as any).Telegram?.WebApp;
-    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
     const url = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`;
     if (tg?.openTelegramLink) {
@@ -90,7 +90,7 @@ export function EventDetail({ eventId }: Props) {
 
   const handleShareX = (ev: EventResult) => {
     const tg = (window as any).Telegram?.WebApp;
-    const shareUrl = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const shareUrl = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     const text = encodeURIComponent(`I'm going to ${ev.title}! Who's joining? - found on FlowB`);
     const url = `https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`;
     if (tg?.openLink) {
@@ -101,7 +101,7 @@ export function EventDetail({ eventId }: Props) {
   };
 
   const handleCopyLink = async (ev: EventResult) => {
-    const url = ev.url || `https://t.me/Flow_b_bot?startapp=event_${ev.id}`;
+    const url = ev.url || `https://t.me/Flow_b_bot/flowb?startapp=event_${ev.id}`;
     try {
       await navigator.clipboard.writeText(url);
       setLinkCopied(true);
@@ -260,6 +260,14 @@ export function EventDetail({ eventId }: Props) {
           )}
         </div>
       )}
+      {!showConfirm && !rsvpStatus && (
+        <p style={{ fontSize: 11, color: "var(--hint, #888)", margin: "-4px 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+          </svg>
+          This does not register you on Luma
+        </p>
+      )}
 
       {/* Share Row: Telegram | X | Copy Link */}
       <div className="share-row">
@@ -283,13 +291,13 @@ export function EventDetail({ eventId }: Props) {
         </button>
       </div>
 
-      {/* Sponsor button */}
+      {/* Boost button */}
       <button
         className="btn btn-secondary btn-block"
         onClick={() => setShowSponsor(true)}
         style={{ marginBottom: 16 }}
       >
-        Sponsor This Event
+        Boost this Event
       </button>
 
       {showSponsor && (

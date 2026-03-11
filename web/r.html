@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shared Events - FlowB</title>
+  <meta name="description" content="Shared event results on FlowB">
+  <meta property="og:title" content="Shared Events - FlowB">
+  <meta property="og:description" content="Check out these events on FlowB">
+  <meta property="og:type" content="website">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .results-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 16px 0;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+    .results-meta .sharer { color: var(--accent-light); font-weight: 600; }
+    .results-meta .sep { color: var(--text-dim); }
+    .results-actions {
+      display: flex;
+      gap: 10px;
+      padding: 12px 0 20px;
+    }
+    .results-actions button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      background: var(--bg-card);
+      color: var(--text);
+      font-size: 0.85rem;
+      font-family: var(--font);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .results-actions button:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+    }
+    .results-actions button svg { width: 16px; height: 16px; }
+    .results-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      padding: 24px 0 4px;
+    }
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      padding-bottom: 40px;
+    }
+    .r-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.15s, transform 0.1s;
+    }
+    .r-card:hover { border-color: var(--border-hover); transform: translateY(-1px); }
+    .r-card-img {
+      width: 100%;
+      height: 160px;
+      object-fit: cover;
+      background: var(--bg-surface);
+    }
+    .r-card-body { padding: 14px 16px; }
+    .r-card-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+    .r-card-title a { color: var(--text); }
+    .r-card-title a:hover { color: var(--accent-light); text-decoration: none; }
+    .r-card-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-bottom: 4px;
+    }
+    .r-card-row svg { width: 14px; height: 14px; flex-shrink: 0; opacity: 0.6; }
+    .r-card-price {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 8px;
+    }
+    .r-card-price.free { background: var(--green-dim); color: var(--green); }
+    .r-card-price.paid { background: rgba(249,115,22,0.12); color: var(--orange); }
+    .results-cta {
+      text-align: center;
+      padding: 40px 20px 60px;
+      border-top: 1px solid var(--border);
+    }
+    .results-cta a {
+      display: inline-block;
+      padding: 12px 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+    }
+    .results-cta a:hover { background: var(--accent-light); text-decoration: none; }
+    .results-cta p { color: var(--text-muted); margin-top: 12px; font-size: 0.9rem; }
+    .loading-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .error-state {
+      text-align: center;
+      padding: 80px 20px;
+      color: var(--text-muted);
+    }
+    .error-state h2 { color: var(--text); margin-bottom: 12px; }
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    @media (max-width: 640px) {
+      .results-grid { grid-template-columns: 1fr; }
+      .r-card-img { height: 140px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <div class="loading-state" id="loading">Loading shared results...</div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = 'https://flowb.fly.dev';
+    const code = window.location.pathname.split('/r/')[1]?.split(/[?#]/)[0];
+
+    if (!code) {
+      showError('Invalid link', 'This shared results link is invalid.');
+    } else {
+      loadResults(code);
+    }
+
+    async function loadResults(code) {
+      try {
+        const res = await fetch(`${API}/api/v1/shared-results/${encodeURIComponent(code)}`);
+        if (res.status === 404) return showError('Not found', 'This shared link doesn\'t exist or has been removed.');
+        if (res.status === 410) return showError('Expired', 'This shared link has expired.');
+        if (!res.ok) return showError('Error', 'Something went wrong loading these results.');
+
+        const data = await res.json();
+        render(data);
+      } catch (err) {
+        showError('Connection error', 'Could not connect to FlowB. Try refreshing.');
+      }
+    }
+
+    function render(data) {
+      const events = data.results || [];
+      const ctx = data.queryContext || {};
+
+      // Update page title
+      document.title = `${data.title || 'Shared Events'} - FlowB`;
+
+      let html = '';
+
+      // Title
+      html += `<h1 class="results-title">${esc(data.title || 'Shared Events')}</h1>`;
+
+      // Meta bar
+      const metaParts = [];
+      if (data.sharerDisplayName) metaParts.push(`Shared by <span class="sharer">@${esc(data.sharerDisplayName)}</span>`);
+      metaParts.push(`${events.length} event${events.length !== 1 ? 's' : ''}`);
+      if (ctx.city) metaParts.push(esc(ctx.city));
+      if (data.viewCount) metaParts.push(`${data.viewCount} view${data.viewCount !== 1 ? 's' : ''}`);
+      html += `<div class="results-meta">${metaParts.join(' <span class="sep">|</span> ')}</div>`;
+
+      // Action bar
+      html += `<div class="results-actions">
+        <button onclick="shareLink()" title="Share this link">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>
+        <button onclick="downloadCsv()" title="Download as CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          CSV
+        </button>
+      </div>`;
+
+      // Event cards
+      html += '<div class="results-grid">';
+      for (const e of events) {
+        const time = e.starts_at
+          ? new Date(e.starts_at).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' })
+          : 'TBD';
+        const venue = e.venue_name || 'TBD';
+        const city = e.city || '';
+        const url = e.ticket_url || (e.source === 'luma' && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : '') || e.url || '';
+        const imgSrc = e.image_url || e.cover_url || '';
+        const priceHtml = e.is_free
+          ? '<span class="r-card-price free">FREE</span>'
+          : e.price ? `<span class="r-card-price paid">$${esc(String(e.price))}</span>` : '';
+
+        html += `<div class="r-card" data-event-id="${esc(e.id || '')}">`;
+        if (imgSrc) {
+          html += `<img class="r-card-img" src="${esc(imgSrc)}" alt="" loading="lazy" onerror="this.style.display='none'">`;
+        }
+        html += `<div class="r-card-body">`;
+        if (url) {
+          html += `<div class="r-card-title"><a href="${esc(url)}" target="_blank" rel="noopener" onclick="trackClick('${esc(e.id || '')}')">${esc(e.title)}</a></div>`;
+        } else {
+          html += `<div class="r-card-title">${esc(e.title)}</div>`;
+        }
+        html += `<div class="r-card-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ${esc(time)}
+        </div>`;
+        html += `<div class="r-card-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          ${esc(venue)}${city ? `, ${esc(city)}` : ''}
+        </div>`;
+        if (e.organizer_name) {
+          html += `<div class="r-card-row">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            ${esc(e.organizer_name)}
+          </div>`;
+        }
+        html += priceHtml;
+        html += `</div></div>`;
+      }
+      html += '</div>';
+
+      // CTA
+      html += `<div class="results-cta">
+        <a href="/">Discover more on FlowB</a>
+        <p>Find events, connect with your crew, and get in the flow.</p>
+      </div>`;
+
+      document.getElementById('main').innerHTML = html;
+
+      // Store events for CSV
+      window._events = events;
+    }
+
+    function showError(title, message) {
+      document.getElementById('main').innerHTML = `
+        <div class="error-state">
+          <h2>${esc(title)}</h2>
+          <p>${esc(message)}</p>
+          <p style="margin-top:20px"><a href="/">Go to FlowB</a></p>
+        </div>`;
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    async function shareLink() {
+      const url = window.location.href;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: document.title, url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          toast('Link copied to clipboard!');
+        }
+        trackInteraction('reshare');
+      } catch { /* user cancelled */ }
+    }
+
+    function downloadCsv() {
+      const events = window._events || [];
+      if (!events.length) return;
+
+      const headers = ['Event Name','Date','Time','Venue','City','Price','Link','Categories'];
+      const rows = events.map(e => {
+        const dt = e.starts_at ? new Date(e.starts_at) : null;
+        const date = dt ? dt.toLocaleDateString('en-US', { timeZone: 'America/Denver' }) : '';
+        const time = dt ? dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' }) : '';
+        const link = e.ticket_url || e.url || (e.source === 'luma' && e.source_event_id ? `https://lu.ma/${e.source_event_id}` : '');
+        const cats = (e.tags || []).join('; ');
+        return [
+          csvCell(e.title),
+          csvCell(date),
+          csvCell(time),
+          csvCell(e.venue_name || ''),
+          csvCell(e.city || ''),
+          e.is_free ? 'FREE' : e.price ? `$${e.price}` : '',
+          csvCell(link),
+          csvCell(cats),
+        ].join(',');
+      });
+
+      const csv = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `flowb-events-${code}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      toast('CSV downloaded!');
+      trackInteraction('csv_download');
+    }
+
+    function csvCell(val) {
+      if (!val) return '';
+      const s = String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }
+
+    function trackInteraction(type, eventId) {
+      fetch(`${API}/api/v1/shared-results/${encodeURIComponent(code)}/interact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, eventId }),
+      }).catch(() => {});
+    }
+
+    function trackClick(eventId) {
+      if (eventId) trackInteraction('event_click', eventId);
+    }
+  </script>
+</body>
+</html>

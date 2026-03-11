@@ -1,3 +1,5 @@
+import { sbFetch, type SbConfig } from "../utils/supabase.js";
+
 /**
  * Cross-Platform Identity Resolution Service
  *
@@ -5,14 +7,13 @@
  * a user who RSVPs on one platform is visible to friends on another.
  */
 
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
-
 interface IdentityRow {
   id: string;
   canonical_id: string;
   platform: string;
   platform_user_id: string;
   privy_id?: string;
+  supabase_uid?: string;
   display_name?: string;
   avatar_url?: string;
 }
@@ -32,7 +33,7 @@ export async function resolveCanonicalId(
   opts?: { displayName?: string; avatarUrl?: string },
 ): Promise<string> {
   // 1. Check existing mapping
-  const existing = await sbQuery<IdentityRow[]>(
+  const existing = await sbFetch<IdentityRow[]>(
     cfg,
     `flowb_identities?platform_user_id=eq.${encodeURIComponent(platformUserId)}&select=canonical_id&limit=1`,
   );
@@ -44,14 +45,26 @@ export async function resolveCanonicalId(
   // 2. Determine platform from user ID prefix
   const platform = detectPlatform(platformUserId);
 
-  // 3. Try Privy lookup for cross-platform links
+  // 2.5. Try local passport lookup (Supabase Auth) before Privy
+  const passportLinks = await lookupPassportLinks(cfg, platformUserId);
+  if (passportLinks && passportLinks.linkedIds.length > 0) {
+    const canonicalId = platformUserId;
+    await ensureIdentityRow(cfg, canonicalId, platformUserId, platform, undefined, opts);
+    for (const lid of passportLinks.linkedIds) {
+      const lPlatform = detectPlatform(lid);
+      await ensureIdentityRow(cfg, canonicalId, lid, lPlatform);
+    }
+    return canonicalId;
+  }
+
+  // 3. Try Privy lookup for cross-platform links (legacy, dual mode)
   const privyLinks = await lookupPrivyLinks(platformUserId, platform);
 
   if (privyLinks && privyLinks.linkedIds.length > 0) {
     // Check if any linked ID already has a canonical_id
     const allIds = [platformUserId, ...privyLinks.linkedIds];
     for (const lid of allIds) {
-      const match = await sbQuery<IdentityRow[]>(
+      const match = await sbFetch<IdentityRow[]>(
         cfg,
         `flowb_identities?platform_user_id=eq.${encodeURIComponent(lid)}&select=canonical_id&limit=1`,
       );
@@ -86,7 +99,7 @@ export async function resolveCanonicalId(
  * Get all platform user IDs for a canonical user (for cross-platform queries).
  */
 export async function getLinkedIds(cfg: SbConfig, canonicalId: string): Promise<string[]> {
-  const rows = await sbQuery<IdentityRow[]>(
+  const rows = await sbFetch<IdentityRow[]>(
     cfg,
     `flowb_identities?canonical_id=eq.${encodeURIComponent(canonicalId)}&select=platform_user_id`,
   );
@@ -100,6 +113,8 @@ export async function getLinkedIds(cfg: SbConfig, canonicalId: string): Promise<
 function detectPlatform(userId: string): string {
   if (userId.startsWith("telegram_")) return "telegram";
   if (userId.startsWith("farcaster_")) return "farcaster";
+  if (userId.startsWith("whatsapp_")) return "whatsapp";
+  if (userId.startsWith("signal_")) return "signal";
   if (userId.startsWith("web_")) return "web";
   return "web";
 }
@@ -135,6 +150,43 @@ async function ensureIdentityRow(
   }
 }
 
+interface PassportLinkResult {
+  supabaseUid: string;
+  linkedIds: string[];
+}
+
+/**
+ * Look up linked identities via flowb_passport + flowb_identities (local, no external API).
+ */
+async function lookupPassportLinks(
+  cfg: SbConfig,
+  platformUserId: string,
+): Promise<PassportLinkResult | null> {
+  try {
+    // Check if this platform user has a supabase_uid in flowb_identities
+    const rows = await sbFetch<{ supabase_uid: string }[]>(
+      cfg,
+      `flowb_identities?platform_user_id=eq.${encodeURIComponent(platformUserId)}&select=supabase_uid&limit=1`,
+    );
+    const supabaseUid = rows?.[0]?.supabase_uid;
+    if (!supabaseUid) return null;
+
+    // Find all other platform_user_ids with the same supabase_uid
+    const linked = await sbFetch<{ platform_user_id: string }[]>(
+      cfg,
+      `flowb_identities?supabase_uid=eq.${supabaseUid}&select=platform_user_id`,
+    );
+    const linkedIds = (linked || [])
+      .map((r) => r.platform_user_id)
+      .filter((id) => id !== platformUserId);
+
+    if (!linkedIds.length) return null;
+    return { supabaseUid, linkedIds };
+  } catch {
+    return null;
+  }
+}
+
 interface PrivyLinkResult {
   privyId: string;
   linkedIds: string[];
@@ -159,6 +211,12 @@ async function lookupPrivyLinks(
     } else if (platform === "farcaster") {
       searchField = "farcaster";
       searchValue = platformUserId.replace("farcaster_", "");
+    } else if (platform === "whatsapp") {
+      searchField = "phone";
+      searchValue = "+" + platformUserId.replace("whatsapp_", "");
+    } else if (platform === "signal") {
+      searchField = "phone";
+      searchValue = "+" + platformUserId.replace("signal_", "");
     } else if (platform === "web") {
       // Web users are already Privy users
       const did = platformUserId.replace("web_", "");
@@ -230,6 +288,13 @@ function extractLinkedIds(privyUser: any, excludeUserId: string): PrivyLinkResul
       const id = `farcaster_${account.fid}`;
       if (id !== excludeUserId) linkedIds.push(id);
     }
+    if (account.type === "phone" && account.phone_number) {
+      const phone = account.phone_number.replace("+", "");
+      const waId = `whatsapp_${phone}`;
+      if (waId !== excludeUserId) linkedIds.push(waId);
+      const sigId = `signal_${phone}`;
+      if (sigId !== excludeUserId) linkedIds.push(sigId);
+    }
   }
 
   // Add the web/privy ID itself
@@ -240,19 +305,4 @@ function extractLinkedIds(privyUser: any, excludeUserId: string): PrivyLinkResul
 
   if (!linkedIds.length) return null;
   return { privyId, linkedIds };
-}
-
-async function sbQuery<T>(cfg: SbConfig, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch {
-    return null;
-  }
 }

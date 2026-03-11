@@ -17,6 +17,7 @@ import type {
   FlowBContext,
   ToolInput,
 } from "../../core/types.js";
+import { sbQuery, sbInsert, sbUpsert, sbPatch, sbDelete, type SbConfig } from "../../utils/supabase.js";
 
 // ============================================================================
 // Config
@@ -95,88 +96,6 @@ export interface EventAttendance {
 }
 
 // ============================================================================
-// Supabase Helpers
-// ============================================================================
-
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
-
-async function sbQuery<T>(cfg: SbConfig, table: string, params: Record<string, string>): Promise<T | null> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
-}
-
-async function sbInsert<T = any>(cfg: SbConfig, table: string, data: Record<string, any>): Promise<T | null> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-    method: "POST",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
-}
-
-async function sbUpsert<T = any>(cfg: SbConfig, table: string, data: Record<string, any>, onConflict: string): Promise<T | null> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}?on_conflict=${onConflict}`, {
-    method: "POST",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation,resolution=merge-duplicates",
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
-}
-
-async function sbPatch(cfg: SbConfig, table: string, filter: Record<string, string>, data: Record<string, any>): Promise<boolean> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    method: "PATCH",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(data),
-  });
-  return res.ok;
-}
-
-async function sbDelete(cfg: SbConfig, table: string, filter: Record<string, string>): Promise<boolean> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    method: "DELETE",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  return res.ok;
-}
-
-// ============================================================================
 // Code Generation
 // ============================================================================
 
@@ -229,7 +148,7 @@ export class FlowPlugin implements FlowBPlugin {
     "crew-request-join": { description: "Request to join an approval-mode crew", requiresAuth: true },
     "crew-approve":     { description: "Approve a pending join request (creator/admin)", requiresAuth: true },
     "crew-deny":        { description: "Deny a pending join request (creator/admin)", requiresAuth: true },
-    "crew-promote":     { description: "Promote a member to admin (creator only)", requiresAuth: true },
+    "crew-promote":     { description: "Promote a member to admin (creator or admin)", requiresAuth: true },
     "crew-demote":      { description: "Demote an admin to member (creator only)", requiresAuth: true },
     "crew-personal-invite": { description: "Generate a tracked personal invite link", requiresAuth: true },
     // Event attendance
@@ -509,7 +428,7 @@ export class FlowPlugin implements FlowBPlugin {
     if (!uid) return "User ID required.";
 
     const name = input?.query;
-    if (!name) return "Crew name required. Example: /crew create Salsa Wolves";
+    if (!name) return "Crew name required.";
 
     // Parse emoji from name if present (first char if emoji)
     const emojiMatch = name.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u);
@@ -888,18 +807,19 @@ export class FlowPlugin implements FlowBPlugin {
   }
 
   /**
-   * Browse public crews for discovery.
+   * Browse all crews for discovery (public).
    */
   async crewBrowse(cfg: FlowPluginConfig): Promise<string> {
     const crews = await sbQuery<FlowGroup[]>(cfg, "flowb_groups", {
-      select: "id,name,emoji,description,join_mode,created_at",
+      select: "id,name,emoji,description,join_code,join_mode,created_at",
       is_public: "eq.true",
+      join_mode: "neq.closed",
       order: "created_at.desc",
-      limit: "20",
+      limit: "50",
     });
 
     if (!crews?.length) {
-      return "No public crews yet. Be the first to create one!";
+      return "No crews yet. Be the first to create one!";
     }
 
     return JSON.stringify(crews);
@@ -1087,14 +1007,15 @@ export class FlowPlugin implements FlowBPlugin {
   }
 
   /**
-   * Promote a member to admin (creator only).
+   * Promote a member to admin.
+   * Creator or any admin can promote members to admin.
    */
   async crewPromote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
     if (!uid) return "User ID required.";
     if (!groupId || !targetId) return "Crew ID and member ID required.";
 
-    if (!await this.hasCrewPermission(cfg, uid, groupId, "creator")) {
-      return "Only the crew creator can promote members.";
+    if (!await this.hasCrewPermission(cfg, uid, groupId, "admin")) {
+      return "Only crew creators and admins can promote members.";
     }
 
     // Check target is a member
@@ -1114,11 +1035,19 @@ export class FlowPlugin implements FlowBPlugin {
       user_id: `eq.${targetId}`,
     }, { role: "admin" });
 
-    return `Promoted ${targetId.replace("telegram_", "@")} to admin.`;
+    return JSON.stringify({
+      type: "role_changed",
+      action: "promote",
+      groupId,
+      targetId,
+      newRole: "admin",
+      promotedBy: uid,
+    });
   }
 
   /**
    * Demote an admin to member (creator only).
+   * Only the creator can demote admins to prevent power struggles.
    */
   async crewDemote(cfg: FlowPluginConfig, uid?: string, groupId?: string, targetId?: string): Promise<string> {
     if (!uid) return "User ID required.";
@@ -1144,7 +1073,14 @@ export class FlowPlugin implements FlowBPlugin {
       user_id: `eq.${targetId}`,
     }, { role: "member" });
 
-    return `Demoted ${targetId.replace("telegram_", "@")} to member.`;
+    return JSON.stringify({
+      type: "role_changed",
+      action: "demote",
+      groupId,
+      targetId,
+      newRole: "member",
+      demotedBy: uid,
+    });
   }
 
   /**
@@ -1649,12 +1585,12 @@ export class FlowPlugin implements FlowBPlugin {
   private async resolveNames(cfg: FlowPluginConfig, userIds: string[]): Promise<Map<string, string>> {
     const nameMap = new Map<string, string>();
     if (!userIds.length) return nameMap;
-    const sessions = await sbQuery<{ user_id: string; danz_username: string }[]>(cfg, "flowb_sessions", {
-      select: "user_id,danz_username",
+    const sessions = await sbQuery<{ user_id: string; display_name: string }[]>(cfg, "flowb_sessions", {
+      select: "user_id,display_name",
       user_id: `in.(${userIds.join(",")})`,
     });
     for (const s of sessions || []) {
-      if (s.danz_username) nameMap.set(s.user_id, s.danz_username);
+      if (s.display_name) nameMap.set(s.user_id, s.display_name);
     }
     return nameMap;
   }

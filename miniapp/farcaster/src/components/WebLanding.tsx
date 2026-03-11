@@ -13,7 +13,7 @@ export function WebLanding() {
 
         <h1 className="web-landing-title">FlowB</h1>
         <p className="web-landing-subtitle">
-          Coordinate your crew, discover events, and earn points at EthDenver.
+          Get in the Flow and Just B. Discover events, form crews, and earn points.
         </p>
 
         <p style={{ fontSize: 13, color: "var(--hint)", marginBottom: 16 }}>

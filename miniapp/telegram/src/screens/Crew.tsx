@@ -244,7 +244,7 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
           <div className="chat-messages" ref={chatContainerRef}>
             {messages.map((msg) => {
               const isOwn = msg.user_id === currentUserId;
-              const displayName = msg.display_name || msg.user_id.replace(/^(telegram_|farcaster_)/, "@");
+              const displayName = msg.display_name || msg.user_id;
               const initial = displayName.charAt(0).toUpperCase();
 
               return (
@@ -306,7 +306,7 @@ function CrewChat({ crewId, currentUserId }: CrewChatProps) {
   );
 }
 
-export function Crew({ crewId, checkinCode }: Props) {
+export function Crew({ crewId, checkinCode, onNavigate }: Props) {
   const { user } = useAuth();
   const currentUserId = user?.id || "";
   const gps = useLocation();
@@ -347,6 +347,7 @@ export function Crew({ crewId, checkinCode }: Props) {
   const [locatePinging, setLocatePinging] = useState(false);
   const [showSponsorModal, setShowSponsorModal] = useState<string | null>(null);
   const [proximityToast, setProximityToast] = useState<string | null>(null);
+  const [deepLinkError, setDeepLinkError] = useState<string | null>(null);
 
   const tg = (window as any).Telegram?.WebApp;
   const isAdmin = selectedCrew && ["admin", "creator"].includes(selectedCrew.role);
@@ -398,20 +399,60 @@ export function Crew({ crewId, checkinCode }: Props) {
     return () => clearInterval(interval);
   }, [gps.location?.latitude, gps.location?.longitude, selectedCrew?.id]);
 
-  // Load crews
+  // Load crews (auto-join if deep link targets a crew we're not in)
   useEffect(() => {
-    getCrews()
-      .then((c) => {
+    const loadCrews = async () => {
+      try {
+        const c = await getCrews();
         setCrews(c);
+
         if (crewId) {
           const match = c.find((cr) => cr.id === crewId || cr.join_code === crewId);
-          if (match) setSelectedCrew(match);
+          if (match) {
+            setSelectedCrew(match);
+          } else {
+            // Deep link to a crew we're not in — auto-join
+            try {
+              await joinCrew(crewId);
+              const updated = await getCrews();
+              setCrews(updated);
+              const joined = updated.find((cr) => cr.id === crewId || cr.join_code === crewId);
+              if (joined) {
+                setSelectedCrew(joined);
+                tg?.HapticFeedback?.notificationOccurred("success");
+              } else {
+                setDeepLinkError("Joined but couldn't load crew. Pull down to refresh.");
+              }
+            } catch (err: any) {
+              console.error("Auto-join from deep link failed:", err);
+              const msg = err.message || "";
+              if (msg.includes("already")) {
+                // Already a member but getCrews didn't return it — retry
+                const retry = await getCrews();
+                setCrews(retry);
+                const found = retry.find((cr) => cr.id === crewId || cr.join_code === crewId);
+                if (found) setSelectedCrew(found);
+                else setDeepLinkError("Couldn't load this crew. Try again later.");
+              } else if (msg.includes("full")) {
+                setDeepLinkError("This crew is full.");
+              } else if (msg.includes("Invalid") || msg.includes("not found")) {
+                setDeepLinkError("This crew link is invalid or expired.");
+              } else {
+                setDeepLinkError("Couldn't join this crew. It may be full or no longer available.");
+              }
+            }
+          }
         } else if (c.length >= 1) {
           setSelectedCrew(c[0]);
         }
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCrews();
   }, [crewId]);
 
   // Load members + leaderboard when crew selected
@@ -454,22 +495,25 @@ export function Crew({ crewId, checkinCode }: Props) {
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
       tg?.HapticFeedback?.notificationOccurred("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      tg?.showAlert?.(err.message?.includes("Invalid") ? "Invalid invite code. Check with your crew admin." : "Failed to join crew. Try again.");
     }
   };
 
   const handleJoinDiscovered = async (crew: DiscoveredCrew) => {
     try {
-      await joinCrew(crew.id);
+      // Use join_code (not id) - the backend matches against join_code
+      await joinCrew(crew.join_code || crew.id);
       setShowDiscover(false);
       const c = await getCrews();
       setCrews(c);
       const joined = c.find((cr) => cr.id === crew.id);
       if (joined) setSelectedCrew(joined);
       tg?.HapticFeedback?.notificationOccurred("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      tg?.showAlert?.("Failed to join crew. Try again or ask for an invite code.");
     }
   };
 
@@ -615,8 +659,14 @@ export function Crew({ crewId, checkinCode }: Props) {
 
   const shareCrewLink = () => {
     if (!selectedCrew) return;
+    // Use switchInlineQuery to share via bot inline mode (stays in Telegram, no browser)
+    if (tg?.switchInlineQuery) {
+      tg.switchInlineQuery(selectedCrew.name, ["users", "groups", "channels"]);
+      return;
+    }
+    // Fallback: use Telegram share dialog with t.me link
     const botUsername = "Flow_b_bot";
-    const link = `https://t.me/${botUsername}?startapp=crew_${selectedCrew.join_code}`;
+    const link = `https://t.me/${botUsername}/flowb?startapp=crew_${selectedCrew.join_code}`;
     tg?.openTelegramLink?.(
       `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(
         `Join my crew ${selectedCrew.emoji} ${selectedCrew.name} on FlowB!`,
@@ -624,26 +674,67 @@ export function Crew({ crewId, checkinCode }: Props) {
     );
   };
 
+  const copyCrewLink = () => {
+    if (!selectedCrew) return;
+    const link = `https://flowb.me/g/${selectedCrew.join_code}`;
+    navigator.clipboard.writeText(link).then(() => {
+      tg?.HapticFeedback?.notificationOccurred("success");
+      tg?.showAlert?.("Link copied! Share it anywhere.");
+    }).catch(() => {
+      // Fallback for clipboard API failure
+      tg?.showAlert?.(link);
+    });
+  };
+
   if (loading) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <SkeletonMembers />
       </div>
     );
   }
 
-  // No crews yet
-  if (crews.length === 0 && !crewId) {
+  // Deep link failed — show error with actions
+  if (deepLinkError && !selectedCrew) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Crew</h1>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-emoji">{"\uD83D\uDD17"}</div>
+            <div className="empty-state-title">{deepLinkError}</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 12 }}>
+              <button className="btn btn-primary" onClick={() => onNavigate({ name: "home" })}>
+                Go Home
+              </button>
+              <button className="btn btn-secondary" onClick={() => { setDeepLinkError(null); setShowJoin(true); }}>
+                Enter Code
+              </button>
+              <button className="btn btn-secondary" onClick={handleOpenDiscover}>
+                Discover
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {renderJoinModal()}
+        {renderDiscoverModal()}
+      </div>
+    );
+  }
+
+  // No crews yet
+  if (crews.length === 0 && !selectedCrew) {
+    return (
+      <div className="screen">
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
             <div className="empty-state-title">No crews yet</div>
             <div className="empty-state-text">
-              Create a crew to coordinate with friends at EthDenver
+              Create a crew to coordinate with friends at events
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
@@ -701,6 +792,9 @@ export function Crew({ crewId, checkinCode }: Props) {
             <div style={{ display: "flex", gap: 6 }}>
               <button className="btn btn-sm btn-secondary" onClick={shareCrewLink}>
                 Share
+              </button>
+              <button className="btn btn-sm btn-secondary" onClick={copyCrewLink} title="Copy link">
+                Link
               </button>
               {isAdmin && (
                 <button className="btn btn-sm btn-secondary" onClick={() => {
@@ -1233,7 +1327,11 @@ export function Crew({ crewId, checkinCode }: Props) {
   function renderMemberActionModal() {
     if (!showMemberAction || !selectedCrew) return null;
     const m = showMemberAction;
-    const displayName = m.display_name || m.user_id.replace(/^(telegram_|farcaster_)/, "@");
+    const displayName = m.display_name || m.user_id;
+    const isCreator = selectedCrew.role === "creator";
+    // Creators can promote/demote anyone. Admins can promote members but not demote other admins.
+    const canPromote = isCreator || (selectedCrew.role === "admin" && m.role === "member");
+    const canDemote = isCreator && m.role === "admin";
 
     return (
       <div className="modal-overlay" onClick={() => setShowMemberAction(null)}>
@@ -1244,9 +1342,16 @@ export function Crew({ crewId, checkinCode }: Props) {
               Role: {m.role}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
-                {m.role === "admin" ? "Demote to Member" : "Promote to Admin"}
-              </button>
+              {canPromote && m.role === "member" && (
+                <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
+                  Promote to Admin
+                </button>
+              )}
+              {canDemote && (
+                <button className="btn btn-secondary btn-block" onClick={() => handlePromoteDemote(m)}>
+                  Demote to Member
+                </button>
+              )}
               <button
                 className="btn btn-block"
                 style={{ background: "rgba(239, 68, 68, 0.1)", color: "var(--red)", border: "1px solid rgba(239, 68, 68, 0.2)" }}

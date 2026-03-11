@@ -1,11 +1,11 @@
 ---
 title: Points System
-description: Everything about earning points, building streaks, and climbing the FlowB leaderboard at EthDenver.
+description: Everything about earning points, building streaks, and climbing the FlowB leaderboard at SXSW.
 ---
 
 # FlowB Points System
 
-Everything you need to know about earning points, building streaks, and climbing the leaderboard at EthDenver.
+Everything you need to know about earning points, building streaks, and climbing the leaderboard at SXSW.
 
 ---
 
@@ -238,7 +238,7 @@ Response:
 1. **Log in every day** to build your streak and earn the daily login bonus
 2. **Browse events daily** to earn events_viewed points (up to 20/day)
 3. **RSVP to events** you plan to attend (5 pts each, up to 25/day)
-4. **Share your flow link** with friends at EthDenver (2 pts per share)
+4. **Share your flow link** with friends at SXSW (2 pts per share)
 5. **Create or join a crew** for one-time bonuses and ongoing meetup points
 6. **Use personal invite links** for crew recruitment to earn conversion bonuses
 7. **React to channel posts** for easy daily points (1 pt each, up to 20/day)

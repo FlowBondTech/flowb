@@ -2,11 +2,24 @@ import { create } from "zustand";
 import * as api from "../api/client";
 import type { CrewInfo, CrewMember, CrewCheckin, CrewMission } from "../api/types";
 
+interface DiscoveredCrew {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string | null;
+  join_code: string;
+  join_mode: string;
+  member_count: number;
+}
+
 interface CrewState {
   crews: CrewInfo[];
+  discoveredCrews: DiscoveredCrew[];
   isLoading: boolean;
+  isDiscoverLoading: boolean;
 
   fetchCrews: () => Promise<void>;
+  fetchDiscoverCrews: () => Promise<void>;
   createCrew: (name: string, emoji?: string) => Promise<void>;
   joinCrew: (code: string) => Promise<void>;
   getMembers: (crewId: string) => Promise<{ members: CrewMember[]; checkins: CrewCheckin[] }>;
@@ -16,7 +29,9 @@ interface CrewState {
 
 export const useCrewStore = create<CrewState>((set, get) => ({
   crews: [],
+  discoveredCrews: [],
   isLoading: false,
+  isDiscoverLoading: false,
 
   fetchCrews: async () => {
     set({ isLoading: true });
@@ -25,6 +40,16 @@ export const useCrewStore = create<CrewState>((set, get) => ({
       set({ crews, isLoading: false });
     } catch {
       set({ isLoading: false });
+    }
+  },
+
+  fetchDiscoverCrews: async () => {
+    set({ isDiscoverLoading: true });
+    try {
+      const discoveredCrews = await api.discoverCrews();
+      set({ discoveredCrews, isDiscoverLoading: false });
+    } catch {
+      set({ isDiscoverLoading: false });
     }
   },
 

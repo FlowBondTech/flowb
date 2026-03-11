@@ -11,6 +11,7 @@ import type {
   ToolInput,
   PointsPluginConfig,
 } from "../../core/types.js";
+import { sbQuery, sbInsert, sbPatch, type SbConfig } from "../../utils/supabase.js";
 
 // ============================================================================
 // Point Values
@@ -61,7 +62,7 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   channel_reaction:      { points: 1,   dailyCap: 20 },
   chatter_signal:        { points: 5,   dailyCap: 25 },
   crew_message:          { points: 2,   dailyCap: 30 },
-  // EthDenver mini app & event actions
+  // Mini app & event actions
   event_checkin:         { points: 5,   dailyCap: 25 },
   onboarding_complete:   { points: 10,  dailyCap: 10, once: true },
   miniapp_open:          { points: 2,   dailyCap: 10 },
@@ -70,6 +71,59 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   sponsor_verified:      { points: 50,  dailyCap: 200 },
   proximity_checkin:     { points: 5,   dailyCap: 25 },
   sponsored_checkin:     { points: 10,  dailyCap: 50 },
+  // Social posting actions
+  social_post:           { points: 5,   dailyCap: 25 },
+  social_scheduled:      { points: 3,   dailyCap: 15 },
+  social_account_linked: { points: 10,  dailyCap: 30 },
+  social_org_created:    { points: 20,  dailyCap: 20 },
+  // SocialB auto-repost actions
+  socialb_repost:        { points: 3,   dailyCap: 30 },
+  socialb_enabled:       { points: 15,  dailyCap: 15, once: true },
+  // Pre-existing actions that were missing from table
+  event_shared_crew:     { points: 5,   dailyCap: 25 },
+  farcaster_viewed:      { points: 2,   dailyCap: 10 },
+  lead_created:          { points: 5,   dailyCap: 25 },
+  lead_updated:          { points: 2,   dailyCap: 20 },
+  meeting_created:       { points: 8,   dailyCap: 30 },
+  meeting_rsvp:          { points: 5,   dailyCap: 25 },
+  todo_added:            { points: 2,   dailyCap: 10 },
+  // Engagement actions (event browsing, sharing, navigation)
+  event_shared:          { points: 5,   dailyCap: 25 },
+  event_details_viewed:  { points: 2,   dailyCap: 20 },
+  event_filtered:        { points: 1,   dailyCap: 10 },
+  event_navigated:       { points: 1,   dailyCap: 20 },
+  event_submitted:       { points: 10,  dailyCap: 30 },
+  // Meeting engagement
+  meeting_shared:        { points: 5,   dailyCap: 25 },
+  meeting_completed:     { points: 15,  dailyCap: 30 },
+  meeting_cancelled:     { points: 1,   dailyCap: 5 },
+  // Crew management
+  crew_settings_changed: { points: 3,   dailyCap: 15 },
+  crew_member_promoted:  { points: 5,   dailyCap: 15 },
+  crew_browsed:          { points: 2,   dailyCap: 10 },
+  // CRM / Leads
+  lead_advanced:         { points: 3,   dailyCap: 30 },
+  lead_deleted:          { points: 1,   dailyCap: 10 },
+  // General engagement
+  menu_opened:           { points: 1,   dailyCap: 5 },
+  help_viewed:           { points: 1,   dailyCap: 3 },
+  wallet_linked:         { points: 15,  dailyCap: 15, once: true },
+  reward_claimed:        { points: 5,   dailyCap: 25 },
+  rewards_viewed:        { points: 1,   dailyCap: 5 },
+  mylist_viewed:         { points: 1,   dailyCap: 5 },
+  schedule_viewed:       { points: 2,   dailyCap: 10 },
+  wheremycrew_used:      { points: 3,   dailyCap: 15 },
+  flow_viewed:           { points: 1,   dailyCap: 5 },
+  farcaster_profile:     { points: 2,   dailyCap: 10 },
+  dance_photo_shared:    { points: 5,   dailyCap: 25 },
+  event_reaction_dm:     { points: 3,   dailyCap: 15 },
+  app_opened:            { points: 2,   dailyCap: 10 },
+  qr_checkin:            { points: 10,  dailyCap: 50 },
+  feature_suggested:     { points: 5,   dailyCap: 15 },
+  bug_reported:          { points: 10,  dailyCap: 30 },
+  chat:                  { points: 1,   dailyCap: 20 },
+  results_shared:        { points: 5,   dailyCap: 25 },
+  results_emailed:       { points: 3,   dailyCap: 15 },
 };
 
 const MILESTONES = [
@@ -94,6 +148,15 @@ export interface CrewRanking {
   sponsorBoost?: number;
 }
 
+export interface IndividualRanking {
+  userId: string;
+  displayName: string;
+  totalPoints: number;
+  currentStreak: number;
+  milestoneLevel: number;
+  milestoneTitle: string;
+}
+
 export interface CrewMission {
   id: string;
   crew_id: string;
@@ -106,55 +169,6 @@ export interface CrewMission {
   is_active: boolean;
   completed_at: string | null;
   progressPercentage: number;
-}
-
-// ============================================================================
-// Supabase Helpers (reused pattern from DANZ plugin)
-// ============================================================================
-
-async function sbQuery<T>(cfg: PointsPluginConfig, table: string, params: Record<string, string>): Promise<T | null> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-    },
-  });
-  if (!res.ok) return null;
-  return res.json() as Promise<T>;
-}
-
-async function sbInsert<T>(cfg: PointsPluginConfig, table: string, data: Record<string, any>): Promise<T | null> {
-  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-    method: "POST",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-    },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) return null;
-  const result = await res.json();
-  return Array.isArray(result) ? result[0] : result;
-}
-
-async function sbPatch(cfg: PointsPluginConfig, table: string, filter: Record<string, string>, data: Record<string, any>): Promise<void> {
-  const url = new URL(`${cfg.supabaseUrl}/rest/v1/${table}`);
-  Object.entries(filter).forEach(([k, v]) => url.searchParams.set(k, v));
-  await fetch(url.toString(), {
-    method: "PATCH",
-    headers: {
-      apikey: cfg.supabaseKey,
-      Authorization: `Bearer ${cfg.supabaseKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=minimal",
-    },
-    body: JSON.stringify(data),
-  });
 }
 
 // ============================================================================
@@ -460,6 +474,47 @@ export class PointsPlugin implements FlowBPlugin {
 
     rankings.sort((a, b) => b.totalPoints - a.totalPoints);
     return rankings.slice(0, 10);
+  }
+
+  /**
+   * Rank all individual users by total points.
+   * Returns top 20 users with display name, points, streak, and milestone.
+   */
+  async getGlobalIndividualRanking(cfg: PointsPluginConfig): Promise<IndividualRanking[]> {
+    const rows = await sbQuery<any[]>(cfg, "flowb_user_points", {
+      select: "user_id,total_points,current_streak,milestone_level",
+      order: "total_points.desc",
+      limit: "20",
+    });
+
+    if (!rows?.length) return [];
+
+    // Batch-fetch display names from sessions
+    const userIds = rows.map((r: any) => r.user_id);
+    const sessions = await sbQuery<any[]>(cfg, "flowb_sessions", {
+      select: "user_id,display_name",
+      user_id: `in.(${userIds.join(",")})`,
+    });
+    const nameMap = new Map(
+      (sessions || []).map((s: any) => [s.user_id, s.display_name || null]),
+    );
+
+    return rows.map((r: any) => {
+      const level = r.milestone_level || 1;
+      const milestone = MILESTONES.find((m) => m.level === level) || MILESTONES[0];
+      const resolvedName = nameMap.get(r.user_id);
+      // Show full display name if available; anonymize raw user_id fallback
+      const displayName = resolvedName
+        || (r.user_id.replace(/^(telegram|farcaster|web)_/, "").slice(0, 6) + "...");
+      return {
+        userId: r.user_id,
+        displayName,
+        totalPoints: r.total_points || 0,
+        currentStreak: r.current_streak || 0,
+        milestoneLevel: level,
+        milestoneTitle: milestone.title,
+      };
+    });
   }
 
   /**

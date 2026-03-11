@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import type { CrewInfo, CrewMember, CrewCheckin as CrewCheckinType, LeaderboardEntry, CrewMessage } from "../api/types";
-import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard, getCrewMessages, sendCrewMessage } from "../api/client";
+import { getCrews, getCrewMembers, crewCheckin, joinCrew, createCrew, getCrewLeaderboard, getCrewMessages, sendCrewMessage, discoverCrews } from "../api/client";
 import { composeCast, copyToClipboard, hapticImpact, hapticNotification, hapticSelection } from "../lib/farcaster";
 
 interface Props {
@@ -296,20 +296,50 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   const [joinCode, setJoinCode] = useState("");
   const [checkinVenue, setCheckinVenue] = useState("");
   const [showCheckin, setShowCheckin] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
+  const [discoveredCrews, setDiscoveredCrews] = useState<any[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
 
-  // Load crews
-  useEffect(() => {
-    if (!authed) {
-      setLoading(false);
-      return;
+  const handleOpenDiscover = async () => {
+    setShowDiscover(true);
+    setDiscoverLoading(true);
+    try {
+      const d = await discoverCrews();
+      setDiscoveredCrews(d);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDiscoverLoading(false);
     }
+  };
+
+  const handleJoinDiscovered = async (crew: any) => {
+    hapticImpact("medium");
+    try {
+      await joinCrew(crew.join_code || crew.id);
+      setShowDiscover(false);
+      const c = await getCrews();
+      setCrews(c);
+      const joined = c.find((cr) => cr.id === crew.id);
+      if (joined) setSelectedCrew(joined);
+      hapticNotification("success");
+    } catch (err: any) {
+      console.error(err);
+      hapticNotification("error");
+    }
+  };
+
+  // Load crews - try even without auth (will gracefully fail)
+  useEffect(() => {
     getCrews()
       .then((c) => {
         setCrews(c);
         if (c.length === 1) setSelectedCrew(c[0]);
         else if (c.length > 1) setSelectedCrew(c[0]);
       })
-      .catch(console.error)
+      .catch(() => {
+        // Auth may not be ready yet - show empty state
+      })
       .finally(() => setLoading(false));
   }, [authed]);
 
@@ -345,8 +375,11 @@ export function CrewScreen({ authed, currentUserId }: Props) {
     }
   };
 
+  const [joinError, setJoinError] = useState<string | null>(null);
+
   const handleJoin = async () => {
     if (!joinCode.trim()) return;
+    setJoinError(null);
     hapticImpact("medium");
     try {
       await joinCrew(joinCode.trim());
@@ -356,9 +389,10 @@ export function CrewScreen({ authed, currentUserId }: Props) {
       setCrews(c);
       if (c.length) setSelectedCrew(c[c.length - 1]);
       hapticNotification("success");
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
       hapticNotification("error");
+      setJoinError(err.message?.includes("Invalid") ? "Invalid invite code. Check with your crew admin." : "Failed to join. Try again.");
     }
   };
 
@@ -381,52 +415,40 @@ export function CrewScreen({ authed, currentUserId }: Props) {
   if (loading) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <SkeletonMembers />
       </div>
     );
   }
 
-  if (!authed) {
-    return (
-      <div className="screen">
-        <div className="card">
-          <div className="empty-state">
-            <div className="empty-state-emoji">{"\uD83D\uDD12"}</div>
-            <div className="empty-state-title">Sign in required</div>
-            <div className="empty-state-text">
-              Sign in to create or join a crew.
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // No crews state
+  // No crews state (works whether authed or not)
   if (crews.length === 0) {
     return (
       <div className="screen">
-        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>My Crew</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Find your Crew</h1>
         <div className="card">
           <div className="empty-state">
             <div className="empty-state-emoji">{"\uD83D\uDC65"}</div>
             <div className="empty-state-title">No crews yet</div>
             <div className="empty-state-text">
-              Create a crew to coordinate with friends at EthDenver
+              Create a crew to coordinate with friends at events
             </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap" }}>
               <button className="btn btn-primary" onClick={() => setShowCreate(true)}>
                 Create Crew
               </button>
               <button className="btn btn-secondary" onClick={() => setShowJoin(true)}>
                 Join Crew
               </button>
+              <button className="btn btn-secondary" onClick={handleOpenDiscover}>
+                Discover
+              </button>
             </div>
           </div>
         </div>
         {renderCreateModal()}
         {renderJoinModal()}
+        {renderDiscoverModal()}
       </div>
     );
   }
@@ -595,10 +617,79 @@ export function CrewScreen({ authed, currentUserId }: Props) {
         </>
       )}
 
+      {/* Discover crews button */}
+      <button
+        className="btn btn-secondary btn-block"
+        onClick={handleOpenDiscover}
+        style={{ marginTop: 12 }}
+      >
+        Discover Crews
+      </button>
+
       {renderCreateModal()}
       {renderJoinModal()}
+      {renderDiscoverModal()}
     </div>
   );
+
+  function renderDiscoverModal() {
+    if (!showDiscover) return null;
+    return (
+      <div className="modal-overlay" onClick={() => setShowDiscover(false)}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="card">
+            <h2 style={{ fontSize: 18, marginBottom: 12 }}>Discover Crews</h2>
+            {discoverLoading ? (
+              <SkeletonMembers />
+            ) : discoveredCrews.length === 0 ? (
+              <div style={{ textAlign: "center", color: "var(--hint, #888)", padding: 16, fontSize: 14 }}>
+                No crews available yet. Be the first to create one!
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {discoveredCrews.map((dc) => {
+                  const alreadyJoined = crews.some((c) => c.id === dc.id);
+                  return (
+                    <div key={dc.id} style={{
+                      display: "flex", alignItems: "center", gap: 12,
+                      padding: "10px 12px", background: "var(--bg-surface, #1a1a2e)",
+                      borderRadius: 8, border: "1px solid var(--border, #333)",
+                    }}>
+                      <span style={{ fontSize: 20 }}>{dc.emoji}</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{dc.name}</div>
+                        <div style={{ fontSize: 12, color: "var(--hint, #888)" }}>
+                          {dc.member_count} member{dc.member_count !== 1 ? "s" : ""}
+                          {dc.description && ` - ${dc.description}`}
+                        </div>
+                      </div>
+                      {alreadyJoined ? (
+                        <span style={{ fontSize: 12, color: "var(--green, #22c55e)" }}>Joined</span>
+                      ) : (
+                        <button
+                          className="btn btn-sm btn-primary"
+                          onClick={() => handleJoinDiscovered(dc)}
+                        >
+                          Join
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <button
+              className="btn btn-secondary btn-block"
+              onClick={() => setShowDiscover(false)}
+              style={{ marginTop: 12 }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   function renderCreateModal() {
     if (!showCreate) return null;
@@ -638,13 +729,16 @@ export function CrewScreen({ authed, currentUserId }: Props) {
               type="text"
               placeholder="Enter crew invite code"
               value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
-              style={{ marginBottom: 12 }}
+              onChange={(e) => { setJoinCode(e.target.value); setJoinError(null); }}
+              style={{ marginBottom: joinError ? 4 : 12 }}
               autoFocus
             />
+            {joinError && (
+              <div style={{ fontSize: 12, color: "var(--red, #ef4444)", marginBottom: 8 }}>{joinError}</div>
+            )}
             <div style={{ display: "flex", gap: 8 }}>
               <button className="btn btn-primary btn-block" onClick={handleJoin}>Join</button>
-              <button className="btn btn-secondary" onClick={() => setShowJoin(false)}>Cancel</button>
+              <button className="btn btn-secondary" onClick={() => { setShowJoin(false); setJoinError(null); }}>Cancel</button>
             </div>
           </div>
         </div>

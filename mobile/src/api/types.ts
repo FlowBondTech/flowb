@@ -36,7 +36,7 @@ export interface EventResult {
 
 export interface UserProfile {
   id: string;
-  platform: "telegram" | "farcaster" | "app";
+  platform: "telegram" | "farcaster" | "app" | "web";
   tg_id?: number;
   fid?: number;
   username?: string;
@@ -253,6 +253,88 @@ export interface Booth {
   featured: boolean;
 }
 
+// ── Leads ──────────────────────────────────────────────────────────────
+
+export type LeadStage = 'new' | 'contacted' | 'qualified' | 'proposal' | 'won' | 'lost';
+
+export interface LeadResult {
+  id: string;
+  user_id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company?: string;
+  stage: LeadStage;
+  source?: string;
+  value?: number;
+  notes?: string;
+  tags?: string[];
+  score?: number;
+  probability?: number;
+  linkedin?: string;
+  twitter?: string;
+  website?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadActivity {
+  id: string;
+  lead_id: string;
+  activity_type: string;
+  description: string;
+  metadata?: Record<string, any>;
+  user_id: string;
+  created_at: string;
+}
+
+export interface PipelineSummary {
+  pipeline: Record<LeadStage, LeadResult[]>;
+  total: number;
+}
+
+// ── Meetings ───────────────────────────────────────────────────────────
+
+export type MeetingType = 'call' | 'coffee' | 'lunch' | 'virtual' | 'office';
+export type MeetingStatus = 'scheduled' | 'completed' | 'cancelled';
+
+export interface MeetingResult {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  starts_at: string;
+  duration_min?: number;
+  location?: string;
+  meeting_type: MeetingType;
+  status: MeetingStatus;
+  notes?: string;
+  share_code?: string;
+  share_link?: string;
+  attendee_count?: number;
+  organizer?: { id: string; name: string };
+  attendees?: MeetingAttendee[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MeetingAttendee {
+  id: string;
+  user_id?: string;
+  name: string;
+  email?: string;
+  rsvp_status: string;
+}
+
+export interface MeetingNote {
+  id: string;
+  meeting_id: string;
+  content: string;
+  note_type?: string;
+  user_id: string;
+  created_at: string;
+}
+
 // ── Payment & Onboarding Types ─────────────────────────────────────────
 
 export type FlowPurpose = 'fun' | 'biz' | 'both';
@@ -356,15 +438,12 @@ export interface PaymentNetworkInfo {
 export interface PaymentIntent {
   orderId: string;
   paymentMethod: PaymentMethod;
-  // Stripe
   stripeClientSecret?: string;
-  // Crypto
   recipientAddress?: string;
   usdcAddress?: string;
   amountRaw?: string;
   chainId?: number;
   transferData?: string;
-  // Telegram Stars
   invoiceUrl?: string;
   starsAmount?: number;
 }

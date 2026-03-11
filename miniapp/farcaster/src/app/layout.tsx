@@ -11,7 +11,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "FlowB - Join the Flow",
-  description: "Coordinate with your crew at EthDenver",
+  description: "Get in the Flow and Just B. Discover events, form crews, earn points.",
   other: {
     "fc:frame": JSON.stringify({
       version: "next",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { authTelegram, getToken, claimPendingPoints } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
+
 import type { UserProfile } from "../api/types";
 
 interface AuthState {
@@ -17,16 +18,22 @@ export function useAuth() {
   });
 
   const authenticate = useCallback(async () => {
-    try {
-      // Get initData from Telegram WebApp
-      const tg = (window as any).Telegram?.WebApp;
-      if (!tg?.initData) {
-        setState({ user: null, loading: false, error: "Not in Telegram" });
-        return;
-      }
+    const tg = (window as any).Telegram?.WebApp;
 
+    // If not in Telegram, just mark as loaded with no user (no error)
+    if (!tg?.initData) {
+      setState({ user: null, loading: false, error: null });
+      return;
+    }
+
+    try {
       const result = await authTelegram(tg.initData);
       setState({ user: result.user, loading: false, error: null });
+
+      // Sync server-side onboarding flag to localStorage (TG WebView can clear it)
+      if (result.onboarding_complete) {
+        try { localStorage.setItem("flowb_onboarded", "1"); } catch {}
+      }
 
       // Claim any points earned before auth completed
       const pending = getPendingActions();
@@ -43,7 +50,11 @@ export function useAuth() {
       tg.ready();
       tg.expand();
     } catch (err: any) {
-      setState({ user: null, loading: false, error: err.message });
+      // Auth failed — still allow browsing, just no user
+      console.warn("[auth] Failed:", err.message);
+      setState({ user: null, loading: false, error: null });
+      tg?.ready();
+      tg?.expand();
     }
   }, []);
 

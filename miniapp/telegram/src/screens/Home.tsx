@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Screen } from "../App";
-import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBid } from "../api/types";
-import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBid } from "../api/client";
+import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBoost } from "../api/types";
+import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBoost } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { FeaturedSponsorModal } from "../components/FeaturedSponsorModal";
+import { FeedbackModal } from "../components/FeedbackModal";
 
 interface Props {
   onNavigate: (s: Screen) => void;
@@ -13,7 +14,7 @@ interface Props {
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
-// Featured Events - Date-aware picks for EthDenver Feb 15-27
+// Featured Events - Date-aware picks for SXSW March 12-18
 // ============================================================================
 interface FeaturedEvent {
   title: string;
@@ -34,66 +35,59 @@ function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | n
 
 function getFeaturedEvents(): FeaturedEvent[] {
   const today = new Date();
-  const month = today.getMonth(); // 0-indexed, Feb = 1
+  const month = today.getMonth(); // 0-indexed, Mar = 2
   const day = today.getDate();
 
-  if (month !== 1 || day < 15 || day > 27) {
+  if (month !== 2 || day < 12 || day > 18) {
     return getDefaultFeatured();
   }
 
   const dayEvents: Record<number, FeaturedEvent[]> = {
+    12: [
+      { title: "SXSW Opening Day", date: "Thu, Mar 12", time: "10:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Opening", url: "https://sxsw.com", isFree: false },
+    ],
+    13: [
+      { title: "SXSW Conference & Showcases", date: "Fri, Mar 13", time: "9:00 AM - 12:00 AM CT", location: "Downtown Austin", badge: "Main Event", url: "https://sxsw.com", isFree: false },
+      { title: "Web3 & Crypto Summit", date: "Fri, Mar 13", time: "All Day", location: "Austin, TX", badge: "Side Event", url: "https://sxsw.com", isFree: false },
+    ],
+    14: [
+      { title: "SXSW Music Festival Kickoff", date: "Sat, Mar 14", time: "12:00 PM - 2:00 AM CT", location: "6th Street & Rainey St, Austin", badge: "Music", url: "https://sxsw.com", isFree: false },
+    ],
     15: [
-      { title: "Camp BUIDL Kickoff", date: "Sat, Feb 15", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Film & TV Premieres", date: "Sun, Mar 15", time: "10:00 AM - 11:00 PM CT", location: "Paramount Theatre, Austin", badge: "Film", url: "https://sxsw.com", isFree: false },
     ],
     16: [
-      { title: "Camp BUIDL Day 2", date: "Sun, Feb 16", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
-      { title: "Multichain Day", date: "Sun, Feb 16", time: "All Day", location: "Denver, CO", badge: "Side Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Interactive & AI Day", date: "Mon, Mar 16", time: "9:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Tech", url: "https://sxsw.com", isFree: false },
     ],
     17: [
-      { title: "EthDenver Opening Day", date: "Mon, Feb 17", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Music Night Showcases", date: "Tue, Mar 17", time: "8:00 PM - 2:00 AM CT", location: "Downtown Austin Venues", badge: "Music", url: "https://sxsw.com", isFree: false },
     ],
     18: [
-      { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
-    ],
-    19: [
-      { title: "EthDenver Main Stage", date: "Wed, Feb 19", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    20: [
-      { title: "EthDenver Day 4", date: "Thu, Feb 20", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    21: [
-      { title: "BUIDLathon Awards & Finality Party", date: "Fri, Feb 21", time: "4:00 PM - 2:00 AM MT", location: "National Western Center, Denver", badge: "Closing", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    22: [
-      { title: "SporkDAO Mountain Retreat", date: "Feb 22-27", time: "All Day", location: "Colorado Mountains", badge: "Post-Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Closing Ceremony", date: "Wed, Mar 18", time: "4:00 PM - 12:00 AM CT", location: "Austin Convention Center", badge: "Closing", url: "https://sxsw.com", isFree: false },
     ],
   };
-
-  for (let d = 23; d <= 27; d++) {
-    dayEvents[d] = dayEvents[22];
-  }
 
   return dayEvents[day] || getDefaultFeatured();
 }
 
 function getDefaultFeatured(): FeaturedEvent[] {
   return [
-    { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
+    { title: "FlowB at SXSW", date: "Mar 12-18", time: "All Week", location: "Austin, TX", badge: "Featured", url: "https://sxsw.com", isFree: true },
   ];
 }
 
 // ============================================================================
-// Date Filter - EthDenver Feb 15-27 (only show today and future dates)
+// Date Filter - SXSW March 12-18 (only show today and future dates)
 // ============================================================================
-const ETHDENVER_DATES = (() => {
+const SXSW_DATES = (() => {
   const dates: { id: string; label: string; date: Date }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let d = 15; d <= 27; d++) {
-    const dt = new Date(2026, 1, d);
+  for (let d = 12; d <= 18; d++) {
+    const dt = new Date(2026, 2, d); // March = 2
     if (dt < today) continue;
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
-    dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
+    dates.push({ id: `mar${d}`, label: `${weekday} ${d}`, date: dt });
   }
   return dates;
 })();
@@ -104,9 +98,9 @@ const ETHDENVER_DATES = (() => {
 const FILTER_CATEGORIES = [
   { id: "all", label: "All" },
   { id: "now", label: "Happening Now" },
-  { id: "hackathon", label: "Hackathon" },
-  { id: "defi", label: "DeFi" },
-  { id: "ai", label: "AI & Agents" },
+  { id: "music", label: "Music" },
+  { id: "film", label: "Film & TV" },
+  { id: "ai", label: "AI & Tech" },
   { id: "panels", label: "Panels" },
   { id: "parties", label: "Parties" },
   { id: "workshops", label: "Workshops" },
@@ -166,20 +160,23 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const [rankedLocations, setRankedLocations] = useState<RankedLocation[]>([]);
 
   // Featured event sponsorship state
-  const [featuredBid, setFeaturedBid] = useState<FeaturedEventBid | null>(null);
+  const [featuredBoost, setFeaturedBid] = useState<FeaturedEventBoost | null>(null);
   const [showFeaturedModal, setShowFeaturedModal] = useState(false);
 
-  // Load ranked locations and featured bid on mount
+  // Feedback
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  // Load ranked locations and featured boost on mount
   useEffect(() => {
     getRankedLocations().then(setRankedLocations).catch(console.error);
-    getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
+    getFeaturedEventBoost().then(setFeaturedBid).catch(console.error);
   }, []);
 
   // Load events with category filter support
   useEffect(() => {
     setLoading(true);
     const cats = activeFilter !== "all" && activeFilter !== "now" ? [activeFilter] : undefined;
-    getEvents("Denver", 50, cats)
+    getEvents("Austin", 50, cats)
       .then(setEvents)
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -230,7 +227,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
 
       for (const { crew, members, checkins } of memberResults) {
         for (const checkin of checkins) {
-          const displayName = checkin.display_name || checkin.user_id.replace(/^(telegram_|farcaster_)/, "@");
+          const displayName = checkin.display_name || checkin.user_id;
           items.push({
             type: "checkin",
             user_id: checkin.user_id,
@@ -245,7 +242,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
         const recentJoinThreshold = Date.now() - 24 * 60 * 60 * 1000;
         for (const member of members) {
           if (new Date(member.joined_at).getTime() > recentJoinThreshold) {
-            const displayName = member.display_name || member.user_id.replace(/^(telegram_|farcaster_)/, "@");
+            const displayName = member.display_name || member.user_id;
             items.push({
               type: "join",
               user_id: member.user_id,
@@ -286,7 +283,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const dateFiltered = useMemo(() => {
     if (activeDate === "any") return events;
     return events.filter((e) => {
-      const entry = ETHDENVER_DATES.find((d) => d.id === activeDate);
+      const entry = SXSW_DATES.find((d) => d.id === activeDate);
       if (!entry) return true;
       const evStart = new Date(e.startTime);
       return (
@@ -362,7 +359,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
       <div style={{ marginBottom: 16, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
         <div>
           <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
-          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>EthDenver - Denver</div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)" }}>Austin, TX</div>
         </div>
         <button
           onClick={() => onNavigate({ name: "about" })}
@@ -421,56 +418,41 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
 
           {/* Featured Event Sponsorship CTA */}
           <div
-            className="featured-card"
-            style={{ cursor: "pointer" }}
-            onClick={() => featuredBid ? openUrl(featuredBid.target_id) : setShowFeaturedModal(true)}
+            className="featured-banner"
+            onClick={() => featuredBoost ? openUrl(featuredBoost.target_id) : setShowFeaturedModal(true)}
           >
-            <div className="featured-img" />
-            <div className="featured-body">
+            <div className="featured-banner-left">
               <span className="featured-badge">
-                {featuredBid ? "Sponsored" : "Featured Spot"}
+                {featuredBoost ? "Boosted" : "Boost Spot"}
               </span>
-              <div className="featured-title">
-                {featuredBid ? featuredBid.target_id : "Feature Your Event Here"}
-              </div>
-              <div className="featured-meta">
-                {featuredBid ? (
-                  <div className="featured-meta-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Current bid: ${featuredBid.amount_usdc.toFixed(2)} USDC
-                  </div>
-                ) : (
-                  <div className="featured-meta-row">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                    </svg>
-                    Submit your event link and bid with USDC
-                  </div>
-                )}
-              </div>
-              <div className="featured-footer">
-                <span className="badge badge-purple">Sponsorship</span>
-                <button
-                  className="btn btn-sm btn-primary"
-                  style={{ fontSize: 11, padding: "4px 14px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowFeaturedModal(true);
-                  }}
-                >
-                  {featuredBid ? "Outbid" : "Bid Now"}
-                </button>
+              <div className="featured-banner-text">
+                <span className="featured-banner-title">
+                  {featuredBoost ? featuredBoost.target_id : "Boost Your Event Here"}
+                </span>
+                <span className="featured-banner-sub">
+                  {featuredBoost
+                    ? `$${featuredBoost.amount_usdc.toFixed(2)} USDC`
+                    : "Get to the top with USDC"}
+                </span>
               </div>
             </div>
+            <button
+              className="btn btn-sm btn-primary"
+              style={{ fontSize: 11, padding: "4px 14px", whiteSpace: "nowrap" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFeaturedModal(true);
+              }}
+            >
+              {featuredBoost ? "Boost More" : "Boost"}
+            </button>
           </div>
 
           {showFeaturedModal && (
             <FeaturedSponsorModal
               onClose={() => setShowFeaturedModal(false)}
               onSuccess={() => {
-                getFeaturedEventBid().then(setFeaturedBid).catch(console.error);
+                getFeaturedEventBoost().then(setFeaturedBid).catch(console.error);
               }}
             />
           )}
@@ -483,7 +465,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             >
               All Days
             </button>
-            {ETHDENVER_DATES.map((d) => (
+            {SXSW_DATES.map((d) => (
               <button
                 key={d.id}
                 className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
@@ -507,6 +489,23 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             ))}
           </div>
 
+          {/* List Your Event CTA */}
+          <button
+            onClick={() => onNavigate({ name: "addevent" })}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              background: "none", border: "1px dashed var(--border)",
+              borderRadius: "var(--radius-sm)", padding: "8px 14px",
+              color: "var(--accent, #6366f1)", fontSize: 13, fontWeight: 600,
+              cursor: "pointer", marginBottom: 10, width: "100%", justifyContent: "center",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ width: 14, height: 14 }}>
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            List Your Event
+          </button>
+
           {loading ? (
             <>
               <EventCardSkeleton />
@@ -520,10 +519,10 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
                 <div className="empty-state-title">No events found</div>
                 <div className="empty-state-text">
                   {activeDate !== "any"
-                    ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
+                    ? `No events on ${SXSW_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
                     : activeFilter !== "all"
                     ? `No ${activeFilter} events right now. Try a different filter!`
-                    : "No events in Denver right now. Check back soon!"}
+                    : "No events in Austin right now. Check back soon!"}
                 </div>
                 {(activeFilter !== "all" || activeDate !== "any") && (
                   <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
@@ -707,6 +706,34 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
           )}
         </>
       )}
+
+      {/* Feedback nudge */}
+      <button
+        onClick={() => setShowFeedback(true)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 6,
+          width: "100%",
+          margin: "20px 0 8px",
+          padding: "10px 14px",
+          background: "none",
+          border: "1px dashed var(--border, #2a2a3e)",
+          borderRadius: "var(--radius, 10px)",
+          color: "var(--text-muted)",
+          fontSize: 13,
+          cursor: "pointer",
+          fontFamily: "inherit",
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14, flexShrink: 0 }}>
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        Don't see a feature or notice a bug? Let us know
+      </button>
+
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} screen="home" />}
     </div>
   );
 }

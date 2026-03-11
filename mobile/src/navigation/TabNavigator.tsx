@@ -5,14 +5,20 @@ import { GlassTabBar } from "../components/glass/GlassTabBar";
 import { HomeScreen } from "../screens/home/HomeScreen";
 import { ScheduleScreen } from "../screens/schedule/ScheduleScreen";
 import { ChatScreen } from "../screens/chat/ChatScreen";
+import { BizDashboardScreen } from "../screens/biz/BizDashboardScreen";
 import { CrewListScreen } from "../screens/crew/CrewListScreen";
 import { PointsScreen } from "../screens/points/PointsScreen";
 import { ProfileScreen } from "../screens/profile/ProfileScreen";
+import { usePushNotifications } from "../hooks/usePushNotifications";
+import { colors } from "../theme/colors";
 import type { TabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
 export function TabNavigator() {
+  // Register for push notifications (must be inside NavigationContainer)
+  usePushNotifications();
+
   return (
     <Tab.Navigator
       tabBar={(props) => <GlassTabBar {...props} />}
@@ -55,6 +61,20 @@ export function TabNavigator() {
               name={focused ? "chatbubble" : "chatbubble-outline"}
               size={24}
               color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="BizTab"
+        component={BizDashboardScreen}
+        options={{
+          tabBarLabel: "Biz",
+          tabBarIcon: ({ focused }) => (
+            <Ionicons
+              name={focused ? "briefcase" : "briefcase-outline"}
+              size={22}
+              color={focused ? colors.accent.primary : colors.text.tertiary}
             />
           ),
         }}

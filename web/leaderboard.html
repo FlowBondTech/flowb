@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Crew Leaderboard -- FlowB</title>
-  <meta name="description" content="See which crews are leading ETHDenver 2026. Join a crew and climb the leaderboard!">
+  <title>Leaderboard -- FlowB</title>
+  <meta name="description" content="See who's leading the pack — individuals and crews. Join the flow and climb the leaderboard!">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -22,14 +22,27 @@
         <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
-      <nav class="header-nav">
+            <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
-        <a href="/leaderboard" class="header-nav-link active">Leaderboard</a>
-        <a href="/flow" class="header-nav-link">My Flow</a>
-        <a href="/about" class="header-nav-link">About</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item active">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
       </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-meta">
-        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
             <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
@@ -84,24 +97,38 @@
     <div class="container">
       <div class="page-header">
         <div class="page-header-text">
-          <h1 class="page-title">Crew Leaderboard</h1>
-          <p class="page-subtitle">See which crews are leading ETHDenver 2026</p>
+          <h1 class="page-title">Leaderboard</h1>
+          <p class="page-subtitle">See who's leading the pack</p>
         </div>
         <div class="page-header-actions">
           <a href="https://t.me/Flow_b_bot" target="_blank" class="page-action-btn">
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-            Join a Crew
+            Start Earning
           </a>
         </div>
       </div>
 
-      <!-- Top 3 Podium -->
-      <div class="lb-podium" id="lbPodium">
-        <div class="lb-podium-loading">Loading leaderboard...</div>
+      <!-- Tab Switcher -->
+      <div class="lb-tabs">
+        <button class="lb-tab active" data-tab="individuals">Individuals</button>
+        <button class="lb-tab" data-tab="crews">Crews</button>
       </div>
 
-      <!-- Full Rankings -->
-      <div class="lb-rankings" id="lbRankings"></div>
+      <!-- Individuals Tab -->
+      <div class="lb-tab-content active" id="tab-individuals">
+        <div class="lb-podium" id="lbPodiumIndividuals">
+          <div class="lb-podium-loading">Loading leaderboard...</div>
+        </div>
+        <div class="lb-rankings" id="lbRankingsIndividuals"></div>
+      </div>
+
+      <!-- Crews Tab -->
+      <div class="lb-tab-content" id="tab-crews">
+        <div class="lb-podium" id="lbPodium">
+          <div class="lb-podium-loading">Loading leaderboard...</div>
+        </div>
+        <div class="lb-rankings" id="lbRankings"></div>
+      </div>
 
       <!-- Live Stats -->
       <div class="lb-stats" id="lbStats"></div>
@@ -115,10 +142,11 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
         <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
         <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
       </div>
@@ -130,6 +158,7 @@
 
   <!-- Privy Auth Mount -->
   <div id="privy-root"></div>
+
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
@@ -147,7 +176,81 @@
       return String(n);
     }
 
-    async function loadLeaderboard() {
+    // ---- Tab switching ----
+    document.querySelectorAll('.lb-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.lb-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.lb-tab-content').forEach(c => c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // ---- Individuals ----
+    async function loadIndividuals() {
+      const podiumEl = document.getElementById('lbPodiumIndividuals');
+      const rankingsEl = document.getElementById('lbRankingsIndividuals');
+
+      try {
+        const res = await fetch(`${FLOWB_API}/api/v1/flow/leaderboard/individuals`);
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+        const users = data.individuals || [];
+
+        if (!users.length) {
+          podiumEl.innerHTML = '<div class="lb-empty">No users yet. Start earning points!</div>';
+          return;
+        }
+
+        // Top 3 Podium
+        const top3 = users.slice(0, 3);
+        const podiumOrder = [1, 0, 2];
+        podiumEl.innerHTML = '<div class="lb-podium-row">' + podiumOrder.map(i => {
+          const u = top3[i];
+          if (!u) return '';
+          const place = i + 1;
+          const medal = place === 1 ? '#fbbf24' : place === 2 ? '#94a3b8' : '#cd7f32';
+          const height = place === 1 ? '140px' : place === 2 ? '110px' : '90px';
+          return `
+            <div class="lb-podium-item lb-podium-${place}">
+              <div class="lb-podium-emoji">${u.milestoneTitle === 'Legend' ? '&#x1F451;' : u.milestoneTitle === 'Star' ? '&#x2B50;' : u.milestoneTitle === 'Dancer' ? '&#x1F483;' : u.milestoneTitle === 'Groover' ? '&#x1F3B6;' : u.milestoneTitle === 'Mover' ? '&#x1F3C3;' : '&#x1F50D;'}</div>
+              <div class="lb-podium-name">${escapeHtml(u.displayName)}</div>
+              <div class="lb-podium-pts">${formatNumber(u.totalPoints)} pts</div>
+              <div class="lb-podium-members">${u.milestoneTitle}${u.currentStreak ? ' &middot; ' + u.currentStreak + 'd streak' : ''}</div>
+              <div class="lb-podium-bar" style="height:${height};background:linear-gradient(to top, ${medal}22, ${medal}44);">
+                <span class="lb-podium-rank" style="color:${medal}">${place}</span>
+              </div>
+            </div>
+          `;
+        }).join('') + '</div>';
+
+        // Remaining rankings (4+)
+        const rest = users.slice(3);
+        if (rest.length) {
+          rankingsEl.innerHTML = '<div class="lb-table">' +
+            rest.map((u, i) => {
+              const rank = i + 4;
+              return `
+                <div class="lb-row">
+                  <span class="lb-row-rank">${rank}</span>
+                  <span class="lb-row-emoji">${u.milestoneTitle === 'Legend' ? '&#x1F451;' : u.milestoneTitle === 'Star' ? '&#x2B50;' : u.milestoneTitle === 'Dancer' ? '&#x1F483;' : '&#x1F3B6;'}</span>
+                  <div class="lb-row-info">
+                    <span class="lb-row-name">${escapeHtml(u.displayName)}</span>
+                    <span class="lb-row-members">${u.milestoneTitle} &middot; ${formatNumber(u.currentStreak)}d streak</span>
+                  </div>
+                  <span class="lb-row-pts">${formatNumber(u.totalPoints)} pts</span>
+                </div>
+              `;
+            }).join('') +
+          '</div>';
+        }
+      } catch (err) {
+        podiumEl.innerHTML = '<div class="lb-empty">Could not load leaderboard. Try again later.</div>';
+      }
+    }
+
+    // ---- Crews ----
+    async function loadCrews() {
       const podiumEl = document.getElementById('lbPodium');
       const rankingsEl = document.getElementById('lbRankings');
 
@@ -162,9 +265,8 @@
           return;
         }
 
-        // Top 3 Podium
         const top3 = crews.slice(0, 3);
-        const podiumOrder = [1, 0, 2]; // silver, gold, bronze display order
+        const podiumOrder = [1, 0, 2];
         podiumEl.innerHTML = '<div class="lb-podium-row">' + podiumOrder.map(i => {
           const crew = top3[i];
           if (!crew) return '';
@@ -184,7 +286,6 @@
           `;
         }).join('') + '</div>';
 
-        // Full rankings (4+)
         const rest = crews.slice(3);
         if (rest.length) {
           rankingsEl.innerHTML = '<div class="lb-table">' +
@@ -234,8 +335,9 @@
       } catch {}
     }
 
-    // Init
-    loadLeaderboard();
+    // Init — load both tabs and stats
+    loadIndividuals();
+    loadCrews();
     loadStats();
   </script>
   <script>
@@ -262,5 +364,6 @@
       }
     })();
   </script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

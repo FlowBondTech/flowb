@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SocialB -- FlowB</title>
+  <meta name="description" content="Auto-repost your Farcaster casts to Twitter, Threads, Bluesky, LinkedIn, and more with SocialB.">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .social-page { padding: 40px 0 80px; }
+
+    .social-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      margin-bottom: 20px;
+      transition: color 0.2s;
+    }
+    .social-back:hover { color: var(--text); text-decoration: none; }
+
+    .social-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+    .social-subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    /* Section card */
+    .social-section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .social-section-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .social-section-desc {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    /* Master toggle */
+    .master-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 16px;
+    }
+    .master-toggle-info { flex: 1; margin-right: 16px; }
+    .master-toggle-label {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    .master-toggle-hint {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .master-toggle .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    .master-toggle .status-dot.on { background: var(--green, #22c55e); }
+    .master-toggle .status-dot.off { background: var(--text-dim, #555); }
+
+    /* Switch */
+    .switch {
+      position: relative;
+      width: 52px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .switch-slider {
+      position: absolute;
+      inset: 0;
+      background: var(--border);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .switch-slider::before {
+      content: '';
+      position: absolute;
+      width: 22px;
+      height: 22px;
+      left: 3px;
+      top: 3px;
+      background: var(--text);
+      border-radius: 50%;
+      transition: transform 0.3s;
+    }
+    .switch input:checked + .switch-slider {
+      background: var(--accent);
+    }
+    .switch input:checked + .switch-slider::before {
+      transform: translateX(24px);
+    }
+
+    /* Small switch for preferences */
+    .switch-sm {
+      width: 44px;
+      height: 24px;
+    }
+    .switch-sm .switch-slider { border-radius: 12px; }
+    .switch-sm .switch-slider::before {
+      width: 18px;
+      height: 18px;
+    }
+    .switch-sm input:checked + .switch-slider::before {
+      transform: translateX(20px);
+    }
+
+    /* Platform grid */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    .platform-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+      background: var(--bg-surface, rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 8px);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .platform-item:hover { border-color: var(--accent); }
+    .platform-item.checked { border-color: var(--accent); background: rgba(99,102,241,0.06); }
+    .platform-item input[type="checkbox"] { display: none; }
+    .platform-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 1rem;
+    }
+    .platform-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .platform-check {
+      margin-left: auto;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s, border-color 0.2s;
+      flex-shrink: 0;
+    }
+    .platform-item.checked .platform-check {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .platform-check svg { display: none; }
+    .platform-item.checked .platform-check svg { display: block; }
+
+    /* Toggle row (preferences) */
+    .pref-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .pref-toggle:last-child { border-bottom: none; }
+    .pref-toggle-info { flex: 1; margin-right: 16px; }
+    .pref-toggle-label {
+      font-size: 0.88rem;
+      font-weight: 500;
+    }
+    .pref-toggle-hint {
+      font-size: 0.75rem;
+      color: var(--text-dim, #666);
+      margin-top: 2px;
+    }
+
+    /* Number input */
+    .num-input {
+      width: 72px;
+      padding: 6px 10px;
+      background: var(--bg-surface, rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 8px);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.88rem;
+      text-align: center;
+    }
+    .num-input:focus { outline: none; border-color: var(--accent); }
+
+    /* Activity table */
+    .activity-list { margin-top: 4px; }
+    .activity-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.82rem;
+    }
+    .activity-row:last-child { border-bottom: none; }
+    .activity-text {
+      flex: 1;
+      min-width: 0;
+      color: var(--text);
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .activity-platforms {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .activity-platform-tag {
+      padding: 2px 8px;
+      background: rgba(99,102,241,0.1);
+      color: var(--accent-light);
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .activity-status {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .activity-status.success {
+      background: rgba(34,197,94,0.1);
+      color: var(--green, #22c55e);
+    }
+    .activity-status.failed {
+      background: rgba(239,68,68,0.1);
+      color: #ef4444;
+    }
+    .activity-status.pending {
+      background: rgba(234,179,8,0.1);
+      color: #eab308;
+    }
+    .activity-time {
+      font-size: 0.72rem;
+      color: var(--text-dim, #666);
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+
+    .activity-empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-dim, #666);
+      font-size: 0.85rem;
+    }
+
+    /* Chat section */
+    .chat-box {
+      margin-top: 4px;
+    }
+    .chat-messages {
+      min-height: 120px;
+      max-height: 280px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--bg-surface, rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 8px);
+    }
+    .chat-msg {
+      margin-bottom: 10px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+    .chat-msg:last-child { margin-bottom: 0; }
+    .chat-msg-user {
+      text-align: right;
+    }
+    .chat-msg-user .chat-bubble {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      padding: 8px 14px;
+      border-radius: 14px 14px 2px 14px;
+      max-width: 80%;
+      text-align: left;
+    }
+    .chat-msg-ai .chat-bubble {
+      display: inline-block;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 14px 14px 14px 2px;
+      max-width: 80%;
+    }
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+    }
+    .chat-input {
+      flex: 1;
+      padding: 10px 14px;
+      background: var(--bg-surface, rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 8px);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.88rem;
+    }
+    .chat-input:focus { outline: none; border-color: var(--accent); }
+    .chat-input::placeholder { color: var(--text-dim, #666); }
+    .chat-send-btn {
+      padding: 10px 20px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm, 8px);
+      font: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      flex-shrink: 0;
+    }
+    .chat-send-btn:hover { background: var(--accent-light); }
+    .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Auth gate */
+    .social-gate {
+      text-align: center;
+      padding: 80px 20px;
+    }
+    .social-gate-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 20px;
+      color: var(--text-dim);
+    }
+    .social-gate h2 {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .social-gate p {
+      color: var(--text-muted);
+      max-width: 400px;
+      margin: 0 auto 20px;
+      line-height: 1.6;
+    }
+    .social-gate-btn {
+      padding: 12px 32px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-pill, 999px);
+      font: inherit;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Save bar */
+    .social-save-bar {
+      position: sticky;
+      bottom: 0;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      padding: 14px 0;
+      margin-top: 24px;
+    }
+    .social-save-bar .container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .social-save-hint {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+    .social-save-btn {
+      padding: 10px 28px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-pill, 999px);
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .social-save-btn:hover { background: var(--accent-light); }
+    .social-save-btn:active { transform: scale(0.97); }
+    .social-save-btn.saved { background: var(--green, #22c55e); }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 600px) {
+      .social-section { padding: 18px; }
+      .master-toggle { padding: 16px 18px; }
+      .platform-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .platform-item { padding: 10px 12px; }
+      .activity-row { flex-wrap: wrap; gap: 6px; }
+      .activity-text { width: 100%; white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+            <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
+      </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-meta">
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
+        <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
+          <div class="points-ring-wrap">
+            <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-track"/>
+              <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" stroke-width="2.5" class="points-ring-progress" id="pointsRingProgress"
+                stroke-linecap="round" stroke-dasharray="100.53" stroke-dashoffset="100.53" transform="rotate(-90 18 18)"/>
+            </svg>
+            <span class="points-flame">&#x1F525;</span>
+          </div>
+          <span class="points-count" id="pointsCount">0</span>
+          <div class="points-streak hidden" id="pointsStreak">
+            <span class="streak-icon" id="streakIcon"></span>
+            <span class="streak-count" id="streakCount"></span>
+          </div>
+          <div class="points-tooltip" id="pointsTooltip">
+            <p class="points-tooltip-title" id="tooltipTitle">0 pts</p>
+            <div class="points-tooltip-progress" id="tooltipProgress"></div>
+            <p class="points-tooltip-streak hidden" id="tooltipStreak"></p>
+          </div>
+        </div>
+        <button class="auth-btn" id="authBtn">Sign In</button>
+        <div class="user-menu hidden" id="userMenu">
+          <div class="user-avatar" id="userAvatar">?</div>
+          <div class="user-dropdown hidden" id="userDropdown">
+            <div class="user-dropdown-header" id="userDropdownHeader"></div>
+            <button class="user-dropdown-item" onclick="window.location='/settings'">Settings</button>
+            <button class="user-dropdown-item" id="logoutBtn">Sign Out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Milestone Banner -->
+  <div class="milestone-banner hidden" id="milestoneBanner">
+    <div class="container">
+      <div class="milestone-inner">
+        <div class="milestone-shimmer"></div>
+        <div class="milestone-content">
+          <div class="milestone-icon-wrap">&#x1F525;</div>
+          <div>
+            <p class="milestone-title" id="milestoneTitle"></p>
+            <p class="milestone-msg" id="milestoneMsg"></p>
+          </div>
+        </div>
+        <button class="milestone-close" id="milestoneClose">&times;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SocialB Content -->
+  <main class="social-page">
+    <div class="container">
+
+      <!-- Auth Gate -->
+      <div id="socialGate" class="social-gate">
+        <div class="social-gate-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="64" height="64">
+            <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+            <polyline points="16 6 12 2 8 6"/>
+            <line x1="12" y1="2" x2="12" y2="15"/>
+          </svg>
+        </div>
+        <h2>Connect to manage SocialB</h2>
+        <p>Sign in to auto-repost your Farcaster casts to Twitter, Threads, Bluesky, and more. One cast, everywhere.</p>
+        <button class="social-gate-btn" id="socialSigninBtn">Sign In</button>
+      </div>
+
+      <!-- Authenticated Content -->
+      <div id="socialAuthed" class="hidden">
+        <a href="/" class="social-back">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><polyline points="15 18 9 12 15 6"/></svg>
+          Back to Events
+        </a>
+
+        <h1 class="social-title">SocialB</h1>
+        <p class="social-subtitle">Auto-repost your Farcaster casts everywhere</p>
+
+        <!-- Master Toggle -->
+        <div class="master-toggle">
+          <div class="master-toggle-info">
+            <div class="master-toggle-label">
+              <span class="status-dot off" id="statusDot"></span>
+              Auto-Repost
+            </div>
+            <div class="master-toggle-hint" id="toggleHint">Automatically share your Farcaster casts to connected platforms</div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="masterToggle">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+
+        <!-- Platforms -->
+        <div class="social-section">
+          <h3 class="social-section-title">Platforms</h3>
+          <p class="social-section-desc">Choose where your casts get reposted. Only enabled platforms will receive your content.</p>
+          <div class="platform-grid" id="platformGrid">
+            <label class="platform-item" data-platform="twitter">
+              <input type="checkbox" name="platform" value="twitter">
+              <div class="platform-icon" style="background:#000">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </div>
+              <span class="platform-name">Twitter / X</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="threads">
+              <input type="checkbox" name="platform" value="threads">
+              <div class="platform-icon" style="background:#000">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.59 12c.025 3.086.718 5.496 2.057 7.164 1.432 1.781 3.632 2.698 6.542 2.717 2.227-.02 4.358-.631 5.56-1.596.986-.79 1.496-1.815 1.518-3.048-.009-.834-.199-1.502-.564-1.984-.381-.503-.937-.825-1.652-.957-.256 1.762-.762 3.071-1.506 3.89-.818.9-1.924 1.357-3.289 1.357-1.12 0-2.058-.36-2.789-1.07-.722-.702-1.088-1.628-1.088-2.753 0-1.665.716-3.034 2.132-4.076 1.216-.894 2.862-1.386 4.635-1.386.588 0 1.18.05 1.762.148-.092-1.164-.478-2.048-1.15-2.628-.737-.637-1.85-.962-3.31-.966h-.048c-1.09.005-2.545.293-3.652.96l-1.04-1.758C8.69 3.274 10.467 2.87 12.199 2.86h.06c1.918.009 3.43.469 4.494 1.366.94.794 1.553 1.9 1.82 3.29.474.084.916.207 1.321.367 1.2.477 2.145 1.259 2.81 2.325.68 1.094 1.025 2.412 1.025 3.917v.024c-.03 1.846-.72 3.402-2.054 4.472-1.542 1.239-4.08 1.96-6.713 1.98l-.01-.001zm1.252-8.14c-1.383 0-2.612.368-3.455 1.035-.887.702-1.337 1.612-1.337 2.706 0 .717.252 1.294.75 1.716.507.429 1.17.646 1.97.646.951 0 1.723-.308 2.294-.916.542-.577.905-1.553 1.078-2.9-.524-.124-1.088-.19-1.677-.19l.377-.097z"/></svg>
+              </div>
+              <span class="platform-name">Threads</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="bluesky">
+              <input type="checkbox" name="platform" value="bluesky">
+              <div class="platform-icon" style="background:#0085ff">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M12 10.8c-1.087-2.114-4.046-6.053-6.798-7.995C2.566.944 1.561 1.266.902 1.565.139 1.908 0 3.08 0 3.768c0 .69.378 5.65.624 6.479.785 2.627 3.588 3.477 6.17 3.233-4.413.417-8.22 1.97-3.09 6.934C8.849 25.7 10.757 19.896 12 16.94c1.242 2.956 2.585 8.535 8.296 3.474 5.128-4.964 1.323-6.517-3.09-6.934 2.583.244 5.386-.606 6.17-3.233.247-.83.625-5.79.625-6.48 0-.687-.14-1.859-.903-2.202-.659-.3-1.664-.621-4.3 1.24C16.046 4.748 13.087 8.687 12 10.8z"/></svg>
+              </div>
+              <span class="platform-name">Bluesky</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="linkedin">
+              <input type="checkbox" name="platform" value="linkedin">
+              <div class="platform-icon" style="background:#0a66c2">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+              </div>
+              <span class="platform-name">LinkedIn</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="instagram">
+              <input type="checkbox" name="platform" value="instagram">
+              <div class="platform-icon" style="background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+              </div>
+              <span class="platform-name">Instagram</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="facebook">
+              <input type="checkbox" name="platform" value="facebook">
+              <div class="platform-icon" style="background:#1877f2">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </div>
+              <span class="platform-name">Facebook</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="mastodon">
+              <input type="checkbox" name="platform" value="mastodon">
+              <div class="platform-icon" style="background:#6364ff">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M23.268 5.313c-.35-2.578-2.617-4.61-5.304-5.004C17.51.242 15.792 0 11.813 0h-.03c-3.98 0-4.835.242-5.288.309C3.882.692 1.496 2.518.917 5.127.64 6.412.61 7.837.661 9.143c.074 1.874.088 3.745.26 5.611.118 1.24.325 2.47.62 3.68.55 2.237 2.777 4.098 4.96 4.857 2.336.792 4.849.923 7.256.38.265-.061.527-.132.786-.213.585-.184 1.27-.39 1.774-.753a.057.057 0 00.023-.043v-1.809a.052.052 0 00-.02-.041.053.053 0 00-.046-.01 20.282 20.282 0 01-4.709.547c-2.73 0-3.463-1.284-3.674-1.818a5.593 5.593 0 01-.319-1.433.053.053 0 01.066-.054 19.648 19.648 0 004.581.536h.342c1.82 0 3.65-.085 5.44-.426 .047-.009.092-.019.14-.03 2.33-.475 4.546-1.97 4.768-5.4.01-.145.042-1.52.042-1.67 0-.51.192-3.616-.024-5.545z"/></svg>
+              </div>
+              <span class="platform-name">Mastodon</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+
+            <label class="platform-item" data-platform="tiktok">
+              <input type="checkbox" name="platform" value="tiktok">
+              <div class="platform-icon" style="background:#000">
+                <svg viewBox="0 0 24 24" fill="#fff" width="16" height="16"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/></svg>
+              </div>
+              <span class="platform-name">TikTok</span>
+              <span class="platform-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" width="14" height="14"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="social-section">
+          <h3 class="social-section-title">Preferences</h3>
+          <p class="social-section-desc">Fine-tune what gets reposted and how often.</p>
+
+          <div class="pref-toggle">
+            <div class="pref-toggle-info">
+              <div class="pref-toggle-label">Skip replies</div>
+              <div class="pref-toggle-hint">Don't repost casts that are replies to other casts</div>
+            </div>
+            <label class="switch switch-sm">
+              <input type="checkbox" id="prefSkipReplies" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="pref-toggle">
+            <div class="pref-toggle-info">
+              <div class="pref-toggle-label">Skip recasts</div>
+              <div class="pref-toggle-hint">Don't repost casts that are recasts of someone else's content</div>
+            </div>
+            <label class="switch switch-sm">
+              <input type="checkbox" id="prefSkipRecasts" checked>
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="pref-toggle">
+            <div class="pref-toggle-info">
+              <div class="pref-toggle-label">Daily limit</div>
+              <div class="pref-toggle-hint">Maximum number of reposts per day (0 = unlimited)</div>
+            </div>
+            <input type="number" class="num-input" id="prefDailyLimit" min="0" max="100" value="20">
+          </div>
+        </div>
+
+        <!-- Activity -->
+        <div class="social-section">
+          <h3 class="social-section-title">Recent Activity</h3>
+          <p class="social-section-desc">Your latest auto-reposts across platforms.</p>
+          <div class="activity-list" id="activityList">
+            <div class="activity-empty">Loading activity...</div>
+          </div>
+        </div>
+
+        <!-- Chat -->
+        <div class="social-section">
+          <h3 class="social-section-title">SocialB Assistant</h3>
+          <p class="social-section-desc">Ask questions about your repost activity, get suggestions, or troubleshoot issues.</p>
+          <div class="chat-box">
+            <div class="chat-messages" id="chatMessages">
+              <div class="chat-msg chat-msg-ai">
+                <div class="chat-bubble">Hey! I'm your SocialB assistant. Ask me anything about your cross-posting setup, activity, or how to optimize your reach.</div>
+              </div>
+            </div>
+            <div class="chat-input-row">
+              <input type="text" class="chat-input" id="chatInput" placeholder="Ask SocialB anything..." autocomplete="off">
+              <button class="chat-send-btn" id="chatSendBtn">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Save Bar -->
+        <div class="social-save-bar">
+          <div class="container">
+            <span class="social-save-hint">Changes are saved to your account</span>
+            <button class="social-save-btn" id="saveBtn">Save Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
+        <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Points Toast Container -->
+  <div class="points-toasts" id="pointsToasts"></div>
+
+  <!-- Privy Auth Mount -->
+  <div id="privy-root"></div>
+
+  <script src="points.js"></script>
+  <script src="auth.js"></script>
+  <script>
+    const API = window.FLOWB_API || 'https://flowb.fly.dev';
+
+    function authHeaders() {
+      const token = Auth.jwt || localStorage.getItem('flowb-jwt');
+      return {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      };
+    }
+
+    function isLoggedIn() {
+      return Auth.isAuthenticated && (Auth.jwt || localStorage.getItem('flowb-jwt'));
+    }
+
+    function escapeHtml(s) {
+      if (!s) return '';
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ===== Platform checkbox visual state =====
+
+    document.querySelectorAll('.platform-item').forEach(item => {
+      const cb = item.querySelector('input[type="checkbox"]');
+      if (!cb) return;
+      cb.addEventListener('change', () => {
+        item.classList.toggle('checked', cb.checked);
+      });
+    });
+
+    // ===== Auth State =====
+
+    function updateSocialPage() {
+      const gate = document.getElementById('socialGate');
+      const authed = document.getElementById('socialAuthed');
+
+      if (isLoggedIn()) {
+        gate.classList.add('hidden');
+        authed.classList.remove('hidden');
+        loadConfig();
+        loadActivity();
+      } else {
+        gate.classList.remove('hidden');
+        authed.classList.add('hidden');
+      }
+    }
+
+    window.addEventListener('flowb-auth-ready', () => setTimeout(updateSocialPage, 200));
+    window.addEventListener('privy-auth-change', () => setTimeout(updateSocialPage, 500));
+
+    document.getElementById('socialSigninBtn')?.addEventListener('click', () => {
+      if (window.flowbPrivy) {
+        window.flowbPrivy.login();
+      } else {
+        document.getElementById('authBtn')?.click();
+      }
+    });
+
+    // ===== Load Config =====
+
+    async function loadConfig() {
+      try {
+        const res = await fetch(`${API}/api/v1/socialb/config`, {
+          headers: authHeaders()
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const cfg = data.config || data;
+
+        // Master toggle
+        const toggle = document.getElementById('masterToggle');
+        const dot = document.getElementById('statusDot');
+        const hint = document.getElementById('toggleHint');
+        if (toggle) toggle.checked = !!cfg.enabled;
+        if (dot) {
+          dot.classList.toggle('on', !!cfg.enabled);
+          dot.classList.toggle('off', !cfg.enabled);
+        }
+        if (hint) {
+          hint.textContent = cfg.enabled
+            ? 'Auto-repost is active. Your casts are being shared.'
+            : 'Automatically share your Farcaster casts to connected platforms';
+        }
+
+        // Platforms
+        const platforms = cfg.platforms || [];
+        document.querySelectorAll('.platform-item').forEach(item => {
+          const cb = item.querySelector('input[type="checkbox"]');
+          if (!cb) return;
+          const isOn = platforms.includes(cb.value);
+          cb.checked = isOn;
+          item.classList.toggle('checked', isOn);
+        });
+
+        // Preferences
+        const prefs = cfg.preferences || {};
+        const skipReplies = document.getElementById('prefSkipReplies');
+        const skipRecasts = document.getElementById('prefSkipRecasts');
+        const dailyLimit = document.getElementById('prefDailyLimit');
+        if (skipReplies) skipReplies.checked = prefs.skip_replies ?? true;
+        if (skipRecasts) skipRecasts.checked = prefs.skip_recasts ?? true;
+        if (dailyLimit) dailyLimit.value = prefs.daily_limit ?? 20;
+      } catch (err) {
+        console.warn('[socialb] Failed to load config:', err);
+      }
+    }
+
+    // ===== Save Config =====
+
+    async function saveConfig() {
+      const platforms = [];
+      document.querySelectorAll('.platform-item input[type="checkbox"]:checked').forEach(cb => {
+        platforms.push(cb.value);
+      });
+
+      const body = {
+        enabled: document.getElementById('masterToggle')?.checked || false,
+        platforms,
+        preferences: {
+          skip_replies: document.getElementById('prefSkipReplies')?.checked ?? true,
+          skip_recasts: document.getElementById('prefSkipRecasts')?.checked ?? true,
+          daily_limit: parseInt(document.getElementById('prefDailyLimit')?.value, 10) || 20,
+        }
+      };
+
+      try {
+        const res = await fetch(`${API}/api/v1/socialb/config`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify(body),
+        });
+        return res.ok;
+      } catch (err) {
+        console.warn('[socialb] Failed to save config:', err);
+        return false;
+      }
+    }
+
+    // ===== Master Toggle =====
+
+    document.getElementById('masterToggle')?.addEventListener('change', async (e) => {
+      const enabled = e.target.checked;
+      const dot = document.getElementById('statusDot');
+      const hint = document.getElementById('toggleHint');
+
+      if (dot) {
+        dot.classList.toggle('on', enabled);
+        dot.classList.toggle('off', !enabled);
+      }
+      if (hint) {
+        hint.textContent = enabled
+          ? 'Auto-repost is active. Your casts are being shared.'
+          : 'Automatically share your Farcaster casts to connected platforms';
+      }
+
+      try {
+        await fetch(`${API}/api/v1/socialb/config/toggle`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ enabled }),
+        });
+      } catch (err) {
+        console.warn('[socialb] Toggle failed:', err);
+      }
+    });
+
+    // ===== Load Activity =====
+
+    async function loadActivity() {
+      const list = document.getElementById('activityList');
+      if (!list) return;
+
+      try {
+        const res = await fetch(`${API}/api/v1/socialb/activity`, {
+          headers: authHeaders()
+        });
+        if (!res.ok) {
+          list.innerHTML = '<div class="activity-empty">Unable to load activity</div>';
+          return;
+        }
+        const data = await res.json();
+        const items = data.activity || data.items || [];
+
+        if (!items.length) {
+          list.innerHTML = '<div class="activity-empty">No reposts yet. Enable auto-repost and start casting on Farcaster.</div>';
+          return;
+        }
+
+        list.innerHTML = items.map(item => {
+          const text = escapeHtml(item.cast_text || item.text || '');
+          const truncated = text.length > 80 ? text.slice(0, 80) + '...' : text;
+          const platforms = (item.platforms || []).map(p =>
+            `<span class="activity-platform-tag">${escapeHtml(p)}</span>`
+          ).join('');
+          const statusClass = item.status === 'success' ? 'success' : item.status === 'failed' ? 'failed' : 'pending';
+          const statusLabel = item.status === 'success' ? 'Sent' : item.status === 'failed' ? 'Failed' : 'Pending';
+          const time = item.created_at ? timeAgo(new Date(item.created_at)) : '';
+
+          return `
+            <div class="activity-row">
+              <span class="activity-text" title="${text}">${truncated}</span>
+              <div class="activity-platforms">${platforms}</div>
+              <span class="activity-status ${statusClass}">${statusLabel}</span>
+              <span class="activity-time">${time}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.warn('[socialb] Failed to load activity:', err);
+        list.innerHTML = '<div class="activity-empty">Unable to load activity</div>';
+      }
+    }
+
+    function timeAgo(date) {
+      const now = new Date();
+      const diff = Math.floor((now - date) / 1000);
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      return Math.floor(diff / 86400) + 'd ago';
+    }
+
+    // ===== Chat =====
+
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const chatSendBtn = document.getElementById('chatSendBtn');
+
+    function addChatMessage(text, role) {
+      const msgDiv = document.createElement('div');
+      msgDiv.className = `chat-msg chat-msg-${role}`;
+      const bubble = document.createElement('div');
+      bubble.className = 'chat-bubble';
+      bubble.textContent = text;
+      msgDiv.appendChild(bubble);
+      chatMessages.appendChild(msgDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function sendChat() {
+      const text = chatInput.value.trim();
+      if (!text) return;
+
+      addChatMessage(text, 'user');
+      chatInput.value = '';
+      chatSendBtn.disabled = true;
+
+      try {
+        const res = await fetch(`${API}/api/v1/socialb/chat`, {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({ message: text }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          addChatMessage(data.reply || data.message || 'Got it.', 'ai');
+        } else {
+          addChatMessage('Sorry, I could not process that request. Please try again.', 'ai');
+        }
+      } catch (err) {
+        console.warn('[socialb] Chat error:', err);
+        addChatMessage('Connection error. Please try again.', 'ai');
+      } finally {
+        chatSendBtn.disabled = false;
+        chatInput.focus();
+      }
+    }
+
+    chatSendBtn?.addEventListener('click', sendChat);
+    chatInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendChat();
+      }
+    });
+
+    // ===== Save Button =====
+
+    document.getElementById('saveBtn')?.addEventListener('click', async () => {
+      const btn = document.getElementById('saveBtn');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      const ok = await saveConfig();
+
+      btn.textContent = ok ? 'Saved!' : 'Error';
+      btn.classList.toggle('saved', ok);
+
+      setTimeout(() => {
+        btn.textContent = 'Save Settings';
+        btn.classList.remove('saved');
+        btn.disabled = false;
+      }, 1500);
+    });
+
+    // Init
+    updateSocialPage();
+  </script>
+  <script>
+    (function() {
+      var loaded = false;
+      function loadPrivy() {
+        if (loaded) return;
+        loaded = true;
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/privy-mount.js';
+        document.body.appendChild(s);
+      }
+      if (localStorage.getItem('flowb-auth')) {
+        loadPrivy();
+      } else {
+        var btn = document.getElementById('authBtn');
+        if (btn) btn.addEventListener('click', function() {
+          loadPrivy();
+          setTimeout(function() {
+            if (window.flowbPrivy) window.flowbPrivy.login();
+          }, 1500);
+        }, { once: true });
+      }
+    })();
+  </script>
+  <script src="mobile-menu.js"></script>
+</body>
+</html>

@@ -2,7 +2,7 @@
  * Luma Event Source Adapter (Enhanced)
  *
  * Two-tier approach:
- *   1. Unofficial Discover API  - public Denver event search (no auth needed)
+ *   1. Unofficial Discover API  - public geo-based event search (no auth needed)
  *   2. Official API (v1)        - rich event details, RSVP, tickets, guests
  *
  * Official API requires LUMA_API_KEY (Luma Plus subscription).
@@ -16,6 +16,36 @@ const LUMA_DISCOVER_API = "https://api.lu.ma";
 
 // Official API (requires x-luma-api-key)
 const LUMA_OFFICIAL_API = "https://public-api.luma.com";
+
+// ============================================================================
+// Known city coordinates for geo-based Luma discover searches
+// ============================================================================
+
+const CITY_COORDS: Record<string, { lat: string; lng: string }> = {
+  denver: { lat: "39.7392", lng: "-104.9903" },
+  "new york": { lat: "40.7128", lng: "-74.0060" },
+  nyc: { lat: "40.7128", lng: "-74.0060" },
+  "san francisco": { lat: "37.7749", lng: "-122.4194" },
+  sf: { lat: "37.7749", lng: "-122.4194" },
+  "los angeles": { lat: "34.0522", lng: "-118.2437" },
+  la: { lat: "34.0522", lng: "-118.2437" },
+  austin: { lat: "30.2672", lng: "-97.7431" },
+  miami: { lat: "25.7617", lng: "-80.1918" },
+  chicago: { lat: "41.8781", lng: "-87.6298" },
+  seattle: { lat: "47.6062", lng: "-122.3321" },
+  portland: { lat: "45.5152", lng: "-122.6784" },
+  boston: { lat: "42.3601", lng: "-71.0589" },
+  atlanta: { lat: "33.7490", lng: "-84.3880" },
+  london: { lat: "51.5074", lng: "-0.1278" },
+  berlin: { lat: "52.5200", lng: "13.4050" },
+  paris: { lat: "48.8566", lng: "2.3522" },
+  tokyo: { lat: "35.6762", lng: "139.6503" },
+  singapore: { lat: "1.3521", lng: "103.8198" },
+  dubai: { lat: "25.2048", lng: "55.2708" },
+  lisbon: { lat: "38.7223", lng: "-9.1393" },
+  bangkok: { lat: "13.7563", lng: "100.5018" },
+  "buenos aires": { lat: "-34.6037", lng: "-58.3816" },
+};
 
 // ============================================================================
 // Rich Luma types (beyond base EventResult)
@@ -83,11 +113,18 @@ export class LumaAdapter implements EventSourceAdapter {
   async fetchEvents(params: EventQuery): Promise<EventResult[]> {
     try {
       const queryParams = new URLSearchParams();
-      // Denver coordinates for geo-based discover
-      if (params.city?.toLowerCase() === "denver") {
-        queryParams.set("geo_latitude", "39.7392");
-        queryParams.set("geo_longitude", "-104.9903");
+
+      // Resolve city to coordinates for geo-based discover search
+      const cityKey = params.city?.toLowerCase().trim();
+      if (cityKey) {
+        const coords = CITY_COORDS[cityKey];
+        if (coords) {
+          queryParams.set("geo_latitude", coords.lat);
+          queryParams.set("geo_longitude", coords.lng);
+        }
+        // Even without known coords, Luma may still return results
       }
+
       if (params.limit) queryParams.set("pagination_limit", String(Math.min(params.limit, 50)));
 
       const res = await fetch(`${LUMA_DISCOVER_API}/discover/get-paginated-events?${queryParams}`);
@@ -100,7 +137,7 @@ export class LumaAdapter implements EventSourceAdapter {
       const data = await res.json();
       const entries = data.entries || data.events || [];
 
-      return entries.map((entry: any) => {
+      let results: EventResult[] = entries.map((entry: any) => {
         const e = entry.event || entry;
         const geo = e.geo_address_info || {};
         const coord = e.coordinate || {};
@@ -129,6 +166,21 @@ export class LumaAdapter implements EventSourceAdapter {
           tags: e.tags || [],
         };
       });
+
+      // Post-fetch city filter: Luma geo search returns nearby results that
+      // may not be in the requested city. Filter by locationCity when a city
+      // was explicitly requested.
+      if (cityKey && results.length > 0) {
+        const filtered = results.filter((e) => {
+          if (!e.locationCity) return true; // keep events with unknown city
+          return e.locationCity.toLowerCase().includes(cityKey) ||
+                 cityKey.includes(e.locationCity.toLowerCase());
+        });
+        // Only apply filter if it keeps some results; otherwise return all
+        if (filtered.length > 0) results = filtered;
+      }
+
+      return results;
     } catch (err: any) {
       console.error("[luma] Discover fetch error:", err.message);
       return [];

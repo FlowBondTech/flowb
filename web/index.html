@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FlowB -- ETHDenver 2026 Events</title>
-  <meta name="description" content="Discover 100+ ETHDenver 2026 side events, hackathons, parties, and meetups. Browse by DeFi, AI, Infrastructure, and more.">
-  <meta property="og:title" content="FlowB -- ETHDenver 2026 Events">
-  <meta property="og:description" content="Your guide to every side event at ETHDenver 2026">
+  <title>FlowB -- Get in the Flow</title>
+  <meta name="description" content="Discover events, connect with your crew, and find what's happening. Browse by DeFi, AI, Infrastructure, and more.">
+  <meta property="og:title" content="FlowB -- Get in the Flow">
+  <meta property="og:description" content="Discover events, connect with your crew, and find what's happening around you.">
   <meta property="og:type" content="website">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
@@ -27,17 +27,25 @@
       </a>
       <nav class="header-nav">
         <a href="/" class="header-nav-link active">Events</a>
-        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
-        <a href="/flow" class="header-nav-link" id="navMyFlow">My Flow</a>
-        <a href="/about" class="header-nav-link">About</a>
-        <a href="/allevents" class="header-nav-link">All Events</a>
-      </nav>
-      <div class="header-meta">
-        <div class="luma-status" id="lumaStatus" title="Luma API Status">
-          <span class="luma-status-dot" id="lumaStatusDot"></span>
-          <span class="luma-status-label" id="lumaStatusLabel">Luma</span>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
         </div>
-        <span class="event-badge">ETHDenver 2026</span>
+      </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-meta">
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <!-- Points Badge -->
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
@@ -95,16 +103,45 @@
   <!-- Hero -->
   <section class="hero">
     <div class="container">
-      <h1>Discover ETHDenver<br><span class="gradient-text">Side Events</span></h1>
-      <p class="hero-sub">100+ hackathons, parties, meetups, and summits -- all in one place.</p>
+      <h1>Get in the <span class="gradient-text">Flow</span><br>and Just <span class="gradient-text">B</span></h1>
+      <p class="hero-sub">Discover events, connect with your crew, and find what's happening -- all in one place.</p>
+      <button class="submit-event-btn" id="submitEventBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        List Your Event
+      </button>
 
-      <!-- Search -->
-      <div class="search-bar">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-        </svg>
-        <input type="text" id="searchInput" placeholder="Search events, organizers, venues..." autocomplete="off">
-        <button id="searchClear" class="search-clear hidden">&times;</button>
+      <!-- Location + Search -->
+      <div class="search-location-row">
+        <button class="location-picker" id="locationPicker">
+          <svg class="location-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          <span class="location-label" id="locationLabel">Anywhere</span>
+          <svg class="location-chevron" width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="search-bar">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+          <input type="text" id="searchInput" placeholder="Search events, organizers, venues..." autocomplete="off">
+          <button id="searchClear" class="search-clear hidden">&times;</button>
+        </div>
+      </div>
+
+      <!-- Location Modal -->
+      <div class="location-modal" id="locationModal">
+        <div class="location-modal-content">
+          <div class="location-modal-header">
+            <h3>Set your location</h3>
+            <button class="location-modal-close" id="locationModalClose">&times;</button>
+          </div>
+          <button class="location-nearme" id="locationNearMe">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
+            <span>Near Me</span>
+          </button>
+          <div class="location-search-wrap">
+            <input type="text" id="locationSearch" placeholder="Search city..." autocomplete="off">
+          </div>
+          <div class="location-list" id="locationList"></div>
+        </div>
       </div>
     </div>
   </section>
@@ -134,6 +171,7 @@
             <button class="platform-option active" data-platform="all">All Platforms</button>
             <button class="platform-option" data-platform="luma"><span class="platform-dot" style="background:#FF5C00"></span>Luma</button>
             <button class="platform-option" data-platform="eventbrite"><span class="platform-dot" style="background:#F05537"></span>Eventbrite</button>
+            <button class="platform-option" data-platform="partiful"><span class="platform-dot" style="background:#E040FB"></span>Partiful</button>
             <button class="platform-option" data-platform="ra"><span class="platform-dot" style="background:#D4FC79"></span>Resident Advisor</button>
             <button class="platform-option" data-platform="brave"><span class="platform-dot" style="background:#FB542B"></span>Brave Search</button>
             <button class="platform-option" data-platform="google-places"><span class="platform-dot" style="background:#4285F4"></span>Google Places</button>
@@ -160,6 +198,10 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
         Add to My Flow
       </button>
+      <p style="font-size:11px;color:var(--text-dim,#888);margin:4px 0 0;display:flex;align-items:center;gap:4px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        This does not register you on Luma
+      </p>
       <div class="event-modal-row">
         <button class="event-modal-chip" id="eventModalCalendar">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -288,9 +330,9 @@
     <div class="notif-settings-section">
       <h4 class="notif-settings-section-title">Timezone</h4>
       <select id="notifTimezone" class="notif-select notif-tz-select">
+        <option value="America/Chicago">America/Chicago (CST)</option>
         <option value="America/Denver">America/Denver (MST)</option>
         <option value="America/New_York">America/New_York (EST)</option>
-        <option value="America/Chicago">America/Chicago (CST)</option>
         <option value="America/Los_Angeles">America/Los_Angeles (PST)</option>
         <option value="UTC">UTC</option>
         <option value="Europe/London">Europe/London</option>
@@ -303,6 +345,54 @@
     <button class="notif-save-btn" id="notifSaveBtn">Save Settings</button>
   </div>
 
+  <!-- Submit Event Modal -->
+  <div class="submit-modal-backdrop hidden" id="submitModalBackdrop"></div>
+  <div class="submit-modal hidden" id="submitModal">
+    <button class="event-modal-close" id="submitModalClose">&times;</button>
+    <h3 class="submit-modal-title">List Your Event</h3>
+    <p class="submit-modal-hint">Share an event link or fill in the details manually.</p>
+    <form id="submitEventForm" class="submit-form">
+      <div class="submit-field">
+        <label for="submitUrl">Event URL <span class="submit-optional">(Luma, Eventbrite, etc.)</span></label>
+        <input type="url" id="submitUrl" placeholder="https://lu.ma/your-event" autocomplete="off">
+      </div>
+      <div class="submit-divider"><span>or fill in details</span></div>
+      <div class="submit-field">
+        <label for="submitTitle">Event Name *</label>
+        <input type="text" id="submitTitle" placeholder="My awesome event" required autocomplete="off">
+      </div>
+      <div class="submit-row">
+        <div class="submit-field">
+          <label for="submitDate">Date</label>
+          <input type="date" id="submitDate">
+        </div>
+        <div class="submit-field">
+          <label for="submitTime">Time</label>
+          <input type="time" id="submitTime">
+        </div>
+      </div>
+      <div class="submit-field">
+        <label for="submitVenue">Venue</label>
+        <input type="text" id="submitVenue" placeholder="Venue name" autocomplete="off">
+      </div>
+      <div class="submit-field">
+        <label for="submitCity">City</label>
+        <input type="text" id="submitCity" placeholder="Austin" value="Austin" autocomplete="off">
+      </div>
+      <div class="submit-field">
+        <label for="submitDesc">Description</label>
+        <textarea id="submitDesc" rows="3" placeholder="Tell people what it's about..."></textarea>
+      </div>
+      <label class="submit-toggle"><input type="checkbox" id="submitFree"><span>Free event</span></label>
+      <div class="submit-field">
+        <label for="submitName">Your name <span class="submit-optional">(optional)</span></label>
+        <input type="text" id="submitName" placeholder="Your name or org" autocomplete="off">
+      </div>
+      <button type="submit" class="submit-btn" id="submitBtn">Submit Event</button>
+      <p class="submit-note">Events are reviewed and will appear shortly.</p>
+    </form>
+  </div>
+
   <!-- Footer -->
   <footer class="footer">
     <div class="container footer-inner">
@@ -310,10 +400,12 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
+        <a href="/about#feedback" class="footer-link" style="color: var(--accent);">Feedback</a>
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
         <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
         <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
       </div>
@@ -323,51 +415,33 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- FlowB Chat FAB -->
-  <div class="flowb-fab-wrap" id="flowbFabWrap">
-    <!-- Nudge notification bubble -->
-    <div class="flowb-nudge" id="flowbNudge">
-      <button class="flowb-nudge-close" id="flowbNudgeClose">&times;</button>
-      <p class="flowb-nudge-msg">Get event alerts & RSVP with your crew on <strong>Telegram</strong> or <strong>Farcaster MiniApp</strong></p>
-      <div class="flowb-nudge-links">
-        <a href="https://t.me/Flow_b_bot" target="_blank" class="flowb-nudge-link tg">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
-          Telegram
-        </a>
-        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="flowb-nudge-link fc">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
-          Farcaster MiniApp
-        </a>
-      </div>
-    </div>
-    <!-- FAB button -->
-    <button class="chat-with-flowb" id="chatWithFlowB">
+  <!-- FlowB Chat Widget (unified FAB + panel) -->
+  <div class="flowb-widget" id="flowbWidget" data-state="minimized">
+    <!-- FAB (visible when minimized) -->
+    <button class="flowb-widget-fab" id="flowbWidgetFab">
       <img class="flowb-fab-avatar" src="flowb.png" alt="FlowB">
-      <span class="chat-with-flowb-dot"></span>
+      <span class="flowb-fab-dot"></span>
     </button>
-  </div>
 
-  <!-- FlowB Full Chat Modal -->
-  <div class="flowb-chat-modal hidden" id="flowbChatModal">
-    <div class="flowb-chat-backdrop" id="flowbChatBackdrop"></div>
-    <div class="flowb-chat-window">
-      <!-- Chat Header -->
-      <div class="flowb-chat-header">
-        <div class="flowb-chat-header-left">
+    <!-- Floating Panel (visible when expanded) -->
+    <div class="flowb-widget-panel" id="flowbWidgetPanel">
+      <!-- Panel Header -->
+      <div class="flowb-panel-header">
+        <div class="flowb-panel-header-left">
           <img class="logo-icon" src="flowb.png" alt="FlowB">
-          <div class="flowb-chat-header-info">
-            <span class="flowb-chat-header-title">FlowB</span>
-            <span class="flowb-chat-header-sub">ETHDenver 2026 AI Guide</span>
+          <div class="flowb-panel-header-info">
+            <span class="flowb-panel-header-title">FlowB</span>
+            <span class="flowb-panel-header-sub">Your AI event guide</span>
           </div>
         </div>
-        <div class="flowb-chat-header-right">
+        <div class="flowb-panel-header-right">
           <span class="flowb-chat-status" id="flowbStatus">
             <span class="flowb-status-dot"></span>
             <span id="flowbStatusText">connected</span>
           </span>
-          <button class="flowb-chat-close" id="flowbChatClose">
+          <button class="flowb-panel-minimize" id="flowbPanelMinimize" title="Minimize">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <polyline points="6 9 12 15 18 9"/>
             </svg>
           </button>
         </div>
@@ -375,26 +449,10 @@
 
       <!-- Chat Body -->
       <div class="flowb-chat-body" id="flowbChatBody">
-        <!-- Welcome State -->
-        <div class="flowb-welcome" id="flowbWelcome">
-          <div class="flowb-welcome-logo">
-            <img class="logo-icon" src="flowb.png" alt="FlowB" style="width:56px;height:56px;border-radius:14px">
-          </div>
-          <h2 class="flowb-welcome-title">Hey, I'm FlowB</h2>
-          <p class="flowb-welcome-sub">Your AI guide to ETHDenver 2026. Ask me about events, parties, hackathons, or anything happening in Denver this week.</p>
-          <div class="flowb-suggestions" id="flowbSuggestions">
-            <button class="flowb-suggestion" data-msg="What's happening tonight?">What's happening tonight?</button>
-            <button class="flowb-suggestion" data-msg="Show me free DeFi events">Show me free DeFi events</button>
-            <button class="flowb-suggestion" data-msg="Find AI and agent events">Find AI and agent events</button>
-            <button class="flowb-suggestion" data-msg="What are the best parties this week?">Best parties this week?</button>
-          </div>
-        </div>
-
-        <!-- Messages Container -->
         <div class="flowb-messages" id="flowbMessages"></div>
       </div>
 
-      <!-- Quick Actions (Task 6C: Flow-Aware Chips) -->
+      <!-- Quick Actions -->
       <div class="flowb-quick-bar" id="flowbQuickBar">
         <button class="flowb-quick-chip flowb-quick-flow" data-action="my-crew">My Crew</button>
         <button class="flowb-quick-chip flowb-quick-flow" data-action="my-schedule">My Schedule</button>
@@ -412,20 +470,21 @@
       <!-- Input Area -->
       <form class="flowb-input-area" id="flowbChatForm">
         <div class="flowb-input-wrap">
-          <textarea id="flowbChatInput" placeholder="Ask FlowB anything about ETHDenver..." rows="1" autocomplete="off"></textarea>
+          <textarea id="flowbChatInput" placeholder="Ask FlowB anything..." rows="1" autocomplete="off"></textarea>
           <button type="submit" class="flowb-send-btn" id="flowbSendBtn">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
               <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
             </svg>
           </button>
         </div>
-        <p class="flowb-input-hint">Powered by Grok. Responses may take a moment.</p>
+        <p class="flowb-input-hint">Responses may take a moment.</p>
       </form>
     </div>
   </div>
 
   <!-- Privy Auth Mount (React island) -->
   <div id="privy-root"></div>
+
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
@@ -437,26 +496,59 @@
       function loadPrivy() {
         if (loaded) return;
         loaded = true;
+        console.log('[auth] Loading privy-mount.js...');
         var s = document.createElement('script');
         s.type = 'module';
         s.src = '/privy-mount.js';
+        s.onerror = function(e) {
+          console.error('[auth] Failed to load privy-mount.js:', e);
+          var btn = document.getElementById('authBtn');
+          if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+          loaded = false; // allow retry
+        };
         document.body.appendChild(s);
       }
+
+      // Wait for Privy to be ready then call login, with visual feedback
+      function waitForPrivyAndLogin() {
+        var btn = document.getElementById('authBtn');
+        if (btn) {
+          btn.textContent = 'Loading...';
+          btn.disabled = true;
+        }
+        var attempts = 0;
+        var maxAttempts = 50; // 10 seconds max (Privy is a big bundle)
+        var check = setInterval(function() {
+          attempts++;
+          if (window.flowbPrivy) {
+            clearInterval(check);
+            if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
+            window.flowbPrivy.login();
+          } else if (attempts >= maxAttempts) {
+            clearInterval(check);
+            if (btn) { btn.textContent = 'Retry'; btn.disabled = false; }
+            console.warn('[auth] Privy failed to initialize after ' + (maxAttempts * 200) + 'ms. Check browser console for errors.');
+          }
+        }, 200);
+      }
+
       // If user was previously logged in, load Privy immediately to restore session
       if (localStorage.getItem('flowb-auth')) {
         loadPrivy();
-      } else {
-        // Otherwise wait for Sign In click
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          // Small delay to let Privy initialize before calling login
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
       }
+
+      // Sign In click: load Privy if needed, then wait for it and call login
+      var btn = document.getElementById('authBtn');
+      if (btn) btn.addEventListener('click', function() {
+        if (window.flowbPrivy) {
+          window.flowbPrivy.login();
+        } else {
+          loadPrivy();
+          waitForPrivyAndLogin();
+        }
+      });
     })();
   </script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

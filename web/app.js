@@ -1,7 +1,7 @@
 const API = 'https://flowb.fly.dev';
 const FLOWB_API = 'https://flowb.fly.dev';
 
-// FlowB Chat API (proxied through flowb.fly.dev → xAI Grok)
+// FlowB Chat API (proxied through flowb.fly.dev)
 const FLOWB_CHAT_URL = FLOWB_API;
 
 // State
@@ -11,7 +11,9 @@ let activeCategory = 'all';
 let activeFilter = null;
 let activePlatform = 'all';
 let searchQuery = '';
-let displayCount = 12;
+let activeCity = localStorage.getItem('flowb-city') || '';
+let activeCityLabel = localStorage.getItem('flowb-city-label') || 'Anywhere';
+let displayCount = 18;
 let chatHistory = [];
 let isStreaming = false;
 
@@ -36,13 +38,12 @@ const loadMoreWrap = document.getElementById('loadMoreWrap');
 const loadMoreBtn = document.getElementById('loadMoreBtn');
 const emptyState = document.getElementById('emptyState');
 
-// DOM - Chat
-const chatBtn = document.getElementById('chatWithFlowB');
-const chatModal = document.getElementById('flowbChatModal');
-const chatBackdrop = document.getElementById('flowbChatBackdrop');
-const chatClose = document.getElementById('flowbChatClose');
+// DOM - Chat Widget
+const widget = document.getElementById('flowbWidget');
+const widgetFab = document.getElementById('flowbWidgetFab');
+const widgetPanel = document.getElementById('flowbWidgetPanel');
+const panelMinimize = document.getElementById('flowbPanelMinimize');
 const chatBody = document.getElementById('flowbChatBody');
-const chatWelcome = document.getElementById('flowbWelcome');
 const chatMessages = document.getElementById('flowbMessages');
 const chatForm = document.getElementById('flowbChatForm');
 const chatInput = document.getElementById('flowbChatInput');
@@ -84,6 +85,22 @@ async function fetchCategories() {
   }
 }
 
+// Get local YYYY-MM-DD string (avoids UTC shift from toISOString)
+function localDate(d) {
+  d = d || new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Convert local date string to UTC ISO for PostgREST (which interprets naive timestamps as UTC)
+function localStartOfDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toISOString();
+}
+function localEndOfDay(dateStr) {
+  const d = new Date(dateStr + 'T23:59:59');
+  return d.toISOString();
+}
+
 async function fetchEvents(params = {}) {
   try {
     // Map old POST params to new GET query params
@@ -91,10 +108,15 @@ async function fetchEvents(params = {}) {
     qp.set('limit', String(params.limit || 50));
     if (params.mainCategory) qp.set('categories', params.mainCategory);
     if (params.query) qp.set('q', params.query);
-    if (params.startDate) qp.set('from', params.startDate + 'T00:00:00');
-    if (params.endDate) qp.set('to', params.endDate + 'T23:59:59');
+    // Send timezone-aware UTC timestamps so PostgREST compares correctly
+    const fromDate = params.startDate || localDate();
+    qp.set('from', localStartOfDay(fromDate));
+    if (params.endDate) qp.set('to', localEndOfDay(params.endDate));
     if (params.freeOnly) qp.set('free', 'true');
-    if (params.city) qp.set('city', params.city);
+    // Use explicit city param, or fall back to active location
+    // Pass city: '' to explicitly skip city filtering
+    const city = params.city !== undefined ? params.city : activeCity;
+    if (city) qp.set('city', city);
 
     const res = await fetch(`${API}/api/v1/events?${qp}`);
     const data = await res.json();
@@ -108,7 +130,7 @@ async function fetchEvents(params = {}) {
 async function fetchTonight() {
   try {
     const now = new Date();
-    const today = now.toISOString().slice(0, 10);
+    const today = localDate(now);
     return await fetchEvents({ startDate: today, endDate: today, limit: 50 });
   } catch (err) {
     console.error('Failed to fetch tonight events:', err);
@@ -211,26 +233,25 @@ function getCatLabel(catId) {
   return cat ? cat.label : catId;
 }
 
-// Optimize image URLs - resize oversized images via proxy/params
+// Optimize image URLs - direct pass-through for source CDN images
 function optimizeImageUrl(url, w, h) {
   if (!url) return url;
-  // Eventbrite already resizes via their CDN params - leave as-is
-  if (url.includes('evbuc.com')) return url;
-  // wsrv.nl image proxy to resize and convert to webp
-  const width = w || 450;
-  const height = h || 250;
-  return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${width}&h=${height}&fit=cover&output=webp&q=75`;
+  // Skip relative/invalid URLs
+  if (!url.startsWith('http')) return null;
+  // Use source URLs directly — wsrv.nl proxy gets blocked by ad blockers
+  return url;
 }
 
 // Platform source colors and labels
 const SOURCE_META = {
   luma: { color: '#FF5C00', label: 'Luma' },
   eventbrite: { color: '#F05537', label: 'Eventbrite' },
+  partiful: { color: '#E040FB', label: 'Partiful' },
   ra: { color: '#D4FC79', label: 'RA' },
   brave: { color: '#FB542B', label: 'Brave' },
   'google-places': { color: '#4285F4', label: 'Google' },
   tavily: { color: '#7C3AED', label: 'Tavily' },
-  egator: { color: '#3b82f6', label: 'eGator' },
+  egator: { color: '#3b82f6', label: 'FlowB' },
 };
 
 function getSourceMeta(source) {
@@ -414,7 +435,7 @@ document.getElementById('eventModalShare').addEventListener('click', () => {
 document.getElementById('shareToFlow').addEventListener('click', () => {
   // Open chat with pre-filled share message
   closeEventModal();
-  openChat();
+  expandChat();
   const msg = `Check out: ${currentModalEvent.title} ${currentModalEvent.url || ''}`;
   chatInput.value = msg;
   chatInput.focus();
@@ -609,7 +630,7 @@ async function loadNotificationSettings() {
   document.getElementById('notifDailyLimit').value = p.daily_notification_limit ?? 10;
 
   // Timezone
-  document.getElementById('notifTimezone').value = p.timezone || 'America/Denver';
+  document.getElementById('notifTimezone').value = p.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Chicago';
 }
 
 document.getElementById('notifSaveBtn').addEventListener('click', async () => {
@@ -825,7 +846,7 @@ function escapeHtml(s) {
 async function selectCategory(catId) {
   activeCategory = catId;
   activeFilter = null;
-  displayCount = 12;
+  displayCount = 18;
 
   catRow.querySelectorAll('.cat-chip').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.cat === catId);
@@ -854,7 +875,7 @@ async function applyFilter(filter) {
   }
 
   activeFilter = filter;
-  displayCount = 12;
+  displayCount = 18;
 
   document.querySelectorAll('.filter-pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);
@@ -872,8 +893,8 @@ async function applyFilter(filter) {
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
     const params = {
-      startDate: now.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: localDate(now),
+      endDate: localDate(end),
     };
     if (activeCategory !== 'all') params.mainCategory = activeCategory;
     allEvents = await fetchEvents(params);
@@ -902,7 +923,7 @@ searchInput.addEventListener('input', () => {
   clearTimeout(searchTimeout);
   searchTimeout = setTimeout(async () => {
     searchQuery = val;
-    displayCount = 12;
+    displayCount = 18;
     showLoading();
     const params = {};
     if (val) params.query = val;
@@ -923,6 +944,185 @@ searchClear.addEventListener('click', () => {
   searchQuery = '';
   selectCategory(activeCategory);
 });
+
+// ===== Location Picker =====
+const POPULAR_CITIES = [
+  { city: '', label: 'Anywhere', icon: '🌍', region: 'Global' },
+  { city: 'Austin', label: 'Austin', icon: '🤠', region: 'Texas, USA' },
+  { city: 'Denver', label: 'Denver', icon: '🏔️', region: 'Colorado, USA' },
+  { city: 'New York', label: 'New York', icon: '🗽', region: 'New York, USA' },
+  { city: 'San Francisco', label: 'San Francisco', icon: '🌉', region: 'California, USA' },
+  { city: 'Los Angeles', label: 'Los Angeles', icon: '🌴', region: 'California, USA' },
+  { city: 'Miami', label: 'Miami', icon: '🌊', region: 'Florida, USA' },
+  { city: 'Chicago', label: 'Chicago', icon: '🏙️', region: 'Illinois, USA' },
+  { city: 'London', label: 'London', icon: '🇬🇧', region: 'United Kingdom' },
+  { city: 'Berlin', label: 'Berlin', icon: '🇩🇪', region: 'Germany' },
+  { city: 'Paris', label: 'Paris', icon: '🇫🇷', region: 'France' },
+  { city: 'Lisbon', label: 'Lisbon', icon: '🇵🇹', region: 'Portugal' },
+  { city: 'Singapore', label: 'Singapore', icon: '🇸🇬', region: 'Singapore' },
+  { city: 'Tokyo', label: 'Tokyo', icon: '🇯🇵', region: 'Japan' },
+  { city: 'Seoul', label: 'Seoul', icon: '🇰🇷', region: 'South Korea' },
+  { city: 'Dubai', label: 'Dubai', icon: '🇦🇪', region: 'UAE' },
+  { city: 'Bangkok', label: 'Bangkok', icon: '🇹🇭', region: 'Thailand' },
+  { city: 'Buenos Aires', label: 'Buenos Aires', icon: '🇦🇷', region: 'Argentina' },
+];
+
+const locationPicker = document.getElementById('locationPicker');
+const locationModal = document.getElementById('locationModal');
+const locationModalClose = document.getElementById('locationModalClose');
+const locationNearMe = document.getElementById('locationNearMe');
+const locationSearch = document.getElementById('locationSearch');
+const locationList = document.getElementById('locationList');
+const locationLabelEl = document.getElementById('locationLabel');
+
+// Set initial label from stored value
+if (locationLabelEl) locationLabelEl.textContent = activeCityLabel;
+if (activeCity && locationPicker) locationPicker.classList.add('active');
+
+function renderLocationList(filter = '') {
+  if (!locationList) return;
+  const q = filter.toLowerCase();
+  const filtered = q
+    ? POPULAR_CITIES.filter(c => c.label.toLowerCase().includes(q) || c.region.toLowerCase().includes(q))
+    : POPULAR_CITIES;
+
+  locationList.innerHTML = filtered.map(c => `
+    <div class="location-item${c.city === activeCity ? ' active' : ''}" data-city="${c.city}" data-label="${c.label}">
+      <span class="location-item-icon">${c.icon}</span>
+      <div>
+        <div class="location-item-name">${c.label}</div>
+        <div class="location-item-region">${c.region}</div>
+      </div>
+    </div>
+  `).join('');
+
+  // If user typed a city not in the list, show it as a custom option
+  if (q && !filtered.some(c => c.label.toLowerCase() === q)) {
+    const capCity = filter.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    locationList.innerHTML += `
+      <div class="location-item" data-city="${capCity}" data-label="${capCity}">
+        <span class="location-item-icon">📍</span>
+        <div>
+          <div class="location-item-name">${capCity}</div>
+          <div class="location-item-region">Search for events here</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Attach click handlers
+  locationList.querySelectorAll('.location-item').forEach(item => {
+    item.addEventListener('click', () => selectLocation(item.dataset.city, item.dataset.label));
+  });
+}
+
+function selectLocation(city, label) {
+  activeCity = city;
+  activeCityLabel = label || 'Anywhere';
+  localStorage.setItem('flowb-city', city);
+  localStorage.setItem('flowb-city-label', activeCityLabel);
+
+  if (locationLabelEl) locationLabelEl.textContent = activeCityLabel;
+  if (locationPicker) locationPicker.classList.toggle('active', !!city);
+
+  // Update search placeholder contextually
+  if (searchInput) {
+    searchInput.placeholder = city
+      ? `Search events in ${activeCityLabel}...`
+      : 'Search events, organizers, venues...';
+  }
+
+  closeLocationModal();
+
+  // Re-fetch events with new location
+  displayCount = 18;
+  showLoading();
+  const params = {};
+  if (activeCategory !== 'all') params.mainCategory = activeCategory;
+  if (searchQuery) params.query = searchQuery;
+  if (activeCity) params.city = activeCity;
+  fetchEvents(params).then(events => {
+    allEvents = events;
+    renderEvents(allEvents);
+  });
+}
+
+function openLocationModal() {
+  if (!locationModal) return;
+  locationModal.classList.add('open');
+  renderLocationList();
+  setTimeout(() => locationSearch && locationSearch.focus(), 200);
+}
+
+function closeLocationModal() {
+  if (!locationModal) return;
+  locationModal.classList.remove('open');
+  if (locationSearch) locationSearch.value = '';
+}
+
+if (locationPicker) locationPicker.addEventListener('click', openLocationModal);
+if (locationModalClose) locationModalClose.addEventListener('click', closeLocationModal);
+
+// Close on backdrop click
+if (locationModal) {
+  locationModal.addEventListener('click', (e) => {
+    if (e.target === locationModal) closeLocationModal();
+  });
+}
+
+// Location search filtering
+if (locationSearch) {
+  locationSearch.addEventListener('input', () => {
+    renderLocationList(locationSearch.value.trim());
+  });
+}
+
+// Near Me geolocation
+if (locationNearMe) {
+  locationNearMe.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    locationNearMe.classList.add('locating');
+    const nearMeLabel = locationNearMe.querySelector('span');
+    if (nearMeLabel) nearMeLabel.textContent = 'Locating';
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        locationNearMe.classList.remove('locating');
+        if (nearMeLabel) nearMeLabel.textContent = 'Near Me';
+
+        // Reverse geocode to city name
+        try {
+          const { latitude, longitude } = pos.coords;
+          const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`);
+          const geoData = await geoRes.json();
+          const city = geoData.address?.city || geoData.address?.town || geoData.address?.county || 'My Area';
+          selectLocation(city, `${city}`);
+        } catch {
+          // Fallback: just use coordinates label
+          selectLocation('', 'Near Me');
+        }
+      },
+      (err) => {
+        locationNearMe.classList.remove('locating');
+        if (nearMeLabel) nearMeLabel.textContent = 'Near Me';
+        if (err.code === err.PERMISSION_DENIED) {
+          alert('Location access denied. Please enable location in your browser settings.');
+        } else {
+          alert('Could not determine your location. Please try again or pick a city.');
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: false }
+    );
+  });
+}
+
+// Set placeholder on load if city is set
+if (activeCity && searchInput) {
+  searchInput.placeholder = `Search events in ${activeCityLabel}...`;
+}
 
 // ===== Filter pills =====
 document.querySelectorAll('.filter-pill:not(.platform-trigger)').forEach(btn => {
@@ -948,7 +1148,7 @@ document.querySelectorAll('.platform-option').forEach(btn => {
     e.stopPropagation();
     const platform = btn.dataset.platform;
     activePlatform = platform;
-    displayCount = 12;
+    displayCount = 18;
 
     document.querySelectorAll('.platform-option').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
@@ -970,7 +1170,7 @@ catRow.querySelector('[data-cat="all"]').addEventListener('click', () => selectC
 
 // ===== Load More =====
 loadMoreBtn.addEventListener('click', () => {
-  displayCount += 12;
+  displayCount += 18;
   renderEvents(allEvents);
 });
 
@@ -978,26 +1178,41 @@ loadMoreBtn.addEventListener('click', () => {
 // FlowB Chat
 // ===================================================================
 
-function openChat() {
-  chatModal.classList.remove('hidden');
-  document.body.style.overflow = 'hidden';
+let introStarted = false;
+
+function expandChat() {
+  widget.dataset.state = 'expanded';
+  // Lock body scroll on mobile only
+  if (window.innerWidth <= 480) document.body.style.overflow = 'hidden';
   chatInput.focus();
   awardFirstAction('first_chat_open', 3, 'Chat opened!');
 }
 
-function closeChat() {
-  chatModal.classList.add('hidden');
+function minimizeChat() {
+  widget.dataset.state = 'minimized';
   document.body.style.overflow = '';
 }
 
-chatBtn.addEventListener('click', openChat);
-chatBackdrop.addEventListener('click', closeChat);
-chatClose.addEventListener('click', closeChat);
+widgetFab.addEventListener('click', () => {
+  expandChat();
+  // First expand with no messages: run intro or show greeting
+  if (chatMessages.children.length === 0 && !introStarted) {
+    const seen = localStorage.getItem('flowb-intro-seen');
+    if (!seen) {
+      introStarted = true;
+      runIntroInChat();
+    } else {
+      addChatMessage("Hey! What can I help you find?", 'bot');
+    }
+  }
+});
 
-// Escape key closes chat
+panelMinimize.addEventListener('click', minimizeChat);
+
+// Escape key minimizes chat
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !chatModal.classList.contains('hidden')) {
-    closeChat();
+  if (e.key === 'Escape' && widget.dataset.state === 'expanded') {
+    minimizeChat();
   }
 });
 
@@ -1023,11 +1238,6 @@ document.querySelectorAll('.flowb-quick-chip[data-msg]').forEach(btn => {
 // Flow-aware quick action chips (data-action)
 document.querySelectorAll('.flowb-quick-chip[data-action]').forEach(btn => {
   btn.addEventListener('click', () => handleFlowAction(btn.dataset.action));
-});
-
-// Suggestion buttons
-document.querySelectorAll('.flowb-suggestion').forEach(btn => {
-  btn.addEventListener('click', () => sendChatMessage(btn.dataset.msg));
 });
 
 chatForm.addEventListener('submit', (e) => {
@@ -1080,13 +1290,13 @@ async function handleMyCrewAction() {
   removeTypingIndicator();
 
   if (!data || !data.crews || !data.crews.length) {
-    addChatMessage('You haven\'t joined any crews yet. Open FlowB on Telegram or Farcaster to create or join a crew!', 'bot');
+    addChatMessage('You haven\'t joined any crews yet. Head to the [Crews page](/crews) to create or join a crew!', 'bot');
   } else {
     let text = `**Your Crews** (${data.crews.length})\n\n`;
     for (const crew of data.crews) {
       text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
     }
-    text += '\nManage your crews in the Telegram or Farcaster mini app!';
+    text += '\nManage your crews on the [Crews page](/crews)!';
     addChatMessage(text, 'bot');
   }
 
@@ -1199,11 +1409,6 @@ async function handleLeaderboardAction() {
 // ===== Chat Message Rendering =====
 
 function addChatMessage(text, type) {
-  // Hide welcome on first message
-  if (chatWelcome) {
-    chatWelcome.classList.add('hidden-welcome');
-  }
-
   const div = document.createElement('div');
   div.className = `flowb-msg ${type}`;
 
@@ -1221,8 +1426,6 @@ function addChatMessage(text, type) {
 }
 
 function addTypingIndicator() {
-  if (chatWelcome) chatWelcome.classList.add('hidden-welcome');
-
   const div = document.createElement('div');
   div.className = 'flowb-msg bot';
   div.id = 'flowbTyping';
@@ -1246,13 +1449,25 @@ function scrollChatToBottom() {
 }
 
 function formatMarkdown(text) {
-  let html = escapeHtml(text);
+  // Strip hidden event ID comments before rendering
+  let clean = text.replace(/<!--.*?-->/g, '');
+  // Extract markdown links before escaping HTML
+  const links = [];
+  clean = clean.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_m, label, href) => {
+    links.push({ label, href });
+    return `\x00LINK${links.length - 1}\x00`;
+  });
+  let html = escapeHtml(clean);
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
-  html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank">$1</a>');
+  // Restore markdown links as proper <a> tags
+  links.forEach((link, i) => {
+    html = html.replace(`\x00LINK${i}\x00`, `<a href="${link.href}" target="_blank">${escapeHtml(link.label)}</a>`);
+  });
+  // Linkify remaining bare URLs (not already inside <a> tags)
+  html = html.replace(/(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank">$1</a>');
   html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
   html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
@@ -1275,7 +1490,7 @@ function setStatus(status, text) {
   }
 }
 
-// ===== FlowB Chat (xAI Grok via backend proxy) =====
+// ===== FlowB Chat =====
 
 async function sendToFlowB(userMessage) {
   chatHistory.push({ role: 'user', content: userMessage });
@@ -1354,24 +1569,18 @@ async function processSingleCommand(lower) {
   // "what's happening tonight" → "tonight"
   // "show me free events" → "free"
   // "what are the best parties" → "browse social"
-  // "whats danz" → knowledge answer
   lower = lower
     .replace(/^(?:what'?s?|show me|find|tell me about|give me|list)\s+/i, '')
     .replace(/^(?:happening|going on)\s+/i, '')
     .trim();
 
-  // Handle "danz" / "what is danz" type questions (FlowBond ecosystem knowledge)
-  if (/^(?:danz|danz\.now|danz now)/i.test(lower)) {
-    return `**DANZ.Now** is a vibrant dance community platform within the FlowBond ecosystem. It connects dancers, offers challenges with USDC rewards on the Base network, and helps you find and register for dance events.\n\nYou can track your stats, join leaderboards, and engage with other dancers. Say "stats" to check your stats or "challenges" for active challenges.`;
-  }
-
   // Handle "flowb" / "what is flowb" questions
   if (/^(?:flowb|flow\s?b|flow\s?bond)/i.test(lower)) {
-    return `**FlowB** is your AI-powered assistant for discovering events and connecting with communities. I can help you find ETHDenver 2026 side events, hackathons, parties, and meetups.\n\nI'm part of the FlowBond ecosystem, which includes DANZ.Now (dance community) and the eGator event aggregator.\n\nTry "categories" to browse events or "tonight" to see what's happening!`;
+    return `**FlowB** is your AI-powered assistant for discovering events and connecting with your crew. I help you find hackathons, parties, meetups, and more -- all curated and in one place.\n\nTry "categories" to browse events or "tonight" to see what's happening!`;
   }
 
   if (lower === 'help') {
-    return `Here's what I can help with:\n\n**categories** — browse by type\n**browse [type]** — events in a category (defi, ai, infra, build, capital, social, wellness, privacy, art)\n**tonight** — tonight's events\n**week** — this week's events\n**free** — free events only\n**search [query]** — search events\n**points** — check your points\n\nOr just ask me anything about ETHDenver!`;
+    return `Here's what I can help with:\n\n**categories** — browse by type\n**browse [type]** — events in a category (defi, ai, infra, build, capital, social, wellness, privacy, art)\n**tonight** — tonight's events\n**week** — this week's events\n**free** — free events only\n**search [query]** — search events\n**points** — check your points\n\nOr just ask me anything!`;
   }
 
   if (lower === 'points' || lower === 'my points') {
@@ -1409,8 +1618,8 @@ async function processSingleCommand(lower) {
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
     const events = await fetchEvents({
-      startDate: now.toISOString().slice(0, 10),
-      endDate: end.toISOString().slice(0, 10),
+      startDate: localDate(now),
+      endDate: localDate(end),
       limit: 10,
     });
     if (!events.length) return 'No events this week.';
@@ -1437,9 +1646,18 @@ async function processSingleCommand(lower) {
       art: 'art', nft: 'art', culture: 'art',
     };
     const mainCat = aliases[cat] || cat;
-    const events = await fetchEvents({ mainCategory: mainCat, limit: 10 });
+    const label = mainCat.charAt(0).toUpperCase() + mainCat.slice(1);
+    let events = await fetchEvents({ mainCategory: mainCat, limit: 10 });
+    if (!events.length && activeCity) {
+      events = await fetchEvents({ mainCategory: mainCat, limit: 10, city: '' });
+      if (events.length) {
+        return formatChatEvents(events, `${label} Events (all cities)`) +
+          `\n\n*No ${label} events in ${activeCityLabel} -- showing all cities.*`;
+      }
+    }
     if (!events.length) return `No events in "${cat}". Try "categories" to see options.`;
-    return formatChatEvents(events, `${mainCat.charAt(0).toUpperCase() + mainCat.slice(1)} Events`);
+    const suffix = activeCity ? ` in ${activeCityLabel}` : '';
+    return formatChatEvents(events, `${label} Events${suffix}`);
   }
 
   if (lower.startsWith('search ')) {
@@ -1463,8 +1681,19 @@ async function processSingleCommand(lower) {
   };
   for (const [pattern, cat] of Object.entries(catKeywords)) {
     if (new RegExp(pattern, 'i').test(lower)) {
-      const events = await fetchEvents({ mainCategory: cat, limit: 10 });
-      if (events.length) return formatChatEvents(events, `${cat.charAt(0).toUpperCase() + cat.slice(1)} Events`);
+      const catLabel = cat.charAt(0).toUpperCase() + cat.slice(1);
+      let events = await fetchEvents({ mainCategory: cat, limit: 10 });
+      if (!events.length && activeCity) {
+        events = await fetchEvents({ mainCategory: cat, limit: 10, city: '' });
+        if (events.length) {
+          return formatChatEvents(events, `${catLabel} Events (all cities)`) +
+            `\n\n*No ${catLabel} events in ${activeCityLabel} -- showing all cities.*`;
+        }
+      }
+      if (events.length) {
+        const suffix = activeCity ? ` in ${activeCityLabel}` : '';
+        return formatChatEvents(events, `${catLabel} Events${suffix}`);
+      }
     }
   }
 
@@ -1502,12 +1731,11 @@ async function sendChatMessage(msg) {
   addChatMessage(msg, 'user');
   addTypingIndicator();
   awardPoints(1, 'Chat message');
-
   // Clean the message for processing (strip "flowb" prefix, keep original for display)
   const cleanMsg = stripFlowbMention(msg);
 
   try {
-    // Try FlowB backend (xAI Grok)
+    // Try FlowB backend
     const response = await sendToFlowB(cleanMsg);
     removeTypingIndicator();
     addChatMessage(response, 'bot');
@@ -1541,7 +1769,7 @@ function handleEventUrlParam() {
     // Event linked from smart short link (/e/:id)
     // Open chat with context about this event
     setTimeout(() => {
-      openChat();
+      expandChat();
       sendChatMessage(`Tell me about event ${eventParam}`);
     }, 1500);
 
@@ -1578,6 +1806,406 @@ async function checkLumaHealth() {
   }
 }
 
+// ===== FlowB In-Chat Intro (first-visit onboarding) =====
+
+function introWait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function runIntroInChat() {
+  // Step 1: typing
+  addTypingIndicator();
+  await introWait(800);
+  removeTypingIndicator();
+
+  // Step 2: greeting
+  addChatMessage("Hey! I'm **FlowB**", 'bot');
+  await introWait(600);
+
+  // Step 3: typing
+  addTypingIndicator();
+  await introWait(1000);
+  removeTypingIndicator();
+
+  // Step 4: description
+  addChatMessage("I help you discover events and find what's happening around you.", 'bot');
+  await introWait(500);
+
+  // Step 5: typing
+  addTypingIndicator();
+  await introWait(700);
+  removeTypingIndicator();
+
+  // Step 6: question
+  addChatMessage("What kind of events are you into?", 'bot');
+  await introWait(300);
+
+  // Step 7: category chips as interactive message
+  await renderIntroCatMessage();
+}
+
+// Intro category groups mapping API slugs to higher-level groups
+const INTRO_GROUPS = [
+  { label: 'Tech & Dev',   icon: '\uD83D\uDCBB', cats: ['ai', 'infrastructure', 'developer', 'depin', 'hackathon'] },
+  { label: 'DeFi & Money', icon: '\uD83D\uDCB0', cats: ['defi', 'stablecoins', 'rwa', 'governance'] },
+  { label: 'Social & Fun', icon: '\uD83C\uDF89', cats: ['party', 'social', 'networking', 'food-drink', 'brunch', 'poker'] },
+  { label: 'Culture',      icon: '\uD83C\uDFA8', cats: ['nft', 'gaming', 'wellness', 'sports'] },
+  { label: 'Learn',        icon: '\uD83D\uDCDA', cats: ['workshop', 'panel', 'demo-day', 'privacy', 'identity'] },
+];
+
+async function renderIntroCatMessage() {
+  // Use global categories for label lookups
+  let cats = categories;
+  if (!cats || !cats.length) {
+    try {
+      const res = await fetch(`${API}/api/v1/categories`);
+      const data = await res.json();
+      cats = (data.categories || []).map(c => ({
+        id: c.slug || c.id,
+        emoji: CATEGORY_ICONS[c.icon] || CATEGORY_ICONS[c.slug] || '',
+        label: c.name || c.slug,
+      }));
+    } catch {
+      cats = [];
+    }
+  }
+
+  if (!cats.length) {
+    addChatMessage("Browse the events below or ask me anything!", 'bot');
+    localStorage.setItem('flowb-intro-seen', '1');
+    return;
+  }
+
+  // Track which groups and sub-cats are active
+  const activeGroups = new Set();
+  const activeSubs = new Set();
+
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-groups"></div>
+      <button class="flowb-intro-go-btn" disabled>Show me events</button>
+    </div>
+  `;
+  chatMessages.appendChild(div);
+
+  const groupsEl = div.querySelector('.flowb-intro-groups');
+  const goBtn = div.querySelector('.flowb-intro-go-btn');
+
+  function updateGoBtn() {
+    goBtn.disabled = activeSubs.size === 0;
+  }
+
+  for (const group of INTRO_GROUPS) {
+    // Group chip
+    const groupWrap = document.createElement('div');
+    groupWrap.className = 'flowb-intro-group-wrap';
+
+    const groupChip = document.createElement('button');
+    groupChip.className = 'flowb-intro-group';
+    groupChip.innerHTML = `<span class="intro-group-icon">${group.icon}</span> ${group.label}`;
+
+    // Sub-category container (hidden initially)
+    const subsEl = document.createElement('div');
+    subsEl.className = 'flowb-intro-subcats';
+    subsEl.style.display = 'none';
+
+    // Build sub-cat chips
+    const subChips = [];
+    for (const slug of group.cats) {
+      const catInfo = cats.find(c => c.id === slug);
+      const subChip = document.createElement('button');
+      subChip.className = 'flowb-intro-chip selected'; // default selected when group is active
+      const emoji = catInfo ? catInfo.emoji : '';
+      const label = catInfo ? catInfo.label : slug;
+      subChip.innerHTML = `<span class="intro-chip-emoji">${emoji}</span> ${label}`;
+      subChip.dataset.slug = slug;
+      subChip.addEventListener('click', () => {
+        subChip.classList.toggle('selected');
+        if (subChip.classList.contains('selected')) {
+          activeSubs.add(slug);
+        } else {
+          activeSubs.delete(slug);
+        }
+        // If all subs in group deselected, deselect group
+        const groupActive = group.cats.some(s => activeSubs.has(s));
+        groupChip.classList.toggle('selected', groupActive);
+        if (!groupActive) activeGroups.delete(group.label);
+        updateGoBtn();
+      });
+      subChips.push(subChip);
+      subsEl.appendChild(subChip);
+    }
+
+    groupChip.addEventListener('click', () => {
+      const isActive = activeGroups.has(group.label);
+      if (isActive) {
+        // Deselect group + all its subs
+        activeGroups.delete(group.label);
+        groupChip.classList.remove('selected');
+        subsEl.style.display = 'none';
+        group.cats.forEach(s => activeSubs.delete(s));
+        subChips.forEach(sc => sc.classList.remove('selected'));
+      } else {
+        // Select group + all its subs
+        activeGroups.add(group.label);
+        groupChip.classList.add('selected');
+        subsEl.style.display = 'flex';
+        group.cats.forEach(s => activeSubs.add(s));
+        subChips.forEach(sc => sc.classList.add('selected'));
+      }
+      updateGoBtn();
+      scrollChatToBottom();
+    });
+
+    groupWrap.appendChild(groupChip);
+    groupWrap.appendChild(subsEl);
+    groupsEl.appendChild(groupWrap);
+  }
+
+  goBtn.addEventListener('click', async () => {
+    if (activeSubs.size === 0) return;
+    goBtn.disabled = true;
+    goBtn.textContent = 'Loading...';
+
+    // Apply categories to main page
+    const selectedSlugs = [...activeSubs];
+    localStorage.setItem('flowb-user-cats', JSON.stringify(selectedSlugs));
+    const catStr = selectedSlugs.join(',');
+    displayCount = 18;
+    showLoading();
+    const params = { mainCategory: catStr };
+    if (activeCity) params.city = activeCity;
+    allEvents = await fetchEvents(params);
+    renderEvents(allEvents);
+    activeCategory = catStr;
+    if (catRow) {
+      catRow.querySelectorAll('.cat-chip').forEach(btn => {
+        btn.classList.toggle('active', activeSubs.has(btn.dataset.cat));
+      });
+    }
+
+    // Disable interactions
+    groupsEl.querySelectorAll('button').forEach(b => { b.style.pointerEvents = 'none'; });
+    goBtn.style.display = 'none';
+
+    // Confirmation
+    const groupNames = [...activeGroups];
+    const nameStr = groupNames.length <= 2 ? groupNames.join(' & ') : groupNames.slice(0, 2).join(', ') + ' & more';
+
+    addTypingIndicator();
+    await introWait(500);
+    removeTypingIndicator();
+    addChatMessage(`Nice -- **${nameStr}**. I've filtered the events for you.`, 'bot');
+
+    await introWait(400);
+    addTypingIndicator();
+    await introWait(700);
+    removeTypingIndicator();
+    addChatMessage("How do you want to explore?", 'bot');
+    await introWait(200);
+
+    // Discovery paths
+    renderIntroDiscoveryPaths(activeSubs);
+  });
+
+  scrollChatToBottom();
+}
+
+function renderIntroDiscoveryPaths(selectedCats, excludeCrew = false) {
+  const allPaths = [
+    { id: 'near-me',   icon: '\uD83D\uDCCD', label: 'Find near me',      desc: 'Use my location' },
+    { id: 'plan-trip', icon: '\u2708\uFE0F',  label: 'Plan for a trip',   desc: 'Pick a destination' },
+    { id: 'crew',      icon: '\uD83D\uDC65',  label: "Where's my crew",   desc: 'See crew activity' },
+  ];
+  const paths = excludeCrew ? allPaths.filter(p => p.id !== 'crew') : allPaths;
+
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-paths"></div>
+    </div>
+  `;
+  chatMessages.appendChild(div);
+
+  const pathsEl = div.querySelector('.flowb-intro-paths');
+  let pathPicked = false;
+
+  for (const p of paths) {
+    const chip = document.createElement('button');
+    chip.className = 'flowb-intro-path';
+    chip.innerHTML = `<span class="intro-path-icon">${p.icon}</span><span class="intro-path-text"><span class="intro-path-label">${p.label}</span><span class="intro-path-desc">${p.desc}</span></span>`;
+    chip.addEventListener('click', async () => {
+      if (pathPicked) return;
+      pathPicked = true;
+      pathsEl.querySelectorAll('.flowb-intro-path').forEach(el => { el.style.pointerEvents = 'none'; });
+      chip.classList.add('selected');
+
+      if (p.id === 'near-me') {
+        await handleIntroNearMe(selectedCats);
+      } else if (p.id === 'plan-trip') {
+        addTypingIndicator();
+        await introWait(400);
+        removeTypingIndicator();
+        addChatMessage("Where are you headed?", 'bot');
+        await introWait(200);
+        renderIntroCityPicker(selectedCats);
+      } else if (p.id === 'crew') {
+        await handleIntroCrew(selectedCats);
+      }
+    });
+    pathsEl.appendChild(chip);
+  }
+
+  scrollChatToBottom();
+}
+
+async function handleIntroNearMe(selectedCats) {
+  if (!navigator.geolocation) {
+    addChatMessage("Your browser doesn't support geolocation. Try picking a city instead!", 'bot');
+    await introWait(300);
+    renderIntroCityPicker(selectedCats);
+    return;
+  }
+
+  addTypingIndicator();
+
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false });
+    });
+    const { latitude, longitude } = pos.coords;
+    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json&zoom=10`);
+    const geoData = await geoRes.json();
+    const city = geoData.address?.city || geoData.address?.town || geoData.address?.county || 'My Area';
+
+    selectLocation(city, city);
+
+    // Re-fetch with location + selected cats
+    if (selectedCats.size > 0) {
+      showLoading();
+      const params = { mainCategory: [...selectedCats].join(','), city };
+      allEvents = await fetchEvents(params);
+      renderEvents(allEvents);
+    }
+
+    removeTypingIndicator();
+    addChatMessage(`Found you in **${city}**! Events updated.`, 'bot');
+  } catch (err) {
+    removeTypingIndicator();
+    if (err.code === 1) {
+      addChatMessage("Location access denied. Let's pick a city instead!", 'bot');
+    } else {
+      addChatMessage("Couldn't get your location. Let's pick a city instead!", 'bot');
+    }
+    await introWait(300);
+    renderIntroCityPicker(selectedCats);
+    return;
+  }
+
+  await introWait(300);
+  addChatMessage("You're all set! Browse events below, or ask me anything here.", 'bot');
+  localStorage.setItem('flowb-intro-seen', '1');
+}
+
+async function handleIntroCrew(selectedCats) {
+  addTypingIndicator();
+  await introWait(500);
+  removeTypingIndicator();
+
+  if (!Auth.isAuthenticated) {
+    addChatMessage("Crews require sign-in. Let's find you some events first!", 'bot');
+    await introWait(300);
+    renderIntroDiscoveryPaths(selectedCats, /* excludeCrew */ true);
+    return;
+  }
+
+  const data = await fetchAuthed('/api/v1/flow/crews');
+  if (!data || !data.crews || !data.crews.length) {
+    addChatMessage("No crews yet! Let's find events first — you can create or join a crew anytime.", 'bot');
+    await introWait(300);
+    renderIntroDiscoveryPaths(selectedCats, /* excludeCrew */ true);
+    return;
+  }
+
+  let text = `**Your Crews** (${data.crews.length})\n\n`;
+  for (const crew of data.crews) {
+    text += `${crew.emoji || ''} **${crew.name}** - ${crew.role || 'member'}\n`;
+  }
+  text += '\nBrowse events below, or ask me anything here!';
+  addChatMessage(text, 'bot');
+  localStorage.setItem('flowb-intro-seen', '1');
+}
+
+function renderIntroCityPicker(selectedCats) {
+  const topCities = [
+    { city: 'Austin', icon: '\uD83E\uDD20', label: 'Austin' },
+    { city: 'Denver', icon: '\uD83C\uDFD4\uFE0F', label: 'Denver' },
+    { city: 'New York', icon: '\uD83D\uDDFD', label: 'New York' },
+    { city: 'San Francisco', icon: '\uD83C\uDF09', label: 'SF' },
+    { city: 'Miami', icon: '\uD83C\uDF0A', label: 'Miami' },
+    { city: 'London', icon: '\uD83C\uDDEC\uD83C\uDDE7', label: 'London' },
+    { city: 'Berlin', icon: '\uD83C\uDDE9\uD83C\uDDEA', label: 'Berlin' },
+    { city: 'Lisbon', icon: '\uD83C\uDDF5\uD83C\uDDF9', label: 'Lisbon' },
+    { city: '', icon: '\uD83C\uDF0D', label: 'Anywhere' },
+  ];
+
+  const div = document.createElement('div');
+  div.className = 'flowb-msg bot';
+  div.innerHTML = `
+    <div class="flowb-msg-avatar">F</div>
+    <div class="flowb-msg-content">
+      <div class="flowb-intro-chips"></div>
+    </div>
+  `;
+  chatMessages.appendChild(div);
+
+  const chipsEl = div.querySelector('.flowb-intro-chips');
+  let locationPicked = false;
+
+  for (const c of topCities) {
+    const chip = document.createElement('button');
+    chip.className = 'flowb-intro-chip';
+    if (c.city === activeCity || (!c.city && !activeCity)) chip.classList.add('selected');
+    chip.innerHTML = `<span class="intro-chip-emoji">${c.icon}</span> ${c.label}`;
+    chip.addEventListener('click', async () => {
+      if (locationPicked) return;
+      locationPicked = true;
+
+      chipsEl.querySelectorAll('.flowb-intro-chip').forEach(el => el.classList.remove('selected'));
+      chip.classList.add('selected');
+      chipsEl.querySelectorAll('.flowb-intro-chip').forEach(el => { el.style.pointerEvents = 'none'; });
+
+      // Apply location
+      selectLocation(c.city, c.label === 'Anywhere' ? 'Anywhere' : c.label);
+
+      // Re-fetch with new city + selected cats
+      if (selectedCats.size > 0) {
+        showLoading();
+        const params = { mainCategory: [...selectedCats].join(',') };
+        if (c.city) params.city = c.city;
+        allEvents = await fetchEvents(params);
+        renderEvents(allEvents);
+      }
+
+      // Final message
+      addTypingIndicator();
+      await introWait(400);
+      removeTypingIndicator();
+      addChatMessage("You're all set! Browse events below, or ask me anything here.", 'bot');
+
+      localStorage.setItem('flowb-intro-seen', '1');
+    });
+    chipsEl.appendChild(chip);
+  }
+
+  scrollChatToBottom();
+}
+
 // ===== Init =====
 (async () => {
   awardPoints(1, 'Daily visit', 'info');
@@ -1586,12 +2214,29 @@ async function checkLumaHealth() {
   // Handle event URL parameter from smart short links
   handleEventUrlParam();
 
+  // First-visit: auto-expand chat panel after 1.5s
+  if (!localStorage.getItem('flowb-intro-seen')) {
+    setTimeout(() => {
+      if (widget.dataset.state === 'minimized') {
+        introStarted = true;
+        expandChat();
+        runIntroInChat();
+      }
+    }, 1500);
+  }
+
   // Read URL params (from FlowB web links)
   const urlParams = new URLSearchParams(window.location.search);
   const paramSearch = urlParams.get('search');
   const paramCategory = urlParams.get('category');
   const paramFilter = urlParams.get('filter');
   const paramCity = urlParams.get('city');
+  const paramAll = urlParams.get('all') === 'true';
+
+  // If "All Events" mode, show everything
+  if (paramAll) {
+    displayCount = 999;
+  }
 
   if (paramSearch) {
     searchInput.value = paramSearch;
@@ -1617,6 +2262,7 @@ async function checkLumaHealth() {
   if (paramSearch) initParams.query = paramSearch;
   if (paramCategory && paramCategory !== 'all') initParams.mainCategory = paramCategory;
   if (paramCity) initParams.city = paramCity;
+  if (paramAll) initParams.limit = 200;
 
   // Apply filter from URL (tonight/week/free)
   if (paramFilter === 'tonight') {
@@ -1629,8 +2275,8 @@ async function checkLumaHealth() {
     const now = new Date();
     const end = new Date(now);
     end.setDate(end.getDate() + 7);
-    initParams.startDate = now.toISOString().slice(0, 10);
-    initParams.endDate = end.toISOString().slice(0, 10);
+    initParams.startDate = localDate(now);
+    initParams.endDate = localDate(end);
     allEvents = await fetchEvents(initParams);
     activeFilter = 'week';
     document.querySelectorAll('.filter-pill').forEach(btn => {
@@ -1663,26 +2309,133 @@ async function checkLumaHealth() {
 
   // Check Luma API health
   checkLumaHealth();
+})();
 
-  // FlowB nudge popup - dismiss + auto-hide
-  const nudge = document.getElementById('flowbNudge');
-  const nudgeClose = document.getElementById('flowbNudgeClose');
-  const nudgeDismissed = localStorage.getItem('flowb_nudge_dismissed');
+// ===================================================================
+// Submit Event Modal
+// ===================================================================
 
-  if (nudgeDismissed) {
-    nudge.style.display = 'none';
-  } else {
-    nudgeClose.addEventListener('click', () => {
-      nudge.classList.add('dismissed');
-      setTimeout(() => { nudge.style.display = 'none'; }, 300);
-      localStorage.setItem('flowb_nudge_dismissed', '1');
-    });
-    // Auto-dismiss after 15 seconds
-    setTimeout(() => {
-      if (!nudge.classList.contains('dismissed')) {
-        nudge.classList.add('dismissed');
-        setTimeout(() => { nudge.style.display = 'none'; }, 300);
-      }
-    }, 18000);
+(function initSubmitEvent() {
+  const btn = document.getElementById('submitEventBtn');
+  const modal = document.getElementById('submitModal');
+  const backdrop = document.getElementById('submitModalBackdrop');
+  const closeBtn = document.getElementById('submitModalClose');
+  const form = document.getElementById('submitEventForm');
+  if (!btn || !modal) return;
+
+  function openSubmitModal() {
+    modal.classList.remove('hidden');
+    backdrop.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // Auto-fill city from current selection
+    const cityInput = document.getElementById('submitCity');
+    if (cityInput && activeCity) cityInput.value = activeCity;
   }
+
+  function closeSubmitModal() {
+    modal.classList.add('hidden');
+    backdrop.classList.add('hidden');
+    document.body.style.overflow = '';
+  }
+
+  btn.addEventListener('click', openSubmitModal);
+  closeBtn.addEventListener('click', closeSubmitModal);
+  backdrop.addEventListener('click', closeSubmitModal);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeSubmitModal();
+    }
+  });
+
+  // When URL is pasted, auto-fill title hint
+  const urlInput = document.getElementById('submitUrl');
+  const titleInput = document.getElementById('submitTitle');
+  if (urlInput && titleInput) {
+    urlInput.addEventListener('input', () => {
+      if (urlInput.value.trim()) {
+        titleInput.removeAttribute('required');
+        titleInput.placeholder = 'Optional if URL provided';
+      } else {
+        titleInput.setAttribute('required', '');
+        titleInput.placeholder = 'My awesome event';
+      }
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('submitBtn');
+    const url = document.getElementById('submitUrl').value.trim();
+    const title = document.getElementById('submitTitle').value.trim();
+    const date = document.getElementById('submitDate').value;
+    const time = document.getElementById('submitTime').value;
+    const venue = document.getElementById('submitVenue').value.trim();
+    const city = document.getElementById('submitCity').value.trim();
+    const desc = document.getElementById('submitDesc').value.trim();
+    const isFree = document.getElementById('submitFree').checked;
+    const name = document.getElementById('submitName').value.trim();
+
+    if (!url && !title) {
+      alert('Please provide an event URL or title.');
+      return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    let startTime = null;
+    if (date) {
+      startTime = time ? `${date}T${time}:00` : `${date}T00:00:00`;
+    }
+
+    const body = {
+      url: url || undefined,
+      title: title || undefined,
+      startTime,
+      venue: venue || undefined,
+      city: city || 'Austin',
+      description: desc || undefined,
+      isFree,
+      submitterName: name || undefined,
+    };
+
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = getAuthToken();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API}/api/v1/events/submit`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const data = await res.json();
+
+      if (data.ok) {
+        submitBtn.textContent = 'Submitted!';
+        submitBtn.style.background = 'var(--green)';
+        awardPoints(5, 'Event submitted');
+        setTimeout(() => {
+          closeSubmitModal();
+          form.reset();
+          submitBtn.textContent = 'Submit Event';
+          submitBtn.style.background = '';
+          submitBtn.disabled = false;
+          // Refresh events to show the new one
+          selectCategory(activeCategory);
+        }, 1500);
+      } else {
+        alert(data.error || 'Something went wrong. Please try again.');
+        submitBtn.textContent = 'Submit Event';
+        submitBtn.disabled = false;
+      }
+    } catch (err) {
+      console.error('Submit failed:', err);
+      alert('Network error. Please try again.');
+      submitBtn.textContent = 'Submit Event';
+      submitBtn.disabled = false;
+    }
+  });
 })();

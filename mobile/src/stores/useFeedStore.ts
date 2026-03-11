@@ -15,7 +15,7 @@ export const useFeedStore = create<FeedState>((set) => ({
   isLoading: false,
   error: null,
 
-  fetchFeed: async (channel = "ethdenver") => {
+  fetchFeed: async (channel = "community") => {
     set({ isLoading: true, error: null });
     try {
       const casts = await api.getFeed(channel, 15);

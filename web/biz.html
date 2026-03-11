@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB for Business -- AI-Powered Networking Tools</title>
+  <meta name="description" content="Supercharge your networking with AI-powered meetings, CRM, lead pipeline, and automations. Plans from free to enterprise.">
+  <meta property="og:title" content="FlowB for Business">
+  <meta property="og:description" content="Supercharge your networking with AI-powered meetings, CRM, lead pipeline, and automations.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://flowb.me/biz">
+  <meta property="og:image" content="https://flowb.me/flowb-og.png">
+  <meta property="og:site_name" content="FlowB">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="FlowB for Business">
+  <meta name="twitter:description" content="Supercharge your networking with AI-powered meetings, CRM, lead pipeline, and automations.">
+  <meta name="twitter:image" content="https://flowb.me/flowb-og.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="shortcut icon" href="favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    /* Hero */
+    .biz-hero {
+      text-align: center;
+      padding: 72px 0 48px;
+    }
+    .biz-hero h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      margin-bottom: 14px;
+      line-height: 1.15;
+    }
+    .biz-hero p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 560px;
+      margin: 0 auto 28px;
+      line-height: 1.6;
+    }
+    .biz-hero .biz-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .biz-hero .biz-cta:hover {
+      background: var(--accent-light);
+      text-decoration: none;
+    }
+    .biz-hero .biz-cta svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Pricing */
+    .pricing-section {
+      padding: 0 0 64px;
+    }
+    .pricing-section h2 {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .pricing-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.2s, transform 0.15s;
+      position: relative;
+    }
+    .pricing-card:hover {
+      border-color: var(--border-hover);
+      transform: translateY(-2px);
+    }
+    .pricing-card.popular {
+      border-color: var(--accent);
+      box-shadow: 0 0 24px rgba(37, 99, 235, 0.12);
+    }
+    .pricing-badge {
+      position: absolute;
+      top: -11px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 14px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .pricing-tier {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .pricing-price {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+    .pricing-price span {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+    .pricing-desc {
+      color: var(--text-muted);
+      font-size: 0.82rem;
+      margin-bottom: 20px;
+      line-height: 1.4;
+    }
+    .pricing-features {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 24px;
+      flex: 1;
+    }
+    .pricing-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      padding: 6px 0;
+      line-height: 1.4;
+    }
+    .pricing-features li svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      color: var(--green);
+    }
+    .pricing-cta {
+      display: block;
+      text-align: center;
+      padding: 10px 0;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+      border: 1.5px solid var(--border);
+      color: var(--text);
+      background: transparent;
+    }
+    .pricing-cta:hover {
+      border-color: var(--accent);
+      color: var(--accent-light);
+      text-decoration: none;
+    }
+    .pricing-card.popular .pricing-cta {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .pricing-card.popular .pricing-cta:hover {
+      background: var(--accent-light);
+      border-color: var(--accent-light);
+    }
+
+    /* Features */
+    .features-section {
+      padding: 0 0 64px;
+    }
+    .features-section h2 {
+      text-align: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .features-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 24px;
+      transition: border-color 0.2s;
+    }
+    .feature-card:hover {
+      border-color: var(--border-hover);
+    }
+    .feature-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+    .feature-icon svg {
+      width: 22px;
+      height: 22px;
+    }
+    .feature-icon.blue { background: rgba(37, 99, 235, 0.12); color: var(--accent-light); }
+    .feature-icon.green { background: var(--green-dim); color: var(--green); }
+    .feature-icon.purple { background: rgba(168, 85, 247, 0.12); color: var(--purple); }
+    .feature-icon.orange { background: rgba(249, 115, 22, 0.12); color: var(--orange); }
+    .feature-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* Bottom CTA */
+    .biz-bottom-cta {
+      text-align: center;
+      padding: 48px 20px 72px;
+      border-top: 1px solid var(--border);
+    }
+    .biz-bottom-cta h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+    }
+    .biz-bottom-cta p {
+      color: var(--text-muted);
+      font-size: 1rem;
+      max-width: 480px;
+      margin: 0 auto 24px;
+      line-height: 1.6;
+    }
+    .biz-bottom-cta a {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 13px 32px;
+      background: var(--accent);
+      color: #fff;
+      border-radius: var(--radius-pill);
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .biz-bottom-cta a:hover {
+      background: var(--accent-light);
+      text-decoration: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .pricing-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 640px) {
+      .biz-hero { padding: 48px 0 32px; }
+      .biz-hero h1 { font-size: 1.8rem; }
+      .pricing-grid {
+        grid-template-columns: 1fr;
+        max-width: 400px;
+        margin: 0 auto;
+      }
+      .features-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+            <a href="/biz" class="nav-more-item active">Business</a>
+          </div>
+        </div>
+      </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="header-meta">
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="biz-hero">
+    <div class="container">
+      <h1><span class="gradient-text">FlowB for Business</span></h1>
+      <p>Supercharge your networking with AI-powered meetings, smart CRM, and automated workflows -- all in one place.</p>
+      <a href="https://t.me/Flow_b_bot?start=biz" class="biz-cta" target="_blank" rel="noopener">
+        Get Started
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <div class="container">
+    <!-- Pricing -->
+    <section class="pricing-section">
+      <h2>Choose Your Plan</h2>
+      <p class="pricing-subtitle">Start free. Upgrade when you need more power.</p>
+
+      <div class="pricing-grid">
+        <!-- Free -->
+        <div class="pricing-card">
+          <div class="pricing-tier">Free</div>
+          <div class="pricing-price">$0<span>/mo</span></div>
+          <div class="pricing-desc">For individuals getting started with smarter networking.</div>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              5 AI chats per day
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              3 meetings per month
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              10 leads
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              1 automation
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Find your flow
+            </li>
+          </ul>
+          <a href="https://t.me/Flow_b_bot?start=biz" class="pricing-cta" target="_blank" rel="noopener">Get Started Free</a>
+        </div>
+
+        <!-- Pro -->
+        <div class="pricing-card popular">
+          <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-tier">Pro</div>
+          <div class="pricing-price">$19<span>/mo</span></div>
+          <div class="pricing-desc">For active networkers who want more from every connection.</div>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              50 AI chats per day
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited meetings
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              100 leads
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              10 automations
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              AI meeting briefings
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Referral commissions
+            </li>
+          </ul>
+          <a href="https://t.me/Flow_b_bot?start=biz_pro" class="pricing-cta" target="_blank" rel="noopener">Start with Pro</a>
+        </div>
+
+        <!-- Team -->
+        <div class="pricing-card">
+          <div class="pricing-tier">Team</div>
+          <div class="pricing-price">$49<span>/mo</span></div>
+          <div class="pricing-desc">For teams collaborating on leads, deals, and events.</div>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              200 AI chats per day
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited meetings
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              500 leads
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              50 automations
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              5 team members
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Shared lead pipeline
+            </li>
+          </ul>
+          <a href="https://t.me/Flow_b_bot?start=biz_team" class="pricing-cta" target="_blank" rel="noopener">Start with Team</a>
+        </div>
+
+        <!-- Business -->
+        <div class="pricing-card">
+          <div class="pricing-tier">Business</div>
+          <div class="pricing-price">$99<span>/mo</span></div>
+          <div class="pricing-desc">For organizations that need unlimited power and support.</div>
+          <ul class="pricing-features">
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited AI chats
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited meetings
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited leads
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited automations
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited team members
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Priority support
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              Custom integrations
+            </li>
+          </ul>
+          <a href="https://t.me/Flow_b_bot?start=biz_business" class="pricing-cta" target="_blank" rel="noopener">Contact Sales</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features-section">
+      <h2>Everything You Need to Close More Deals</h2>
+      <p class="features-subtitle">Built for professionals who network at events, conferences, and meetups.</p>
+
+      <div class="features-grid">
+        <!-- Smart Meeting Engine -->
+        <div class="feature-card">
+          <div class="feature-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h3>Smart Meeting Engine</h3>
+          <p>AI-generated briefings before every meeting, automatic follow-up suggestions after, and seamless calendar sync. Never walk into a meeting unprepared again.</p>
+        </div>
+
+        <!-- CRM & Lead Pipeline -->
+        <div class="feature-card">
+          <div class="feature-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <h3>CRM & Lead Pipeline</h3>
+          <p>Track every contact you meet at events. Manage deal stages, set follow-up reminders, and automate nurturing sequences -- all from Telegram.</p>
+        </div>
+
+        <!-- Referral Commissions -->
+        <div class="feature-card">
+          <div class="feature-icon purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <h3>Referral Commissions</h3>
+          <p>Earn from ticket sales through your referral links. Engagement-weighted crew splits ensure everyone gets their fair share. Turn your network into revenue.</p>
+        </div>
+
+        <!-- AI Automations -->
+        <div class="feature-card">
+          <div class="feature-icon orange">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+            </svg>
+          </div>
+          <h3>AI Automations</h3>
+          <p>Rule-based workflows that trigger actions automatically. Send follow-ups after events, score leads by engagement, route hot prospects to your inbox instantly.</p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Bottom CTA -->
+  <section class="biz-bottom-cta">
+    <div class="container">
+      <h2>Ready to <span class="gradient-text">level up</span> your networking?</h2>
+      <p>Join thousands of professionals using FlowB to build better relationships and close more deals.</p>
+      <a href="https://t.me/Flow_b_bot?start=biz" target="_blank" rel="noopener">
+        Start Free on Telegram
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="footer-left">
+        <img class="logo-icon small" src="flowb.png" alt="FlowB">
+        <span>FlowB</span>
+        <span class="footer-dot"></span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
+      </div>
+      <div class="footer-right">
+        <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
+        <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
+        <a href="/about" class="footer-link">About</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="mobile-menu.js"></script>
+</body>
+</html>

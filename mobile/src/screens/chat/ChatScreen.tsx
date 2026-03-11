@@ -40,7 +40,7 @@ import { spacing } from '../../theme/spacing';
 import { typography } from '../../theme/typography';
 import { haptics } from '../../utils/haptics';
 
-// ── Types ────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 
 interface ChatMessage {
   id: string;
@@ -48,7 +48,7 @@ interface ChatMessage {
   content: string;
 }
 
-// ── Constants ────────────────────────────────────────────────────────
+// -- Constants ----------------------------------------------------------------
 
 const QUICK_ACTIONS = [
   { label: "What's happening now?", msg: 'What events are happening right now?' },
@@ -59,7 +59,7 @@ const QUICK_ACTIONS = [
 
 const SYSTEM_MESSAGE = {
   role: 'system',
-  content: `You are FlowB, a friendly AI assistant for ETHDenver 2026 side events. You help users discover events, hackathons, parties, meetups, and summits happening during ETHDenver week (Feb 15-27, 2026) in Denver.
+  content: `You are FlowB, a friendly crew coordinator and event guide. You help users discover events, hackathons, parties, meetups, and summits happening in their city.
 
 You have access to a tool called "flowb" that can search events, browse categories, check tonight's events, find free events, and more. Use it when users ask about events.
 
@@ -72,7 +72,7 @@ CRITICAL RULES:
 
 let msgCounter = 0;
 
-// ── Simple markdown renderer ─────────────────────────────────────────
+// -- Simple markdown renderer -------------------------------------------------
 
 function renderMarkdown(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -134,7 +134,7 @@ const markdownStyles = StyleSheet.create({
   },
 });
 
-// ── Typing indicator ────────────────────────────────────────────────
+// -- Typing indicator ---------------------------------------------------------
 
 function TypingDot({ delay }: { delay: number }) {
   const opacity = useSharedValue(0.3);
@@ -181,7 +181,7 @@ function TypingIndicator() {
   );
 }
 
-// ── Message bubble ──────────────────────────────────────────────────
+// -- Message bubble -----------------------------------------------------------
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user';
@@ -207,7 +207,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   );
 }
 
-// ── Main component ──────────────────────────────────────────────────
+// -- Main component -----------------------------------------------------------
 
 export function ChatScreen() {
   const insets = useSafeAreaInsets();
@@ -219,7 +219,7 @@ export function ChatScreen() {
   const inputRef = useRef<TextInput>(null);
   const flatListRef = useRef<FlatList>(null);
 
-  // ── Send message ──────────────────────────────────────────────────
+  // -- Send message -----------------------------------------------------------
 
   const handleSend = useCallback(
     async (text?: string) => {
@@ -275,7 +275,7 @@ export function ChatScreen() {
     [input, sending, messages, user]
   );
 
-  // ── Quick action handler ──────────────────────────────────────────
+  // -- Quick action handler ---------------------------------------------------
 
   const handleQuickAction = useCallback(
     (msg: string) => {
@@ -285,7 +285,7 @@ export function ChatScreen() {
     [handleSend]
   );
 
-  // ── Empty state ───────────────────────────────────────────────────
+  // -- Empty state ------------------------------------------------------------
 
   const renderEmptyState = useCallback(() => {
     if (messages.length > 0) return null;
@@ -303,8 +303,8 @@ export function ChatScreen() {
             Hey{userName ? ` @${userName}` : ''}!
           </Text>
           <Text style={styles.emptySubtitle}>
-            Ask me about events, venues, or anything EthDenver. I can help you
-            find what's happening and plan your day.
+            Ask me about events, venues, or what's happening nearby. I can help you
+            find what's going on and plan your day.
           </Text>
         </Animated.View>
 
@@ -326,7 +326,7 @@ export function ChatScreen() {
     );
   }, [messages.length, user, handleQuickAction]);
 
-  // ── Render message item ───────────────────────────────────────────
+  // -- Render message item ----------------------------------------------------
 
   const renderItem = useCallback(
     ({ item }: { item: ChatMessage }) => <MessageBubble message={item} />,
@@ -335,11 +335,11 @@ export function ChatScreen() {
 
   const keyExtractor = useCallback((item: ChatMessage) => item.id, []);
 
-  // ── Header height for the title area ──────────────────────────────
+  // -- Header height for the title area ---------------------------------------
 
   const headerPaddingTop = insets.top + spacing.sm;
 
-  // ── Render ────────────────────────────────────────────────────────
+  // -- Render -----------------------------------------------------------------
 
   return (
     <KeyboardAvoidingView
@@ -350,7 +350,7 @@ export function ChatScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: headerPaddingTop }]}>
         <Text style={styles.headerTitle}>FlowB</Text>
-        <Text style={styles.headerSubtitle}>Your EthDenver AI assistant</Text>
+        <Text style={styles.headerSubtitle}>Your AI event guide</Text>
       </View>
 
       {/* Messages */}
@@ -412,7 +412,7 @@ export function ChatScreen() {
   );
 }
 
-// ── Styles ──────────────────────────────────────────────────────────
+// -- Styles -------------------------------------------------------------------
 
 const styles = StyleSheet.create({
   root: {

@@ -14,6 +14,7 @@ import type {
   EventQuery,
   EventResult,
 } from "../../core/types.js";
+import { fireAndForget } from "../../utils/logger.js";
 
 // ============================================================================
 // Types
@@ -1073,11 +1074,11 @@ export class DANZPlugin implements FlowBPlugin, EventProvider {
     });
 
     // Award XP to user
-    await update(cfg, "users", {
+    fireAndForget(update(cfg, "users", {
       xp: `xp + 25`,
     }, {
       privy_id: `eq.${status.danzPrivyId}`,
-    }).catch(() => {}); // best effort
+    }), "award dance XP");
 
     const moveName = danceMove || "freestyle";
     const photoNote = photoFileId ? " with photo proof" : "";

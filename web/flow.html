@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>My Flow -- FlowB</title>
-  <meta name="description" content="Your personal ETHDenver 2026 dashboard. Track your schedule, crews, points, and connections.">
+  <meta name="description" content="Your personal FlowB dashboard. Track your schedule, crews, points, and connections.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -22,14 +22,27 @@
         <img class="logo-icon" src="flowb.png" alt="FlowB">
         <span class="logo-text">FlowB</span>
       </a>
-      <nav class="header-nav">
+            <nav class="header-nav">
         <a href="/" class="header-nav-link">Events</a>
-        <a href="/leaderboard" class="header-nav-link">Leaderboard</a>
-        <a href="/flow" class="header-nav-link active">My Flow</a>
-        <a href="/about" class="header-nav-link">About</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/flow" class="header-nav-link active" id="navMyFlow">Flow</a>
+        <div class="nav-more">
+          <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+          </button>
+          <div class="nav-more-dropdown">
+            <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
+            <a href="/agents" class="nav-more-item">Agents</a>
+            <a href="/about" class="nav-more-item">About</a>
+          </div>
+        </div>
       </nav>
+      <button class="hamburger" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
       <div class="header-meta">
-        <span class="event-badge">ETHDenver 2026</span>
+        <span class="event-badge">Get in the <span class="gradient-text">Flow</span></span>
         <div class="points-badge" id="pointsBadge" title="Your FlowB Points">
           <div class="points-ring-wrap">
             <svg class="points-ring" width="36" height="36" viewBox="0 0 36 36">
@@ -93,11 +106,13 @@
             </svg>
           </div>
           <h2 class="flow-signin-title">Sign in to see My Flow</h2>
-          <p class="flow-signin-msg">Track your schedule, manage crews, earn points, and connect with friends at ETHDenver 2026.</p>
+          <p class="flow-signin-msg">Track your schedule, manage crews, earn points, and connect with friends.</p>
           <button class="flow-signin-btn" id="flowSigninBtn">Sign In</button>
           <div class="flow-signin-links">
             <span>Or use FlowB on</span>
             <a href="https://t.me/Flow_b_bot" target="_blank">Telegram</a>
+            <span>/</span>
+            <a href="https://wa.flowb.me" target="_blank">WhatsApp</a>
             <span>/</span>
             <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank">Farcaster MiniApp</a>
           </div>
@@ -109,7 +124,7 @@
         <div class="page-header">
           <div class="page-header-text">
             <h1 class="page-title">My Flow</h1>
-            <p class="page-subtitle" id="flowGreeting">Your ETHDenver 2026 dashboard</p>
+            <p class="page-subtitle" id="flowGreeting">Your personal dashboard</p>
           </div>
           <div class="page-header-actions">
             <a href="/settings" class="page-action-btn">
@@ -119,6 +134,9 @@
             <a href="https://t.me/Flow_b_bot" target="_blank" class="page-action-btn secondary">
               <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>
               Telegram
+            </a>
+            <a href="https://wa.flowb.me" target="_blank" class="page-action-btn secondary">
+              WhatsApp
             </a>
             <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="page-action-btn secondary">
               <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M18.24 2.4H5.76C3.96 2.4 2.4 3.96 2.4 5.76v12.48c0 1.8 1.56 3.36 3.36 3.36h12.48c1.8 0 3.36-1.56 3.36-3.36V5.76c0-1.8-1.56-3.36-3.36-3.36zm-.84 14.4h-1.44l-.72-3.6-.72 3.6H13.2l-1.2-6h1.44l.6 3.6.72-3.6h1.2l.72 3.6.6-3.6h1.44l-1.32 6z"/></svg>
@@ -257,10 +275,11 @@
         <img class="logo-icon small" src="flowb.png" alt="FlowB">
         <span>FlowB</span>
         <span class="footer-dot"></span>
-        <span class="footer-muted">Powered by eGator</span>
+        <span class="footer-muted">Powered by FlowBond Tech</span>
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
+        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
         <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
         <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
       </div>
@@ -272,6 +291,7 @@
 
   <!-- Privy Auth Mount -->
   <div id="privy-root"></div>
+
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
@@ -490,11 +510,15 @@
       const el = document.getElementById('crewDiscoverList');
       el.innerHTML = '<div class="flow-loading">Loading crews...</div>';
 
-      const data = await fetchAuthed('/api/v1/flow/crews/discover');
+      let data;
+      try {
+        const res = await fetch(`${FLOWB_API}/api/v1/flow/crews/discover`);
+        data = res.ok ? await res.json() : null;
+      } catch { data = null; }
       const crews = (data && data.crews) ? data.crews : [];
 
       if (!crews.length) {
-        el.innerHTML = '<div class="dash-empty"><p>No public crews found</p><span>Be the first to create one!</span></div>';
+        el.innerHTML = '<div class="dash-empty"><p>No crews found</p><span>Be the first to create one!</span></div>';
         return;
       }
 
@@ -742,5 +766,6 @@
       }
     })();
   </script>
+  <script src="mobile-menu.js"></script>
 </body>
 </html>

@@ -2,11 +2,14 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 
 export type RootStackParamList = {
+  IntroCarousel: undefined;
   Login: undefined;
   Onboarding: undefined;
   MainTabs: undefined;
   EventDetail: { eventId: string };
   CrewDetail: { crewId: string; crewName: string; crewEmoji: string };
+  CrewBiz: { crewId: string; crewName: string; crewEmoji?: string };
+  CrewBizSettings: { crewId: string; crewName: string };
   CreateCrew: undefined;
   Checkin: { crewId: string; crewName: string };
   Preferences: undefined;
@@ -19,6 +22,14 @@ export type RootStackParamList = {
   CastComposer: undefined;
   NotificationCenter: undefined;
   SettingsEditor: undefined;
+  MeetingList: undefined;
+  MeetingDetail: { meetingId: string };
+  CreateMeeting: undefined;
+  LeadList: undefined;
+  LeadDetail: { leadId: string };
+  CreateLead: undefined;
+  EditLead: { leadId: string };
+  Kanban: undefined;
   // Checkout & payments
   Products: undefined;
   Checkout: { productSlug: string };
@@ -30,6 +41,7 @@ export type TabParamList = {
   HomeTab: undefined;
   ScheduleTab: undefined;
   ChatTab: undefined;
+  BizTab: undefined;
   CrewTab: undefined;
   PointsTab: undefined;
   ProfileTab: undefined;

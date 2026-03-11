@@ -1,9 +1,9 @@
 /**
- * eGator Plugin for FlowB (Luma-Only)
+ * eGator Plugin for FlowB (Multi-Source)
  *
- * Event discovery and management powered exclusively by Luma.
- * Uses the discover API for public search and official API for
- * rich features: event details, tickets, RSVP, guest lists.
+ * Event aggregation from all configured sources:
+ * Luma, Tavily, Eventbrite, Brave, Resident Advisor, Lemonade, Sheeets, Google Places.
+ * Uses Luma as the primary source with official API for rich features.
  */
 
 import type {
@@ -14,37 +14,150 @@ import type {
   EGatorPluginConfig,
   EventQuery,
   EventResult,
+  EventSourceAdapter,
 } from "../../core/types.js";
 
 import { LumaAdapter } from "./sources/luma.js";
+import { TavilyAdapter } from "./sources/tavily.js";
+import { EventbriteAdapter } from "./sources/eventbrite.js";
+import { BraveSearchAdapter } from "./sources/brave.js";
+import { ResidentAdvisorAdapter } from "./sources/ra.js";
+import { LemonadeAdapter } from "./sources/lemonade.js";
+import { SheeetsAdapter } from "./sources/sheeets.js";
+import { GooglePlacesAdapter } from "./sources/google-places.js";
+import { EventbriteScraperAdapter } from "./sources/eventbrite-scraper.js";
+import { MeetupScraperAdapter } from "./sources/meetup-scraper.js";
+import { SxswScraperAdapter } from "./sources/sxsw-scraper.js";
+import { PartifulAdapter } from "./sources/partiful.js";
+import { SupadataAdapter } from "./sources/supadata.js";
+import type { TranscriptResult } from "./sources/supadata.js";
+import { SerpAPIAdapter } from "./sources/serpapi.js";
 import type { LumaEventDetail, LumaTicketType, LumaGuest } from "./sources/luma.js";
 
 export class EGatorPlugin implements FlowBPlugin, EventProvider {
   id = "egator";
-  name = "Luma Events";
-  description = "Event discovery and RSVP powered by Luma";
-  eventSource = "luma";
+  name = "eGator Events";
+  description = "Multi-source event aggregation and RSVP";
+  eventSource = "egator";
 
   actions: Record<string, { description: string }> = {
-    search: { description: "Search events in Denver" },
+    search: { description: "Search events across all platforms" },
     "event-detail": { description: "Get full event details from Luma" },
     "event-tickets": { description: "Get ticket types and pricing for an event" },
     "event-guests": { description: "See who's going to an event" },
     "event-rsvp": { description: "RSVP to a Luma event" },
-    "event-link": { description: "Look up event details from a lu.ma URL" },
+    "event-link": { description: "Look up event details from a URL" },
+    transcribe: { description: "Transcribe a social media video (YouTube, TikTok, Instagram, X, Facebook)" },
+    "web-search": { description: "Search the web via Google (SerpAPI)" },
   };
 
   private config: EGatorPluginConfig | null = null;
   private luma: LumaAdapter | null = null;
+  private supadata: SupadataAdapter | null = null;
+  private serpapi: SerpAPIAdapter | null = null;
+  private adapters: EventSourceAdapter[] = [];
 
   configure(config: EGatorPluginConfig) {
     this.config = config;
     this.luma = null;
+    this.supadata = null;
+    this.serpapi = null;
+    this.adapters = [];
 
-    if (config.sources?.luma?.apiKey) {
-      this.luma = new LumaAdapter(config.sources.luma.apiKey);
+    const src = config.sources;
+    if (!src) return;
+
+    if (src.luma?.apiKey) {
+      this.luma = new LumaAdapter(src.luma.apiKey);
+      this.adapters.push(this.luma);
       console.log("[egator] Source: Luma (official + discover)");
     }
+    if (src.tavily?.apiKey || src.tavily?.enabled) {
+      this.adapters.push(new TavilyAdapter());
+      console.log("[egator] Source: DuckDuckGo Events (free, replaces Tavily)");
+    }
+    if (src.eventbrite?.apiKey) {
+      this.adapters.push(new EventbriteAdapter(src.eventbrite.apiKey));
+      console.log("[egator] Source: Eventbrite");
+    }
+    if (src.brave?.apiKey) {
+      this.adapters.push(new BraveSearchAdapter(src.brave.apiKey));
+      console.log("[egator] Source: Brave Search");
+    }
+    if (src.ra?.enabled) {
+      this.adapters.push(new ResidentAdvisorAdapter());
+      console.log("[egator] Source: Resident Advisor");
+    }
+    if (src.lemonade?.enabled) {
+      this.adapters.push(new LemonadeAdapter(""));
+      console.log("[egator] Source: Lemonade");
+    }
+    if (src.sheeets?.spreadsheetId) {
+      this.adapters.push(new SheeetsAdapter(src.sheeets.spreadsheetId));
+      console.log("[egator] Source: Sheeets (Google Spreadsheet)");
+    }
+    if (src.googlePlaces?.apiKey) {
+      this.adapters.push(new GooglePlacesAdapter(src.googlePlaces.apiKey));
+      console.log("[egator] Source: Google Places");
+    }
+    if (src.supadata?.apiKey) {
+      this.supadata = new SupadataAdapter(src.supadata.apiKey);
+      console.log("[egator] Source: Supadata (transcription)");
+    }
+    if (src.serpapi?.apiKey) {
+      this.serpapi = new SerpAPIAdapter(src.serpapi.apiKey);
+      this.adapters.push(this.serpapi);
+      console.log("[egator] Source: SerpAPI (Google Search + Events)");
+    }
+    if (src.partiful?.enabled) {
+      this.adapters.push(new PartifulAdapter());
+      console.log("[egator] Source: Partiful (discover scraper)");
+    }
+
+    console.log(`[egator] ${this.adapters.length} source(s) configured`);
+  }
+
+  /**
+   * Configure for keyless scraping mode (no API keys required).
+   * Used by the standalone scraper on IONOS VPS.
+   * Sets up all adapters that work without API keys.
+   */
+  configureKeyless(cities: string[] = ["austin"]) {
+    this.config = { sources: {} };
+    this.luma = null;
+    this.adapters = [];
+
+    // Keyless scrapers (always enabled)
+    this.adapters.push(new EventbriteScraperAdapter(cities));
+    console.log("[egator] Source: Eventbrite Scraper (keyless)");
+
+    this.adapters.push(new MeetupScraperAdapter(cities));
+    console.log("[egator] Source: Meetup Scraper (keyless)");
+
+    // Luma Discover API works without auth
+    this.luma = new LumaAdapter("");
+    this.adapters.push(this.luma);
+    console.log("[egator] Source: Luma Discover (keyless)");
+
+    // RA public GraphQL works without auth
+    this.adapters.push(new ResidentAdvisorAdapter());
+    console.log("[egator] Source: Resident Advisor (keyless)");
+
+    // Lemonade public GraphQL works without spaceId for search
+    this.adapters.push(new LemonadeAdapter(""));
+    console.log("[egator] Source: Lemonade (keyless)");
+
+    // Partiful Discover works without auth (supports 9 cities)
+    this.adapters.push(new PartifulAdapter(cities));
+    console.log("[egator] Source: Partiful (keyless)");
+
+    // SXSW scraper - enabled when any city is Austin
+    if (cities.some((c) => c.toLowerCase() === "austin")) {
+      this.adapters.push(new SxswScraperAdapter());
+      console.log("[egator] Source: SXSW Schedule Scraper (keyless, Austin)");
+    }
+
+    console.log(`[egator] ${this.adapters.length} keyless source(s) configured for cities: ${cities.join(", ")}`);
   }
 
   /** Expose LumaAdapter for direct use by bot/services */
@@ -53,11 +166,21 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
   }
 
   isConfigured(): boolean {
-    return !!this.luma;
+    return this.adapters.length > 0 || this.supadata !== null || this.serpapi !== null;
+  }
+
+  /** Expose SupadataAdapter for direct use by routes/services */
+  getSupadataAdapter(): SupadataAdapter | null {
+    return this.supadata;
+  }
+
+  /** Expose SerpAPIAdapter for direct use by routes/services */
+  getSerpAPIAdapter(): SerpAPIAdapter | null {
+    return this.serpapi;
   }
 
   async execute(action: string, input: ToolInput, context: FlowBContext): Promise<string> {
-    if (!this.luma) return "Luma not configured. Set LUMA_API_KEY.";
+    if (!this.isConfigured()) return "No event sources configured. Set API keys for at least one source.";
 
     switch (action) {
       case "search":
@@ -72,36 +195,54 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
         return this.eventRsvp(input);
       case "event-link":
         return this.eventLink(input);
+      case "transcribe":
+        return this.transcribeVideo(input);
+      case "web-search":
+        return this.webSearch(input);
       default:
         return `Unknown action: ${action}`;
     }
   }
 
   // ========================================================================
-  // EventProvider implementation
+  // EventProvider implementation - aggregates from ALL sources
   // ========================================================================
 
   async getEvents(params: EventQuery): Promise<EventResult[]> {
-    if (!this.luma) return [];
+    if (!this.adapters.length) return [];
 
-    try {
-      const events = await this.luma.fetchEvents(params);
+    // Fetch from all adapters in parallel with individual error handling
+    const results = await Promise.allSettled(
+      this.adapters.map(async (adapter) => {
+        try {
+          const events = await adapter.fetchEvents(params);
+          return events;
+        } catch (err: any) {
+          console.error(`[egator:${adapter.id}] Fetch failed:`, err.message);
+          return [];
+        }
+      }),
+    );
 
-      // Sort by start time
-      events.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-      // Deduplicate by title
-      const seen = new Set<string>();
-      return events.filter((e) => {
-        const key = e.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-    } catch (err: any) {
-      console.error("[egator] Luma fetch failed:", err.message);
-      return [];
+    // Merge all results
+    const allEvents: EventResult[] = [];
+    for (const result of results) {
+      if (result.status === "fulfilled") {
+        allEvents.push(...result.value);
+      }
     }
+
+    // Sort by start time
+    allEvents.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    // Deduplicate by normalized title (keep first occurrence = highest priority source)
+    const seen = new Set<string>();
+    return allEvents.filter((e) => {
+      const key = e.title.toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   // ========================================================================
@@ -110,13 +251,13 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   private async searchEvents(input: ToolInput): Promise<string> {
     const events = await this.getEvents({
-      city: input.city || "Denver",
+      city: input.city || "Austin",
       category: input.category,
-      limit: 10,
+      limit: 20,
     });
 
     if (!events.length) {
-      return "No events found on Luma right now. Check back soon!";
+      return "No events found right now. Check back soon!";
     }
 
     return formatEventList(events, "Events");
@@ -124,23 +265,22 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   private async eventDetail(input: ToolInput): Promise<string> {
     if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+    if (!this.luma) return JSON.stringify({ error: "Luma not configured for event details" });
 
-    // Strip luma_ prefix if present
     const lumaId = input.event_id.replace(/^luma_/, "");
-    const detail = await this.luma!.getEventDetail(lumaId);
+    const detail = await this.luma.getEventDetail(lumaId);
     if (!detail) return JSON.stringify({ error: "Event not found on Luma" });
 
-    // Also fetch tickets
-    const tickets = await this.luma!.getTicketTypes(detail.id);
-
+    const tickets = await this.luma.getTicketTypes(detail.id);
     return JSON.stringify({ ...detail, ticketTypes: tickets });
   }
 
   private async eventTickets(input: ToolInput): Promise<string> {
     if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+    if (!this.luma) return JSON.stringify({ error: "Luma not configured" });
 
     const lumaId = input.event_id.replace(/^luma_/, "");
-    const tickets = await this.luma!.getTicketTypes(lumaId);
+    const tickets = await this.luma.getTicketTypes(lumaId);
 
     if (!tickets.length) {
       return JSON.stringify({ tickets: [], message: "No ticket types found" });
@@ -151,9 +291,10 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   private async eventGuests(input: ToolInput): Promise<string> {
     if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+    if (!this.luma) return JSON.stringify({ error: "Luma not configured" });
 
     const lumaId = input.event_id.replace(/^luma_/, "");
-    const result = await this.luma!.getGuests(lumaId, { status: "approved", limit: 20 });
+    const result = await this.luma.getGuests(lumaId, { status: "approved", limit: 20 });
 
     return JSON.stringify({
       total: result.total,
@@ -167,9 +308,9 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
 
   private async eventRsvp(input: ToolInput): Promise<string> {
     if (!input.event_id) return JSON.stringify({ error: "No event_id provided" });
+    if (!this.luma) return JSON.stringify({ error: "Luma not configured for RSVP" });
 
-    // For RSVP we need an email - construct from user_id or use provided
-    const email = input.query; // Reuse query field for email
+    const email = input.query;
     if (!email || !email.includes("@")) {
       return JSON.stringify({
         error: "Email required for RSVP",
@@ -178,27 +319,92 @@ export class EGatorPlugin implements FlowBPlugin, EventProvider {
     }
 
     const lumaId = input.event_id.replace(/^luma_/, "");
-    const result = await this.luma!.addGuest(lumaId, email, input.platform_username);
+    const result = await this.luma.addGuest(lumaId, email, input.platform_username);
     return JSON.stringify(result);
   }
 
   private async eventLink(input: ToolInput): Promise<string> {
     if (!input.url) return JSON.stringify({ error: "No URL provided" });
 
-    // Check if it's a lu.ma URL
-    if (input.url.includes("lu.ma") || input.url.includes("luma.com")) {
-      const detail = await this.luma!.lookupEventByUrl(input.url);
+    // Check if it's a lu.ma URL and we have Luma configured
+    if (this.luma && (input.url.includes("lu.ma") || input.url.includes("luma.com"))) {
+      const detail = await this.luma.lookupEventByUrl(input.url);
       if (detail) return JSON.stringify(detail);
+
+      const slugMatch = input.url.match(/lu\.ma\/([a-zA-Z0-9-]+)/);
+      if (slugMatch) {
+        const d = await this.luma.getEventDetail(slugMatch[1]);
+        if (d) return JSON.stringify(d);
+      }
     }
 
-    // Try extracting slug from URL
-    const slugMatch = input.url.match(/lu\.ma\/([a-zA-Z0-9-]+)/);
-    if (slugMatch) {
-      const detail = await this.luma!.getEventDetail(slugMatch[1]);
-      if (detail) return JSON.stringify(detail);
+    return JSON.stringify({ error: "Could not find this event" });
+  }
+
+  private async transcribeVideo(input: ToolInput): Promise<string> {
+    const url = input.video_url || input.url;
+    if (!url) return JSON.stringify({ error: "No video URL provided" });
+    if (!this.supadata) return JSON.stringify({ error: "Supadata not configured. Set SUPADATA_API_KEY." });
+
+    if (!SupadataAdapter.isSupportedUrl(url)) {
+      return JSON.stringify({
+        error: "Unsupported URL",
+        message: "Supported platforms: YouTube, TikTok, Instagram, X/Twitter, Facebook",
+      });
     }
 
-    return JSON.stringify({ error: "Could not find this event on Luma" });
+    try {
+      const platform = SupadataAdapter.detectPlatform(url);
+      console.log(`[egator:supadata] Transcribing ${platform} video: ${url}`);
+
+      const result = await this.supadata.transcribe(url, {
+        lang: input.transcript_lang,
+        mode: input.transcript_mode || "auto",
+        text: true,
+      });
+
+      return JSON.stringify({
+        platform,
+        url: result.sourceUrl,
+        lang: result.lang,
+        availableLangs: result.availableLangs,
+        transcript: result.content,
+        async: result.async,
+      });
+    } catch (err: any) {
+      console.error("[egator:supadata] Transcribe error:", err.message);
+      return JSON.stringify({ error: `Transcription failed: ${err.message}` });
+    }
+  }
+
+  private async webSearch(input: ToolInput): Promise<string> {
+    const query = input.search_query || input.query;
+    if (!query) return JSON.stringify({ error: "No search query provided" });
+    if (!this.serpapi) return JSON.stringify({ error: "SerpAPI not configured. Set SERPAPI_API_KEY." });
+
+    try {
+      console.log(`[egator:serpapi] Web search: "${query}"`);
+      const data = await this.serpapi.search(query, {
+        location: input.search_location || input.city,
+        num: 10,
+      });
+
+      const results = (data.organic_results || []).map((r) => ({
+        title: r.title,
+        link: r.link,
+        snippet: r.snippet,
+      }));
+
+      return JSON.stringify({
+        query,
+        results,
+        knowledge_graph: data.knowledge_graph || null,
+        related_questions: data.related_questions || [],
+      });
+    } catch (err: any) {
+      console.error("[egator:serpapi] Search error:", err.message);
+      return JSON.stringify({ error: `Search failed: ${err.message}` });
+    }
   }
 }
 
@@ -238,11 +444,17 @@ export function formatEventList(events: EventResult[], title: string): string {
       lines.push(`${e.rsvpCount} going`);
     }
 
+    if (e.source) {
+      lines.push(`via ${e.source}`);
+    }
+
     lines.push("");
   }
 
   return lines.join("\n");
 }
 
-// Re-export Luma types for use by bot
+// Re-export types for use by bot/routes
 export type { LumaEventDetail, LumaTicketType, LumaGuest };
+export type { TranscriptResult };
+export { SupadataAdapter, SerpAPIAdapter };

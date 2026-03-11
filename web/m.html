@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meeting - FlowB</title>
+  <meta name="description" content="View meeting details and RSVP on FlowB">
+  <meta property="og:title" content="Meeting - FlowB">
+  <meta property="og:description" content="You're invited to a meeting on FlowB">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="FlowB">
+  <meta property="og:url" content="">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Meeting - FlowB">
+  <meta name="twitter:description" content="You're invited to a meeting on FlowB">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .meeting-page {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 32px 20px 80px;
+    }
+
+    .meeting-status-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 16px;
+    }
+    .meeting-status-bar.scheduled { background: var(--accent-glow); color: var(--accent-light); border: 1px solid rgba(37,99,235,0.2); }
+    .meeting-status-bar.completed { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.15); }
+    .meeting-status-bar.cancelled { background: rgba(239,68,68,0.1); color: #ef4444; border: 1px solid rgba(239,68,68,0.15); }
+
+    .meeting-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .meeting-title {
+      font-size: 1.75rem;
+      font-weight: 800;
+      line-height: 1.2;
+      margin-bottom: 24px;
+    }
+
+    .meeting-details {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+
+    .meeting-detail-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .meeting-detail-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .meeting-detail-icon svg {
+      width: 18px;
+      height: 18px;
+      color: var(--text-muted);
+    }
+
+    .meeting-detail-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-top: 2px;
+    }
+
+    .meeting-detail-label {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-weight: 500;
+    }
+
+    .meeting-detail-value {
+      font-size: 0.95rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .meeting-detail-value.secondary {
+      color: var(--text-muted);
+      font-weight: 400;
+      font-size: 0.85rem;
+    }
+
+    .meeting-type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .meeting-description {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .meeting-section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 12px;
+    }
+
+    .meeting-attendees {
+      margin-bottom: 28px;
+    }
+
+    .attendee-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .attendee-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+    }
+
+    .attendee-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-glow);
+      border: 1px solid rgba(37,99,235,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      flex-shrink: 0;
+      text-transform: uppercase;
+    }
+
+    .attendee-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .attendee-name {
+      font-size: 0.88rem;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .attendee-rsvp {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .attendee-rsvp.accepted { background: var(--green-dim); color: var(--green); }
+    .attendee-rsvp.invited { background: var(--accent-glow); color: var(--accent-light); }
+    .attendee-rsvp.declined { background: rgba(239,68,68,0.1); color: #ef4444; }
+    .attendee-rsvp.maybe { background: rgba(249,115,22,0.1); color: var(--orange); }
+
+    .meeting-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .btn-primary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 24px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.95rem;
+      font-weight: 600;
+      font-family: var(--font);
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-primary:hover { background: var(--accent-light); text-decoration: none; }
+    .btn-primary svg { width: 18px; height: 18px; }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn-secondary {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      flex: 1;
+      padding: 12px 16px;
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 0.88rem;
+      font-weight: 500;
+      font-family: var(--font);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+    .btn-secondary:hover { background: var(--bg-card-hover); border-color: var(--border-hover); text-decoration: none; }
+    .btn-secondary svg { width: 16px; height: 16px; }
+
+    .meeting-footer {
+      text-align: center;
+      padding-top: 32px;
+      border-top: 1px solid var(--border);
+    }
+    .meeting-footer p {
+      color: var(--text-dim);
+      font-size: 0.82rem;
+      margin-top: 12px;
+    }
+    .meeting-footer a {
+      color: var(--accent-light);
+      font-weight: 500;
+    }
+
+    .loading-state {
+      text-align: center;
+      padding: 100px 20px;
+      color: var(--text-muted);
+    }
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent-light);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-state {
+      text-align: center;
+      padding: 100px 20px;
+      color: var(--text-muted);
+    }
+    .error-state h2 { color: var(--text); margin-bottom: 12px; font-size: 1.3rem; }
+    .error-state p { max-width: 360px; margin: 0 auto; }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 20px;
+      border-radius: var(--radius);
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    @media (max-width: 480px) {
+      .meeting-title { font-size: 1.4rem; }
+      .btn-row { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <a href="/" class="logo">
+        <img class="logo-icon" src="flowb.png" alt="FlowB">
+        <span class="logo-text">FlowB</span>
+      </a>
+      <nav class="header-nav">
+        <a href="/" class="header-nav-link">Events</a>
+        <a href="/crews" class="header-nav-link">Crews</a>
+        <a href="/feed" class="header-nav-link">Feed</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container" id="main">
+    <div class="loading-state" id="loading">
+      <div class="loading-spinner"></div>
+      Loading meeting details...
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = 'https://flowb.fly.dev';
+    const code = window.location.pathname.split('/m/')[1]?.split(/[?#]/)[0];
+
+    if (!code) {
+      showError('Invalid link', 'This meeting link is invalid.');
+    } else {
+      loadMeeting(code);
+    }
+
+    async function loadMeeting(code) {
+      try {
+        const res = await fetch(`${API}/api/v1/m/${encodeURIComponent(code)}`);
+        if (res.status === 404) return showError('Not found', 'This meeting doesn\'t exist or the link is invalid.');
+        if (res.status === 503) return showError('Unavailable', 'Meeting service is temporarily unavailable. Try again later.');
+        if (!res.ok) return showError('Error', 'Something went wrong loading this meeting.');
+
+        const data = await res.json();
+        if (data.error) return showError('Not found', data.error);
+
+        render(data);
+      } catch (err) {
+        showError('Connection error', 'Could not connect to FlowB. Check your internet and try refreshing.');
+      }
+    }
+
+    function render(data) {
+      const m = data.meeting;
+      const attendees = data.attendees || [];
+
+      // Update page title and OG tags
+      document.title = `${m.title} - FlowB Meeting`;
+      updateMeta('og:title', `${m.title} - FlowB Meeting`);
+      updateMeta('og:description', buildOgDescription(m));
+      updateMeta('og:url', window.location.href);
+      updateMeta('twitter:title', `${m.title} - FlowB Meeting`);
+      updateMeta('twitter:description', buildOgDescription(m));
+
+      let html = '<div class="meeting-page">';
+
+      // Status badge
+      const statusLabel = m.status === 'scheduled' ? 'Scheduled' : m.status === 'completed' ? 'Completed' : 'Cancelled';
+      html += `<div class="meeting-status-bar ${esc(m.status)}">
+        <span class="meeting-status-dot"></span>
+        ${esc(statusLabel)}
+      </div>`;
+
+      // Title
+      html += `<h1 class="meeting-title">${esc(m.title)}</h1>`;
+
+      // Details grid
+      html += '<div class="meeting-details">';
+
+      // Date & Time
+      const start = new Date(m.starts_at);
+      const dateStr = start.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const endTime = new Date(start.getTime() + (m.duration_min || 30) * 60000);
+      const endStr = endTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+
+      html += `<div class="meeting-detail-row">
+        <div class="meeting-detail-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div class="meeting-detail-content">
+          <span class="meeting-detail-label">Date & Time</span>
+          <span class="meeting-detail-value">${esc(dateStr)}</span>
+          <span class="meeting-detail-value secondary">${esc(timeStr)} - ${esc(endStr)} (${m.duration_min || 30} min)</span>
+        </div>
+      </div>`;
+
+      // Location
+      if (m.location) {
+        html += `<div class="meeting-detail-row">
+          <div class="meeting-detail-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </div>
+          <div class="meeting-detail-content">
+            <span class="meeting-detail-label">Location</span>
+            <span class="meeting-detail-value">${esc(m.location)}</span>
+          </div>
+        </div>`;
+      }
+
+      // Meeting type
+      const typeIcons = {
+        coffee: '&#9749;',
+        call: '&#128222;',
+        lunch: '&#127869;',
+        workshop: '&#128296;',
+        demo: '&#128187;',
+        other: '&#128197;',
+      };
+      const typeLabels = {
+        coffee: 'Coffee Chat',
+        call: 'Video / Phone Call',
+        lunch: 'Lunch / Dinner',
+        workshop: 'Workshop',
+        demo: 'Demo / Presentation',
+        other: 'Meeting',
+      };
+
+      html += `<div class="meeting-detail-row">
+        <div class="meeting-detail-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        </div>
+        <div class="meeting-detail-content">
+          <span class="meeting-detail-label">Type</span>
+          <span class="meeting-type-badge">${typeIcons[m.meeting_type] || typeIcons.other} ${esc(typeLabels[m.meeting_type] || 'Meeting')}</span>
+        </div>
+      </div>`;
+
+      html += '</div>'; // .meeting-details
+
+      // Description
+      if (m.description) {
+        html += `<div class="meeting-description">${esc(m.description)}</div>`;
+      }
+
+      // Attendees
+      if (attendees.length > 0) {
+        html += '<div class="meeting-attendees">';
+        html += '<div class="meeting-section-title">Attendees</div>';
+        html += '<div class="attendee-list">';
+
+        for (const a of attendees) {
+          const name = a.name || a.user_id || 'Guest';
+          const initials = getInitials(name);
+          const rsvpClass = a.rsvp_status || 'invited';
+          const rsvpLabel = a.rsvp_status === 'accepted' ? 'Going'
+            : a.rsvp_status === 'declined' ? 'Declined'
+            : a.rsvp_status === 'maybe' ? 'Maybe'
+            : 'Invited';
+
+          html += `<div class="attendee-row">
+            <div class="attendee-avatar">${esc(initials)}</div>
+            <div class="attendee-info">
+              <div class="attendee-name">${esc(name)}${a.is_organizer ? ' <span style="color:var(--text-dim);font-size:0.75rem">(organizer)</span>' : ''}</div>
+            </div>
+            <span class="attendee-rsvp ${esc(rsvpClass)}">${esc(rsvpLabel)}</span>
+          </div>`;
+        }
+
+        html += '</div></div>';
+      }
+
+      // Action buttons
+      if (m.status === 'scheduled') {
+        html += '<div class="meeting-actions">';
+
+        // RSVP button - links to Telegram bot
+        html += `<a href="https://t.me/Flow_b_bot?start=m_${esc(m.share_code)}" class="btn-primary" target="_blank" rel="noopener">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          RSVP via FlowB
+        </a>`;
+
+        html += '<div class="btn-row">';
+
+        // Add to Calendar
+        html += `<a href="${API}/api/v1/m/${encodeURIComponent(code)}/ical" class="btn-secondary" download>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Add to Calendar
+        </a>`;
+
+        // Join Meeting (if video_link exists)
+        if (m.video_link) {
+          html += `<a href="${esc(m.video_link)}" class="btn-secondary" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+            Join Meeting
+          </a>`;
+        }
+
+        // Share button
+        html += `<button onclick="shareMeeting()" class="btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>`;
+
+        html += '</div>'; // .btn-row
+        html += '</div>'; // .meeting-actions
+      } else {
+        // Meeting is completed or cancelled, show limited actions
+        html += '<div class="meeting-actions">';
+        html += '<div class="btn-row">';
+        html += `<button onclick="shareMeeting()" class="btn-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share
+        </button>`;
+        html += '</div></div>';
+      }
+
+      // Footer
+      html += `<div class="meeting-footer">
+        <a href="/">Discover more on FlowB</a>
+        <p>Create meetings, manage your crew, and get in the flow.</p>
+      </div>`;
+
+      html += '</div>'; // .meeting-page
+
+      document.getElementById('main').innerHTML = html;
+    }
+
+    function buildOgDescription(m) {
+      const start = new Date(m.starts_at);
+      const dateStr = start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      let desc = `${dateStr} at ${timeStr}`;
+      if (m.location) desc += ` | ${m.location}`;
+      if (m.duration_min) desc += ` | ${m.duration_min} min`;
+      return desc;
+    }
+
+    function getInitials(name) {
+      if (!name) return '?';
+      // Handle user IDs like telegram_12345
+      if (name.includes('_')) {
+        const parts = name.split('_');
+        return parts[0][0].toUpperCase();
+      }
+      const words = name.trim().split(/\s+/);
+      if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+      return name.slice(0, 2).toUpperCase();
+    }
+
+    function showError(title, message) {
+      document.getElementById('main').innerHTML = `
+        <div class="error-state">
+          <h2>${esc(title)}</h2>
+          <p>${esc(message)}</p>
+          <p style="margin-top:20px"><a href="/">Go to FlowB</a></p>
+        </div>`;
+    }
+
+    function esc(s) {
+      if (!s) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('toast');
+      el.textContent = msg;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    async function shareMeeting() {
+      const url = window.location.href;
+      try {
+        if (navigator.share) {
+          await navigator.share({ title: document.title, url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          toast('Link copied to clipboard!');
+        }
+      } catch { /* user cancelled */ }
+    }
+  </script>
+</body>
+</html>

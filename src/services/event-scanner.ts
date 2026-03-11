@@ -1,13 +1,28 @@
 /**
  * Event Scanner Service
- * Scans for new EthDenver events and stores full data in flowb_events.
+ * Scans for new events and stores full data in flowb_events.
  * Includes auto-categorization, venue matching, quality scoring, and stale detection.
  */
 
 import type { EventResult } from "../core/types.js";
 import { createHash } from "crypto";
+import { sbFetch, sbPatchRaw, sbInsert, type SbConfig } from "../utils/supabase.js";
+import { fetchOgImage } from "../plugins/egator/sources/parse-utils.js";
 
-interface SbConfig { supabaseUrl: string; supabaseKey: string }
+export interface ScanResultEvent {
+  title: string;
+  source: string;
+  city: string | null;
+  startTime: string | null;
+  url: string | null;
+}
+
+export interface ScanResult {
+  newCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  newEvents: ScanResultEvent[];
+}
 
 interface CategoryRow { id: string; slug: string; name: string }
 interface VenueRow { id: string; name: string; slug: string }
@@ -40,8 +55,8 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   poker: ["poker", "texas hold", "tournament poker"],
 };
 
-// Luma is the sole trusted source
-const TRUSTED_SOURCES = new Set(["luma"]);
+// Trusted sources get a quality score bonus
+const TRUSTED_SOURCES = new Set(["luma", "eventbrite", "ra", "lemonade", "sheeets", "partiful"]);
 
 function slugify(text: string): string {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
@@ -105,24 +120,47 @@ function fuzzyMatchVenue(
   return null;
 }
 
-/** Scan for new events using the FlowBCore event discovery */
+/** Scan for new events using the FlowBCore event search */
 export async function scanForNewEvents(
   cfg: SbConfig,
   discoverFn: (opts: any) => Promise<EventResult[]>,
-): Promise<{ newCount: number; updatedCount: number; skippedCount: number }> {
+  city?: string,
+): Promise<ScanResult> {
   let newCount = 0;
   let updatedCount = 0;
   let skippedCount = 0;
+  const newEvents: ScanResultEvent[] = [];
 
   try {
     // Load categories and venues for matching
     const [categories, venues] = await Promise.all([
-      sbQuery<CategoryRow[]>(cfg, "flowb_event_categories?select=id,slug,name&active=eq.true"),
-      sbQuery<VenueRow[]>(cfg, "flowb_venues?select=id,name,slug&active=eq.true"),
+      sbFetch<CategoryRow[]>(cfg, "flowb_event_categories?select=id,slug,name&active=eq.true"),
+      sbFetch<VenueRow[]>(cfg, "flowb_venues?select=id,name,slug&active=eq.true"),
     ]);
     const categoryMap = new Map((categories || []).map(c => [c.slug, c.id]));
 
-    const events = await discoverFn({ action: "events", city: "Denver" });
+    const events = await discoverFn({ action: "events", city: city || undefined });
+
+    // Backfill og:image for events missing images (parallel, max 5 at a time)
+    const needsImage = events.filter(e => !e.imageUrl && e.url);
+    if (needsImage.length) {
+      console.log(`[event-scanner] Backfilling og:image for ${needsImage.length} events`);
+      const BATCH = 5;
+      for (let i = 0; i < needsImage.length; i += BATCH) {
+        const batch = needsImage.slice(i, i + BATCH);
+        const results = await Promise.allSettled(
+          batch.map(e => fetchOgImage(e.url!))
+        );
+        for (let j = 0; j < batch.length; j++) {
+          const r = results[j];
+          if (r.status === "fulfilled" && r.value) {
+            batch[j].imageUrl = r.value;
+          }
+        }
+      }
+      const filled = needsImage.filter(e => e.imageUrl).length;
+      console.log(`[event-scanner] Backfilled ${filled}/${needsImage.length} images`);
+    }
 
     for (const event of events) {
       const titleSlug = slugify(event.title || "");
@@ -134,7 +172,7 @@ export async function scanForNewEvents(
       const venueId = fuzzyMatchVenue(event.locationName, venues || []);
 
       // Check if already exists
-      const existing = await sbQuery<any[]>(
+      const existing = await sbFetch<any[]>(
         cfg,
         `flowb_events?source=eq.${encodeURIComponent(source)}&title_slug=eq.${encodeURIComponent(titleSlug)}&select=id,sync_hash&limit=1`,
       );
@@ -143,7 +181,7 @@ export async function scanForNewEvents(
         // Skip if nothing changed
         if (existing[0].sync_hash === syncHash) {
           // Just update last_seen
-          await sbPatch(cfg, `flowb_events?id=eq.${existing[0].id}`, {
+          await sbPatchRaw(cfg, `flowb_events?id=eq.${existing[0].id}`, {
             last_seen: new Date().toISOString(),
             stale: false,
           });
@@ -152,14 +190,14 @@ export async function scanForNewEvents(
         }
 
         // Update with full data
-        await sbPatch(cfg, `flowb_events?id=eq.${existing[0].id}`, {
+        await sbPatchRaw(cfg, `flowb_events?id=eq.${existing[0].id}`, {
           description: event.description || null,
           starts_at: event.startTime || null,
           ends_at: event.endTime || null,
           all_day: event.allDay || false,
           venue_id: venueId,
           venue_name: event.locationName || null,
-          city: event.locationCity || "Denver",
+          city: event.locationCity || city || null,
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,
@@ -197,7 +235,7 @@ export async function scanForNewEvents(
           venue_id: venueId,
           venue_name: event.locationName || null,
           venue_address: null,
-          city: event.locationCity || "Denver",
+          city: event.locationCity || city || null,
           latitude: event.latitude || null,
           longitude: event.longitude || null,
           is_virtual: event.isVirtual || false,
@@ -221,12 +259,19 @@ export async function scanForNewEvents(
           await updateCategories(cfg, inserted.id, event, categoryMap);
         }
         newCount++;
+        newEvents.push({
+          title: event.title || "Untitled",
+          source,
+          city: event.locationCity || city || null,
+          startTime: event.startTime || null,
+          url: event.url || null,
+        });
       }
     }
 
     // Mark events not seen in 24h as stale
     const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    await sbPatch(cfg, `flowb_events?last_seen=lt.${staleThreshold}&stale=eq.false`, {
+    await sbPatchRaw(cfg, `flowb_events?last_seen=lt.${staleThreshold}&stale=eq.false`, {
       stale: true,
     });
   } catch (err) {
@@ -234,7 +279,7 @@ export async function scanForNewEvents(
   }
 
   console.log(`[event-scanner] Scan complete: ${newCount} new, ${updatedCount} updated, ${skippedCount} unchanged`);
-  return { newCount, updatedCount, skippedCount };
+  return { newCount, updatedCount, skippedCount, newEvents };
 }
 
 async function updateCategories(
@@ -265,54 +310,4 @@ async function updateCategories(
       });
     } catch { /* non-critical */ }
   }
-}
-
-// ============================================================================
-// Supabase helpers
-// ============================================================================
-
-async function sbQuery<T>(cfg: SbConfig, path: string): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-      },
-    });
-    if (!res.ok) return null;
-    return res.json() as Promise<T>;
-  } catch { return null; }
-}
-
-async function sbPatch(cfg: SbConfig, path: string, body: any): Promise<void> {
-  try {
-    await fetch(`${cfg.supabaseUrl}/rest/v1/${path}`, {
-      method: "PATCH",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch { /* non-critical */ }
-}
-
-async function sbInsert<T>(cfg: SbConfig, table: string, body: any): Promise<T | null> {
-  try {
-    const res = await fetch(`${cfg.supabaseUrl}/rest/v1/${table}`, {
-      method: "POST",
-      headers: {
-        apikey: cfg.supabaseKey,
-        Authorization: `Bearer ${cfg.supabaseKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=representation",
-      },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return Array.isArray(data) ? data[0] : data;
-  } catch { return null; }
 }

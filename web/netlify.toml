@@ -11,8 +11,8 @@
 
 [[redirects]]
   from = "/g/:code"
-  to = "https://t.me/Flow_b_bot?start=g_:code"
-  status = 302
+  to = "/join.html"
+  status = 200
   force = true
 
 [[redirects]]
@@ -30,7 +30,7 @@
 # QR check-in links -> Telegram mini app deep link
 [[redirects]]
   from = "/c/:code"
-  to = "https://t.me/Flow_b_bot?startapp=checkin_:code"
+  to = "https://t.me/Flow_b_bot/flowb?startapp=checkin_:code"
   status = 302
   force = true
 
@@ -40,6 +40,25 @@
   to = "https://flowb.fly.dev/e/:id"
   status = 200
   force = true
+
+# Meeting share links
+[[redirects]]
+  from = "/m/:code"
+  to = "/m.html"
+  status = 200
+
+# Referral event links -> proxy to Fastify for click tracking
+[[redirects]]
+  from = "/t/:code"
+  to = "https://flowb.fly.dev/api/v1/referrals/e/:code"
+  status = 302
+  force = true
+
+# Shared results pages
+[[redirects]]
+  from = "/r/:code"
+  to = "/r.html"
+  status = 200
 
 # Clean URL routes for static pages
 [[redirects]]
@@ -63,8 +82,28 @@
   status = 200
 
 [[redirects]]
+  from = "/feed"
+  to = "/feed.html"
+  status = 200
+
+[[redirects]]
   from = "/allevents"
   to = "/allevents.html"
+  status = 200
+
+[[redirects]]
+  from = "/crews"
+  to = "/crews.html"
+  status = 200
+
+[[redirects]]
+  from = "/agents"
+  to = "/agents.html"
+  status = 200
+
+[[redirects]]
+  from = "/biz"
+  to = "/biz.html"
   status = 200
 
 [[headers]]

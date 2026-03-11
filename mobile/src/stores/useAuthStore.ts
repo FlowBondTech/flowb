@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 import * as api from "../api/client";
+import { getSupabaseClient } from "../utils/supabase-client";
 import type { UserProfile } from "../api/types";
 
 interface AuthState {
@@ -10,7 +11,12 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 
+  /** Legacy app auth (username/password) */
   login: (username: string, password: string) => Promise<void>;
+  /** FlowB Passport auth (from Supabase session exchange) */
+  loginWithPassport: (token: string, user: UserProfile) => Promise<void>;
+  /** @deprecated Use loginWithPassport instead */
+  loginWithPrivy: (token: string, user: UserProfile) => Promise<void>;
   logout: () => Promise<void>;
   restore: () => Promise<void>;
   isAdmin: () => boolean;
@@ -44,7 +50,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  loginWithPassport: async (token: string, user: UserProfile) => {
+    api.setToken(token);
+    await SecureStore.setItemAsync("flowb_token", token);
+    await SecureStore.setItemAsync("flowb_user", JSON.stringify(user));
+    set({ token, user, isLoading: false, error: null });
+  },
+
+  // Keep for backwards compat — delegates to loginWithPassport
+  loginWithPrivy: async (token: string, user: UserProfile) => {
+    const { loginWithPassport } = get();
+    await loginWithPassport(token, user);
+  },
+
   logout: async () => {
+    // Unregister push token before clearing auth
+    try {
+      await api.unregisterPushToken();
+    } catch {
+      // Best-effort — don't block logout
+    }
+
+    // Sign out of Supabase session
+    try {
+      const supabase = getSupabaseClient();
+      await supabase.auth.signOut();
+    } catch {
+      // Best-effort
+    }
+
     api.clearAuth();
     await SecureStore.deleteItemAsync("flowb_token");
     await SecureStore.deleteItemAsync("flowb_user");

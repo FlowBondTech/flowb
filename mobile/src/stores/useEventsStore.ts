@@ -33,7 +33,7 @@ export const useEventsStore = create<EventsState>((set, get) => ({
     try {
       const cats =
         categories || get().selectedCategories.join(",") || undefined;
-      const events = await api.getEvents("Denver", 50, cats);
+      const events = await api.getEvents("Austin", 50, cats);
       set({ events, isLoading: false });
     } catch (err: any) {
       set({ error: err.message, isLoading: false });

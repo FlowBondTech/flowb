@@ -1,0 +1,26 @@
+# IONOS VPS (216.225.205.69) - 2GB RAM
+# eGator Keyless Event Scraper
+#
+# Scrapes public event pages (Eventbrite, Meetup, Luma, RA, Lemonade, SXSW)
+# and writes to Supabase flowb_events table. No API keys required.
+#
+# Deploy:
+#   scp -r . root@216.225.205.69:/opt/egator-scraper/
+#   ssh root@216.225.205.69 'cd /opt/egator-scraper && docker compose up -d --build'
+
+services:
+  egator-scraper:
+    build:
+      context: ../..
+      dockerfile: Dockerfile.scraper
+    container_name: egator-scraper
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8080:8080"
+    mem_limit: 512m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

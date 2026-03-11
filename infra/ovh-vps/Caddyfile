@@ -1,0 +1,15 @@
+postiz.koh.lol {
+	reverse_proxy postiz:5000
+}
+
+n8n.koh.lol {
+	reverse_proxy n8n:5678
+}
+
+signal.koh.lol {
+	reverse_proxy signal-api:8080
+}
+
+temporal.koh.lol {
+	reverse_proxy temporal-ui:8080
+}

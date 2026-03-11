@@ -1,23 +1,29 @@
 /**
  * OpenClaw Plugin Registration
  *
- * Thin wrapper that creates a FlowBCore instance and registers it as an
- * OpenClaw tool. This preserves backward compatibility with the original
- * plugin interface.
+ * Registers individual FlowB tools for external AI agents:
+ *   - flowb_events: Search & discover events
+ *   - flowb_leads: CRM lead management
+ *   - flowb_meetings: Meeting scheduling
+ *   - flowb_chat: Full natural-language chat (routes through handleChat)
+ *
+ * Also registers the legacy monolithic "flowb" tool for backward compat.
  */
 
-import type { FlowBConfig, ToolInput, FlowBContext } from "./core/types.js";
+import type { FlowBConfig, ToolInput } from "./core/types.js";
 import { FlowBCore } from "./core/flowb.js";
+import { handleChat, type ChatMessage, type ChatConfig } from "./services/ai-chat.js";
 
 export default function register(api: any) {
   const rawConfig = api.config || {};
 
+  const sbUrl = rawConfig.supabaseUrl || process.env.SUPABASE_URL || "";
+  const sbKey = rawConfig.supabaseKey || process.env.SUPABASE_SERVICE_KEY || "";
+  const xaiKey = process.env.XAI_API_KEY || "";
+
   const config: FlowBConfig = {
     plugins: {
-      danz: rawConfig.danzSupabaseUrl ? {
-        supabaseUrl: rawConfig.danzSupabaseUrl,
-        supabaseKey: rawConfig.danzSupabaseKey,
-      } : undefined,
+      danz: sbUrl ? { supabaseUrl: sbUrl, supabaseKey: sbKey } : undefined,
       egator: process.env.LUMA_API_KEY ? {
         sources: { luma: { apiKey: process.env.LUMA_API_KEY } },
       } : undefined,
@@ -26,7 +32,144 @@ export default function register(api: any) {
 
   const core = new FlowBCore(config);
 
-  const toolSchema = {
+  // ─── Individual tools ──────────────────────────────────────────────
+
+  // 1. Event search
+  api.registerTool({
+    name: "flowb_events",
+    description: "Search and discover events. Filter by city, category, date range, or free-text query.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        city: { type: "string", description: "City to search in (e.g. 'Denver', 'Austin')" },
+        category: { type: "string", description: "Category slug (e.g. 'defi', 'social', 'ai')" },
+        query: { type: "string", description: "Free-text search query" },
+        free_only: { type: "boolean", description: "Only show free events" },
+        limit: { type: "number", description: "Max results (default 10)" },
+      },
+    },
+    async execute(input: any): Promise<string> {
+      return core.execute("events", {
+        action: "events",
+        city: input.city,
+        category: input.category,
+        query: input.query,
+        platform: "openclaw",
+      });
+    },
+  });
+
+  // 2. Lead management
+  api.registerTool({
+    name: "flowb_leads",
+    description: "Create, list, or update CRM leads. Actions: create, list, update, pipeline.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["create", "list", "update", "pipeline"],
+          description: "Lead action to perform",
+        },
+        user_id: { type: "string", description: "User identifier (e.g. 'openclaw_abc')" },
+        name: { type: "string", description: "Lead name (for create/update)" },
+        company: { type: "string", description: "Lead company (for create)" },
+        email: { type: "string", description: "Lead email (for create)" },
+        stage: { type: "string", description: "Pipeline stage (for update/list filter)" },
+        notes: { type: "string", description: "Notes to add" },
+        search: { type: "string", description: "Search query (for list)" },
+      },
+      required: ["action", "user_id"],
+    },
+    async execute(input: any): Promise<string> {
+      if (!sbUrl || !xaiKey) return "FlowB CRM not configured.";
+      const msg = buildLeadMessage(input);
+      return chatPassthrough(msg, input.user_id);
+    },
+  });
+
+  // 3. Meetings
+  api.registerTool({
+    name: "flowb_meetings",
+    description: "Schedule, list, or complete meetings. Actions: create, list, complete.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: ["create", "list", "complete"],
+          description: "Meeting action to perform",
+        },
+        user_id: { type: "string", description: "User identifier" },
+        title: { type: "string", description: "Meeting title (for create)" },
+        attendee: { type: "string", description: "Attendee name (for create)" },
+        starts_at: { type: "string", description: "ISO datetime (for create)" },
+        filter: { type: "string", enum: ["upcoming", "today", "past"], description: "List filter" },
+        meeting_id: { type: "string", description: "Meeting ID (for complete)" },
+        notes: { type: "string", description: "Completion notes" },
+      },
+      required: ["action", "user_id"],
+    },
+    async execute(input: any): Promise<string> {
+      if (!sbUrl || !xaiKey) return "FlowB meetings not configured.";
+      const msg = buildMeetingMessage(input);
+      return chatPassthrough(msg, input.user_id);
+    },
+  });
+
+  // 4. Full natural-language chat
+  api.registerTool({
+    name: "flowb_chat",
+    description: "Send a natural-language message to FlowB. Supports event search, lead management, meetings, crew actions, settings, and general questions.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        message: { type: "string", description: "The natural-language message to send" },
+        user_id: { type: "string", description: "User identifier" },
+      },
+      required: ["message"],
+    },
+    async execute(input: any): Promise<string> {
+      return chatPassthrough(input.message, input.user_id || "openclaw_anon");
+    },
+  });
+
+  // 5. FiFlow CFO (admin-gated)
+  api.registerTool({
+    name: "flowb_fiflow",
+    description: "FiFlow CFO - compliance, treasury, risk assessment, and strategy for FlowBond. Admin-only.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        action: {
+          type: "string",
+          enum: [
+            "fiflow-status", "fiflow-compliance", "fiflow-treasury",
+            "fiflow-report", "fiflow-risks", "fiflow-strategy",
+            "fiflow-deadlines", "fiflow-audit-log",
+          ],
+          description: "FiFlow action to perform",
+        },
+        user_id: { type: "string", description: "Admin user identifier" },
+        days: { type: "number", description: "Number of days for deadline lookups (default 90)" },
+        report_type: { type: "string", enum: ["compliance", "treasury", "risk", "full"], description: "Report type" },
+        category: { type: "string", description: "Filter by compliance category" },
+        status: { type: "string", description: "Filter by task status" },
+      },
+      required: ["action", "user_id"],
+    },
+    async execute(input: any): Promise<string> {
+      const adminIds = (process.env.FIFLOW_ADMIN_IDS || process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
+      if (!adminIds.includes(input.user_id)) {
+        return "Access denied. FiFlow is admin-only.";
+      }
+      return core.execute(input.action, { ...input, platform: "openclaw" });
+    },
+  });
+
+  // ─── Legacy monolithic tool (backward compat) ──────────────────────
+
+  const legacySchema = {
     type: "object",
     properties: {
       action: {
@@ -40,11 +183,8 @@ export default function register(api: any) {
         enum: ["telegram", "discord", "farcaster", "openclaw"],
         description: "User's platform",
       },
-      platform_username: { type: "string", description: "Username on the platform" },
-      danz_username: { type: "string", description: "DANZ.Now username for verification" },
       city: { type: "string", description: "City filter for events" },
       category: { type: "string", description: "Event category filter" },
-      dance_style: { type: "string", description: "Dance style filter" },
       query: { type: "string", description: "Search query" },
     },
     required: ["action"],
@@ -52,30 +192,62 @@ export default function register(api: any) {
 
   api.registerTool({
     name: "flowb",
-    description: `FlowB - Your Flow & Bond Assistant. Privacy-centric helper for events, dance community, and more.
-
-EVENTS:
-- events: Discover upcoming events from all sources
-- events in [city]: Events in a specific city
-
-DANZ.NOW (dance community):
-- signup: Connect your DANZ.Now account
-- verify @username: Link existing DANZ account
-- stats: Your dance stats & achievements
-- my-events: Events you're registered for
-- challenges: Active daily & weekly challenges
-- leaderboard: Top dancers
-
-OTHER:
-- search: Search events across all sources
-- help: Show all commands`,
-    inputSchema: toolSchema,
-    parameters: toolSchema,
-
+    description: "FlowB legacy tool. Prefer individual tools (flowb_events, flowb_leads, flowb_meetings, flowb_chat) for better results.",
+    inputSchema: legacySchema,
+    parameters: legacySchema,
     async execute(input: ToolInput): Promise<string> {
       return core.execute(input.action, input);
     },
   });
 
-  api.logger?.info(`[flowb] Agent loaded via OpenClaw`);
+  // ─── Helpers ────────────────────────────────────────────────────────
+
+  async function chatPassthrough(message: string, userId: string): Promise<string> {
+    if (!xaiKey) return "FlowB AI not configured (missing XAI_API_KEY).";
+
+    const messages: ChatMessage[] = [{ role: "user", content: message }];
+    const cfg: ChatConfig = {
+      sb: { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      xaiKey,
+      user: { userId, platform: "openclaw", displayName: null },
+      platform: "openclaw",
+    };
+
+    try {
+      const result = await handleChat(messages, cfg);
+      return result.content || "No response.";
+    } catch (err: any) {
+      return `Error: ${err.message}`;
+    }
+  }
+
+  function buildLeadMessage(input: any): string {
+    switch (input.action) {
+      case "create":
+        return `Add lead ${input.name || "unknown"}${input.company ? ` from ${input.company}` : ""}${input.email ? `, email ${input.email}` : ""}${input.notes ? `. Notes: ${input.notes}` : ""}`;
+      case "list":
+        return `List my leads${input.stage ? ` in ${input.stage} stage` : ""}${input.search ? ` matching "${input.search}"` : ""}`;
+      case "update":
+        return `Update lead ${input.name || input.lead_id || "?"}${input.stage ? ` to ${input.stage}` : ""}${input.notes ? `. Notes: ${input.notes}` : ""}`;
+      case "pipeline":
+        return "Show my pipeline summary";
+      default:
+        return `Lead action: ${input.action}`;
+    }
+  }
+
+  function buildMeetingMessage(input: any): string {
+    switch (input.action) {
+      case "create":
+        return `Schedule meeting${input.title ? ` "${input.title}"` : ""}${input.attendee ? ` with ${input.attendee}` : ""}${input.starts_at ? ` at ${input.starts_at}` : ""}`;
+      case "list":
+        return `Show my ${input.filter || "upcoming"} meetings`;
+      case "complete":
+        return `Complete meeting ${input.meeting_id || ""}${input.notes ? `. Notes: ${input.notes}` : ""}`;
+      default:
+        return `Meeting action: ${input.action}`;
+    }
+  }
+
+  api.logger?.info(`[flowb] OpenClaw registered: flowb_events, flowb_leads, flowb_meetings, flowb_chat, flowb (legacy)`);
 }

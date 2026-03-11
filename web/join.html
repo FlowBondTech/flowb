@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Join Crew on FlowB</title>
+<meta property="og:title" content="Join a Crew on FlowB">
+<meta property="og:description" content="Tap to join this crew and coordinate with friends at events.">
+<meta property="og:image" content="https://flowb.me/icon-512.png">
+<meta property="og:url" content="https://flowb.me">
+<meta name="twitter:card" content="summary">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0a0a0f;color:#e8e8f0;min-height:100vh;display:flex;align-items:center;justify-content:center}
+.container{text-align:center;padding:32px 24px;max-width:400px;width:100%}
+.logo{width:80px;height:80px;border-radius:20px;margin:0 auto 20px}
+h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(135deg,#60a5fa,#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.subtitle{font-size:15px;color:#9ca3af;margin-bottom:32px;line-height:1.5}
+.btn{display:block;width:100%;padding:14px 24px;border-radius:12px;font-size:16px;font-weight:600;text-decoration:none;margin-bottom:12px;transition:transform 0.15s}
+.btn:active{transform:scale(0.97)}
+.btn-telegram{background:linear-gradient(135deg,#2AABEE,#229ED9);color:#fff}
+.btn-web{background:rgba(255,255,255,0.08);color:#e8e8f0;border:1px solid rgba(255,255,255,0.12)}
+.hint{font-size:12px;color:#6b7280;margin-top:20px}
+.spinner{width:24px;height:24px;border:3px solid rgba(255,255,255,0.15);border-top-color:#60a5fa;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="container">
+  <img src="/icon-512.png" alt="FlowB" class="logo" onerror="this.style.display='none'">
+  <h1>Join Crew on FlowB</h1>
+  <p class="subtitle" id="sub">Opening Telegram...</p>
+  <div class="spinner" id="sp"></div>
+
+  <a id="btn-tg" class="btn btn-telegram" style="display:none">
+    Open in Telegram
+  </a>
+  <a id="btn-bot" class="btn btn-web" style="display:none">
+    Join via Bot Chat
+  </a>
+  <a href="https://flowb.me" class="btn btn-web" style="display:none" id="btn-web">
+    Visit flowb.me
+  </a>
+
+  <p class="hint" id="hint" style="display:none">
+    Make sure you have Telegram installed on your device.
+  </p>
+</div>
+
+<script>
+(function() {
+  var path = window.location.pathname;
+  var code = '';
+  var m = path.match(/\/g\/([a-zA-Z0-9_-]+)/);
+  if (m) code = m[1];
+
+  if (!code) {
+    document.getElementById('sub').textContent = 'Invalid link. Visit flowb.me to get started.';
+    document.getElementById('sp').style.display = 'none';
+    document.getElementById('btn-web').style.display = 'block';
+    return;
+  }
+
+  var tgLink = 'https://t.me/Flow_b_bot/flowb?startapp=crew_' + code;
+  var tgProto = 'tg://resolve?domain=Flow_b_bot&appname=flowb&startapp=crew_' + code;
+  var botLink = 'https://t.me/Flow_b_bot?start=crew_' + code;
+  var btnTg = document.getElementById('btn-tg');
+  btnTg.href = tgLink;
+  document.getElementById('btn-bot').href = botLink;
+
+  var done = false;
+  function show() {
+    if (done) return; done = true;
+    document.getElementById('sp').style.display = 'none';
+    document.getElementById('sub').textContent = 'Tap below to join this crew';
+    btnTg.style.display = 'block';
+    document.getElementById('btn-bot').style.display = 'block';
+    document.getElementById('btn-web').style.display = 'block';
+    document.getElementById('hint').style.display = 'block';
+  }
+
+  var mob = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (mob) {
+    window.location.href = tgProto;
+    setTimeout(function() {
+      window.location.href = tgLink;
+      setTimeout(show, 1500);
+    }, 2000);
+  } else {
+    window.location.href = tgLink;
+    setTimeout(show, 3000);
+  }
+
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) { done = true; }
+  });
+})();
+</script>
+</body>
+</html>

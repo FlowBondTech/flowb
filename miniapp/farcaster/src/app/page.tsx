@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { sdk } from "@farcaster/miniapp-sdk";
-import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl, hapticImpact, hapticNotification, hapticSelection, sendToken, swapToken, viewToken, BASE_USDC, BASE_ETH } from "../lib/farcaster";
+import { initFarcaster, quickAuth, composeCast, promptAddMiniApp, isInMiniApp, shareToX, copyToClipboard, openUrl, hapticImpact, hapticNotification, hapticSelection, sendToken, swapToken, viewToken, getClientType, BASE_USDC, BASE_ETH } from "../lib/farcaster";
 import { authFarcasterQuick, getEvents, getEvent, rsvpEvent, getSchedule, checkinScheduleEntry, claimPendingPoints, sendChat, getCrews, getCrewMembers } from "../api/client";
 import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
+
 import type { EventResult, ScheduleEntry, FeedItem, CrewInfo, CrewMember, CrewCheckin as CrewCheckinType } from "../api/types";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
 import { BottomNav } from "../components/BottomNav";
@@ -13,14 +14,17 @@ import { PointsScreen } from "../components/PointsScreen";
 import { OnboardingScreen } from "../components/OnboardingScreen";
 import { WebLanding } from "../components/WebLanding";
 import { FlowBChat } from "../components/FlowBChat";
-import { EthDenverFeed } from "../components/EthDenverFeed";
+import { CommunityFeed } from "../components/CommunityFeed";
 import { AboutScreen } from "../components/AboutScreen";
+import { AgentsScreen } from "../components/AgentsScreen";
+import { SocialBScreen } from "../components/SocialBScreen";
+import { AddEventScreen } from "../components/AddEventScreen";
 
-type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about";
+type Screen = "home" | "event" | "schedule" | "crew" | "points" | "chat" | "feed" | "about" | "agents" | "socialb" | "addevent";
 type HomeTab = "discover" | "feed" | "vibes";
 
 // ============================================================================
-// Featured Events - Date-aware picks for EthDenver Feb 15-27
+// Featured Events - Date-aware picks for SXSW March 12-18
 // ============================================================================
 interface FeaturedEvent {
   title: string;
@@ -42,68 +46,60 @@ function optimizeImageUrl(url: string | undefined, w = 450, h = 250): string | n
 
 function getFeaturedEvents(): FeaturedEvent[] {
   const today = new Date();
-  const month = today.getMonth(); // 0-indexed, Feb = 1
+  const month = today.getMonth(); // 0-indexed, Mar = 2
   const day = today.getDate();
 
-  // Only show during EthDenver range (Feb 15-27)
-  if (month !== 1 || day < 15 || day > 27) {
+  // Only show during SXSW range (Mar 12-18)
+  if (month !== 2 || day < 12 || day > 18) {
     return getDefaultFeatured();
   }
 
   const dayEvents: Record<number, FeaturedEvent[]> = {
+    12: [
+      { title: "SXSW Opening Day", date: "Thu, Mar 12", time: "10:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Opening", url: "https://sxsw.com", isFree: false },
+    ],
+    13: [
+      { title: "SXSW Conference & Showcases", date: "Fri, Mar 13", time: "9:00 AM - 12:00 AM CT", location: "Downtown Austin", badge: "Main Event", url: "https://sxsw.com", isFree: false },
+      { title: "Web3 & Crypto Summit", date: "Fri, Mar 13", time: "All Day", location: "Austin, TX", badge: "Side Event", url: "https://sxsw.com", isFree: false },
+    ],
+    14: [
+      { title: "SXSW Music Festival Kickoff", date: "Sat, Mar 14", time: "12:00 PM - 2:00 AM CT", location: "6th Street & Rainey St, Austin", badge: "Music", url: "https://sxsw.com", isFree: false },
+    ],
     15: [
-      { title: "Camp BUIDL Kickoff", date: "Sat, Feb 15", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Film & TV Premieres", date: "Sun, Mar 15", time: "10:00 AM - 11:00 PM CT", location: "Paramount Theatre, Austin", badge: "Film", url: "https://sxsw.com", isFree: false },
     ],
     16: [
-      { title: "Camp BUIDL Day 2", date: "Sun, Feb 16", time: "10:00 AM - 6:00 PM MT", location: "National Western Center, Denver", badge: "Pre-Event", url: "https://www.ethdenver.com", isFree: true },
-      { title: "Multichain Day", date: "Sun, Feb 16", time: "All Day", location: "Denver, CO", badge: "Side Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Interactive & AI Day", date: "Mon, Mar 16", time: "9:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Tech", url: "https://sxsw.com", isFree: false },
     ],
     17: [
-      { title: "EthDenver Opening Day", date: "Mon, Feb 17", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
+      { title: "SXSW Music Night Showcases", date: "Tue, Mar 17", time: "8:00 PM - 2:00 AM CT", location: "Downtown Austin Venues", badge: "Music", url: "https://sxsw.com", isFree: false },
     ],
     18: [
-      { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
-    ],
-    19: [
-      { title: "EthDenver Main Stage", date: "Wed, Feb 19", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    20: [
-      { title: "EthDenver Day 4", date: "Thu, Feb 20", time: "9:00 AM - 10:00 PM MT", location: "National Western Center, Denver", badge: "Main Event", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    21: [
-      { title: "BUIDLathon Awards & Finality Party", date: "Fri, Feb 21", time: "4:00 PM - 2:00 AM MT", location: "National Western Center, Denver", badge: "Closing", url: "https://www.ethdenver.com", isFree: true },
-    ],
-    22: [
-      { title: "SporkDAO Mountain Retreat", date: "Feb 22-27", time: "All Day", location: "Colorado Mountains", badge: "Post-Event", url: "https://www.ethdenver.com", isFree: false },
+      { title: "SXSW Closing Ceremony", date: "Wed, Mar 18", time: "4:00 PM - 12:00 AM CT", location: "Austin Convention Center", badge: "Closing", url: "https://sxsw.com", isFree: false },
     ],
   };
-
-  // For days 23-27, reuse mountain retreat
-  for (let d = 23; d <= 27; d++) {
-    dayEvents[d] = dayEvents[22];
-  }
 
   return dayEvents[day] || getDefaultFeatured();
 }
 
 function getDefaultFeatured(): FeaturedEvent[] {
   return [
-    { title: "Purple Party", date: "Tue, Feb 18", time: "6:00 - 10:00 PM MT", location: "Kismet Casa, Denver", badge: "Featured", url: "https://lu.ma/qe7f65ue", isFree: true },
+    { title: "FlowB at SXSW", date: "Mar 12-18", time: "All Week", location: "Austin, TX", badge: "Featured", url: "https://sxsw.com", isFree: true },
   ];
 }
 
 // ============================================================================
-// Date Filter - EthDenver Feb 15-27 (only show today and future dates)
+// Date Filter - SXSW March 12-18 (only show today and future dates)
 // ============================================================================
-const ETHDENVER_DATES = (() => {
+const SXSW_DATES = (() => {
   const dates: { id: string; label: string; date: Date }[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  for (let d = 15; d <= 27; d++) {
-    const dt = new Date(2026, 1, d); // Feb = month 1
+  for (let d = 12; d <= 18; d++) {
+    const dt = new Date(2026, 2, d); // Mar = month 2
     if (dt < today) continue;
     const weekday = dt.toLocaleDateString("en-US", { weekday: "short" });
-    dates.push({ id: `feb${d}`, label: `${weekday} ${d}`, date: dt });
+    dates.push({ id: `mar${d}`, label: `${weekday} ${d}`, date: dt });
   }
   return dates;
 })();
@@ -114,9 +110,9 @@ const ETHDENVER_DATES = (() => {
 const FILTER_CATEGORIES = [
   { id: "all", label: "All" },
   { id: "now", label: "Happening Now" },
-  { id: "hackathon", label: "Hackathon" },
-  { id: "defi", label: "DeFi" },
-  { id: "ai", label: "AI & Agents" },
+  { id: "music", label: "Music" },
+  { id: "film", label: "Film & TV" },
+  { id: "ai", label: "AI & Tech" },
   { id: "panels", label: "Panels" },
   { id: "parties", label: "Parties" },
   { id: "workshops", label: "Workshops" },
@@ -236,6 +232,11 @@ export default function FarcasterApp() {
           if (result.user.username) setUsername(result.user.username);
           if (result.user.id) setUserId(result.user.id);
 
+          // Sync server-side onboarding flag to localStorage (WebView can clear it)
+          if (result.onboarding_complete) {
+            try { localStorage.setItem("flowb_onboarded", "1"); } catch {}
+          }
+
           const pending = getPendingActions();
           if (pending.length > 0) {
             claimPendingPoints(pending)
@@ -270,7 +271,7 @@ export default function FarcasterApp() {
         if (deepEvent) {
           setEventId(deepEvent);
           setScreen("event");
-        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat"].includes(deepScreen)) {
+        } else if (deepScreen && ["feed", "schedule", "crew", "points", "chat", "agents", "addevent"].includes(deepScreen)) {
           setScreen(deepScreen as Screen);
         }
       } catch {}
@@ -302,7 +303,7 @@ export default function FarcasterApp() {
     if (screen === "home" && !showOnboarding) {
       setEventsLoading(true);
       const cats = activeFilter !== "all" && activeFilter !== "now" ? [activeFilter] : undefined;
-      getEvents("Denver", 50, cats)
+      getEvents("Austin", 50, cats)
         .then(setEvents)
         .catch(console.error)
         .finally(() => setEventsLoading(false));
@@ -493,6 +494,8 @@ export default function FarcasterApp() {
     }
   };
 
+  const [justCheckedIn, setJustCheckedIn] = useState<string | null>(null);
+
   const handleScheduleCheckin = async (entry: ScheduleEntry) => {
     try {
       hapticImpact("heavy");
@@ -501,13 +504,16 @@ export default function FarcasterApp() {
         prev.map((e) => (e.id === entry.id ? { ...e, checked_in: true } : e)),
       );
       hapticNotification("success");
+      setJustCheckedIn(entry.id);
     } catch (err) {
       console.error("Checkin failed:", err);
       hapticNotification("error");
     }
   };
 
-  const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat") => {
+  const prevScreen = useRef(screen);
+
+  const navigateTab = useCallback((tab: "home" | "feed" | "schedule" | "crew" | "points" | "chat" | "agents") => {
     hapticSelection();
     setScreen(tab);
   }, []);
@@ -546,7 +552,7 @@ export default function FarcasterApp() {
   const dateFiltered = activeDate === "any"
     ? events
     : events.filter((e) => {
-        const entry = ETHDENVER_DATES.find((d) => d.id === activeDate);
+        const entry = SXSW_DATES.find((d) => d.id === activeDate);
         if (!entry) return true;
         const evStart = new Date(e.startTime);
         return (
@@ -613,7 +619,7 @@ export default function FarcasterApp() {
             <div>
               <h1 className="gradient-text" style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-0.02em" }}>FlowB</h1>
               <div style={{ fontSize: 13, color: "var(--text-muted)" }}>
-                EthDenver - Denver{username ? ` | @${username}` : ""}
+                Austin, TX{username ? ` | @${username}` : ""}
               </div>
             </div>
             <button
@@ -713,7 +719,7 @@ export default function FarcasterApp() {
                         <span className={`badge ${feat.isFree ? "badge-green" : "badge-yellow"}`}>
                           {feat.isFree ? "Free" : "Paid"}
                         </span>
-                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>EthDenver 2026</span>
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>FlowB</span>
                       </div>
                     </div>
                   </div>
@@ -728,7 +734,7 @@ export default function FarcasterApp() {
                 >
                   All Days
                 </button>
-                {ETHDENVER_DATES.map((d) => (
+                {SXSW_DATES.map((d) => (
                   <button
                     key={d.id}
                     className={`filter-chip ${activeDate === d.id ? "active" : ""}`}
@@ -752,6 +758,23 @@ export default function FarcasterApp() {
                 ))}
               </div>
 
+              {/* List Your Event CTA */}
+              <button
+                onClick={() => { hapticImpact("light"); setScreen("addevent"); }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  background: "none", border: "1px dashed var(--border)",
+                  borderRadius: "var(--radius, 12px)", padding: "8px 14px",
+                  color: "var(--accent, #6366f1)", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", marginBottom: 10, width: "100%", justifyContent: "center",
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="14" height="14" style={{ width: 14, height: 14 }}>
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                List Your Event
+              </button>
+
               {eventsLoading ? (
                 <>
                   <EventCardSkeleton />
@@ -765,10 +788,10 @@ export default function FarcasterApp() {
                     <div className="empty-state-title">No events found</div>
                     <div className="empty-state-text">
                       {activeDate !== "any"
-                        ? `No events on ${ETHDENVER_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
+                        ? `No events on ${SXSW_DATES.find((d) => d.id === activeDate)?.label || "that day"}. Try another date!`
                         : activeFilter !== "all"
                         ? `No ${activeFilter} events right now. Try a different filter!`
-                        : "No events in Denver right now. Check back soon!"}
+                        : "No events in Austin right now. Check back soon!"}
                     </div>
                     {(activeFilter !== "all" || activeDate !== "any") && (
                       <button className="btn btn-secondary" onClick={() => { setActiveFilter("all"); setActiveDate("any"); }}>
@@ -1067,9 +1090,28 @@ export default function FarcasterApp() {
               <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>
                 Added to your schedule. You'll get reminders before it starts.
               </div>
-              <button className="btn btn-secondary btn-sm" onClick={() => setShowRsvpConfirm(false)} style={{ margin: "0 auto" }}>
-                Done
-              </button>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => {
+                    hapticImpact("light");
+                    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                    composeCast(
+                      `I just RSVP'd to ${selectedEvent.title} on FlowB! Who's joining?`,
+                      [`${appUrl}?event=${eventId}`],
+                    );
+                  }}
+                  style={{ display: "flex", alignItems: "center", gap: 5 }}
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14" style={{ width: 14, height: 14 }}>
+                    <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                  </svg>
+                  Share on Farcaster
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => setShowRsvpConfirm(false)}>
+                  Done
+                </button>
+              </div>
               <style>{`@keyframes rsvpPop { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.15); } 100% { transform: scale(1); opacity: 1; } }`}</style>
             </div>
           )}
@@ -1099,6 +1141,14 @@ export default function FarcasterApp() {
                 </>
               )}
             </div>
+          )}
+          {!showRsvpConfirm && !rsvpStatus && (
+            <p style={{ fontSize: 11, color: "var(--text-muted, #888)", margin: "-4px 0 8px", display: "flex", alignItems: "center", gap: 4 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              This does not register you on Luma
+            </p>
           )}
 
           {/* Share Row: Farcaster | X | Copy Link */}
@@ -1132,10 +1182,10 @@ export default function FarcasterApp() {
             </button>
           </div>
 
-          {/* Wallet Actions */}
+          {/* Boost this Event */}
           <div className="card" style={{ marginTop: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--text-muted)" }}>
-              Wallet
+              Boost this Event
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button
@@ -1227,9 +1277,28 @@ export default function FarcasterApp() {
                     {s.rsvp_status}
                   </span>
                   {s.checked_in ? (
-                    <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 600 }}>
-                      Checked In
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: "var(--green)", fontSize: 12, fontWeight: 600 }}>
+                        Checked In
+                      </span>
+                      <button
+                        className="btn btn-sm"
+                        style={{ fontSize: 11, padding: "3px 8px", background: "rgba(99, 102, 241, 0.12)", color: "var(--accent, #6366f1)", border: "none", display: "flex", alignItems: "center", gap: 4 }}
+                        onClick={() => {
+                          hapticImpact("light");
+                          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                          composeCast(
+                            `Just checked in to ${s.event_title}! ${s.venue_name ? `@ ${s.venue_name}` : ""}`,
+                            [s.event_source_id ? `${appUrl}?event=${s.event_source_id}` : appUrl],
+                          );
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11" style={{ width: 11, height: 11 }}>
+                          <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                        </svg>
+                        Share
+                      </button>
+                    </div>
                   ) : (
                     <button
                       className="btn btn-sm btn-success"
@@ -1239,6 +1308,36 @@ export default function FarcasterApp() {
                     </button>
                   )}
                 </div>
+                {justCheckedIn === s.id && (
+                  <div style={{ marginTop: 10, padding: 12, background: "rgba(99, 102, 241, 0.08)", borderRadius: 10, textAlign: "center" }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                      Let your crew know you're here!
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => {
+                          hapticImpact("light");
+                          const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://flowb-farcaster.netlify.app";
+                          composeCast(
+                            `Just checked in to ${s.event_title}! ${s.venue_name ? `@ ${s.venue_name} ` : ""}Who else is here?`,
+                            [s.event_source_id ? `${appUrl}?event=${s.event_source_id}` : appUrl],
+                          );
+                          setJustCheckedIn(null);
+                        }}
+                        style={{ display: "flex", alignItems: "center", gap: 5 }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" width="13" height="13" style={{ width: 13, height: 13 }}>
+                          <path d="M2 5l7 3v11l-7-3V5zm9 0l7-3v11l-7 3V5zm-2 0v11l-5 2V7l5-2z" />
+                        </svg>
+                        Share on Farcaster
+                      </button>
+                      <button className="btn btn-secondary btn-sm" onClick={() => setJustCheckedIn(null)}>
+                        Skip
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))
           )}
@@ -1246,7 +1345,7 @@ export default function FarcasterApp() {
       )}
 
       {/* Feed Screen (standalone - from bottom nav) */}
-      {screen === "feed" && <EthDenverFeed authed={authed} />}
+      {screen === "feed" && <CommunityFeed authed={authed} />}
 
       {/* Crew Screen */}
       {screen === "crew" && <CrewScreen authed={authed} currentUserId={userId} />}
@@ -1259,6 +1358,15 @@ export default function FarcasterApp() {
 
       {/* About Screen */}
       {screen === "about" && <AboutScreen onBack={() => setScreen("home")} />}
+
+      {/* Agents Screen */}
+      {screen === "agents" && <AgentsScreen authed={authed} currentUserId={userId} />}
+
+      {/* SocialB Screen */}
+      {screen === "socialb" && <SocialBScreen authed={authed} currentUserId={userId} />}
+
+      {/* Add Event Screen */}
+      {screen === "addevent" && <AddEventScreen onBack={() => setScreen("home")} />}
 
       {/* Bottom Navigation */}
       <BottomNav current={screen === "event" ? "home" : screen} onNavigate={navigateTab} />

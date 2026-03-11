@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB -- Let's Build Your Flow Together</title>
+  <meta name="description" content="Partner with FlowB to build your digital strategy. Ecommerce, SEO, social media, automation — all in one flow, at a fraction of agency costs.">
+  <meta property="og:title" content="FlowB -- Let's Build Your Flow Together">
+  <meta property="og:description" content="Partner with FlowB to build your digital strategy. Ecommerce, SEO, social, automation — integrated and affordable.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://biz.flowb.me/onboard">
+  <meta property="og:image" content="https://flowb.me/flowb-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://flowb.me/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://flowb.me/favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://flowb.me/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #09090b; --bg-card: rgba(24, 24, 27, 0.8); --bg-card-hover: rgba(32, 32, 36, 0.9);
+      --bg-surface: rgba(14, 14, 16, 0.9); --border: rgba(63, 63, 70, 0.5); --border-hover: rgba(82, 82, 91, 0.6);
+      --text: #fafafa; --text-muted: #a1a1aa; --text-dim: #52525b;
+      --accent: #3b82f6; --accent-light: #60a5fa; --accent-glow: rgba(59, 130, 246, 0.1);
+      --green: #34d399; --green-dim: rgba(52, 211, 153, 0.1); --green-glow: rgba(52, 211, 153, 0.06);
+      --orange: #fb923c; --orange-dim: rgba(251, 146, 60, 0.1);
+      --purple: #c084fc; --purple-glow: rgba(192, 132, 252, 0.1);
+      --red: #f87171; --radius: 10px; --radius-sm: 8px; --radius-pill: 9999px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
+      --shadow-lg: 0 10px 40px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
+      --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+    }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; line-height: 1.6; overflow-x: hidden; }
+    a { color: var(--accent-light); text-decoration: none; transition: color 0.15s; }
+    a:hover { color: var(--accent); }
+
+    /* Password Gate */
+    .gate-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--bg); display: flex; align-items: center; justify-content: center; flex-direction: column; }
+    .gate-overlay.hidden { display: none; }
+    .gate-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 48px 40px; max-width: 380px; width: 90%; text-align: center; backdrop-filter: blur(12px); box-shadow: var(--shadow-lg); }
+    .gate-logo { width: 48px; height: 48px; border-radius: 12px; margin: 0 auto 24px; }
+    .gate-card h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.02em; }
+    .gate-card p { color: var(--text-muted); font-size: 0.875rem; margin-bottom: 28px; line-height: 1.6; }
+    .gate-input { width: 100%; padding: 10px 16px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 0.875rem; text-align: center; letter-spacing: 0.1em; transition: all 0.15s ease; height: 44px; }
+    .gate-input:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+    .gate-input.error { border-color: var(--red); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--red); animation: gateShake 0.35s ease; }
+    @keyframes gateShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+    .gate-btn { width: 100%; margin-top: 12px; padding: 10px; height: 44px; background: var(--accent); color: #fff; border: none; border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.15s ease; }
+    .gate-btn:hover { background: #2563eb; box-shadow: 0 0 0 1px rgba(59,130,246,0.5), 0 4px 12px rgba(59,130,246,0.25); }
+    .gate-btn:active { transform: scale(0.98); }
+    .gate-hint { margin-top: 20px; font-size: 0.75rem; color: var(--text-dim); }
+    .gate-bg { position: fixed; inset: 0; pointer-events: none; z-index: -1; background: radial-gradient(ellipse 60% 50% at 50% 0%, rgba(59,130,246,0.04), transparent); }
+
+    /* Background */
+    .bg-effect { position: fixed; inset: 0; pointer-events: none; z-index: 0; background: radial-gradient(ellipse 50% 40% at 50% 0%, rgba(59,130,246,0.03), transparent); }
+
+    /* Header */
+    .q-header { position: sticky; top: 0; z-index: 100; background: rgba(9,9,11,0.8); backdrop-filter: blur(20px) saturate(1.2); border-bottom: 1px solid var(--border); }
+    .q-header-inner { max-width: 680px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; }
+    .q-logo { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; font-size: 0.9375rem; text-decoration: none; letter-spacing: -0.01em; }
+    .q-logo img { width: 28px; height: 28px; border-radius: 7px; }
+    .q-step-indicator { display: flex; align-items: center; gap: 6px; font-size: 0.8125rem; color: var(--text-dim); font-weight: 500; font-variant-numeric: tabular-nums; }
+    .q-step-indicator span { color: var(--text-muted); font-weight: 600; }
+
+    /* Progress */
+    .progress-wrap { position: sticky; top: 52px; z-index: 99; background: var(--bg); }
+    .progress-bar { height: 2px; background: rgba(63,63,70,0.3); }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 0 2px 2px 0; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+
+    /* Main */
+    .q-main { position: relative; z-index: 1; max-width: 640px; margin: 0 auto; padding: 48px 24px 160px; min-height: calc(100vh - 54px); }
+
+    /* Steps */
+    .step { display: none; animation: fadeSlideIn 0.35s ease; }
+    .step.active { display: block; }
+    @keyframes fadeSlideIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .step-label { font-size: 0.75rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-light); margin-bottom: 10px; }
+    .step h2 { font-size: 1.75rem; font-weight: 700; line-height: 1.2; margin-bottom: 8px; letter-spacing: -0.025em; }
+    .step .step-desc { color: var(--text-muted); font-size: 0.9375rem; margin-bottom: 36px; max-width: 520px; line-height: 1.7; }
+
+    /* Form Elements */
+    .field { margin-bottom: 20px; }
+    .field label { display: block; font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); margin-bottom: 6px; }
+    .field input, .field textarea, .field select { width: 100%; padding: 0 14px; height: 44px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-family: var(--font); font-size: 0.875rem; transition: all 0.15s ease; }
+    .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-dim); }
+    .field textarea { resize: vertical; min-height: 80px; padding: 12px 14px; height: auto; }
+    .field select { cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%2371717a' stroke-width='1.5' stroke-linecap='round' viewBox='0 0 24 24'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; padding-right: 36px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+
+    /* Option Cards */
+    .option-grid { display: grid; gap: 8px; margin-bottom: 28px; }
+    .option-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 600px) { .option-grid.cols-2, .option-grid.cols-3 { grid-template-columns: 1fr; } }
+    .option-card { position: relative; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; transition: all 0.15s ease; user-select: none; backdrop-filter: blur(8px); }
+    .option-card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+    .option-card.selected { border-color: var(--accent); background: rgba(59,130,246,0.08); box-shadow: 0 0 0 1px var(--accent); }
+    .option-card input { position: absolute; opacity: 0; pointer-events: none; }
+    .option-card .oc-icon { font-size: 1.25rem; margin-bottom: 6px; display: block; }
+    .option-card .oc-title { font-weight: 600; font-size: 0.875rem; margin-bottom: 2px; letter-spacing: -0.01em; }
+    .option-card .oc-desc { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.5; }
+    .option-card .oc-check { position: absolute; top: 14px; right: 14px; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--border); transition: all 0.15s ease; display: flex; align-items: center; justify-content: center; }
+    .option-card.selected .oc-check { border-color: var(--accent); background: var(--accent); }
+    .option-card.selected .oc-check::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+
+    /* Pricing on cards */
+    .oc-pricing { margin-top: 10px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .oc-setup { font-size: 0.6875rem; font-weight: 600; color: var(--accent-light); background: var(--accent-glow); padding: 2px 8px; border-radius: var(--radius-pill); letter-spacing: 0.01em; }
+    .oc-monthly { font-size: 0.6875rem; font-weight: 600; color: var(--green); background: var(--green-dim); padding: 2px 8px; border-radius: var(--radius-pill); letter-spacing: 0.01em; }
+
+    /* Info button on cards */
+    .oc-info { position: absolute; bottom: 12px; right: 12px; display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: var(--radius-pill); background: transparent; border: 1px solid var(--border); cursor: pointer; color: var(--text-dim); font-size: 0.6875rem; font-weight: 500; transition: all 0.15s ease; z-index: 2; white-space: nowrap; }
+    .oc-info:hover { background: var(--accent-glow); border-color: rgba(59,130,246,0.4); color: var(--accent-light); }
+    .oc-info svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+    /* Select All deal banner */
+    .select-all-deal { background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 12px; display: none; text-align: center; animation: fadeSlideIn 0.35s ease; }
+    .select-all-deal.visible { display: block; }
+    .select-all-deal .sad-title { font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 6px; letter-spacing: -0.01em; }
+    .select-all-deal .sad-prices { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .sad-original { font-size: 0.9375rem; color: var(--text-dim); text-decoration: line-through; font-weight: 400; }
+    .sad-deal { font-size: 1.125rem; font-weight: 700; color: var(--green); }
+    .sad-tag { font-size: 0.6875rem; font-weight: 600; color: var(--green); background: var(--green-dim); padding: 3px 10px; border-radius: var(--radius-pill); }
+
+    /* Social platform icons in chips */
+    .chip-icon svg { width: 14px; height: 14px; display: block; }
+
+    /* Flexibility note */
+    .flex-note { background: rgba(192,132,252,0.05); border: 1px solid rgba(192,132,252,0.12); border-radius: var(--radius); padding: 16px 20px; margin-top: 28px; margin-bottom: 8px; }
+    .flex-note .fn-title { font-size: 0.8125rem; font-weight: 600; color: var(--purple); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .flex-note .fn-body { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.7; }
+    .flex-note .fn-body strong { color: var(--text); font-weight: 500; }
+
+    /* Chips */
+    .chip-wrap { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 28px; }
+    .chip { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-pill); background: transparent; border: 1px solid var(--border); font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); transition: all 0.15s ease; user-select: none; }
+    .chip:hover { border-color: var(--border-hover); color: var(--text); background: var(--bg-card); }
+    .chip.selected { background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.4); color: var(--accent-light); }
+    .chip input { position: absolute; opacity: 0; pointer-events: none; }
+    .chip .chip-icon { font-size: 0.9375rem; line-height: 1; }
+
+    /* Range */
+    .range-wrap { margin-bottom: 28px; }
+    .range-wrap label { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); margin-bottom: 12px; }
+    .range-wrap label .range-val { color: var(--accent-light); font-size: 0.9375rem; font-weight: 600; }
+    .range-wrap input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 4px; background: rgba(63,63,70,0.4); border-radius: 2px; outline: none; }
+    .range-wrap input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); box-shadow: 0 0 0 2px var(--accent); cursor: pointer; transition: all 0.15s; }
+    .range-wrap input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.1); box-shadow: 0 0 0 2px var(--accent), 0 0 12px rgba(59,130,246,0.3); }
+    .range-ticks { display: flex; justify-content: space-between; font-size: 0.6875rem; color: var(--text-dim); margin-top: 8px; padding: 0 2px; }
+
+    /* Buttons */
+    .step-nav { display: flex; gap: 10px; margin-top: 40px; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 0 20px; height: 40px; border-radius: var(--radius-sm); font-family: var(--font); font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: all 0.15s ease; border: none; letter-spacing: -0.01em; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #2563eb; box-shadow: 0 0 0 1px rgba(59,130,246,0.5), 0 2px 8px rgba(59,130,246,0.2); }
+    .btn-primary:active { transform: scale(0.98); }
+    .btn-secondary { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+    .btn-secondary:hover { border-color: var(--border-hover); color: var(--text); background: var(--bg-card); }
+    .btn-submit { background: var(--accent); color: #fff; padding: 0 28px; height: 44px; font-size: 0.9375rem; font-weight: 600; }
+    .btn-submit:hover { background: #2563eb; box-shadow: 0 0 0 1px rgba(59,130,246,0.5), 0 4px 16px rgba(59,130,246,0.25); }
+    .btn-submit:active { transform: scale(0.98); }
+    .btn svg { width: 16px; height: 16px; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+    /* Sections */
+    .section-divider { height: 1px; background: var(--border); margin: 36px 0; }
+    .section-label { font-size: 0.8125rem; font-weight: 500; color: var(--text-muted); margin-bottom: 14px; }
+
+    /* Partner Note */
+    .partner-note { background: rgba(52,211,153,0.04); border: 1px solid rgba(52,211,153,0.12); border-radius: var(--radius); padding: 14px 18px; margin-bottom: 32px; display: flex; gap: 12px; align-items: flex-start; }
+    .partner-note .pn-icon { font-size: 1.125rem; flex-shrink: 0; margin-top: 2px; }
+    .partner-note .pn-text { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.6; }
+    .partner-note .pn-text strong { color: var(--green); font-weight: 600; }
+
+    /* Tracker */
+    .tracker { position: fixed; bottom: 0; left: 0; right: 0; z-index: 200; background: rgba(9,9,11,0.9); backdrop-filter: blur(20px) saturate(1.2); border-top: 1px solid var(--border); transform: translateY(100%); transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+    .tracker.visible { transform: translateY(0); }
+    .tracker-inner { max-width: 680px; margin: 0 auto; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .tracker-left { display: flex; flex-direction: column; gap: 2px; }
+    .tracker-label { font-size: 0.6875rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+    .tracker-values { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .tracker-setup { font-size: 0.875rem; font-weight: 600; color: var(--accent-light); font-variant-numeric: tabular-nums; }
+    .tracker-monthly { font-size: 1.0625rem; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
+    .tracker-plus { color: var(--text-dim); font-size: 0.75rem; }
+    .tracker-right { display: flex; align-items: center; gap: 10px; }
+    .tracker-savings { font-size: 0.6875rem; font-weight: 600; color: var(--green); background: var(--green-dim); padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+    .tracker-count { font-size: 0.6875rem; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .tracker-bundle { font-size: 0.6875rem; color: var(--orange); font-weight: 600; animation: bundlePulse 2.5s ease-in-out infinite; }
+    @keyframes bundlePulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+    @media (max-width: 520px) { .tracker-inner { flex-wrap: wrap; gap: 8px; } .tracker-right { width: 100%; justify-content: space-between; } }
+
+    /* Pricing Context */
+    .pricing-context { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 28px; backdrop-filter: blur(8px); }
+    .pricing-context .pc-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .pricing-context .pc-icon { font-size: 1.125rem; }
+    .pricing-context .pc-title { font-weight: 600; font-size: 0.875rem; letter-spacing: -0.01em; }
+    .pricing-context .pc-body { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.6; }
+    .pricing-context .pc-range { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+    .pc-tag { font-size: 0.6875rem; padding: 3px 10px; border-radius: var(--radius-pill); font-weight: 500; }
+    .pc-tag.low { background: var(--green-dim); color: var(--green); }
+    .pc-tag.mid { background: var(--orange-dim); color: var(--orange); }
+    .pc-tag.high { background: var(--purple-glow); color: var(--purple); }
+
+    /* Summary */
+    .summary-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; backdrop-filter: blur(8px); }
+    .summary-panel h3 { font-size: 0.9375rem; font-weight: 600; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .summary-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid rgba(63,63,70,0.3); font-size: 0.8125rem; }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .sr-label { color: var(--text-dim); font-weight: 400; }
+    .summary-row .sr-value { font-weight: 500; text-align: right; max-width: 60%; }
+    .summary-row .sr-value .chip-inline { display: inline-block; padding: 1px 8px; margin: 2px; background: var(--accent-glow); color: var(--accent-light); border-radius: var(--radius-pill); font-size: 0.6875rem; font-weight: 500; }
+
+    /* Investment Breakdown */
+    .invest-breakdown { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 20px; backdrop-filter: blur(8px); }
+    .invest-breakdown h3 { font-size: 0.9375rem; font-weight: 600; margin-bottom: 16px; letter-spacing: -0.01em; }
+    .ib-line { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; font-size: 0.8125rem; }
+    .ib-line .ib-name { color: var(--text-muted); font-weight: 400; }
+    .ib-line .ib-prices { display: flex; gap: 10px; align-items: center; font-variant-numeric: tabular-nums; }
+    .ib-line .ib-setup { color: var(--accent-light); font-weight: 500; font-size: 0.8125rem; }
+    .ib-line .ib-monthly { color: var(--green); font-weight: 500; }
+    .ib-divider { height: 1px; background: rgba(63,63,70,0.3); margin: 8px 0; }
+    .ib-total { display: flex; justify-content: space-between; align-items: center; padding: 14px 0 0; font-size: 0.9375rem; }
+    .ib-total .ib-name { font-weight: 600; }
+    .ib-total .ib-prices { display: flex; gap: 14px; align-items: center; font-variant-numeric: tabular-nums; }
+    .ib-total .ib-setup { color: var(--accent-light); font-weight: 600; font-size: 0.875rem; }
+    .ib-total .ib-monthly { font-weight: 700; font-size: 1.125rem; color: var(--green); }
+    .ib-savings { text-align: center; margin-top: 14px; padding: 10px 16px; background: var(--green-dim); border-radius: var(--radius-sm); font-size: 0.8125rem; font-weight: 500; color: var(--green); }
+    .ib-bundle { text-align: center; margin-top: 8px; font-size: 0.6875rem; color: var(--orange); font-weight: 500; }
+    .ib-note { text-align: center; margin-top: 8px; font-size: 0.6875rem; color: var(--text-dim); }
+
+    /* Detail Modal */
+    .modal-overlay { position: fixed; inset: 0; z-index: 1000; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal { background: #18181b; border: 1px solid var(--border); border-radius: 14px; max-width: 500px; width: 100%; max-height: 85vh; overflow-y: auto; transform: translateY(16px) scale(0.98); transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: var(--shadow-lg); }
+    .modal-overlay.open .modal { transform: translateY(0) scale(1); }
+    .modal::-webkit-scrollbar { width: 4px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(63,63,70,0.5); border-radius: 2px; }
+    .modal-head { position: sticky; top: 0; z-index: 2; background: #18181b; padding: 20px 24px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .modal-head-left { display: flex; align-items: center; gap: 12px; }
+    .modal-head .mh-icon { font-size: 1.375rem; }
+    .modal-head .mh-title { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.02em; }
+    .modal-head .mh-sub { font-size: 0.8125rem; color: var(--text-muted); margin-top: 2px; }
+    .modal-close { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); width: 32px; height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-dim); font-size: 1rem; transition: all 0.15s; }
+    .modal-close:hover { background: var(--bg-card-hover); color: var(--text); border-color: var(--border-hover); }
+    .modal-body { padding: 18px 24px 24px; }
+    .modal-pricing-bar { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 20px; background: rgba(9,9,11,0.6); border: 1px solid var(--border); border-radius: var(--radius-sm); flex-wrap: wrap; }
+    .mpb-item { display: flex; flex-direction: column; gap: 2px; }
+    .mpb-label { font-size: 0.625rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+    .mpb-setup { font-size: 0.9375rem; font-weight: 600; color: var(--accent-light); font-variant-numeric: tabular-nums; }
+    .mpb-monthly { font-size: 0.9375rem; font-weight: 600; color: var(--green); font-variant-numeric: tabular-nums; }
+    .mpb-divider { width: 1px; height: 28px; background: rgba(63,63,70,0.4); }
+    .mpb-save { margin-left: auto; font-size: 0.6875rem; font-weight: 600; color: var(--green); background: var(--green-dim); padding: 3px 10px; border-radius: var(--radius-pill); }
+    .modal-section { margin-bottom: 20px; }
+    .modal-section-title { font-size: 0.6875rem; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+    .modal-includes { list-style: none; }
+    .modal-includes li { display: flex; align-items: flex-start; gap: 10px; padding: 7px 0; font-size: 0.8125rem; color: var(--text-muted); border-bottom: 1px solid rgba(63,63,70,0.2); }
+    .modal-includes li:last-child { border-bottom: none; }
+    .modal-includes li .mi-check { flex-shrink: 0; width: 16px; height: 16px; margin-top: 2px; background: var(--green-dim); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--green); font-size: 0.5625rem; font-weight: 700; }
+    .modal-includes li .mi-text { line-height: 1.5; }
+    .modal-tools { display: flex; flex-wrap: wrap; gap: 4px; }
+    .modal-tools .mt-tag { font-size: 0.6875rem; padding: 3px 10px; border-radius: var(--radius-pill); background: var(--accent-glow); color: var(--accent-light); font-weight: 500; }
+    .modal-note { font-size: 0.8125rem; color: var(--text-dim); line-height: 1.6; padding: 12px 14px; background: rgba(9,9,11,0.5); border-radius: var(--radius-sm); border-left: 2px solid rgba(59,130,246,0.4); }
+    .modal-cta { display: flex; gap: 8px; margin-top: 20px; }
+    .modal-cta .btn { flex: 1; justify-content: center; }
+
+    /* Success */
+    .success-screen { text-align: center; padding: 80px 20px; }
+    .success-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--green-dim); border: 1.5px solid rgba(52,211,153,0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 28px; font-size: 1.75rem; animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+    @keyframes successPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .success-screen h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 10px; letter-spacing: -0.02em; }
+    .success-screen p { color: var(--text-muted); max-width: 420px; margin: 0 auto; line-height: 1.7; font-size: 0.9375rem; }
+
+    #appContent { display: none; }
+    #appContent.visible { display: block; }
+
+    @media (max-width: 480px) {
+      .step h2 { font-size: 1.375rem; }
+      .q-main { padding: 32px 16px 160px; }
+      .step-nav { flex-direction: column; }
+      .btn { justify-content: center; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Password Gate -->
+<div class="gate-overlay" id="gateOverlay">
+  <div class="gate-bg"></div>
+  <div class="gate-card">
+    <img src="https://flowb.me/flowb.png" alt="FlowB" class="gate-logo">
+    <h1>Partner Onboarding</h1>
+    <p>This form is for FlowB partners. Enter the access code to continue.</p>
+    <input type="password" class="gate-input" id="gateInput" placeholder="Access code" autocomplete="off" autofocus>
+    <button class="gate-btn" id="gateBtn" onclick="checkGate()">Enter</button>
+    <div class="gate-hint">Need access? Reach out to your FlowB contact.</div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modalContent">
+    <!-- Populated by JS -->
+  </div>
+</div>
+
+<!-- App Content -->
+<div id="appContent">
+<div class="bg-effect"></div>
+
+<header class="q-header">
+  <div class="q-header-inner">
+    <a href="https://flowb.me" class="q-logo"><img src="https://flowb.me/flowb.png" alt="FlowB"><span>FlowB</span></a>
+    <div class="q-step-indicator">Step <span id="stepCurrent">1</span> of <span id="stepTotal">7</span></div>
+  </div>
+</header>
+
+<div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 14.3%"></div></div></div>
+
+<!-- Tracker -->
+<div class="tracker" id="tracker">
+  <div class="tracker-inner">
+    <div class="tracker-left">
+      <span class="tracker-label">Your Investment Estimate</span>
+      <div class="tracker-values">
+        <span class="tracker-setup" id="trackerSetup">$0 setup</span>
+        <span class="tracker-plus">+</span>
+        <span class="tracker-monthly" id="trackerMonthly">$0/mo</span>
+      </div>
+    </div>
+    <div class="tracker-right">
+      <span class="tracker-savings" id="trackerSavings">$0 saved/mo</span>
+      <span class="tracker-bundle" id="trackerBundle"></span>
+      <span class="tracker-count" id="trackerCount">0 services</span>
+    </div>
+  </div>
+</div>
+
+<main class="q-main">
+
+  <!-- STEP 1 -->
+  <div class="step active" data-step="1">
+    <div class="step-label">Let's Partner Up</div>
+    <h2>Tell us about you</h2>
+    <p class="step-desc">We believe in partnerships, not transactions. The more we understand your world, the better we can grow together.</p>
+    <div class="partner-note">
+      <span class="pn-icon">&#x1F331;</span>
+      <div class="pn-text"><strong>How this works:</strong> Each service has a <strong>one-time setup fee</strong> (we build it right) and a smaller <strong>monthly retainer</strong> (we keep it running). Click the info button on any card to see exactly what's included.</div>
+    </div>
+    <div class="field"><label>Your Name</label><input type="text" id="userName" placeholder="How should we address you?"></div>
+    <div class="field"><label>Business / Brand Name</label><input type="text" id="bizName" placeholder="e.g. Sunrise Coffee Co."></div>
+    <div class="field"><label>Website (if you have one)</label><input type="url" id="bizUrl" placeholder="https://..."></div>
+    <div class="section-label">What best describes you?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="bizType"><input type="radio" name="bizType" value="solo"><span class="oc-check"></span><span class="oc-icon">&#x1F9D1;&#x200D;&#x1F4BB;</span><span class="oc-title">Solo / Freelancer</span><span class="oc-desc">Running things on your own</span></label>
+      <label class="option-card" data-field="bizType"><input type="radio" name="bizType" value="small"><span class="oc-check"></span><span class="oc-icon">&#x1F465;</span><span class="oc-title">Small Team (2-10)</span><span class="oc-desc">Growing crew, need systems</span></label>
+      <label class="option-card" data-field="bizType"><input type="radio" name="bizType" value="growing"><span class="oc-check"></span><span class="oc-icon">&#x1F4C8;</span><span class="oc-title">Growing Business (10-50)</span><span class="oc-desc">Scaling, need infrastructure</span></label>
+      <label class="option-card" data-field="bizType"><input type="radio" name="bizType" value="enterprise"><span class="oc-check"></span><span class="oc-icon">&#x1F3E2;</span><span class="oc-title">Enterprise (50+)</span><span class="oc-desc">Custom, integrated solutions</span></label>
+    </div>
+    <div class="field"><label>Industry / Niche</label>
+      <select id="bizIndustry"><option value="">Select your industry</option><option value="ecommerce">E-commerce / Retail</option><option value="saas">SaaS / Tech</option><option value="agency">Marketing Agency</option><option value="hospitality">Hospitality / F&B</option><option value="health">Health & Wellness</option><option value="education">Education / Coaching</option><option value="creator">Creator / Influencer</option><option value="realestate">Real Estate</option><option value="finance">Finance / Fintech</option><option value="nonprofit">Nonprofit / Community</option><option value="crypto">Crypto / Web3</option><option value="professional">Professional Services</option><option value="other">Other</option></select>
+    </div>
+    <div class="step-nav"><button class="btn btn-primary" onclick="nextStep()">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 2: Services -->
+  <div class="step" data-step="2">
+    <div class="step-label">Build Your Stack</div>
+    <h2>What do you need?</h2>
+    <p class="step-desc">Each service shows a one-time setup fee + monthly retainer. Click the info button to see the full breakdown of what's included.</p>
+    <div class="partner-note">
+      <span class="pn-icon">&#x1F4B0;</span>
+      <div class="pn-text"><strong>Setup + retain model:</strong> We invest upfront to build it right, then charge a smaller monthly fee to keep it optimized. <strong>3+ services = 15% off monthly. 5+ = 25% off. 7+ = 30% off.</strong></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+      <button class="btn btn-secondary" id="selectAllBtn" onclick="toggleSelectAll()" style="padding:8px 18px;font-size:0.8rem;">Select All</button>
+    </div>
+    <div class="select-all-deal" id="selectAllDeal">
+      <div class="sad-title">Full Stack Partner Deal</div>
+      <div class="sad-prices">
+        <span class="sad-original" id="sadOriginal">$15,661 setup</span>
+        <span class="sad-deal">$10,000 setup</span>
+        <span class="sad-tag">30% off setup + monthly</span>
+      </div>
+    </div>
+    <div class="option-grid cols-2" id="needsGrid">
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="ecommerce"><span class="oc-check"></span><span class="oc-icon">&#x1F6D2;</span><span class="oc-title">E-commerce / Online Store</span><span class="oc-desc">Product catalog, payments, shipping, inventory</span><div class="oc-pricing"><span class="oc-setup">$1,555 setup</span><span class="oc-monthly">$333/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('ecommerce')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="seo"><span class="oc-check"></span><span class="oc-icon">&#x1F50D;</span><span class="oc-title">SEO & Content Strategy</span><span class="oc-desc">Rank higher, drive organic traffic</span><div class="oc-pricing"><span class="oc-setup">$1,222 setup</span><span class="oc-monthly">$333/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('seo')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="social"><span class="oc-check"></span><span class="oc-icon">&#x1F4F1;</span><span class="oc-title">Social Media Management</span><span class="oc-desc">Content creation, scheduling, engagement</span><div class="oc-pricing"><span class="oc-setup">$888 setup</span><span class="oc-monthly">$222/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('social')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="automation"><span class="oc-check"></span><span class="oc-icon">&#x26A1;</span><span class="oc-title">Workflow Automation</span><span class="oc-desc">Automate tasks, integrations, triggers</span><div class="oc-pricing"><span class="oc-setup">$1,111 setup</span><span class="oc-monthly">$222/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('automation')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="email"><span class="oc-check"></span><span class="oc-icon">&#x2709;&#xFE0F;</span><span class="oc-title">Email Marketing</span><span class="oc-desc">Newsletters, drip campaigns, segmentation</span><div class="oc-pricing"><span class="oc-setup">$555 setup</span><span class="oc-monthly">$111/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('email')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="scheduling"><span class="oc-check"></span><span class="oc-icon">&#x1F4C5;</span><span class="oc-title">Scheduling & Booking</span><span class="oc-desc">Appointments, calendar sync, reminders</span><div class="oc-pricing"><span class="oc-setup">$444 setup</span><span class="oc-monthly">$111/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('scheduling')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="crm"><span class="oc-check"></span><span class="oc-icon">&#x1F4CB;</span><span class="oc-title">CRM & Lead Management</span><span class="oc-desc">Track contacts, pipeline, deals</span><div class="oc-pricing"><span class="oc-setup">$888 setup</span><span class="oc-monthly">$222/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('crm')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="analytics"><span class="oc-check"></span><span class="oc-icon">&#x1F4CA;</span><span class="oc-title">Analytics & Reporting</span><span class="oc-desc">Dashboards, KPIs, attribution</span><div class="oc-pricing"><span class="oc-setup">$777 setup</span><span class="oc-monthly">$111/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('analytics')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="community"><span class="oc-check"></span><span class="oc-icon">&#x1F91D;</span><span class="oc-title">Community Building</span><span class="oc-desc">Forums, groups, events, ambassadors</span><div class="oc-pricing"><span class="oc-setup">$1,111 setup</span><span class="oc-monthly">$222/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('community')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="ads"><span class="oc-check"></span><span class="oc-icon">&#x1F4B0;</span><span class="oc-title">Paid Advertising</span><span class="oc-desc">Google, Meta, TikTok ads management</span><div class="oc-pricing"><span class="oc-setup">$1,555 setup</span><span class="oc-monthly">$555/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('ads')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="branding"><span class="oc-check"></span><span class="oc-icon">&#x1F3A8;</span><span class="oc-title">Branding & Design</span><span class="oc-desc">Logo, brand identity, style guides</span><div class="oc-pricing"><span class="oc-setup">$2,222 setup</span><span class="oc-monthly">$222/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('branding')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+      <label class="option-card" data-field="needs"><input type="checkbox" name="needs" value="web-dev"><span class="oc-check"></span><span class="oc-icon">&#x1F310;</span><span class="oc-title">Website / App Development</span><span class="oc-desc">Custom sites, landing pages, web apps</span><div class="oc-pricing"><span class="oc-setup">$3,333 setup</span><span class="oc-monthly">$444/mo</span></div><span class="oc-info" onclick="event.preventDefault();event.stopPropagation();openModal('web-dev')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>View more</span></label>
+    </div>
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-primary" onclick="nextStep()">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 3: Social -->
+  <div class="step" data-step="3">
+    <div class="step-label">Social & Content</div>
+    <h2>Your social presence</h2>
+    <p class="step-desc">Which platforms are you on (or want to be)? This shapes our content strategy.</p>
+    <div class="section-label">Select your platforms</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="platforms" value="instagram"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg></span> Instagram</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="tiktok"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.34-6.34V8.75a8.18 8.18 0 004.76 1.52V6.84a4.84 4.84 0 01-1-.15z"/></svg></span> TikTok</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="twitter"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg></span> X / Twitter</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="facebook"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg></span> Facebook</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="linkedin"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg></span> LinkedIn</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="youtube"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg></span> YouTube</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="telegram"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.944 0A12 12 0 000 12a12 12 0 0012 12 12 12 0 0012-12A12 12 0 0012 0h-.056zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 01.171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg></span> Telegram</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="farcaster"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.432 3h13.136v1.2H5.432V3zm-1.833 2.4L2.4 10.2h1.2v8.4H2.4V21h6V18.6H7.2v-8.4h9.6v8.4H15.6V21H21.6V18.6h-1.2v-8.4h1.2L20.4 5.4H3.6z"/></svg></span> Farcaster</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="pinterest"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 01.083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641 0 12.017 0z"/></svg></span> Pinterest</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="threads"><span class="chip-icon"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12.186 24h-.007c-3.581-.024-6.334-1.205-8.184-3.509C2.35 18.44 1.5 15.586 1.472 12.01v-.017c.03-3.579.879-6.43 2.525-8.482C5.845 1.205 8.6.024 12.18 0h.014c2.746.02 5.043.725 6.826 2.098 1.677 1.29 2.858 3.13 3.509 5.467l-2.04.569c-1.104-3.96-3.898-5.984-8.304-6.015-2.91.022-5.11.936-6.54 2.717C4.307 6.504 3.616 8.914 3.59 12c.025 3.083.718 5.496 2.057 7.164 1.432 1.783 3.631 2.698 6.54 2.717 2.623-.02 4.358-.631 5.8-2.045 1.647-1.613 1.618-3.593 1.09-4.798-.31-.71-.873-1.3-1.634-1.75-.192 1.352-.622 2.446-1.284 3.272-.886 1.102-2.14 1.704-3.73 1.79-1.202.065-2.361-.218-3.259-.801-1.063-.689-1.685-1.74-1.752-2.96-.065-1.187.408-2.26 1.33-3.017.88-.724 2.104-1.132 3.542-1.183 1.057-.037 2.038.077 2.942.339-.09-.653-.275-1.197-.556-1.63-.481-.742-1.277-1.135-2.298-1.135h-.09c-.766.016-1.42.253-1.943.703l-1.35-1.52c.846-.743 1.916-1.14 3.2-1.183h.134c1.656 0 2.94.588 3.71 1.702.656 .95.99 2.2 1.003 3.748.473.193.9.42 1.28.687 1.226.856 2.012 2.092 2.275 3.574.335 1.895-.174 4.072-2.2 6.052-1.862 1.819-4.14 2.629-7.164 2.652zM9.77 14.793c.04.726.395 1.285 1.058 1.664.567.323 1.28.47 2.004.428 1.078-.058 1.907-.44 2.468-1.139.46-.573.785-1.37.957-2.372a8.186 8.186 0 00-2.506-.392c-.978.034-1.757.265-2.321.688-.481.36-.694.804-.66 1.123z"/></svg></span> Threads</label>
+    </div>
+    <div class="section-label">How often do you want to post?</div>
+    <div class="option-grid cols-3">
+      <label class="option-card" data-field="postFreq"><input type="radio" name="postFreq" value="light"><span class="oc-check"></span><span class="oc-title">Light</span><span class="oc-desc">2-3x per week</span></label>
+      <label class="option-card" data-field="postFreq"><input type="radio" name="postFreq" value="regular"><span class="oc-check"></span><span class="oc-title">Regular</span><span class="oc-desc">Daily posting</span></label>
+      <label class="option-card" data-field="postFreq"><input type="radio" name="postFreq" value="aggressive"><span class="oc-check"></span><span class="oc-title">Aggressive</span><span class="oc-desc">Multiple times daily</span></label>
+    </div>
+    <div class="section-label">Content types you need</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="content" value="short-video"><span class="chip-icon">&#x1F3AC;</span> Short-form Video</label>
+      <label class="chip"><input type="checkbox" name="content" value="long-video"><span class="chip-icon">&#x1F4F9;</span> Long-form Video</label>
+      <label class="chip"><input type="checkbox" name="content" value="graphics"><span class="chip-icon">&#x1F5BC;&#xFE0F;</span> Graphics / Carousels</label>
+      <label class="chip"><input type="checkbox" name="content" value="blogs"><span class="chip-icon">&#x270D;&#xFE0F;</span> Blog Posts</label>
+      <label class="chip"><input type="checkbox" name="content" value="stories"><span class="chip-icon">&#x1F4A5;</span> Stories / Reels</label>
+      <label class="chip"><input type="checkbox" name="content" value="ugc"><span class="chip-icon">&#x1F64B;</span> UGC / Influencer</label>
+      <label class="chip"><input type="checkbox" name="content" value="podcasts"><span class="chip-icon">&#x1F399;&#xFE0F;</span> Podcasts</label>
+      <label class="chip"><input type="checkbox" name="content" value="newsletters"><span class="chip-icon">&#x1F4E8;</span> Newsletters</label>
+    </div>
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-primary" onclick="nextStep()">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 4: Revenue -->
+  <div class="step" data-step="4">
+    <div class="step-label">Revenue & Growth</div>
+    <h2>Where you are today</h2>
+    <p class="step-desc">No judgment -- we work with pre-revenue startups and $500K/mo businesses alike.</p>
+    <div class="section-label">Current monthly revenue</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="pre-rev"><span class="oc-check"></span><span class="oc-title">Pre-revenue / Just Starting</span><span class="oc-desc">Building the foundation</span></label>
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="under-5k"><span class="oc-check"></span><span class="oc-title">Under $5K/mo</span><span class="oc-desc">Early traction</span></label>
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="5k-25k"><span class="oc-check"></span><span class="oc-title">$5K - $25K/mo</span><span class="oc-desc">Growing steadily</span></label>
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="25k-100k"><span class="oc-check"></span><span class="oc-title">$25K - $100K/mo</span><span class="oc-desc">Scaling operations</span></label>
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="100k-500k"><span class="oc-check"></span><span class="oc-title">$100K - $500K/mo</span><span class="oc-desc">Established business</span></label>
+      <label class="option-card" data-field="revenue"><input type="radio" name="revenue" value="500k+"><span class="oc-check"></span><span class="oc-title">$500K+/mo</span><span class="oc-desc">Enterprise scale</span></label>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-label">How do you currently sell?</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="channels" value="website"><span class="chip-icon">&#x1F310;</span> Own Website</label>
+      <label class="chip"><input type="checkbox" name="channels" value="amazon"><span class="chip-icon">&#x1F4E6;</span> Amazon</label>
+      <label class="chip"><input type="checkbox" name="channels" value="shopify"><span class="chip-icon">&#x1F6D2;</span> Shopify</label>
+      <label class="chip"><input type="checkbox" name="channels" value="social-selling"><span class="chip-icon">&#x1F4F1;</span> Social (DMs)</label>
+      <label class="chip"><input type="checkbox" name="channels" value="retail"><span class="chip-icon">&#x1F3EA;</span> Retail</label>
+      <label class="chip"><input type="checkbox" name="channels" value="b2b"><span class="chip-icon">&#x1F4BC;</span> B2B</label>
+      <label class="chip"><input type="checkbox" name="channels" value="subscription"><span class="chip-icon">&#x1F504;</span> Subscription</label>
+      <label class="chip"><input type="checkbox" name="channels" value="none"><span class="chip-icon">&#x2728;</span> Not yet</label>
+    </div>
+    <div class="section-label">Biggest growth challenge</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="challenge"><input type="radio" name="challenge" value="traffic"><span class="oc-check"></span><span class="oc-title">Not enough traffic</span><span class="oc-desc">People aren't finding me</span></label>
+      <label class="option-card" data-field="challenge"><input type="radio" name="challenge" value="conversion"><span class="oc-check"></span><span class="oc-title">Low conversion rate</span><span class="oc-desc">Visitors aren't buying</span></label>
+      <label class="option-card" data-field="challenge"><input type="radio" name="challenge" value="retention"><span class="oc-check"></span><span class="oc-title">Customer retention</span><span class="oc-desc">One-time buyers, no loyalty</span></label>
+      <label class="option-card" data-field="challenge"><input type="radio" name="challenge" value="ops"><span class="oc-check"></span><span class="oc-title">Operations overhead</span><span class="oc-desc">Too much manual work</span></label>
+    </div>
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-primary" onclick="nextStep()">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 5: Tools -->
+  <div class="step" data-step="5">
+    <div class="step-label">Tools & Automation</div>
+    <h2>Your current toolkit</h2>
+    <p class="step-desc">We integrate with what you already use -- no ripping and replacing.</p>
+    <div class="section-label">Tools you currently use</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="tools" value="google-workspace"><span class="chip-icon">&#x1F4E7;</span> Google Workspace</label>
+      <label class="chip"><input type="checkbox" name="tools" value="notion"><span class="chip-icon">&#x1F4DD;</span> Notion</label>
+      <label class="chip"><input type="checkbox" name="tools" value="slack"><span class="chip-icon">&#x1F4AC;</span> Slack</label>
+      <label class="chip"><input type="checkbox" name="tools" value="zapier"><span class="chip-icon">&#x26A1;</span> Zapier / Make</label>
+      <label class="chip"><input type="checkbox" name="tools" value="hubspot"><span class="chip-icon">&#x1F9E1;</span> HubSpot</label>
+      <label class="chip"><input type="checkbox" name="tools" value="mailchimp"><span class="chip-icon">&#x1F435;</span> Mailchimp</label>
+      <label class="chip"><input type="checkbox" name="tools" value="shopify-tools"><span class="chip-icon">&#x1F6D2;</span> Shopify</label>
+      <label class="chip"><input type="checkbox" name="tools" value="stripe"><span class="chip-icon">&#x1F4B3;</span> Stripe</label>
+      <label class="chip"><input type="checkbox" name="tools" value="canva"><span class="chip-icon">&#x1F3A8;</span> Canva</label>
+      <label class="chip"><input type="checkbox" name="tools" value="airtable"><span class="chip-icon">&#x1F4CA;</span> Airtable</label>
+      <label class="chip"><input type="checkbox" name="tools" value="wordpress"><span class="chip-icon">&#x1F310;</span> WordPress</label>
+      <label class="chip"><input type="checkbox" name="tools" value="n8n"><span class="chip-icon">&#x1F916;</span> n8n</label>
+      <label class="chip"><input type="checkbox" name="tools" value="none-yet"><span class="chip-icon">&#x2728;</span> None yet</label>
+    </div>
+    <div class="section-label">What would you most like to automate?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="lead-capture"><span class="oc-check"></span><span class="oc-icon">&#x1F3AF;</span><span class="oc-title">Lead Capture & Follow-up</span><span class="oc-desc">Auto-respond, qualify, route leads</span></label>
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="social-posting"><span class="oc-check"></span><span class="oc-icon">&#x1F4E4;</span><span class="oc-title">Social Media Posting</span><span class="oc-desc">Schedule, cross-post, optimize</span></label>
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="invoicing"><span class="oc-check"></span><span class="oc-icon">&#x1F4B5;</span><span class="oc-title">Invoicing & Payments</span><span class="oc-desc">Auto-bill, reminders</span></label>
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="reporting"><span class="oc-check"></span><span class="oc-icon">&#x1F4CA;</span><span class="oc-title">Reporting & Analytics</span><span class="oc-desc">Auto-generated dashboards</span></label>
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="customer-support"><span class="oc-check"></span><span class="oc-icon">&#x1F4AC;</span><span class="oc-title">Customer Support</span><span class="oc-desc">AI chatbots, ticket routing</span></label>
+      <label class="option-card" data-field="automate"><input type="checkbox" name="automate" value="onboarding"><span class="oc-check"></span><span class="oc-icon">&#x1F680;</span><span class="oc-title">Client Onboarding</span><span class="oc-desc">Welcome sequences, doc collection</span></label>
+    </div>
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-primary" onclick="nextStep()">Continue <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 6: Partnership -->
+  <div class="step" data-step="6">
+    <div class="step-label">Partnership</div>
+    <h2>How should we work together?</h2>
+    <p class="step-desc">Every partnership is different. Some partners want us driving, others want to co-pilot.</p>
+    <div class="pricing-context">
+      <div class="pc-header"><span class="pc-icon">&#x1F4A1;</span><span class="pc-title">Setup + Retain model</span></div>
+      <p class="pc-body">We invest upfront to build your systems right (one-time setup), then keep everything optimized with a smaller monthly retainer. No long-term contracts -- stay because it works, not because you're locked in.</p>
+      <div class="pc-range">
+        <span class="pc-tag low">Seed: $2K-$5K setup</span>
+        <span class="pc-tag mid">Growth: $5K-$12K setup</span>
+        <span class="pc-tag high">Scale: $12K-$25K+ setup</span>
+      </div>
+    </div>
+    <div class="section-label">When do you want to kick things off?</div>
+    <div class="option-grid cols-3">
+      <label class="option-card" data-field="timeline"><input type="radio" name="timeline" value="asap"><span class="oc-check"></span><span class="oc-icon">&#x1F525;</span><span class="oc-title">ASAP</span><span class="oc-desc">Ready to go now</span></label>
+      <label class="option-card" data-field="timeline"><input type="radio" name="timeline" value="2-4weeks"><span class="oc-check"></span><span class="oc-icon">&#x1F4C5;</span><span class="oc-title">2-4 Weeks</span><span class="oc-desc">Planning first</span></label>
+      <label class="option-card" data-field="timeline"><input type="radio" name="timeline" value="1-3months"><span class="oc-check"></span><span class="oc-icon">&#x1F50D;</span><span class="oc-title">1-3 Months</span><span class="oc-desc">Exploring options</span></label>
+    </div>
+    <div class="section-label">How hands-on do you want to be?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="engagement"><input type="radio" name="engagement" value="done-for-you"><span class="oc-check"></span><span class="oc-icon">&#x1F9D1;&#x200D;&#x1F527;</span><span class="oc-title">You drive, I ride</span><span class="oc-desc">FlowB handles strategy + execution.</span></label>
+      <label class="option-card" data-field="engagement"><input type="radio" name="engagement" value="done-with-you"><span class="oc-check"></span><span class="oc-icon">&#x1F91D;</span><span class="oc-title">Co-pilot mode</span><span class="oc-desc">We strategize together, split the work.</span></label>
+      <label class="option-card" data-field="engagement"><input type="radio" name="engagement" value="diy-tools"><span class="oc-check"></span><span class="oc-icon">&#x1F6E0;&#xFE0F;</span><span class="oc-title">Give me the keys</span><span class="oc-desc">Set up tools, train me, I'll run it.</span></label>
+      <label class="option-card" data-field="engagement"><input type="radio" name="engagement" value="hybrid"><span class="oc-check"></span><span class="oc-icon">&#x1F504;</span><span class="oc-title">Flex partnership</span><span class="oc-desc">Some months more, some less. We adapt.</span></label>
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-label">Monthly retainer comfort zone</div>
+    <div class="range-wrap">
+      <label><span>What feels right for this stage?</span><span class="range-val" id="budgetDisplay">$1,500 - $3,000/mo</span></label>
+      <input type="range" id="budgetSlider" min="0" max="6" value="2" step="1">
+      <div class="range-ticks"><span>&lt;$500</span><span>$500-1.5K</span><span>$1.5-3K</span><span>$3-5K</span><span>$5-10K</span><span>$10-25K</span><span>$25K+</span></div>
+    </div>
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-primary" onclick="nextStep()">Review Your Partnership <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button></div>
+  </div>
+
+  <!-- STEP 7: Review -->
+  <div class="step" data-step="7">
+    <div class="step-label">Your Proposal</div>
+    <h2>Your partnership at a glance</h2>
+    <p class="step-desc">Here's what we'll build together. Review everything, then let's make it official.</p>
+    <div class="summary-panel" id="summaryPanel"></div>
+    <div class="invest-breakdown" id="investBreakdown"></div>
+    <div class="section-divider"></div>
+    <div class="section-label">Where should we send your proposal?</div>
+    <div class="field-row">
+      <div class="field"><label>Email *</label><input type="email" id="contactEmail" placeholder="you@company.com" required></div>
+      <div class="field"><label>Phone (optional)</label><input type="tel" id="contactPhone" placeholder="+1 (555) 000-0000"></div>
+    </div>
+    <div class="field"><label>Best way to reach you</label><select id="contactMethod"><option value="email">Email</option><option value="call">Phone call</option><option value="telegram">Telegram</option><option value="whatsapp">WhatsApp</option><option value="video">Video call (Zoom/Meet)</option></select></div>
+    <div class="field"><label>Anything else you want us to know?</label><textarea id="notes" placeholder="Special goals, deadlines, dreams for the business..."></textarea></div>
+    <div class="field"><label>Discount Code (optional)</label><input type="text" id="discountCode" placeholder="Enter code" style="text-transform:uppercase;letter-spacing:0.05em;" oninput="applyDiscountCode()"></div>
+    <div id="discountMsg" style="display:none;margin:-12px 0 16px;font-size:0.78rem;font-weight:600;padding:8px 14px;border-radius:var(--radius-sm);"></div>
+
+    <div class="flex-note">
+      <div class="fn-title">&#x1F4A1; Flexible monthly retainers</div>
+      <div class="fn-body">The monthly retainer shown is for a <strong>fully managed, done-for-you</strong> partnership. If you're willing to be more hands-on and learn to drive things yourself, we can accommodate the monthly fee down to a <strong>guided follow-up model</strong> -- think of it as coaching + tools access instead of full execution. <strong>The more active you are, the less the monthly costs.</strong> We'll discuss what fits best in your proposal call.</div>
+    </div>
+
+    <div class="step-nav"><button class="btn btn-secondary" onclick="prevStep()">Back</button><button class="btn btn-submit" onclick="submitForm()" id="submitBtn">Start the Partnership <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button></div>
+  </div>
+
+  <!-- Success -->
+  <div class="step" data-step="success">
+    <div class="success-screen">
+      <div class="success-icon">&#x1F331;</div>
+      <h2>Welcome to the Flow, partner.</h2>
+      <p>We've received everything. Our team will review your needs and send a personalized partnership proposal within 24 hours.</p>
+      <div style="margin-top: 32px"><a href="https://flowb.me" class="btn btn-primary">Back to FlowB</a></div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+  // ===== Config =====
+  const API_BASE = 'https://flowb.fly.dev';
+  const STORAGE_KEY = 'flowb_onboard_data';
+
+  // ===== Password Gate =====
+  const GATE_KEY = 'flowb_onboard_auth', GATE_PASS = 'flowb';
+  function checkGate() {
+    const input = document.getElementById('gateInput');
+    if (input.value === GATE_PASS) {
+      sessionStorage.setItem(GATE_KEY, '1');
+      unlockApp();
+      // Notify admins
+      fetch(API_BASE + '/api/v1/questionnaire/gate-pass', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userAgent: navigator.userAgent, referrer: document.referrer || 'direct' }),
+      }).catch(() => {});
+    } else {
+      input.classList.add('error'); input.value = ''; input.placeholder = 'Try again';
+      setTimeout(() => input.classList.remove('error'), 500);
+    }
+  }
+  function unlockApp() {
+    document.getElementById('gateOverlay').classList.add('hidden');
+    document.getElementById('appContent').classList.add('visible');
+    restoreFormState();
+  }
+  if (sessionStorage.getItem(GATE_KEY) === '1') unlockApp();
+  document.getElementById('gateInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkGate(); });
+
+  // ===== State =====
+  let currentStep = 1;
+  const totalSteps = 7;
+  const budgetLabels = ['Under $500/mo','$500 - $1,500/mo','$1,500 - $3,000/mo','$3,000 - $5,000/mo','$5,000 - $10,000/mo','$10,000 - $25,000/mo','$25,000+/mo'];
+  let selectAllActive = false;
+  let appliedDiscount = null; // { code, pct }
+
+  // Service pricing: setup (one-time) + monthly retainer + agency equivalent for comparison
+  const servicePricing = {
+    'ecommerce':  { setup: 1555, monthly: 333, agency: 2000, name: 'E-commerce', icon: '\u{1F6D2}' },
+    'seo':        { setup: 1222, monthly: 333, agency: 2500, name: 'SEO & Content', icon: '\u{1F50D}' },
+    'social':     { setup: 888,  monthly: 222, agency: 1500, name: 'Social Media', icon: '\u{1F4F1}' },
+    'automation': { setup: 1111, monthly: 222, agency: 1500, name: 'Automation', icon: '\u26A1' },
+    'email':      { setup: 555,  monthly: 111, agency: 800,  name: 'Email Marketing', icon: '\u2709\uFE0F' },
+    'scheduling': { setup: 444,  monthly: 111, agency: 500,  name: 'Scheduling', icon: '\u{1F4C5}' },
+    'crm':        { setup: 888,  monthly: 222, agency: 1200, name: 'CRM & Leads', icon: '\u{1F4CB}' },
+    'analytics':  { setup: 777,  monthly: 111, agency: 1000, name: 'Analytics', icon: '\u{1F4CA}' },
+    'community':  { setup: 1111, monthly: 222, agency: 1500, name: 'Community', icon: '\u{1F91D}' },
+    'ads':        { setup: 1555, monthly: 555, agency: 3000, name: 'Paid Ads', icon: '\u{1F4B0}' },
+    'branding':   { setup: 2222, monthly: 222, agency: 2000, name: 'Branding', icon: '\u{1F3A8}' },
+    'web-dev':    { setup: 3333, monthly: 444, agency: 5000, name: 'Web/App Dev', icon: '\u{1F310}' },
+  };
+
+  // Detail breakdowns for modal
+  const serviceDetails = {
+    'ecommerce': {
+      sub: 'Full online store setup & management',
+      includes: ['Store design & theme customization','Product catalog setup (up to 100 SKUs)','Payment gateway integration (Stripe, PayPal)','Shipping rules & tax configuration','Inventory tracking & low-stock alerts','Mobile-optimized checkout flow','Order management dashboard','Monthly conversion optimization'],
+      tools: ['Shopify','Stripe','ShipStation','Google Merchant'],
+      note: 'Setup covers full store build. Monthly retainer covers ongoing product updates, A/B testing, and performance optimization.'
+    },
+    'seo': {
+      sub: 'Organic growth & content strategy',
+      includes: ['Full site SEO audit & technical fixes','Keyword research & content roadmap','On-page optimization (meta, headers, schema)','Google Search Console & Analytics setup','Monthly blog content (4 articles/mo)','Backlink outreach & link building','Local SEO & Google Business Profile','Monthly ranking & traffic reports'],
+      tools: ['Ahrefs','Google Search Console','Surfer SEO','WordPress/CMS'],
+      note: 'Setup includes audit + technical fixes + first content batch. Monthly covers ongoing content production and ranking monitoring.'
+    },
+    'social': {
+      sub: 'Content creation & community management',
+      includes: ['Social media strategy & content calendar','Platform setup & profile optimization','15-20 posts/month across platforms','Graphic design for posts & stories','Hashtag research & trend monitoring','Community engagement & DM management','Monthly performance reports','Competitor monitoring'],
+      tools: ['Postiz','Canva','Later','Meta Business Suite'],
+      note: 'Setup covers strategy, profile optimization, and first month of content. Monthly retainer keeps the content flowing.'
+    },
+    'automation': {
+      sub: 'Save hours every week with smart workflows',
+      includes: ['Workflow audit & automation mapping','Up to 10 custom automation flows','CRM-to-email integration','Lead scoring & routing rules','Notification & alert systems','Data sync between platforms','Error monitoring & fallback logic','Monthly optimization & new flows'],
+      tools: ['n8n','Zapier','Make','Custom APIs'],
+      note: 'Setup builds your core automation stack. Monthly retainer covers monitoring, fixes, and adding new workflows as you scale.'
+    },
+    'email': {
+      sub: 'Newsletters, drips, and lifecycle campaigns',
+      includes: ['Email platform setup & migration','Template design (3 branded templates)','Welcome sequence (5-email series)','Monthly newsletter (4 sends/mo)','List segmentation & tagging','A/B testing for subject lines','Deliverability monitoring','Monthly open/click reports'],
+      tools: ['Mailchimp','ConvertKit','SendGrid','Postmark'],
+      note: 'Setup covers platform config, templates, and first sequences. Monthly retainer covers ongoing sends and optimization.'
+    },
+    'scheduling': {
+      sub: 'Bookings, calendars, and reminders',
+      includes: ['Booking system setup & branding','Calendar sync (Google, Outlook, iCal)','Custom booking pages & intake forms','Automated confirmation & reminder emails','Buffer time & availability rules','Team scheduling (if applicable)','Payment collection at booking','Monthly maintenance & updates'],
+      tools: ['Calendly','Cal.com','Acuity','Google Calendar'],
+      note: 'Setup covers full booking system build. Monthly retainer is minimal -- mostly maintenance and seasonal updates.'
+    },
+    'crm': {
+      sub: 'Track every lead, deal, and relationship',
+      includes: ['CRM platform setup & customization','Pipeline stages & deal tracking','Contact import & deduplication','Custom fields & tags','Automated follow-up sequences','Lead source tracking','Team permissions & views','Monthly pipeline health reports'],
+      tools: ['HubSpot','Pipedrive','Airtable','Custom CRM'],
+      note: 'Setup builds your CRM from scratch. Monthly retainer covers data hygiene, new automations, and reporting.'
+    },
+    'analytics': {
+      sub: 'Dashboards, KPIs, and actionable insights',
+      includes: ['Analytics stack setup & configuration','Custom dashboard design (3 dashboards)','Goal & conversion tracking','UTM strategy & attribution setup','Cross-platform data integration','Monthly insights report with recommendations','Funnel analysis & drop-off identification','Quarterly deep-dive analysis'],
+      tools: ['Google Analytics 4','Mixpanel','Looker Studio','Plausible'],
+      note: 'Setup covers full analytics infrastructure. Monthly retainer covers reporting, insights, and keeping tracking accurate.'
+    },
+    'community': {
+      sub: 'Build & nurture your tribe',
+      includes: ['Community platform setup','Onboarding flow & welcome sequences','Content calendar for community posts','Ambassador/moderator program design','Event planning & management tools','Engagement gamification (points, badges)','Member feedback & survey systems','Monthly community health reports'],
+      tools: ['Discord','Telegram','Circle','FlowB Community'],
+      note: 'Setup builds the community infrastructure. Monthly retainer covers moderation support, events, and growth tactics.'
+    },
+    'ads': {
+      sub: 'Paid campaigns across Google, Meta, TikTok',
+      includes: ['Ad account setup & pixel installation','Audience research & targeting strategy','Campaign structure & ad creative (5 ads/mo)','A/B testing for creatives & copy','Budget optimization & bid management','Retargeting & lookalike audiences','Weekly performance monitoring','Monthly ROI & ROAS reports'],
+      tools: ['Google Ads','Meta Ads','TikTok Ads','GA4'],
+      note: 'Setup covers account config, pixel install, and first campaigns. Monthly retainer covers ongoing management. Ad spend is separate.'
+    },
+    'branding': {
+      sub: 'Logo, identity, and creative assets',
+      includes: ['Brand discovery workshop','Logo design (3 concepts, 2 revisions)','Color palette & typography system','Brand guidelines document','Social media kit (profiles, covers)','Business card & letterhead design','Brand voice & messaging framework','Monthly design requests (5 assets/mo)'],
+      tools: ['Figma','Adobe Creative Suite','Canva Pro','Brand.ai'],
+      note: 'Setup is the big lift -- full brand identity build. Monthly retainer covers ongoing design requests and brand evolution.'
+    },
+    'web-dev': {
+      sub: 'Custom websites, landing pages, and web apps',
+      includes: ['Discovery & wireframing session','Custom responsive design (up to 10 pages)','CMS integration for easy content updates','SEO-optimized page structure','Contact forms & lead capture','Performance optimization (Core Web Vitals)','SSL, hosting & domain setup','Monthly updates, security patches, backups'],
+      tools: ['Next.js','Vite','Netlify','Vercel','WordPress'],
+      note: 'Setup covers full design & development. Monthly retainer covers hosting, updates, security, and small feature additions.'
+    },
+  };
+
+  // ===== Select All =====
+  function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('input[name="needs"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    selectAllActive = !allChecked;
+    checkboxes.forEach(cb => {
+      cb.checked = selectAllActive;
+      cb.closest('.option-card').classList.toggle('selected', selectAllActive);
+    });
+    const btn = document.getElementById('selectAllBtn');
+    btn.textContent = selectAllActive ? 'Deselect All' : 'Select All';
+    const deal = document.getElementById('selectAllDeal');
+    deal.classList.toggle('visible', selectAllActive);
+    updateTracker();
+    saveFormState();
+  }
+
+  // ===== Discount Code =====
+  const DISCOUNT_CODES = { 'NOREDFARMS': 0.333 };
+  function applyDiscountCode() {
+    const input = document.getElementById('discountCode');
+    const msg = document.getElementById('discountMsg');
+    const code = (input.value || '').trim().toUpperCase();
+    if (!code) { msg.style.display = 'none'; appliedDiscount = null; buildSummary(); return; }
+    if (DISCOUNT_CODES[code] !== undefined) {
+      appliedDiscount = { code, pct: DISCOUNT_CODES[code] };
+      msg.style.display = 'block';
+      msg.style.background = 'var(--green-dim)';
+      msg.style.color = 'var(--green)';
+      msg.textContent = 'Code applied! ' + Math.round(appliedDiscount.pct * 100) + '% discount on your total.';
+    } else {
+      appliedDiscount = null;
+      msg.style.display = 'block';
+      msg.style.background = 'rgba(239, 68, 68, 0.1)';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Invalid code. Please check and try again.';
+    }
+    buildSummary();
+  }
+
+  // ===== Navigation =====
+  function showStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const el = document.querySelector(n === 'success' ? '[data-step="success"]' : `[data-step="${n}"]`);
+    if (el) el.classList.add('active');
+    if (n !== 'success') { currentStep = n; document.getElementById('stepCurrent').textContent = n; document.getElementById('progressFill').style.width = ((n / totalSteps) * 100) + '%'; }
+    else { document.getElementById('progressFill').style.width = '100%'; document.getElementById('tracker').classList.remove('visible'); }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function nextStep() { if (currentStep === totalSteps) return; if (currentStep === 6) buildSummary(); showStep(currentStep + 1); }
+  function prevStep() { if (currentStep <= 1) return; showStep(currentStep - 1); }
+
+  // ===== Card & Chip Selection =====
+  document.addEventListener('click', function(e) {
+    const card = e.target.closest('.option-card');
+    if (!card) return;
+    const input = card.querySelector('input');
+    if (!input) return;
+    if (input.type === 'radio') { card.closest('.option-grid').querySelectorAll('.option-card').forEach(c => c.classList.remove('selected')); card.classList.add('selected'); input.checked = true; }
+    else { input.checked = !input.checked; card.classList.toggle('selected', input.checked); }
+    updateTracker();
+    saveFormState();
+  });
+  document.addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const input = chip.querySelector('input');
+    if (!input) return;
+    input.checked = !input.checked;
+    chip.classList.toggle('selected', input.checked);
+    saveFormState();
+  });
+
+  // ===== Budget Slider =====
+  const budgetSlider = document.getElementById('budgetSlider');
+  const budgetDisplay = document.getElementById('budgetDisplay');
+  if (budgetSlider) budgetSlider.addEventListener('input', function() { budgetDisplay.textContent = budgetLabels[this.value]; });
+
+  // ===== Detail Modal =====
+  function openModal(serviceKey) {
+    const s = servicePricing[serviceKey];
+    const d = serviceDetails[serviceKey];
+    if (!s || !d) return;
+    const savings = s.agency - s.monthly;
+    const modal = document.getElementById('modalContent');
+    modal.innerHTML = `
+      <div class="modal-head">
+        <div class="modal-head-left">
+          <span class="mh-icon">${s.icon}</span>
+          <div><div class="mh-title">${s.name}</div><div class="mh-sub">${d.sub}</div></div>
+        </div>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-pricing-bar">
+          <div class="mpb-item"><span class="mpb-label">One-time setup</span><span class="mpb-setup">$${s.setup.toLocaleString()}</span></div>
+          <div class="mpb-divider"></div>
+          <div class="mpb-item"><span class="mpb-label">Monthly retainer</span><span class="mpb-monthly">$${s.monthly}/mo</span></div>
+          <span class="mpb-save">Save $${savings.toLocaleString()}/mo vs agency</span>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">What's included</div>
+          <ul class="modal-includes">
+            ${d.includes.map(item => `<li><span class="mi-check">\u2713</span><span class="mi-text">${item}</span></li>`).join('')}
+          </ul>
+        </div>
+        <div class="modal-section">
+          <div class="modal-section-title">Tools we use</div>
+          <div class="modal-tools">${d.tools.map(t => `<span class="mt-tag">${t}</span>`).join('')}</div>
+        </div>
+        <div class="modal-note">${d.note}</div>
+        <div class="modal-cta">
+          <button class="btn btn-primary" onclick="selectAndClose('${serviceKey}')">Add to stack</button>
+          <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('modalOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function selectAndClose(key) {
+    const cb = document.querySelector(`input[name="needs"][value="${key}"]`);
+    if (cb && !cb.checked) { cb.checked = true; cb.closest('.option-card').classList.add('selected'); updateTracker(); }
+    closeModal();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ===== Tracker =====
+  function updateTracker() {
+    const selected = getSelectedServices();
+    const tracker = document.getElementById('tracker');
+    const count = selected.length;
+    if (count === 0) { tracker.classList.remove('visible'); selectAllActive = false; return; }
+    tracker.classList.add('visible');
+    let setupTotal = 0, monthlyTotal = 0, agencyTotal = 0;
+    selected.forEach(s => { const p = servicePricing[s]; if (p) { setupTotal += p.setup; monthlyTotal += p.monthly; agencyTotal += p.agency; } });
+    const totalServices = Object.keys(servicePricing).length;
+    const isFullStack = count === totalServices;
+    selectAllActive = isFullStack;
+    // Update select-all button text and deal banner
+    const btn = document.getElementById('selectAllBtn');
+    const deal = document.getElementById('selectAllDeal');
+    if (btn) btn.textContent = isFullStack ? 'Deselect All' : 'Select All';
+    if (deal) deal.classList.toggle('visible', isFullStack);
+    if (isFullStack && deal) document.getElementById('sadOriginal').textContent = `$${setupTotal.toLocaleString()} setup`;
+    // Full stack deal: $10K flat setup, 30% off monthly
+    const discount = isFullStack ? 0.30 : getBundleDiscount(count);
+    const finalSetup = isFullStack ? 10000 : setupTotal;
+    const discountedMonthly = Math.round(monthlyTotal * (1 - discount));
+    const monthlySavings = agencyTotal - discountedMonthly;
+    document.getElementById('trackerSetup').textContent = `$${finalSetup.toLocaleString()} setup`;
+    document.getElementById('trackerMonthly').textContent = `$${discountedMonthly.toLocaleString()}/mo`;
+    document.getElementById('trackerSavings').textContent = `Save $${monthlySavings.toLocaleString()}/mo`;
+    document.getElementById('trackerCount').textContent = `${count} service${count !== 1 ? 's' : ''}`;
+    const bundleEl = document.getElementById('trackerBundle');
+    if (isFullStack) bundleEl.textContent = 'Full Stack Partner Deal!';
+    else if (discount > 0) bundleEl.textContent = `${Math.round(discount * 100)}% bundle bonus!`;
+    else if (count >= 2) bundleEl.textContent = 'Add 1 more for 15% off!';
+    else bundleEl.textContent = '';
+  }
+  function getBundleDiscount(count) { if (count >= 7) return 0.30; if (count >= 5) return 0.25; if (count >= 3) return 0.15; return 0; }
+  function getSelectedServices() { return Array.from(document.querySelectorAll('input[name="needs"]:checked')).map(i => i.value); }
+
+  // ===== Build Summary =====
+  function buildSummary() {
+    const data = gatherData();
+    const panel = document.getElementById('summaryPanel');
+    let html = '<h3>Partnership Overview</h3>';
+    const rows = [['Partner',data.userName],['Business',data.bizName],['Team Size',formatValue(data.bizType)],['Industry',formatValue(data.bizIndustry)],['Platforms',formatChips(data.platforms)],['Post Frequency',formatValue(data.postFreq)],['Content Types',formatChips(data.content)],['Revenue Stage',formatValue(data.revenue)],['Sales Channels',formatChips(data.channels)],['Key Challenge',formatValue(data.challenge)],['Current Tools',formatChips(data.tools)],['Automate',formatChips(data.automate)],['Timeline',formatValue(data.timeline)],['Style',formatValue(data.engagement)],['Comfort Zone',budgetLabels[data.budget]||'']];
+    rows.forEach(([label, value]) => { if (value) html += `<div class="summary-row"><span class="sr-label">${label}</span><span class="sr-value">${value}</span></div>`; });
+    panel.innerHTML = html;
+
+    // Investment breakdown
+    const breakdown = document.getElementById('investBreakdown');
+    const selected = data.needs || [];
+    let setupTotal = 0, monthlyTotal = 0, agencyTotal = 0;
+    let lines = '';
+    selected.forEach(s => {
+      const p = servicePricing[s];
+      if (p) { setupTotal += p.setup; monthlyTotal += p.monthly; agencyTotal += p.agency;
+        lines += `<div class="ib-line"><span class="ib-name">${p.name}</span><span class="ib-prices"><span class="ib-setup">$${p.setup.toLocaleString()}</span><span class="ib-monthly">$${p.monthly}/mo</span></span></div>`;
+      }
+    });
+    const totalServices = Object.keys(servicePricing).length;
+    const count = selected.length;
+    const isFullStack = count === totalServices;
+    const discount = isFullStack ? 0.30 : getBundleDiscount(count);
+    const finalSetup = isFullStack ? 10000 : setupTotal;
+    const discountedMonthly = Math.round(monthlyTotal * (1 - discount));
+    // Apply discount code on top
+    let finalMonthly = discountedMonthly;
+    let finalSetupAfterCode = finalSetup;
+    if (appliedDiscount) {
+      finalMonthly = Math.round(discountedMonthly * (1 - appliedDiscount.pct));
+      finalSetupAfterCode = Math.round(finalSetup * (1 - appliedDiscount.pct));
+    }
+    const monthlySavings = agencyTotal - finalMonthly;
+    const pctSaved = agencyTotal > 0 ? Math.round((monthlySavings / agencyTotal) * 100) : 0;
+    let bhtml = '<h3>Investment Breakdown</h3>';
+    if (lines) {
+      bhtml += lines;
+      if (isFullStack) {
+        bhtml += `<div class="ib-line"><span class="ib-name" style="color:var(--green);font-weight:600;">Full Stack Partner Deal</span><span class="ib-prices"><span class="ib-setup" style="text-decoration:line-through;opacity:0.5;">$${setupTotal.toLocaleString()}</span><span class="ib-setup">$10,000 setup</span></span></div>`;
+        bhtml += `<div class="ib-line"><span class="ib-name" style="color:var(--orange);font-weight:600;">30% off monthly retainer</span><span class="ib-prices"><span class="ib-monthly" style="color:var(--orange);">-$${Math.round(monthlyTotal * 0.30).toLocaleString()}/mo</span></span></div>`;
+      } else if (discount > 0) {
+        bhtml += `<div class="ib-line"><span class="ib-name" style="color:var(--orange);font-weight:600;">Bundle discount (${Math.round(discount*100)}% off monthly)</span><span class="ib-prices"><span class="ib-monthly" style="color:var(--orange);">-$${Math.round(monthlyTotal * discount).toLocaleString()}/mo</span></span></div>`;
+      }
+      if (appliedDiscount) {
+        bhtml += `<div class="ib-line"><span class="ib-name" style="color:var(--purple);font-weight:600;">Discount code: ${appliedDiscount.code} (${Math.round(appliedDiscount.pct*100)}% off)</span><span class="ib-prices"><span class="ib-setup" style="color:var(--purple);">-$${(finalSetup - finalSetupAfterCode).toLocaleString()}</span><span class="ib-monthly" style="color:var(--purple);">-$${(discountedMonthly - finalMonthly).toLocaleString()}/mo</span></span></div>`;
+      }
+      bhtml += '<div class="ib-divider"></div>';
+      bhtml += `<div class="ib-total"><span class="ib-name">Total</span><span class="ib-prices"><span class="ib-setup">$${finalSetupAfterCode.toLocaleString()} setup</span><span class="ib-monthly">$${finalMonthly.toLocaleString()}/mo</span></span></div>`;
+      bhtml += `<div class="ib-savings">You save $${monthlySavings.toLocaleString()}/mo vs. agencies (${pctSaved}% less)</div>`;
+      if (isFullStack) bhtml += `<div class="ib-bundle">Full Stack Partner Deal: flat $10K setup + 30% off monthly</div>`;
+      else if (discount > 0) bhtml += `<div class="ib-bundle">Bundle partner bonus applied: ${Math.round(discount*100)}% off monthly retainer</div>`;
+      else if (count >= 2) bhtml += `<div class="ib-bundle">Add ${3 - count} more for 15% bundle savings</div>`;
+    } else {
+      bhtml += '<p style="color:var(--text-dim);font-size:0.85rem;">Go back and select services to see your investment breakdown.</p>';
+    }
+    bhtml += '<div class="ib-note">These are starting estimates. Your custom proposal will reflect your exact needs and scope.</div>';
+    breakdown.innerHTML = bhtml;
+  }
+
+  // ===== Helpers =====
+  function gatherData() {
+    return { userName: val('userName'), bizName: val('bizName'), bizUrl: val('bizUrl'), bizType: radio('bizType'), bizIndustry: val('bizIndustry'), needs: checks('needs'), platforms: checks('platforms'), postFreq: radio('postFreq'), content: checks('content'), revenue: radio('revenue'), channels: checks('channels'), challenge: radio('challenge'), tools: checks('tools'), automate: checks('automate'), budget: document.getElementById('budgetSlider')?.value, timeline: radio('timeline'), engagement: radio('engagement'), email: val('contactEmail'), phone: val('contactPhone'), contactMethod: val('contactMethod'), notes: val('notes'), discountCode: appliedDiscount ? appliedDiscount.code : null, discountPct: appliedDiscount ? Math.round(appliedDiscount.pct * 100) : 0, fullStackDeal: selectAllActive };
+  }
+  function val(id) { return document.getElementById(id)?.value || ''; }
+  function radio(name) { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; }
+  function checks(name) { return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value); }
+  function formatValue(v) { if (!v) return ''; return v.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()); }
+  function formatChips(arr) { if (!arr || !arr.length) return ''; return arr.map(v => `<span class="chip-inline">${formatValue(v)}</span>`).join(' '); }
+
+  // ===== Submit =====
+  async function submitForm() {
+    const email = document.getElementById('contactEmail')?.value;
+    if (!email || !email.includes('@')) { document.getElementById('contactEmail').focus(); document.getElementById('contactEmail').style.borderColor = 'var(--red)'; return; }
+    const btn = document.getElementById('submitBtn'); btn.disabled = true; btn.innerHTML = 'Sending...';
+    const data = gatherData();
+    const selected = data.needs || [];
+    let setupTotal = 0, monthlyTotal = 0, agencyTotal = 0;
+    selected.forEach(s => { const p = servicePricing[s]; if (p) { setupTotal += p.setup; monthlyTotal += p.monthly; agencyTotal += p.agency; } });
+    const totalServices = Object.keys(servicePricing).length;
+    const isFullStack = selected.length === totalServices;
+    const discount = isFullStack ? 0.30 : getBundleDiscount(selected.length);
+    const finalSetup = isFullStack ? 10000 : setupTotal;
+    const discountedMonthly = Math.round(monthlyTotal * (1 - discount));
+    let finalMonthly = discountedMonthly, finalSetupAfterCode = finalSetup;
+    if (appliedDiscount) { finalMonthly = Math.round(discountedMonthly * (1 - appliedDiscount.pct)); finalSetupAfterCode = Math.round(finalSetup * (1 - appliedDiscount.pct)); }
+    data._pricing = { setupTotal: finalSetupAfterCode, setupOriginal: setupTotal, monthlyBase: monthlyTotal, bundleDiscount: Math.round(discount * 100), monthlyFinal: finalMonthly, agencyEquivalent: agencyTotal, monthlySavings: agencyTotal - finalMonthly, fullStackDeal: isFullStack, discountCode: appliedDiscount ? appliedDiscount.code : null, discountPct: appliedDiscount ? Math.round(appliedDiscount.pct * 100) : 0 };
+    try { await fetch(API_BASE + '/api/v1/questionnaire', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); }
+    catch (err) { console.error('Submit error:', err); }
+    // Clear saved state on successful submit
+    localStorage.removeItem(STORAGE_KEY);
+    showStep('success');
+  }
+
+  // ===== Form Persistence =====
+  function saveFormState() {
+    try {
+      const data = gatherData();
+      data._step = currentStep;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function restoreFormState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+
+      // Restore text inputs
+      if (saved.userName) document.getElementById('userName').value = saved.userName;
+      if (saved.bizName) document.getElementById('bizName').value = saved.bizName;
+      if (saved.bizUrl) document.getElementById('bizUrl').value = saved.bizUrl;
+      if (saved.bizIndustry) document.getElementById('bizIndustry').value = saved.bizIndustry;
+      if (saved.email) document.getElementById('contactEmail').value = saved.email;
+      if (saved.phone) document.getElementById('contactPhone').value = saved.phone;
+      if (saved.contactMethod) document.getElementById('contactMethod').value = saved.contactMethod;
+      if (saved.notes) document.getElementById('notes').value = saved.notes;
+
+      // Restore budget slider
+      if (saved.budget !== undefined && saved.budget !== '') {
+        document.getElementById('budgetSlider').value = saved.budget;
+        document.getElementById('budgetDisplay').textContent = budgetLabels[saved.budget] || '';
+      }
+
+      // Restore radio buttons
+      ['bizType','postFreq','revenue','challenge','timeline','engagement'].forEach(name => {
+        if (saved[name]) {
+          const el = document.querySelector(`input[name="${name}"][value="${saved[name]}"]`);
+          if (el) { el.checked = true; el.closest('.option-card')?.classList.add('selected'); }
+        }
+      });
+
+      // Restore checkboxes
+      ['needs','platforms','content','channels','tools','automate'].forEach(name => {
+        if (Array.isArray(saved[name])) {
+          saved[name].forEach(val => {
+            const el = document.querySelector(`input[name="${name}"][value="${val}"]`);
+            if (el) {
+              el.checked = true;
+              const card = el.closest('.option-card');
+              const chip = el.closest('.chip');
+              if (card) card.classList.add('selected');
+              if (chip) chip.classList.add('selected');
+            }
+          });
+        }
+      });
+
+      // Restore discount code
+      if (saved.discountCode) {
+        const codeInput = document.getElementById('discountCode');
+        if (codeInput) { codeInput.value = saved.discountCode; applyDiscountCode(); }
+      }
+
+      // Restore tracker
+      updateTracker();
+
+      // Restore step position
+      if (saved._step && saved._step > 1 && saved._step <= totalSteps) {
+        showStep(saved._step);
+      }
+    } catch (e) {}
+  }
+
+  // Auto-save on any input change
+  document.addEventListener('input', saveFormState);
+  document.addEventListener('change', saveFormState);
+
+  // Also save on step navigation
+  const _origShowStep = showStep;
+  showStep = function(n) { _origShowStep(n); if (n !== 'success') saveFormState(); };
+
+  // ===== Keyboard =====
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA' && e.target.id !== 'gateInput') { e.preventDefault(); if (currentStep < totalSteps) nextStep(); }
+  });
+</script>
+</body>
+</html>

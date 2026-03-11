@@ -3,19 +3,26 @@
  *
  * A privacy-centric assistant that helps users flow and bond.
  * Loads plugins for domain-specific capabilities:
- *   - danz:   Dance events, challenges, stats
- *   - egator: Aggregated multi-source event discovery
+ *   - egator: Aggregated multi-source event search
+ *   - danz:   Dance community (optional plugin)
  *   - (more plugins coming: harmonik, etc.)
  */
 
-import type { FlowBPlugin, EventProvider, FlowBConfig, ToolInput, FlowBContext, EventResult } from "./types.js";
+import type { FlowBPlugin, EventProvider, FlowBConfig, ToolInput, FlowBContext, EventResult, MeetingPluginConfig } from "./types.js";
 import { DANZPlugin } from "../plugins/danz/index.js";
 import { EGatorPlugin, formatEventList } from "../plugins/egator/index.js";
 import { NeynarPlugin } from "../plugins/neynar/index.js";
 import { PointsPlugin } from "../plugins/points/index.js";
-import type { CrewRanking, CrewMission } from "../plugins/points/index.js";
+import type { CrewRanking, CrewMission, IndividualRanking } from "../plugins/points/index.js";
 import { FlowPlugin } from "../plugins/flow/index.js";
 import { AgentKitPlugin } from "../plugins/agentkit/index.js";
+import { SocialPlugin } from "../plugins/social/index.js";
+import { MeetingPlugin } from "../plugins/meeting/index.js";
+import { AgentsPlugin } from "../plugins/agents/index.js";
+import { ReferralPlugin } from "../plugins/referral/index.js";
+import { AutomationPlugin } from "../plugins/automation/index.js";
+import { BillingPlugin } from "../plugins/billing/index.js";
+import { FiFlowPlugin } from "../plugins/fiflow/index.js";
 import { CDPClient } from "../services/cdp.js";
 import type { TelegramAuthData } from "../services/telegram-auth.js";
 
@@ -80,6 +87,48 @@ export class FlowBCore {
       agentkit.configure(this.config.plugins.cdp);
     }
     this.registerPlugin(agentkit);
+
+    const social = new SocialPlugin();
+    if (this.config.plugins?.social) {
+      social.configure(this.config.plugins.social);
+    }
+    this.registerPlugin(social);
+
+    const meeting = new MeetingPlugin();
+    if (this.config.plugins?.meeting) {
+      meeting.configure(this.config.plugins.meeting);
+    }
+    this.registerPlugin(meeting);
+
+    const agents = new AgentsPlugin();
+    if (this.config.plugins?.agents) {
+      agents.configure(this.config.plugins.agents);
+    }
+    this.registerPlugin(agents);
+
+    const referral = new ReferralPlugin();
+    if (this.config.plugins?.referral) {
+      referral.configure(this.config.plugins.referral);
+    }
+    this.registerPlugin(referral);
+
+    const automation = new AutomationPlugin();
+    if (this.config.plugins?.automation) {
+      automation.configure(this.config.plugins.automation);
+    }
+    this.registerPlugin(automation);
+
+    const billing = new BillingPlugin();
+    if (this.config.plugins?.billing) {
+      billing.configure(this.config.plugins.billing);
+    }
+    this.registerPlugin(billing);
+
+    const fiflow = new FiFlowPlugin();
+    if (this.config.plugins?.cfo) {
+      fiflow.configure(this.config.plugins.cfo);
+    }
+    this.registerPlugin(fiflow);
 
     const configured = Array.from(this.plugins.values())
       .filter((p) => p.isConfigured())
@@ -175,7 +224,7 @@ export class FlowBCore {
     });
 
     if (configuredProviders.length === 0) {
-      return "No event sources are configured. Ask your admin to set up DANZ or eGator.";
+      return "No event sources are configured.";
     }
 
     const results = await Promise.allSettled(
@@ -289,6 +338,15 @@ export class FlowBCore {
     return points.getGlobalCrewRanking(this.config.plugins.points);
   }
 
+  /** Get global individual ranking by total points (delegates to PointsPlugin) */
+  async getGlobalIndividualRanking(): Promise<IndividualRanking[]> {
+    const points = this.plugins.get("points") as PointsPlugin | undefined;
+    if (!points?.isConfigured() || !this.config.plugins?.points) {
+      return [];
+    }
+    return points.getGlobalIndividualRanking(this.config.plugins.points);
+  }
+
   /** Get active crew missions (delegates to PointsPlugin) */
   async getCrewMissions(crewId: string): Promise<CrewMission[]> {
     const points = this.plugins.get("points") as PointsPlugin | undefined;
@@ -327,6 +385,75 @@ export class FlowBCore {
     const egator = this.plugins.get("egator") as EGatorPlugin | undefined;
     if (!egator?.isConfigured()) return null;
     return egator;
+  }
+
+  /** Get the Meeting plugin for direct access. */
+  getMeetingPlugin(): MeetingPlugin | null {
+    const meeting = this.plugins.get("meeting") as MeetingPlugin | undefined;
+    if (!meeting?.isConfigured()) return null;
+    return meeting;
+  }
+
+  /** Get the Meeting plugin config. */
+  getMeetingConfig(): MeetingPluginConfig | null {
+    return this.config.plugins?.meeting || null;
+  }
+
+  /** Get the Social plugin for direct access. */
+  getSocialPlugin(): SocialPlugin | null {
+    const social = this.plugins.get("social") as SocialPlugin | undefined;
+    if (!social?.isConfigured()) return null;
+    return social;
+  }
+
+  /** Get the Social plugin config. */
+  getSocialConfig(): import("../plugins/social/types.js").SocialPluginConfig | null {
+    return this.config.plugins?.social || null;
+  }
+
+  /** Get the Agents plugin for direct access. */
+  getAgentsPlugin(): AgentsPlugin | null {
+    const agents = this.plugins.get("agents") as AgentsPlugin | undefined;
+    if (!agents?.isConfigured()) return null;
+    return agents;
+  }
+
+  /** Get the Agents plugin config. */
+  getAgentsConfig(): import("../plugins/agents/index.js").AgentsPluginConfig | null {
+    return this.config.plugins?.agents || null;
+  }
+
+  /** Get the Referral plugin for direct access. */
+  getReferralPlugin(): ReferralPlugin | null {
+    const referral = this.plugins.get("referral") as ReferralPlugin | undefined;
+    if (!referral?.isConfigured()) return null;
+    return referral;
+  }
+
+  /** Get the Automation plugin for direct access. */
+  getAutomationPlugin(): AutomationPlugin | null {
+    const automation = this.plugins.get("automation") as AutomationPlugin | undefined;
+    if (!automation?.isConfigured()) return null;
+    return automation;
+  }
+
+  /** Get the Billing plugin for direct access. */
+  getBillingPlugin(): BillingPlugin | null {
+    const billing = this.plugins.get("billing") as BillingPlugin | undefined;
+    if (!billing?.isConfigured()) return null;
+    return billing;
+  }
+
+  /** Get the FiFlow CFO plugin for direct access. */
+  getFiFlowPlugin(): FiFlowPlugin | null {
+    const fiflow = this.plugins.get("fiflow") as FiFlowPlugin | undefined;
+    if (!fiflow?.isConfigured()) return null;
+    return fiflow;
+  }
+
+  /** Get the CFO plugin config. */
+  getCFOConfig(): import("./types.js").CFOPluginConfig | null {
+    return this.config.plugins?.cfo || null;
   }
 
   /** Get the list of all action names (for schema generation) */

@@ -30,8 +30,8 @@ export function CrewMap({ locations }: Props) {
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Center on Denver (EthDenver)
-    const map = L.map(mapRef.current).setView([39.7392, -104.9903], 14);
+    // Center on Austin (SXSW)
+    const map = L.map(mapRef.current).setView([30.2672, -97.7431], 14);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: "&copy; OpenStreetMap",
       maxZoom: 19,
