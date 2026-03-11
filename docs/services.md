@@ -13,7 +13,7 @@ Backend services that power FlowB's cross-platform features.
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | biz notifications | `src/services/biz-notifications.ts` | `notifyBizChannel` |
 | cdp | `src/services/cdp.ts` | — |
-| chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createTodo`, `listTodos`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `fetchUserBizContext`, `manageGroupIntelligence`, `getGroupSignalsTool`, `routeSignalTool` |
+| chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createTodo`, `listTodos`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `grantFlowmium`, `requestCityScan`, `fetchUserBizContext`, `manageGroupIntelligence`, `getGroupSignalsTool`, `routeSignalTool` |
 | chat tools websites | `src/services/chat-tools-websites.ts` | `siteList`, `siteStatus`, `siteRebuild`, `siteActivity`, `siteListProducts`, `siteAddProduct`, `siteUpdateProduct`, `siteDeleteProduct`, `siteListArticles`, `siteCreateArticle`, `siteUpdateArticle`, `siteScheduleArticle`, `sitePublishArticle`, `siteSeoStatus`, `siteSeoCheckArticle`, `siteSeoSuggestions`, `stripeListProducts`, `stripeCreateCheckout`, `stripeListOrders`, `stripeRefund`, `stripeRevenue`, `stripeSyncProducts` |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
@@ -78,7 +78,7 @@ Business Chat Tool Executors
 
 **Source**: `src/services/chat-tools-biz.ts`
 
-**Exports**: `createLead()`, `listLeads()`, `updateLead()`, `getPipeline()`, `getLeadTimeline()`, `createTodo()`, `listTodos()`, `createMeeting()`, `listMeetings()`, `completeMeeting()`, `getMySettings()`, `updateMySettings()`, `getCrewSettings()`, `updateCrewSettings()`, `adminCrewAction()`, `listAutomations()`, `createAutomation()`, `toggleAutomation()`, `getMyPlan()`, `fetchUserBizContext()`, `manageGroupIntelligence()`, `getGroupSignalsTool()`, `routeSignalTool()`
+**Exports**: `createLead()`, `listLeads()`, `updateLead()`, `getPipeline()`, `getLeadTimeline()`, `createTodo()`, `listTodos()`, `createMeeting()`, `listMeetings()`, `completeMeeting()`, `getMySettings()`, `updateMySettings()`, `getCrewSettings()`, `updateCrewSettings()`, `adminCrewAction()`, `listAutomations()`, `createAutomation()`, `toggleAutomation()`, `getMyPlan()`, `grantFlowmium()`, `requestCityScan()`, `fetchUserBizContext()`, `manageGroupIntelligence()`, `getGroupSignalsTool()`, `routeSignalTool()`
 
 ### chat tools websites
 
@@ -216,4 +216,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-11 22:04:45 UTC*
+*Auto-generated on 2026-03-11 22:17:17 UTC*
