@@ -19,6 +19,11 @@ export type RootStackParamList = {
   CastComposer: undefined;
   NotificationCenter: undefined;
   SettingsEditor: undefined;
+  // Checkout & payments
+  Products: undefined;
+  Checkout: { productSlug: string };
+  OrderConfirmation: { orderId: string };
+  Subscriptions: undefined;
 };
 
 export type TabParamList = {

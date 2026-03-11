@@ -17,6 +17,17 @@ import type {
   FeedCast,
   GlobalCrewRanking,
   GlobalUserRanking,
+  UserLocation,
+  Product,
+  Order,
+  Subscription,
+  ConnectedWallet,
+  PaymentNetworkInfo,
+  PaymentIntent,
+  CheckoutConfirmResult,
+  FlowPurpose,
+  PaymentMethod,
+  PaymentNetwork,
 } from "./types";
 
 let authToken: string | null = null;
@@ -377,4 +388,143 @@ export async function getAdminUsers(opts?: {
   if (opts?.limit) url += `limit=${opts.limit}&`;
   if (opts?.search) url += `search=${encodeURIComponent(opts.search)}&`;
   return get<{ users: any[] }>(url);
+}
+
+// ── Onboarding & Locations ────────────────────────────────────────────
+
+export async function updateOnboarding(data: {
+  flowPurpose?: FlowPurpose;
+  locations?: Array<{ city: string; country: string; isPrimary?: boolean }>;
+}) {
+  return patch<{ success: boolean }>("/api/v1/me/onboarding", data);
+}
+
+export async function getLocations(): Promise<UserLocation[]> {
+  const data = await get<{ locations: UserLocation[] }>("/api/v1/me/locations");
+  return data.locations;
+}
+
+export async function addLocation(
+  city: string,
+  country: string,
+  isPrimary?: boolean
+): Promise<UserLocation> {
+  const data = await post<{ location: UserLocation }>("/api/v1/me/locations", {
+    city,
+    country,
+    isPrimary,
+  });
+  return data.location;
+}
+
+export async function removeLocation(id: string) {
+  return del<{ success: boolean }>(`/api/v1/me/locations/${encodeURIComponent(id)}`);
+}
+
+// ── Products ──────────────────────────────────────────────────────────
+
+export async function getProducts(opts?: {
+  category?: string;
+  biz?: boolean;
+}): Promise<Product[]> {
+  let url = "/api/v1/products?";
+  if (opts?.category) url += `category=${encodeURIComponent(opts.category)}&`;
+  if (opts?.biz) url += "biz=true&";
+  const data = await get<{ products: Product[] }>(url);
+  return data.products;
+}
+
+export async function getProduct(slug: string): Promise<{
+  product: Product;
+  pricing: {
+    usdc: number;
+    telegramStars: number;
+    supportedNetworks: Array<{ id: string; name: string; chainId: number }>;
+  };
+}> {
+  return get(`/api/v1/products/${encodeURIComponent(slug)}`);
+}
+
+// ── Checkout ──────────────────────────────────────────────────────────
+
+export async function createCheckout(data: {
+  productSlug: string;
+  paymentMethod: PaymentMethod;
+  network?: PaymentNetwork;
+  walletAddress?: string;
+  quantity?: number;
+}): Promise<PaymentIntent> {
+  const result = await post<{ paymentIntent: PaymentIntent }>(
+    "/api/v1/checkout/create",
+    data
+  );
+  return result.paymentIntent;
+}
+
+export async function confirmCheckout(data: {
+  orderId: string;
+  paymentIntentId?: string;
+  txHash?: string;
+  senderAddress?: string;
+  telegramPaymentChargeId?: string;
+}): Promise<CheckoutConfirmResult> {
+  return post<CheckoutConfirmResult>("/api/v1/checkout/confirm", data);
+}
+
+// ── Orders ────────────────────────────────────────────────────────────
+
+export async function getOrders(limit = 50): Promise<Order[]> {
+  const data = await get<{ orders: Order[] }>(`/api/v1/orders?limit=${limit}`);
+  return data.orders;
+}
+
+export async function getOrder(id: string): Promise<{ order: Order; product: Product }> {
+  return get(`/api/v1/orders/${encodeURIComponent(id)}`);
+}
+
+// ── Subscriptions ─────────────────────────────────────────────────────
+
+export async function getSubscriptions(): Promise<Subscription[]> {
+  const data = await get<{ subscriptions: Subscription[] }>("/api/v1/me/subscriptions");
+  return data.subscriptions;
+}
+
+export async function cancelSubscription(
+  id: string,
+  immediately = false
+): Promise<{ success: boolean }> {
+  return post(`/api/v1/me/subscriptions/${encodeURIComponent(id)}/cancel`, {
+    immediately,
+  });
+}
+
+// ── Connected Wallets ─────────────────────────────────────────────────
+
+export async function getConnectedWallets(): Promise<ConnectedWallet[]> {
+  const data = await get<{ wallets: ConnectedWallet[] }>("/api/v1/me/wallets");
+  return data.wallets;
+}
+
+export async function connectWallet(data: {
+  walletAddress: string;
+  chainId: number;
+  chainName: string;
+  ensName?: string;
+}): Promise<ConnectedWallet> {
+  const result = await post<{ wallet: ConnectedWallet }>(
+    "/api/v1/me/wallets/connect",
+    data
+  );
+  return result.wallet;
+}
+
+export async function disconnectWallet(id: string): Promise<{ success: boolean }> {
+  return del(`/api/v1/me/wallets/${encodeURIComponent(id)}`);
+}
+
+// ── Payment Networks ──────────────────────────────────────────────────
+
+export async function getPaymentNetworks(): Promise<PaymentNetworkInfo[]> {
+  const data = await get<{ networks: PaymentNetworkInfo[] }>("/api/v1/payment/networks");
+  return data.networks;
 }

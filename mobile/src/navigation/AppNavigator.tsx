@@ -21,6 +21,10 @@ import { SettingsEditor } from "../screens/admin/SettingsEditor";
 import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
 import { FriendsScreen } from "../screens/profile/FriendsScreen";
 import { AboutScreen } from "../screens/profile/AboutScreen";
+import ProductsScreen from "../screens/checkout/ProductsScreen";
+import CheckoutScreen from "../screens/checkout/CheckoutScreen";
+import OrderConfirmationScreen from "../screens/checkout/OrderConfirmationScreen";
+import SubscriptionsScreen from "../screens/checkout/SubscriptionsScreen";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -105,6 +109,16 @@ export function AppNavigator() {
             <Stack.Screen name="UserManager" component={UserManager} />
             <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
             <Stack.Screen name="SettingsEditor" component={SettingsEditor} />
+
+            {/* Checkout & payments */}
+            <Stack.Screen name="Products" component={ProductsScreen} />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} />
+            <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
+            <Stack.Screen
+              name="OrderConfirmation"
+              component={OrderConfirmationScreen}
+              options={{ gestureEnabled: false }}
+            />
 
             {/* Modal screens — slide up with scale-behind effect */}
             <Stack.Screen

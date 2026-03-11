@@ -32,6 +32,8 @@ import {
   parseWebhookEvent,
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
+import { registerDanzRoutes } from "./danz-routes.js";
+import { registerPaymentRoutes } from "./payment-routes.js";
 // Identity resolution imported dynamically where needed (../services/identity.js)
 
 // ============================================================================
@@ -3699,6 +3701,16 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       };
     },
   );
+
+  // ------------------------------------------------------------------
+  // Danz.Now Routes (cross-platform coordination)
+  // ------------------------------------------------------------------
+  registerDanzRoutes(app, core);
+
+  // ------------------------------------------------------------------
+  // Payment Routes (checkout, subscriptions, wallets)
+  // ------------------------------------------------------------------
+  registerPaymentRoutes(app);
 }
 
 // ============================================================================

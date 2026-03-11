@@ -252,3 +252,126 @@ export interface Booth {
   tags: string[];
   featured: boolean;
 }
+
+// ── Payment & Onboarding Types ─────────────────────────────────────────
+
+export type FlowPurpose = 'fun' | 'biz' | 'both';
+
+export type PaymentMethod =
+  | 'stripe'
+  | 'apple_pay'
+  | 'walletconnect'
+  | 'usdc_direct'
+  | 'crypto_swap'
+  | 'telegram_stars';
+
+export type PaymentNetwork = 'base' | 'ethereum' | 'polygon' | 'arbitrum' | 'optimism';
+
+export type OrderStatus =
+  | 'pending'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'refunded'
+  | 'cancelled';
+
+export interface UserLocation {
+  id: string;
+  city: string;
+  country: string;
+  isPrimary: boolean;
+  sortOrder: number;
+}
+
+export interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  category: string;
+  basePriceUsdc: number;
+  telegramStarsPrice: number;
+  imageUrl?: string;
+  features?: string[];
+  isSubscription: boolean;
+  subscriptionInterval?: 'month' | 'year';
+  isBizOnly: boolean;
+  sortOrder: number;
+}
+
+export interface Order {
+  id: string;
+  userId: string;
+  productId: string;
+  quantity: number;
+  unitPriceUsdc: number;
+  totalUsdc: number;
+  paymentMethod: PaymentMethod;
+  paymentNetwork?: PaymentNetwork;
+  status: OrderStatus;
+  stripePaymentIntentId?: string;
+  cryptoTxHash?: string;
+  telegramInvoiceId?: string;
+  createdAt: string;
+  updatedAt: string;
+  product?: Product;
+}
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  productId: string;
+  status: 'active' | 'cancelled' | 'past_due' | 'paused';
+  paymentMethod: PaymentMethod;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelAtPeriodEnd: boolean;
+  stripeSubscriptionId?: string;
+  createdAt: string;
+  product?: Product;
+}
+
+export interface ConnectedWallet {
+  id: string;
+  userId: string;
+  walletAddress: string;
+  chainId: number;
+  chainName: string;
+  ensName?: string;
+  isPrimary: boolean;
+  connectedAt: string;
+}
+
+export interface PaymentNetworkInfo {
+  id: PaymentNetwork;
+  name: string;
+  chainId: number;
+  usdcAddress: string;
+  explorerUrl: string;
+  rpcUrl: string;
+  iconUrl?: string;
+  enabled: boolean;
+}
+
+export interface PaymentIntent {
+  orderId: string;
+  paymentMethod: PaymentMethod;
+  // Stripe
+  stripeClientSecret?: string;
+  // Crypto
+  recipientAddress?: string;
+  usdcAddress?: string;
+  amountRaw?: string;
+  chainId?: number;
+  transferData?: string;
+  // Telegram Stars
+  invoiceUrl?: string;
+  starsAmount?: number;
+}
+
+export interface CheckoutConfirmResult {
+  success: boolean;
+  order?: Order;
+  subscription?: Subscription;
+  error?: string;
+}

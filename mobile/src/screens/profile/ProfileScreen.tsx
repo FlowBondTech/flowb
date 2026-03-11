@@ -327,6 +327,24 @@ export function ProfileScreen() {
                   }}
                 />
                 <View style={styles.divider} />
+                <SettingsRow
+                  icon="bag-outline"
+                  label="FlowB Shop"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('Products');
+                  }}
+                />
+                <View style={styles.divider} />
+                <SettingsRow
+                  icon="receipt-outline"
+                  label="My Purchases"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('Subscriptions');
+                  }}
+                />
+                <View style={styles.divider} />
                 <SettingsRow icon="link-outline" label="Linked Accounts" disabled />
                 <View style={styles.divider} />
                 <SettingsRow
