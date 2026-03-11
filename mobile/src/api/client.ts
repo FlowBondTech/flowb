@@ -488,7 +488,17 @@ export async function addMeetingNote(id: string, data: { content: string; note_t
   return post<any>(`/api/v1/meetings/${id}/notes`, data);
 }
 
-// ── Privy Auth ──────────────────────────────────────────────────────
+// ── FlowB Passport Auth ─────────────────────────────────────────────
+export async function authPassport(supabaseAccessToken: string, displayName?: string) {
+  const data = await post<{ token: string; user: any }>("/api/v1/auth/passport", {
+    accessToken: supabaseAccessToken,
+    displayName,
+  });
+  authToken = data.token;
+  return data;
+}
+
+/** @deprecated Use authPassport instead */
 export async function authPrivy(privyAccessToken: string, displayName?: string, email?: string) {
   const data = await post<{ token: string; user: any }>("/api/v1/auth/privy", {
     privyAccessToken,
