@@ -6,7 +6,7 @@
 
 const FLOWB_MINIAPP_URL = "https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb";
 const FLOWB_LINK = "https://flowb.me";
-const FLOWB_CREW_IMAGE = "https://flowb.me/crew.png";
+const FLOWB_CREW_IMAGE = "https://flowb.me/flowb.png";
 const NEYNAR_API = "https://api.neynar.com/v2/farcaster";
 
 // ============================================================================
