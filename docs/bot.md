@@ -71,6 +71,8 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 
 Inline keyboard callbacks used throughout the bot:
 
+**a**: `a`
+
 **add**: `add`
 
 **advance**: `advance`
@@ -102,6 +104,8 @@ Inline keyboard callbacks used throughout the bot:
 **crew-list**: `crew-list`
 
 **crew-members**: `crew-members`
+
+**d**: `d`
 
 **del**: `del`
 
@@ -165,6 +169,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **submit**: `submit`
 
+**t**: `t`
+
 **toggle-public**: `toggle-public`
 
 **trending**: `trending`
@@ -177,4 +183,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-11 10:12:10 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-11 10:35:21 UTC*
