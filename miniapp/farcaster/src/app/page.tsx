@@ -612,6 +612,12 @@ export default function FarcasterApp() {
 
   return (
     <div className="app">
+      {/* Overhaul Notice */}
+      <div style={{ background: "linear-gradient(90deg, #1a1a2e, #2a1a3e)", borderBottom: "1px solid rgba(245,158,11,0.2)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#fbbf24" }}>
+        <span style={{ fontSize: 16, flexShrink: 0 }}>&#x1F6A7;</span>
+        <span style={{ flex: 1 }}>FlowB is being overhauled — sign-in systems and the coordination layer are changing. Some features may be temporarily unavailable.</span>
+      </div>
+
       {/* Home Screen */}
       {screen === "home" && (
         <div className="screen">

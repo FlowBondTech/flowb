@@ -201,10 +201,11 @@ export default function App() {
 
   return (
     <div className="app">
-      {!user && !bannerDismissed && (
-        <div style={{ background: "var(--bg-elevated, #1a1a2e)", borderBottom: "1px solid var(--border, #333)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--text-muted, #999)" }}>
-          <span style={{ flex: 1 }}>Sign in via Telegram to unlock the full FlowBond ecosystem — points, leaderboards, and more.</span>
-          <button onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", color: "var(--text-muted, #999)", cursor: "pointer", padding: 4, fontSize: 16, lineHeight: 1 }}>x</button>
+      {!bannerDismissed && (
+        <div style={{ background: "linear-gradient(90deg, #1a1a2e, #2a1a3e)", borderBottom: "1px solid #f59e0b33", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#fbbf24" }}>
+          <span style={{ fontSize: 16 }}>&#x1F6A7;</span>
+          <span style={{ flex: 1 }}>FlowB is being overhauled — sign-in systems and the coordination layer are changing. Some features may be temporarily unavailable.</span>
+          <button onClick={() => setBannerDismissed(true)} style={{ background: "none", border: "none", color: "#fbbf24", cursor: "pointer", padding: 4, fontSize: 16, lineHeight: 1 }}>&times;</button>
         </div>
       )}
 

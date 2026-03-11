@@ -83,6 +83,17 @@
     </div>
   </header>
 
+  <!-- Overhaul Notice Banner -->
+  <div class="overhaul-banner" id="overhaulBanner">
+    <div class="container">
+      <div class="overhaul-inner">
+        <span class="overhaul-icon">&#x1F6A7;</span>
+        <p class="overhaul-text"><strong>Heads up:</strong> FlowB is currently being overhauled &mdash; sign-in systems are changing and the coordination layer is being rebuilt. Some features may be unavailable or behave unexpectedly.</p>
+        <button class="overhaul-close" onclick="document.getElementById('overhaulBanner').style.display='none'">&times;</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Milestone Banner -->
   <div class="milestone-banner hidden" id="milestoneBanner">
     <div class="container">
@@ -482,69 +493,21 @@
     </div>
   </div>
 
-  <!-- Privy Auth Mount (React island) -->
-  <div id="privy-root"></div>
-
+  <!-- Supabase Auth JS (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- FlowB Passport Auth -->
+  <script src="supabase-auth.js"></script>
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
   <script src="app.js"></script>
-  <!-- Privy loaded lazily on first Sign In click or if returning user -->
+  <!-- Sign In click triggers FlowB Passport modal -->
   <script>
     (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        console.log('[auth] Loading privy-mount.js...');
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        s.onerror = function(e) {
-          console.error('[auth] Failed to load privy-mount.js:', e);
-          var btn = document.getElementById('authBtn');
-          if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
-          loaded = false; // allow retry
-        };
-        document.body.appendChild(s);
-      }
-
-      // Wait for Privy to be ready then call login, with visual feedback
-      function waitForPrivyAndLogin() {
-        var btn = document.getElementById('authBtn');
-        if (btn) {
-          btn.textContent = 'Loading...';
-          btn.disabled = true;
-        }
-        var attempts = 0;
-        var maxAttempts = 50; // 10 seconds max (Privy is a big bundle)
-        var check = setInterval(function() {
-          attempts++;
-          if (window.flowbPrivy) {
-            clearInterval(check);
-            if (btn) { btn.textContent = 'Sign In'; btn.disabled = false; }
-            window.flowbPrivy.login();
-          } else if (attempts >= maxAttempts) {
-            clearInterval(check);
-            if (btn) { btn.textContent = 'Retry'; btn.disabled = false; }
-            console.warn('[auth] Privy failed to initialize after ' + (maxAttempts * 200) + 'ms. Check browser console for errors.');
-          }
-        }, 200);
-      }
-
-      // If user was previously logged in, load Privy immediately to restore session
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      }
-
-      // Sign In click: load Privy if needed, then wait for it and call login
       var btn = document.getElementById('authBtn');
       if (btn) btn.addEventListener('click', function() {
-        if (window.flowbPrivy) {
-          window.flowbPrivy.login();
-        } else {
-          loadPrivy();
-          waitForPrivyAndLogin();
+        if (window.flowbAuth) {
+          window.flowbAuth.login();
         }
       });
     })();
