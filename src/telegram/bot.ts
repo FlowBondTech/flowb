@@ -830,6 +830,11 @@ export function startTelegramBot(
         }
         fireAndForget(core.awardPoints(userId(tgId), "telegram", "crew_joined"), "award points");
       }
+      // Trigger onboarding for new users who joined via crew invite
+      const onboarded = await hasCompletedOnboarding(tgId);
+      if (!onboarded && !onboardingStates.has(tgId)) {
+        await startOnboarding(ctx, tgId);
+      }
       return;
     }
 
@@ -864,6 +869,11 @@ export function startTelegramBot(
             fireAndForget(core.awardPoints(attr.inviterId, "telegram", convertAction), "award points");
           }
         }
+      }
+      // Trigger onboarding for new users who joined via personal invite
+      const onboardedGi = await hasCompletedOnboarding(tgId);
+      if (!onboardedGi && !onboardingStates.has(tgId)) {
+        await startOnboarding(ctx, tgId);
       }
       return;
     }
@@ -1016,7 +1026,7 @@ export function startTelegramBot(
           reply_markup: new InlineKeyboard()
             .webApp("Open Crew", miniAppUrl ? `${miniAppUrl}?startapp=crew_${crewCode}` : `https://tg.flowb.me`)
             .row()
-            .url("Share Link", `https://t.me/${botUsername}/flowb?startapp=crew_${crewCode}`),
+            .url("Share Link", `https://t.me/${botUsername}?start=g_${crewCode}`),
         },
       );
       return;
@@ -6478,7 +6488,7 @@ export function startTelegramBot(
         .slice(0, 10)
         .map((m: any) => {
           const g = m.flowb_groups;
-          const joinLink = `https://t.me/${botUsername}/flowb?startapp=crew_${g.join_code}`;
+          const joinLink = `https://t.me/${botUsername}?start=g_${g.join_code}`;
           const desc = g.description ? `${g.description}\n` : "";
           return {
             type: "article" as const,

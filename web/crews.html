@@ -626,12 +626,11 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Privy Auth Mount -->
-  <div id="privy-root"></div>
-
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-auth.js"></script>
   <script>
     const FLOWB_API = 'https://flowb.fly.dev';
     let myCrews = [];
@@ -782,14 +781,13 @@
     }
 
     window.addEventListener('flowb-auth-ready', function() { setTimeout(updateCrewsPage, 200); });
-    window.addEventListener('privy-auth-change', function() { setTimeout(updateCrewsPage, 500); });
 
     // Sign-in buttons
     document.getElementById('myCrewsSignIn').addEventListener('click', triggerLogin);
 
     function triggerLogin() {
-      if (window.flowbPrivy) {
-        window.flowbPrivy.login();
+      if (window.flowbAuth) {
+        window.flowbAuth.login();
       } else {
         document.getElementById('authBtn').click();
       }
@@ -1036,6 +1034,67 @@
       }
     });
 
+    // ===== Auto-join from ?join=CODE =====
+
+    var pendingJoinCode = null;
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var joinParam = params.get('join');
+      if (joinParam) {
+        // Clean code from URL if it's a full link
+        var urlMatch = joinParam.match(/\/g[i]?\/([a-zA-Z0-9_-]+)/);
+        pendingJoinCode = urlMatch ? urlMatch[1] : joinParam.trim();
+        // Clean URL without reload
+        var cleanUrl = window.location.pathname;
+        window.history.replaceState({}, '', cleanUrl);
+      }
+    })();
+
+    async function autoJoinByCode(code) {
+      if (!code) return;
+      var msgEl = document.getElementById('joinMsg');
+      var result = await fetchAuthed('/api/v1/flow/crews/' + encodeURIComponent(code) + '/join', {
+        method: 'POST',
+        body: JSON.stringify({ joinCode: code }),
+      });
+      if (result && result.ok) {
+        // Show success toast
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green,#22c55e);color:#fff;padding:12px 24px;border-radius:100px;font-size:0.9rem;font-weight:600;z-index:999;animation:fadeIn 0.3s';
+        toast.textContent = result.message || 'Joined crew!';
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 4000);
+        loadMyCrews();
+      } else {
+        var errMsg = (result && (result.message || result.error)) || 'Could not join. Check the code and try again.';
+        var toast = document.createElement('div');
+        toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#ef4444;color:#fff;padding:12px 24px;border-radius:100px;font-size:0.9rem;font-weight:600;z-index:999;animation:fadeIn 0.3s';
+        toast.textContent = errMsg;
+        document.body.appendChild(toast);
+        setTimeout(function() { toast.remove(); }, 4000);
+      }
+      pendingJoinCode = null;
+    }
+
+    // Listen for auth ready to handle pending join
+    window.addEventListener('flowb-auth-ready', function() {
+      setTimeout(function() {
+        if (pendingJoinCode) {
+          if (Auth.isAuthenticated && Auth.jwt) {
+            autoJoinByCode(pendingJoinCode);
+          } else {
+            // Show join prompt — user needs to sign in first
+            var gate = document.getElementById('myCrewsGate');
+            if (gate) {
+              gate.querySelector('p').textContent = 'Sign in to join this crew';
+              gate.querySelector('button').textContent = 'Sign In to Join';
+            }
+            // After they sign in, the auth-ready will fire again
+          }
+        }
+      }, 300);
+    });
+
     // ===== Init =====
     loadStats();
     loadLeaderboard();
@@ -1047,26 +1106,10 @@
   </script>
   <script>
     (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        document.body.appendChild(s);
-      }
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      } else {
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
-      }
+      var btn = document.getElementById('authBtn');
+      if (btn) btn.addEventListener('click', function() {
+        if (window.flowbAuth) window.flowbAuth.login();
+      });
     })();
   </script>
   <script src="mobile-menu.js"></script>
