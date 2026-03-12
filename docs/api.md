@@ -337,7 +337,7 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `GET` | `/api/v1/sponsor/wallet` | No | Get wallet address |
+| `GET` | `/api/v1/sponsor/wallet` | Yes | Get wallet address for event boosting |
 | `POST` | `/api/v1/sponsor` | Yes | Create sponsorship (requires auth) |
 | `POST` | `/api/v1/sponsor/:id/verify` | No | Manual verify (internal) |
 | `GET` | `/api/v1/sponsor/rankings` | No | Rankings |
@@ -468,4 +468,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 18:14:07 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 18:37:44 UTC*
