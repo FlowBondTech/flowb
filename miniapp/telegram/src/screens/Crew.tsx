@@ -401,6 +401,15 @@ export function Crew({ crewId, checkinCode, onNavigate }: Props) {
 
   // Load crews (auto-join if deep link targets a crew we're not in)
   useEffect(() => {
+    // Wait for authentication before making API calls
+    if (!user) {
+      // If not authenticated and there's a deep link, keep loading state
+      // so user sees loading indicator instead of empty state
+      if (crewId) return;
+      setLoading(false);
+      return;
+    }
+
     const loadCrews = async () => {
       try {
         const c = await getCrews();
@@ -453,7 +462,7 @@ export function Crew({ crewId, checkinCode, onNavigate }: Props) {
     };
 
     loadCrews();
-  }, [crewId]);
+  }, [crewId, user]);
 
   // Load members + leaderboard when crew selected
   useEffect(() => {

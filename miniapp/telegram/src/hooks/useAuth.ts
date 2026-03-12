@@ -59,9 +59,9 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
-    if (!getToken()) {
-      authenticate();
-    }
+    // Always authenticate on mount to get fresh user data
+    // even if we have a cached token (validates it's still valid)
+    authenticate();
   }, [authenticate]);
 
   return state;

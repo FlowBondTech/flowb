@@ -195,9 +195,11 @@ export interface Sponsorship {
 export interface FeaturedEventBoost {
   target_id: string;
   amount_usdc: number;
-  sponsor_user_id: string;
-  created_at: string;
-  expires_at: string;
+  sponsor_user_id?: string;
+  created_at?: string;
+  expires_at?: string;
+  ends_at?: string;
+  time_remaining_seconds?: number;
 }
 
 export interface SponsorRanking {

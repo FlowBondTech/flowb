@@ -300,26 +300,105 @@ export async function pingCrewLocate(crewId: string): Promise<{ pinged: number }
 }
 
 // ============================================================================
-// Sponsorships
+// Event Boost Auction
 // ============================================================================
 
+export interface BoostStatus {
+  cycle: {
+    cycleId: number;
+    cycleNumber: number;
+    endsAt: string;
+    minBidUsdc: number;
+    highestBidUsdc: number;
+    highestBidderUserId: string | null;
+    winningEventUrl: string | null;
+    timeRemainingSeconds: number;
+  };
+  minNextBid: number;
+  wallet: string;
+  network: string;
+  paymentMethods: string[];
+}
+
+export interface BoostCheckoutResult {
+  method: string;
+  sponsorshipId?: string;
+  orderId?: string;
+  wallet?: string;
+  network?: string;
+  chainId?: number;
+  amountUsdc: number;
+  clientSecret?: string;
+  stripePublishableKey?: string;
+  message?: string;
+}
+
+export async function getBoostStatus(): Promise<BoostStatus> {
+  return get<BoostStatus>("/api/v1/boost/status");
+}
+
 export async function getSponsorWallet(): Promise<string> {
-  const data = await get<{ address: string }>("/api/v1/sponsor/wallet");
+  const data = await get<{ address: string; network: string }>("/api/v1/boost/wallet");
   return data.address;
 }
 
+export async function createBoostCheckout(
+  eventUrl: string,
+  amountUsdc: number,
+  paymentMethod: "crypto" | "stripe" | "apple_pay",
+): Promise<BoostCheckoutResult> {
+  return post<BoostCheckoutResult>("/api/v1/boost/checkout", { eventUrl, amountUsdc, paymentMethod });
+}
+
+export async function confirmCryptoBoost(sponsorshipId: string, txHash: string): Promise<{ success: boolean; message: string }> {
+  return post<{ success: boolean; message: string }>("/api/v1/boost/confirm-crypto", { sponsorshipId, txHash });
+}
+
+export async function confirmStripeBoost(orderId: string, paymentIntentId: string): Promise<{ success: boolean; message: string }> {
+  return post<{ success: boolean; message: string }>("/api/v1/boost/confirm-stripe", { orderId, paymentIntentId });
+}
+
+export async function getFeaturedEventBoost(): Promise<FeaturedEventBoost | null> {
+  try {
+    const status = await getBoostStatus();
+    if (!status.cycle.winningEventUrl) return null;
+    return {
+      target_id: status.cycle.winningEventUrl,
+      amount_usdc: status.cycle.highestBidUsdc,
+      ends_at: status.cycle.endsAt,
+      time_remaining_seconds: status.cycle.timeRemainingSeconds,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Legacy function for backwards compatibility
 export async function createSponsorship(
   targetType: "event" | "location" | "featured_event",
   targetId: string,
   amountUsdc: number,
   txHash: string,
 ): Promise<{ ok: boolean; sponsorship: Sponsorship }> {
+  // Use new boost checkout for featured_event
+  if (targetType === "featured_event") {
+    const checkout = await createBoostCheckout(targetId, amountUsdc, "crypto");
+    if (checkout.sponsorshipId) {
+      const result = await confirmCryptoBoost(checkout.sponsorshipId, txHash);
+      return {
+        ok: result.success,
+        sponsorship: {
+          id: checkout.sponsorshipId,
+          target_type: targetType,
+          target_id: targetId,
+          amount_usdc: amountUsdc,
+          status: result.success ? "verified" : "pending",
+        } as Sponsorship,
+      };
+    }
+  }
+  // Fallback to old endpoint for other types
   return post<{ ok: boolean; sponsorship: Sponsorship }>("/api/v1/sponsor", { targetType, targetId, amountUsdc, txHash });
-}
-
-export async function getFeaturedEventBoost(): Promise<FeaturedEventBoost | null> {
-  const data = await get<{ featured: FeaturedEventBoost | null }>("/api/v1/sponsor/featured-event");
-  return data.featured;
 }
 
 export async function getSponsorRankings(targetType?: string): Promise<SponsorRanking[]> {
