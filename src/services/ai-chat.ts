@@ -1460,10 +1460,16 @@ async function getMyCrews(user: UserContext, cfg: SbConfig): Promise<string> {
       .slice(0, 10);
 
     const isOwner = crew.created_by === user.userId || m.role === "admin";
+    const code = crew.join_code;
+    const joinLines = code
+      ? `  Join code: ${code}\n` +
+        `  Telegram: https://t.me/Flow_b_bot?start=g_${code}\n` +
+        `  Web: https://flowb.me/crews?join=${code}`
+      : `  Join code: none`;
     out.push(
       `**${crew.emoji || ""} ${crew.name}** (${memberCount} members${isOwner ? ", you're admin" : ""})\n` +
       `  Members: ${names.join(", ")}${memberCount > 10 ? "..." : ""}\n` +
-      `  Join code: ${crew.join_code || "none"}`,
+      joinLines,
     );
   }
 
@@ -1884,6 +1890,133 @@ interface BizContext {
 
 // ─── Public info tool executors ────────────────────────────────────────
 
+function getWhatsNew(period: string | undefined): string {
+  const p = (period || "this_week").toLowerCase();
+
+  // Changelog entries — most recent first, curated from real changes
+  const changelog: Array<{ date: string; title: string; description: string; category: string }> = [
+    // March 11
+    {
+      date: "2026-03-11",
+      title: "FlowB Passport — Single Auth Layer",
+      description: "FlowB has fully migrated from Privy to FlowB Passport (Supabase Auth). All existing users have been migrated automatically — your points, crews, and linked accounts are intact. Sign in with email, magic link, or social login. One identity across Telegram, Farcaster, and Web.",
+      category: "Platform",
+    },
+    // March 9-10
+    {
+      date: "2026-03-09",
+      title: "Seamless AI Chat Experience",
+      description: "FlowB's AI assistant now handles everything through natural language — leads, meetings, settings, crew admin, billing — no commands needed. Just talk to FlowB like you'd talk to a friend. Works across Telegram, Web, and Farcaster with the same quality.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-09",
+      title: "LLM-Primary Mode for Telegram",
+      description: "The Telegram bot now routes unmatched messages directly through the AI with full tool access. No more 'I don't understand' — FlowB actually thinks about your request and uses its tools to help.",
+      category: "AI",
+    },
+    {
+      date: "2026-03-09",
+      title: "FlowB Passport Launch",
+      description: "Introduced Supabase Auth as FlowB's identity layer. Unified identity across all platforms — Telegram, Farcaster, and web accounts all link to one FlowB Passport.",
+      category: "Platform",
+    },
+    {
+      date: "2026-03-09",
+      title: "Rebrand: Find Your Flow",
+      description: "Across all surfaces, FlowB is now about 'finding your flow' — event discovery, social connections, and business tools unified under one vibe.",
+      category: "Brand",
+    },
+    {
+      date: "2026-03-09",
+      title: "Crew Invite Sharing",
+      description: "Share crew invites via inline mode in Telegram — tap the share button, pick a chat, done. Bot auto-joins groups when shared. Deep links work for instant crew joins.",
+      category: "Social",
+    },
+    {
+      date: "2026-03-09",
+      title: "Rich Notification DMs",
+      description: "Event notifications now include direct links, event times, and RSVP buttons right in your DM. No more hunting for the event page.",
+      category: "UX",
+    },
+    // March 8
+    {
+      date: "2026-03-08",
+      title: "Lead Pipeline Board",
+      description: "Visual drag-and-drop lead pipeline at biz.flowb.me. Move leads between stages (New, Contacted, Qualified, Proposal, Won/Lost). Tab switcher between tasks and leads.",
+      category: "Business",
+    },
+    {
+      date: "2026-03-08",
+      title: "Crew Business Platform",
+      description: "Crews can now share leads, meetings, and pipeline data. New crew biz settings let admins control what's shared. Kanban board for team task management.",
+      category: "Business",
+    },
+    {
+      date: "2026-03-08",
+      title: "Natural Language Leads & Meetings",
+      description: "Say 'met Sarah at Acme' to create a lead, or 'schedule coffee with Mike tomorrow' to book a meeting — the bot parses it all naturally.",
+      category: "AI",
+    },
+    // March 7
+    {
+      date: "2026-03-07",
+      title: "Points & Streaks System",
+      description: "Earn points for check-ins, RSVPs, referrals, and daily engagement. Daily streaks multiply your earnings. Leaderboard rankings across all platforms.",
+      category: "Social",
+    },
+    {
+      date: "2026-03-07",
+      title: "Cross-Platform Identity",
+      description: "Link your Telegram, Farcaster, and Web accounts. Points and activity merge across platforms automatically.",
+      category: "Platform",
+    },
+  ];
+
+  // Filter by period
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  let cutoff: string;
+
+  switch (p) {
+    case "today":
+      cutoff = today;
+      break;
+    case "this_week": {
+      const d = new Date(now);
+      d.setDate(d.getDate() - d.getDay()); // Sunday start
+      cutoff = d.toISOString().slice(0, 10);
+      break;
+    }
+    case "this_month": {
+      cutoff = `${today.slice(0, 7)}-01`;
+      break;
+    }
+    case "all":
+      cutoff = "2020-01-01";
+      break;
+    default:
+      cutoff = today;
+  }
+
+  const filtered = changelog.filter((e) => e.date >= cutoff);
+
+  if (!filtered.length) {
+    return "No new updates for this period. Try 'this_week' or 'all' for more.";
+  }
+
+  let out = `**What's New in FlowB** (${p.replace("_", " ")})\n\n`;
+  let lastDate = "";
+  for (const entry of filtered) {
+    if (entry.date !== lastDate) {
+      out += `**${entry.date}**\n`;
+      lastDate = entry.date;
+    }
+    out += `- **${entry.title}** [${entry.category}]: ${entry.description}\n`;
+  }
+  return out;
+}
+
 function getFlowBFeatures(category: string | undefined, user: UserContext, isUserAdmin = false): string {
   const isLoggedIn = !!user.userId;
   const sections: string[] = [];
@@ -2233,7 +2366,7 @@ export async function handleChat(
   };
 
   // Limit tools for unauthenticated users — public tools include event search + discovery
-  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "cuflow_whats_new"];
+  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "get_whats_new", "cuflow_whats_new"];
   const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS, ...CUFLOW_TOOLS, ...(isAdmin ? FIFLOW_TOOLS : [])];
   const tools = user.userId
     ? allTools
@@ -2357,6 +2490,9 @@ export async function handleChat(
             result = await shareResults(args, user, sb, capturedEvents, capturedContext);
             break;
           // ── Public info tools ──
+          case "get_whats_new":
+            result = getWhatsNew(args.period);
+            break;
           case "get_flowb_features":
             result = getFlowBFeatures(args.category, user, isAdmin);
             break;

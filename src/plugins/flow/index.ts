@@ -662,7 +662,9 @@ export class FlowPlugin implements FlowBPlugin {
       const g = m.flowb_groups;
       const roleTag = m.role === "creator" ? " (creator)" : m.role === "admin" ? " (admin)" : "";
       lines.push(`${g.emoji} **${g.name}**${roleTag}`);
-      lines.push(`  ID: ${m.group_id.slice(0, 8)}`);
+      if (g.join_code) {
+        lines.push(`  Join: ${flowbLink("g", g.join_code)}`);
+      }
     }
 
     return lines.join("\n");
