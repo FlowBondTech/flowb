@@ -304,6 +304,7 @@ export function EventDetail({ eventId }: Props) {
         <SponsorModal
           targetType="event"
           targetId={eventId}
+          targetTitle={event.title}
           onClose={() => setShowSponsor(false)}
         />
       )}

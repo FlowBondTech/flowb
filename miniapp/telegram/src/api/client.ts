@@ -455,6 +455,46 @@ export async function getAgentTransactions(limit = 20): Promise<any> {
 }
 
 // ============================================================================
+// Product Checkout
+// ============================================================================
+
+export interface CheckoutIntent {
+  orderId: string;
+  method: string;
+  amountUsdc: number;
+  expiresAt: string;
+  paymentAddress?: string;
+  network?: string;
+  chainId?: number;
+  clientSecret?: string;
+}
+
+export interface CheckoutConfirmResult {
+  success: boolean;
+  order?: any;
+  error?: string;
+}
+
+export async function createCheckout(data: {
+  productSlug: string;
+  paymentMethod: string;
+  network?: string;
+  metadata?: Record<string, any>;
+}): Promise<CheckoutIntent> {
+  const result = await post<{ paymentIntent: CheckoutIntent }>("/api/v1/checkout/create", data);
+  return result.paymentIntent;
+}
+
+export async function confirmCheckout(data: {
+  orderId: string;
+  paymentIntentId?: string;
+  txHash?: string;
+  senderAddress?: string;
+}): Promise<CheckoutConfirmResult> {
+  return post<CheckoutConfirmResult>("/api/v1/checkout/confirm", data);
+}
+
+// ============================================================================
 // Event Submission
 // ============================================================================
 
