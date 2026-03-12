@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getSponsorWallet, createSponsorship, createCheckout, confirmCheckout } from "../api/client";
+import { getSponsorWallet, createSponsorship, createCheckout, confirmCheckout, getToken } from "../api/client";
 
 interface Props {
   targetType: "event" | "location" | "featured_event";
@@ -37,8 +37,10 @@ export function SponsorModal({ targetType, targetId, targetTitle, onClose, onSuc
   const [checkoutStep, setCheckoutStep] = useState<"select_tier" | "select_payment" | "pay" | "confirm">("select_tier");
   const [orderId, setOrderId] = useState<string | null>(null);
   const [paymentIntent, setPaymentIntent] = useState<any>(null);
+  const [needsAuth, setNeedsAuth] = useState(false);
 
   const tg = (window as any).Telegram?.WebApp;
+  const isAuthenticated = !!getToken();
 
   useEffect(() => {
     getSponsorWallet().then(setWalletAddress).catch(console.error);
@@ -85,6 +87,12 @@ export function SponsorModal({ targetType, targetId, targetTitle, onClose, onSuc
 
   const handlePaymentMethodSelect = async (method: PaymentMethod) => {
     if (!selectedTier) return;
+
+    // Check authentication
+    if (!isAuthenticated) {
+      setNeedsAuth(true);
+      return;
+    }
 
     setSelectedPaymentMethod(method);
     setSubmitting(true);
@@ -135,9 +143,23 @@ export function SponsorModal({ targetType, targetId, targetTitle, onClose, onSuc
 
       tg?.HapticFeedback?.impactOccurred("medium");
     } catch (err: any) {
-      setResult({ ok: false, message: err.message || "Failed to create checkout" });
+      // Handle auth errors
+      if (err.message?.includes("401") || err.message?.includes("Unauthorized")) {
+        setNeedsAuth(true);
+      } else {
+        setResult({ ok: false, message: err.message || "Failed to create checkout" });
+      }
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleLogin = () => {
+    // Try to re-authenticate with Telegram
+    if (tg?.initData) {
+      window.location.reload();
+    } else {
+      setResult({ ok: false, message: "Please open FlowB in Telegram to sign in" });
     }
   };
 
@@ -212,7 +234,26 @@ export function SponsorModal({ targetType, targetId, targetTitle, onClose, onSuc
           {checkoutStep === "confirm" && "Waiting for payment confirmation..."}
         </p>
 
-        {result ? (
+        {needsAuth ? (
+          <div style={{
+            padding: "20px 16px",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔐</div>
+            <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 8 }}>
+              Sign in to Boost
+            </div>
+            <div style={{ fontSize: 13, color: "var(--hint)", marginBottom: 16, lineHeight: 1.5 }}>
+              You need to be signed in to purchase a boost. In Telegram, this happens automatically.
+            </div>
+            <button className="btn btn-primary btn-block" onClick={handleLogin} style={{ marginBottom: 8 }}>
+              Sign In
+            </button>
+            <button className="btn btn-secondary btn-block" onClick={onClose}>
+              Cancel
+            </button>
+          </div>
+        ) : result ? (
           <div style={{
             padding: "16px",
             textAlign: "center",
