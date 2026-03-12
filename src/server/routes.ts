@@ -5744,13 +5744,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   }
 
   // ==================================================================
-  // SPONSOR: Get wallet address
+  // SPONSOR: Get wallet address for event boosting
   // ==================================================================
+  const BOOST_WALLET_ADDRESS = "0xD9Ab3B89cb5E09fbdA46c20D8849fd1E75486002";
   app.get(
     "/api/v1/sponsor/wallet",
     async () => {
-      const address = process.env.CDP_ACCOUNT_ADDRESS || "";
-      return { address };
+      return { address: BOOST_WALLET_ADDRESS };
     },
   );
 
@@ -5795,7 +5795,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Kick off async verification
       const sponsorId = row.id;
-      const walletAddress = process.env.CDP_ACCOUNT_ADDRESS || "";
+      const walletAddress = BOOST_WALLET_ADDRESS;
       (async () => {
         try {
           const result = await verifyUSDCTransfer(txHash, walletAddress, amountUsdc);
