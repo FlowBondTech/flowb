@@ -20,8 +20,6 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/telegram` | No | Telegram Mini App |
 | `POST` | `/api/v1/auth/farcaster` | No | Farcaster Mini App (Quick Auth + legacy SIWF fallback) |
 | `POST` | `/api/v1/auth/app` | No | Native App (hardcoded demo users) |
-| `POST` | `/api/v1/auth/web` | No | Web (Privy legacy + Supabase Auth dual mode) |
-| `POST` | `/api/v1/auth/privy` | No | Privy (Mobile) — verify Privy access token, issue FlowB JWT |
 | `POST` | `/api/v1/auth/whatsapp` | No | WhatsApp Mini App (HMAC-based phone verification) |
 | `POST` | `/api/v1/auth/signal` | No | Signal Mini App (HMAC-based, same pattern as WhatsApp) |
 | `POST` | `/api/v1/auth/passport` | No | FlowB Passport (Supabase Auth) — primary new auth endpoint |
@@ -475,4 +473,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 23:33:51 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 23:40:51 UTC*

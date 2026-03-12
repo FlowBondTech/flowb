@@ -23,6 +23,7 @@ Backend services that power FlowB's cross-platform features.
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
+| guest session | `src/services/guest-session.ts` | `createGuestSession`, `createGuestToken`, `getGuestSession`, `joinCrewAsGuest`, `convertGuestToUser`, `getGuestCrews`, `getCrewByJoinCode` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
 | notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendOnboardingReminders` |
 | privy | `src/services/privy.ts` | — |
@@ -150,6 +151,14 @@ Farcaster Responder Service
 
 **Exports**: `handleMention()`
 
+### guest session
+
+Guest session management — allows unauthenticated users to join crews
+
+**Source**: `src/services/guest-session.ts`
+
+**Exports**: `createGuestSession()`, `createGuestToken()`, `getGuestSession()`, `joinCrewAsGuest()`, `convertGuestToUser()`, `getGuestCrews()`, `getCrewByJoinCode()`
+
 ### identity
 
 Cross-Platform Identity Resolution Service
@@ -214,4 +223,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-12 23:33:51 UTC*
+*Auto-generated on 2026-03-12 23:40:51 UTC*
