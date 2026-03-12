@@ -73,15 +73,7 @@ FlowB exposes two backend servers:
 | `PATCH` | `unknown` | Yes |  |
 | `GET` | `/api/v1/me/crew-visibility` | Yes |  |
 | `GET` | `/api/v1/events/:id/social` | No |  |
-| `POST` | `/api/v1/biz/projects` | Yes |  |
-| `GET` | `/api/v1/biz/projects` | Yes |  |
-| `GET` | `/api/v1/biz/projects/:slug` | Yes |  |
-| `PATCH` | `/api/v1/biz/projects/:slug` | Yes |  |
-| `DELETE` | `/api/v1/biz/projects/:slug` | Yes |  |
-| `POST` | `/api/v1/biz/projects/:slug/test` | Yes |  |
-| `GET` | `/api/v1/biz/projects/:slug/activity` | Yes |  |
-| `POST` | `/api/v1/biz/webhooks` | Yes |  |
-| `GET` | `/api/v1/biz/webhooks/:projectSlug` | Yes |  |
+| `GET` | `/api/v1/biz/projects` | No |  |
 | `POST` | `/api/v1/biz/inbound-webhook` | No |  |
 | `POST` | `/api/v1/social/orgs` | Yes |  |
 | `POST` | `/api/v1/social/orgs/:orgId/members` | No |  |
@@ -476,4 +468,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 15:16:53 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 15:28:33 UTC*

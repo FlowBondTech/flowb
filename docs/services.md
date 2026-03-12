@@ -14,7 +14,7 @@ Backend services that power FlowB's cross-platform features.
 | biz notifications | `src/services/biz-notifications.ts` | `notifyBizChannel` |
 | cdp | `src/services/cdp.ts` | — |
 | chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createTodo`, `listTodos`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `grantFlowmium`, `requestCityScan`, `fetchUserBizContext`, `manageGroupIntelligence`, `getGroupSignalsTool`, `routeSignalTool` |
-| chat tools websites | `src/services/chat-tools-websites.ts` | `siteList`, `siteStatus`, `siteRebuild`, `siteActivity`, `siteListProducts`, `siteAddProduct`, `siteUpdateProduct`, `siteDeleteProduct`, `siteListArticles`, `siteCreateArticle`, `siteUpdateArticle`, `siteScheduleArticle`, `sitePublishArticle`, `siteSeoStatus`, `siteSeoCheckArticle`, `siteSeoSuggestions`, `stripeListProducts`, `stripeCreateCheckout`, `stripeListOrders`, `stripeRefund`, `stripeRevenue`, `stripeSyncProducts` |
+| chat tools websites | `src/services/chat-tools-websites.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
 | email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
@@ -85,8 +85,6 @@ Business Chat Tool Executors
 Website Chat Tool Executors — FlowB EC
 
 **Source**: `src/services/chat-tools-websites.ts`
-
-**Exports**: `siteList()`, `siteStatus()`, `siteRebuild()`, `siteActivity()`, `siteListProducts()`, `siteAddProduct()`, `siteUpdateProduct()`, `siteDeleteProduct()`, `siteListArticles()`, `siteCreateArticle()`, `siteUpdateArticle()`, `siteScheduleArticle()`, `sitePublishArticle()`, `siteSeoStatus()`, `siteSeoCheckArticle()`, `siteSeoSuggestions()`, `stripeListProducts()`, `stripeCreateCheckout()`, `stripeListOrders()`, `stripeRefund()`, `stripeRevenue()`, `stripeSyncProducts()`
 
 ### context notifications
 
@@ -216,4 +214,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-12 15:16:53 UTC*
+*Auto-generated on 2026-03-12 15:28:33 UTC*
