@@ -258,13 +258,14 @@ export function registerPaymentRoutes(app: FastifyInstance) {
       network?: PaymentNetwork;
       walletAddress?: string;
       quantity?: number;
+      metadata?: Record<string, any>;
     };
   }>(
     "/api/v1/checkout/create",
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      const { productSlug, paymentMethod, network, walletAddress, quantity } =
+      const { productSlug, paymentMethod, network, walletAddress, quantity, metadata } =
         request.body || {};
 
       if (!productSlug || !paymentMethod) {
@@ -281,6 +282,7 @@ export function registerPaymentRoutes(app: FastifyInstance) {
           network,
           walletAddress,
           quantity,
+          metadata,
         });
 
         return { paymentIntent: intent };

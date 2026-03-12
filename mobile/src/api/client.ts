@@ -606,6 +606,7 @@ export async function createCheckout(data: {
   network?: PaymentNetwork;
   walletAddress?: string;
   quantity?: number;
+  metadata?: Record<string, any>;
 }): Promise<PaymentIntent> {
   const result = await post<{ paymentIntent: PaymentIntent }>(
     "/api/v1/checkout/create",

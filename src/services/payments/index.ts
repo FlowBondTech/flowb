@@ -320,7 +320,72 @@ export class PaymentService {
         product_id: product.id,
         order_id: order.id,
       });
+
+      // Handle boost products - create event boost record
+      if (product.category === "boost") {
+        await this.createBoostFromOrder(order, product);
+      }
     }
+  }
+
+  /**
+   * Creates an event boost record when a boost product order is completed.
+   * Maps product slugs to boost durations and creates the boost in flowb_event_boosts.
+   */
+  private async createBoostFromOrder(order: any, product: Product): Promise<void> {
+    const metadata = order.metadata || {};
+    const eventId = metadata.eventId;
+
+    if (!eventId) {
+      console.warn(`[payments] Boost order ${order.id} completed but no eventId in metadata`);
+      return;
+    }
+
+    // Map product slug to boost duration in hours
+    const boostDurations: Record<string, number> = {
+      "event-boost-basic": 24,
+      "event-boost-pro": 48,
+      "event-boost-mega": 72,
+    };
+
+    const durationHours = boostDurations[product.slug] || 24;
+    const expiresAt = new Date(Date.now() + durationHours * 3600_000).toISOString();
+
+    // Get user's agent if they have one (for agent_name display)
+    let agentId: string | null = null;
+    let agentName: string | null = null;
+
+    const { data: agent } = await this.supabase
+      .from("flowb_agents")
+      .select("id, agent_name")
+      .eq("user_id", order.user_id)
+      .eq("status", "active")
+      .single();
+
+    if (agent) {
+      agentId = agent.id;
+      agentName = agent.agent_name;
+    }
+
+    // Create the boost record
+    const { error } = await this.supabase.from("flowb_event_boosts").insert({
+      event_id: eventId,
+      agent_id: agentId,
+      user_id: order.user_id,
+      amount_usdc: product.basePriceUsdc,
+      agent_name: agentName,
+      expires_at: expiresAt,
+      active: true,
+      order_id: order.id,
+      product_slug: product.slug,
+    });
+
+    if (error) {
+      console.error(`[payments] Failed to create boost for order ${order.id}:`, error.message);
+      return;
+    }
+
+    console.log(`[payments] Created ${durationHours}h boost for event ${eventId} (order ${order.id})`);
   }
 
   async getOrder(orderId: string): Promise<Order | null> {

@@ -32,7 +32,7 @@ export type RootStackParamList = {
   Kanban: undefined;
   // Checkout & payments
   Products: undefined;
-  Checkout: { productSlug: string };
+  Checkout: { productSlug: string; eventId?: string; eventTitle?: string };
   OrderConfirmation: { orderId: string };
   Subscriptions: undefined;
 };

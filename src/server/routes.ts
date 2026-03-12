@@ -1307,9 +1307,50 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
+      // Fetch active boosts and prioritize boosted events
+      const now = new Date().toISOString();
+      const boosts = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_boosts?active=eq.true&expires_at=gt.${now}&select=event_id,amount_usdc,expires_at,agent_name,product_slug`,
+      );
+
+      // Create a map of event_id -> boost info
+      const boostMap = new Map<string, { amountUsdc: number; expiresAt: string; agentName?: string; productSlug?: string }>();
+      for (const boost of boosts || []) {
+        // If multiple boosts for same event, keep the highest value one
+        const existing = boostMap.get(boost.event_id);
+        if (!existing || boost.amount_usdc > existing.amountUsdc) {
+          boostMap.set(boost.event_id, {
+            amountUsdc: parseFloat(boost.amount_usdc),
+            expiresAt: boost.expires_at,
+            agentName: boost.agent_name,
+            productSlug: boost.product_slug,
+          });
+        }
+      }
+
+      // Mark boosted events and sort: boosted first (by amount desc), then by starts_at
+      const eventsWithBoost = events.map(e => ({
+        ...e,
+        isBoosted: boostMap.has(e.id),
+        boost: boostMap.get(e.id) || null,
+      }));
+
+      // Sort: boosted events first (sorted by boost amount desc), then non-boosted by starts_at
+      eventsWithBoost.sort((a, b) => {
+        if (a.isBoosted && !b.isBoosted) return -1;
+        if (!a.isBoosted && b.isBoosted) return 1;
+        if (a.isBoosted && b.isBoosted) {
+          // Both boosted: higher amount first
+          return (b.boost?.amountUsdc || 0) - (a.boost?.amountUsdc || 0);
+        }
+        // Both non-boosted: by starts_at (already sorted from query, but ensure consistency)
+        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+      });
+
       return {
-        events,
-        total: events.length,
+        events: eventsWithBoost,
+        total: eventsWithBoost.length,
         ...(city ? { city } : {}),
         ...(citySource ? { citySource } : {}),
       };

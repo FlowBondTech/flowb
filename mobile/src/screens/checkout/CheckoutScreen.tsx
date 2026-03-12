@@ -100,7 +100,7 @@ export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const route = useRoute<CheckoutRouteProp>();
-  const { productSlug } = route.params;
+  const { productSlug, eventId, eventTitle } = route.params;
 
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +149,8 @@ export default function CheckoutScreen() {
         network: ['walletconnect', 'usdc_direct', 'crypto_swap'].includes(selectedPayment)
           ? selectedNetwork
           : undefined,
+        // Pass eventId for boost products
+        metadata: eventId ? { eventId, eventTitle } : undefined,
       });
 
       setPaymentIntent(intent);
@@ -235,6 +237,13 @@ export default function CheckoutScreen() {
           <GlassCard variant="subtle" style={styles.productCard}>
             <Text style={styles.productName}>{product.name}</Text>
             <Text style={styles.productDescription}>{product.description}</Text>
+            {/* Show event being boosted for boost products */}
+            {eventId && eventTitle && (
+              <View style={styles.boostTargetRow}>
+                <Ionicons name="rocket-outline" size={16} color={colors.accent.amber} />
+                <Text style={styles.boostTargetText}>Boosting: {eventTitle}</Text>
+              </View>
+            )}
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>Total</Text>
               <Text style={styles.priceValue}>${product.basePriceUsdc}</Text>
@@ -374,6 +383,19 @@ const styles = StyleSheet.create({
   productDescription: {
     ...typography.body,
     color: colors.text.secondary,
+  },
+  boostTargetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.accent.amber + '15',
+    padding: spacing.sm,
+    borderRadius: 8,
+  },
+  boostTargetText: {
+    ...typography.body,
+    color: colors.accent.amber,
+    flex: 1,
   },
   priceRow: {
     flexDirection: 'row',

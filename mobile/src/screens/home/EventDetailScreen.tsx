@@ -259,6 +259,58 @@ export function EventDetailScreen({ route, navigation }: Props) {
           />
         ) : null}
 
+        {/* ── Boost event button ────────────────────────────── */}
+        <GlassCard variant="subtle" style={styles.boostCard}>
+          <View style={styles.boostHeader}>
+            <Ionicons name="rocket-outline" size={20} color={colors.accent.amber} />
+            <Text style={styles.boostTitle}>Boost this event</Text>
+          </View>
+          <Text style={styles.boostDescription}>
+            Get more people to see this event. Boosted events appear at the top of everyone's feed.
+          </Text>
+          <View style={styles.boostButtonRow}>
+            <GlassButton
+              title="24h • $5"
+              onPress={() => {
+                haptics.tap();
+                navigation.navigate('Checkout', {
+                  productSlug: 'event-boost-basic',
+                  eventId: event.id,
+                  eventTitle: event.title,
+                });
+              }}
+              variant="secondary"
+              size="sm"
+            />
+            <GlassButton
+              title="48h • $15"
+              onPress={() => {
+                haptics.tap();
+                navigation.navigate('Checkout', {
+                  productSlug: 'event-boost-pro',
+                  eventId: event.id,
+                  eventTitle: event.title,
+                });
+              }}
+              variant="secondary"
+              size="sm"
+            />
+            <GlassButton
+              title="72h • $50"
+              onPress={() => {
+                haptics.tap();
+                navigation.navigate('Checkout', {
+                  productSlug: 'event-boost-mega',
+                  eventId: event.id,
+                  eventTitle: event.title,
+                });
+              }}
+              variant="secondary"
+              size="sm"
+            />
+          </View>
+        </GlassCard>
+
         {/* Spacer for bottom buttons */}
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -425,6 +477,30 @@ const styles = StyleSheet.create({
   linkButton: {
     alignSelf: 'flex-start',
     marginBottom: spacing.md,
+  },
+
+  // ── Boost card ─────────────────────────────────────────────────
+  boostCard: {
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  boostHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  boostTitle: {
+    ...typography.headline,
+    color: colors.accent.amber,
+  },
+  boostDescription: {
+    ...typography.caption,
+    color: colors.text.secondary,
+  },
+  boostButtonRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
 
   bottomSpacer: {
