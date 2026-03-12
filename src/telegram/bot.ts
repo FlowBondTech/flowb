@@ -9,7 +9,7 @@ import { Bot, InlineKeyboard, InputFile, Keyboard } from "grammy";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { FlowBCore } from "../core/flowb.js";
 import type { EventResult } from "../core/types.js";
-import { PrivyClient } from "../services/privy.js";
+
 import { EGatorPlugin } from "../plugins/egator/index.js";
 import type { LumaEventDetail, LumaTicketType } from "../plugins/egator/index.js";
 import {
@@ -156,8 +156,8 @@ interface TgSession {
   city?: string;
   style?: string;
   lastActive: number;
-  privyId?: string;
   displayName?: string;
+  tgUsername?: string;
   verified: boolean;
   checkinEventId?: string;
   awaitingProofPhoto?: boolean;
@@ -238,7 +238,7 @@ async function ensureSessionTable(): Promise<boolean> {
       });
       // If RPC endpoint doesn't help, log the SQL for manual creation
       console.warn("[flowb-telegram] flowb_sessions table not found. Create it with:");
-      console.warn(`  CREATE TABLE flowb_sessions (user_id TEXT PRIMARY KEY, verified BOOLEAN NOT NULL DEFAULT FALSE, privy_id TEXT, display_name TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());`);
+      console.warn(`  CREATE TABLE flowb_sessions (user_id TEXT PRIMARY KEY, verified BOOLEAN NOT NULL DEFAULT FALSE, display_name TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW());`);
       return false;
     }
     sessionTableReady = true;
@@ -255,14 +255,14 @@ async function loadPersistent(tgId: number): Promise<Partial<TgSession> | null> 
   try {
     const { data } = await supabase
       .from("flowb_sessions")
-      .select("verified,privy_id,display_name")
+      .select("verified,display_name,tg_username")
       .eq("user_id", `telegram_${tgId}`)
       .single();
     if (data) {
       return {
         verified: data.verified ?? false,
-        privyId: data.privy_id ?? undefined,
         displayName: data.display_name ?? undefined,
+        tgUsername: data.tg_username ?? undefined,
       };
     }
   } catch {}
@@ -277,8 +277,8 @@ function savePersistent(tgId: number, session: TgSession): void {
     .upsert({
       user_id: `telegram_${tgId}`,
       verified: session.verified,
-      privy_id: session.privyId || null,
       display_name: session.displayName || null,
+      tg_username: session.tgUsername || null,
       updated_at: new Date().toISOString(),
     })
     .then(({ error }: { error: any }) => {
@@ -345,8 +345,8 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     city: partial.city ?? existing?.city,
     style: partial.style ?? existing?.style,
     lastActive: Date.now(),
-    privyId: partial.privyId ?? existing?.privyId,
     displayName: partial.displayName ?? existing?.displayName,
+    tgUsername: partial.tgUsername ?? existing?.tgUsername,
     verified: partial.verified ?? existing?.verified ?? false,
     chatHistory: partial.chatHistory ?? existing?.chatHistory ?? [],
     checkinEventId: partial.checkinEventId ?? existing?.checkinEventId,
@@ -367,8 +367,8 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
   // Persist to Supabase when identity/verification fields change
   if (session.verified && (
     partial.verified !== undefined ||
-    partial.privyId !== undefined ||
-    partial.displayName !== undefined
+    partial.displayName !== undefined ||
+    partial.tgUsername !== undefined
   )) {
     savePersistent(userId, session);
   }
@@ -669,7 +669,6 @@ async function handleBugReport(
 export function startTelegramBot(
   token: string,
   core: FlowBCore,
-  privy?: PrivyClient,
 ): void {
   const bot = new Bot(token);
   const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
@@ -687,7 +686,7 @@ export function startTelegramBot(
   initChatter();
 
   // ========================================================================
-  // Privy auto-verify
+  // Auto-verify user session
   // ========================================================================
 
   async function ensureVerified(tgId: number): Promise<TgSession> {
@@ -701,30 +700,7 @@ export function startTelegramBot(
       return setSession(tgId, persisted);
     }
 
-    // Strategy 1: Check Privy (if configured)
-    if (privy) {
-      try {
-        const privyUser = await privy.lookupByTelegramId(String(tgId));
-        if (privyUser) {
-          const tgAccount = PrivyClient.getLinkedAccount(privyUser, "telegram");
-          const displayName = tgAccount?.username || tgAccount?.first_name || "Anon";
-
-          const session = setSession(tgId, {
-            verified: true,
-            privyId: privyUser.id,
-            displayName,
-          });
-
-          await core.awardPoints(userId(tgId), "telegram", "verification_complete");
-          console.log(`[flowb-telegram] Auto-verified via Privy: ${displayName} (privy: ${privyUser.id})`);
-          return session;
-        }
-      } catch (err) {
-        console.error("[flowb-telegram] Privy lookup error:", err);
-      }
-    }
-
-    // Strategy 2: Check pending_verifications (Telegram Login Widget flow)
+    // Strategy 1: Check pending_verifications (Telegram Login Widget flow)
     try {
       const verified = await core.checkTelegramVerification(String(tgId));
       if (verified) {
@@ -2498,20 +2474,55 @@ export function startTelegramBot(
     else if (args === "all") period = "all";
     else query = ctx.match?.trim(); // Treat as search query
 
-    const changelog = await fetchGitChangelog(period, query);
+    // Try Cu.Flow plugin first, fall back to raw GitHub fetch
+    const cuflow = core.getCuFlowPlugin();
+    let changelog: string;
+
+    if (cuflow?.isConfigured()) {
+      const cuflowPeriod = period === "today" ? "today" : period === "week" ? "this_week" : period === "month" ? "this_month" : "this_month";
+      const result = await cuflow.execute("cuflow-whats-new", {
+        action: "cuflow-whats-new",
+        period: cuflowPeriod,
+        query,
+      } as any, { platform: "telegram", config: {} as any });
+      // Convert markdown bold to HTML bold for Telegram
+      changelog = result
+        .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+        .replace(/`(.+?)`/g, "<code>$1</code>");
+    } else {
+      changelog = await fetchGitChangelog(period, query);
+    }
+
+    const keyboard = new InlineKeyboard()
+      .text("Today", "changelog_today")
+      .text("This Week", "changelog_week")
+      .text("This Month", "changelog_month");
+
     await ctx.reply(changelog, {
       parse_mode: "HTML",
-      reply_markup: new InlineKeyboard()
-        .text("Today", "changelog_today")
-        .text("This Week", "changelog_week")
-        .text("This Month", "changelog_month"),
+      reply_markup: keyboard,
     });
   });
 
   // Callback buttons for changelog time periods
   bot.callbackQuery(/^changelog_(today|week|month)$/, async (ctx) => {
     const period = ctx.match![1] as "today" | "week" | "month";
-    const changelog = await fetchGitChangelog(period);
+    const cuflow = core.getCuFlowPlugin();
+    let changelog: string;
+
+    if (cuflow?.isConfigured()) {
+      const cuflowPeriod = period === "today" ? "today" : period === "week" ? "this_week" : "this_month";
+      const result = await cuflow.execute("cuflow-whats-new", {
+        action: "cuflow-whats-new",
+        period: cuflowPeriod,
+      } as any, { platform: "telegram", config: {} as any });
+      changelog = result
+        .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+        .replace(/`(.+?)`/g, "<code>$1</code>");
+    } else {
+      changelog = await fetchGitChangelog(period);
+    }
+
     await ctx.editMessageText(changelog, {
       parse_mode: "HTML",
       reply_markup: {
@@ -6379,6 +6390,11 @@ export function startTelegramBot(
 
     const session = getSession(tgId) || setSession(tgId, {});
     const displayName = ctx.from?.first_name || ctx.from?.username || undefined;
+    // Backfill tg_username on every message so admin tools can find users by @handle
+    const tgUsername = ctx.from?.username || undefined;
+    if (tgUsername && session.tgUsername !== tgUsername) {
+      setSession(tgId, { tgUsername });
+    }
     const chatResult = LLM_PRIMARY
       ? await sendFlowBChatDirect(session.chatHistory, text, tgId, displayName)
       : { content: await sendFlowBChat(session.chatHistory, text, userId(tgId)) };

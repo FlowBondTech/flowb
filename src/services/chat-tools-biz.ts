@@ -69,6 +69,22 @@ function tierGateMessage(used: number, limit: number, tier: string, feature: str
   return `You've used ${used}/${limit} ${feature} on your ${tier} plan this month. Upgrade at flowb.me/upgrade for unlimited access.`;
 }
 
+/**
+ * Find users by display name OR Telegram @username.
+ * Strips leading "@" from the query so admins can type "@stephrella" naturally.
+ */
+async function findUsersByName(cfg: SbConfig, nameQuery: string, limit = 3): Promise<Array<{ user_id: string; display_name: string; tg_username?: string }>> {
+  const q = nameQuery.replace(/^@/, "").trim();
+  if (!q) return [];
+  const encoded = encodeURIComponent(q);
+  // Search display_name OR tg_username (case-insensitive)
+  const rows = await sbFetch<any[]>(
+    cfg,
+    `flowb_sessions?or=(display_name.ilike.*${encoded}*,tg_username.ilike.*${encoded}*)&select=user_id,display_name,tg_username&limit=${limit}`,
+  );
+  return rows || [];
+}
+
 async function getCrewRole(cfg: SbConfig, userId: string, crewId: string): Promise<string | null> {
   const rows = await sbFetch<any[]>(
     cfg,
@@ -552,35 +568,36 @@ export async function adminCrewAction(args: any, user: BizUserContext, cfg: SbCo
   const action = (args.action || "").toLowerCase();
   const targetName = args.target_name || args.target_user;
 
-  if (!targetName) return "Who do you want to target? Provide a name.";
+  if (!targetName) return "Who do you want to target? Provide a name or @username.";
 
-  // Find target user by display name
-  const targets = await sbFetch<any[]>(cfg, `flowb_sessions?display_name=ilike.*${encodeURIComponent(targetName)}*&select=user_id,display_name&limit=3`);
-  if (!targets?.length) return `Couldn't find anyone named "${targetName}".`;
+  // Find target user by display name or TG @username
+  const targets = await findUsersByName(cfg, targetName);
+  if (!targets?.length) return `Couldn't find anyone named "${targetName}". Try their display name or Telegram @username.`;
 
   // Check they're in the crew
   const targetUserId = targets[0].user_id;
+  const targetLabel = targets[0].display_name || targets[0].tg_username || targetUserId;
   const targetMember = await sbFetch<any[]>(cfg, `flowb_group_members?group_id=eq.${encodeURIComponent(resolvedCrewId)}&user_id=eq.${encodeURIComponent(targetUserId)}&limit=1`);
 
   switch (action) {
     case "promote": {
-      if (!targetMember?.length) return `${targets[0].display_name} is not in the crew.`;
+      if (!targetMember?.length) return `${targetLabel} is not in the crew.`;
       await sbPatch(cfg, "flowb_group_members", {
         group_id: `eq.${resolvedCrewId}`,
         user_id: `eq.${targetUserId}`,
       }, { role: "admin" });
-      return `Promoted **${targets[0].display_name}** to admin in ${crewName}.`;
+      return `Promoted **${targetLabel}** to admin in ${crewName}.`;
     }
     case "demote": {
-      if (!targetMember?.length) return `${targets[0].display_name} is not in the crew.`;
+      if (!targetMember?.length) return `${targetLabel} is not in the crew.`;
       await sbPatch(cfg, "flowb_group_members", {
         group_id: `eq.${resolvedCrewId}`,
         user_id: `eq.${targetUserId}`,
       }, { role: "member" });
-      return `Demoted **${targets[0].display_name}** to member in ${crewName}.`;
+      return `Demoted **${targetLabel}** to member in ${crewName}.`;
     }
     case "remove": {
-      if (!targetMember?.length) return `${targets[0].display_name} is not in the crew.`;
+      if (!targetMember?.length) return `${targetLabel} is not in the crew.`;
       const { supabaseUrl, supabaseKey } = cfg;
       await fetch(
         `${supabaseUrl}/rest/v1/flowb_group_members?group_id=eq.${encodeURIComponent(resolvedCrewId)}&user_id=eq.${encodeURIComponent(targetUserId)}`,
@@ -589,25 +606,25 @@ export async function adminCrewAction(args: any, user: BizUserContext, cfg: SbCo
           headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
         },
       );
-      return `Removed **${targets[0].display_name}** from ${crewName}.`;
+      return `Removed **${targetLabel}** from ${crewName}.`;
     }
     case "approve": {
       // Approve a join request (pending members)
       const pending = await sbFetch<any[]>(cfg, `flowb_group_join_requests?group_id=eq.${encodeURIComponent(resolvedCrewId)}&user_id=eq.${encodeURIComponent(targetUserId)}&status=eq.pending&limit=1`);
-      if (!pending?.length) return `No pending join request from ${targets[0].display_name}.`;
+      if (!pending?.length) return `No pending join request from ${targetLabel}.`;
       await sbPatch(cfg, "flowb_group_join_requests", { id: `eq.${pending[0].id}` }, { status: "approved" });
       await sbPost(cfg, "flowb_group_members", {
         group_id: resolvedCrewId,
         user_id: targetUserId,
         role: "member",
       });
-      return `Approved **${targets[0].display_name}** to join ${crewName}!`;
+      return `Approved **${targetLabel}** to join ${crewName}!`;
     }
     case "deny": {
       const pendingDeny = await sbFetch<any[]>(cfg, `flowb_group_join_requests?group_id=eq.${encodeURIComponent(resolvedCrewId)}&user_id=eq.${encodeURIComponent(targetUserId)}&status=eq.pending&limit=1`);
-      if (!pendingDeny?.length) return `No pending join request from ${targets[0].display_name}.`;
+      if (!pendingDeny?.length) return `No pending join request from ${targetLabel}.`;
       await sbPatch(cfg, "flowb_group_join_requests", { id: `eq.${pendingDeny[0].id}` }, { status: "denied" });
-      return `Denied join request from **${targets[0].display_name}** for ${crewName}.`;
+      return `Denied join request from **${targetLabel}** for ${crewName}.`;
     }
     default:
       return `Unknown admin action "${action}". Available: promote, demote, remove, approve, deny.`;
@@ -717,22 +734,23 @@ export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConf
   if (!isAdmin) return "Only admins can gift Flowmium. Nice try though!";
 
   const targetName = (args.target_name || "").trim();
-  if (!targetName) return "Who should receive the gift of Flowmium? Provide a name.";
+  if (!targetName) return "Who should receive the gift of Flowmium? Provide a name or @username.";
 
-  // Find target user by display name
-  const targets = await sbFetch<any[]>(
-    cfg,
-    `flowb_sessions?display_name=ilike.*${encodeURIComponent(targetName)}*&select=user_id,display_name&limit=3`,
-  );
-  if (!targets?.length) return `Couldn't find anyone named "${targetName}". Check the name and try again.`;
+  // Find target user by display name or TG @username
+  const targets = await findUsersByName(cfg, targetName);
+  if (!targets?.length) return `Couldn't find anyone named "${targetName}". Try their display name or Telegram @username.`;
 
   if (targets.length > 1) {
-    const names = targets.map((t: any) => `- ${t.display_name}`).join("\n");
+    const names = targets.map((t: any) => {
+      const handle = t.tg_username ? ` (@${t.tg_username})` : "";
+      return `- ${t.display_name || t.tg_username || t.user_id}${handle}`;
+    }).join("\n");
     return `Found multiple matches:\n${names}\n\nBe more specific about which one.`;
   }
 
   const target = targets[0];
   const targetUserId = target.user_id;
+  const targetLabel = target.display_name || target.tg_username || targetUserId;
 
   // Check current tier
   const existingRows = await sbFetch<any[]>(
@@ -742,11 +760,11 @@ export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConf
   const currentTier = existingRows?.[0]?.tier || "free";
 
   if (["pro", "team", "business"].includes(currentTier)) {
-    return `**${target.display_name}** is already on the **${currentTier}** plan -- that's above Flowmium. They're living the premium life already!`;
+    return `**${targetLabel}** is already on the **${currentTier}** plan -- that's above Flowmium. They're living the premium life already!`;
   }
 
   if (currentTier === "flowmium") {
-    return `**${target.display_name}** already has Flowmium! The flow is strong with this one.`;
+    return `**${targetLabel}** already has Flowmium! The flow is strong with this one.`;
   }
 
   // Upsert subscription to flowmium
@@ -766,7 +784,7 @@ export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConf
     });
   }
 
-  return `Flowmium granted to **${target.display_name}**! (Like freemium, but with more flow.)\n\nThey now get:\n- 50 leads/mo (5x free)\n- 15 meetings/mo (5x free)\n- 10 automations/mo (5x free)\n- 50 AI chats/mo (5x free)\n- City scan requests for eGator`;
+  return `Flowmium granted to **${targetLabel}**! (Like freemium, but with more flow.)\n\nThey now get:\n- 50 leads/mo (5x free)\n- 15 meetings/mo (5x free)\n- 10 automations/mo (5x free)\n- 50 AI chats/mo (5x free)\n- City scan requests for eGator`;
 }
 
 /**

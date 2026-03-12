@@ -34,6 +34,10 @@ import {
   stripeListProducts as ecStripeListProducts, stripeCreateCheckout, stripeListOrders,
   stripeRefund, stripeRevenue, stripeSyncProducts,
 } from "./chat-tools-websites.js";
+import {
+  cuflowBrief, cuflowFeature, cuflowSearch, cuflowHotspots,
+  cuflowVelocity, cuflowContributors, cuflowWhatsNew, cuflowReport,
+} from "./chat-tools-cuflow.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -83,6 +87,11 @@ export const PERSONAS = {
     id: "fiflow",
     name: "FiFlow",
     label: "Super Regenerative Finance Officer",
+  } satisfies ChatPersona,
+  cuflow: {
+    id: "cuflow",
+    name: "Cu.Flow",
+    label: "Code Intelligence Officer",
   } satisfies ChatPersona,
 } as const;
 
@@ -673,11 +682,11 @@ const BIZ_TOOLS = [
     type: "function" as const,
     function: {
       name: "grant_flowmium",
-      description: "Admin-only: Gift Flowmium tier to a user. Flowmium is FlowB's take on 'freemium' (get it?). Gives 5x free tier limits and city scan powers. Use when admin says 'give flowmium to [name]', 'gift [name] flowmium', 'upgrade [name] to flowmium'.",
+      description: "Admin-only: Gift Flowmium tier to a user. Flowmium is FlowB's take on 'freemium' (get it?). Gives 5x free tier limits and city scan powers. Use when admin says 'give flowmium to [name]', 'gift [name] flowmium', 'upgrade [name] to flowmium'. Supports display names AND Telegram @usernames.",
       parameters: {
         type: "object",
         properties: {
-          target_name: { type: "string", description: "Name of the user to gift Flowmium to" },
+          target_name: { type: "string", description: "Name or @username of the user to gift Flowmium to (e.g. 'Steph' or '@stephrella')" },
         },
         required: ["target_name"],
       },
@@ -1723,6 +1732,116 @@ const FIFLOW_TOOLS = [
   },
 ];
 
+// ─── Cu.Flow Tools (Code Intelligence - all authenticated users) ─────
+
+const CUFLOW_TOOLS = [
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_whats_new",
+      description: "Show recent updates and changelog. Use when user asks 'what's new', 'recent updates', 'changelog', 'what changed'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "last_week", "this_month"], description: "Time period" },
+          query: { type: "string", description: "Optional text filter" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_brief",
+      description: "Get an engineering brief with commit stats, feature breakdown, and contributors. Use when user asks 'engineering brief', 'daily brief', 'what was built today', 'dev progress', 'code update'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "last_week", "this_month", "last_month"], description: "Time period for the brief" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_feature",
+      description: "Track progress on a specific feature area. Use when user asks 'progress on kanban', 'what's happening with mobile', 'AI chat updates', 'feature progress'. Pass no feature_id to list available areas.",
+      parameters: {
+        type: "object",
+        properties: {
+          feature_id: { type: "string", description: "Feature area ID (e.g. kanban, mobile, ai_chat, web, telegram, backend, events, social)" },
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "last_week", "this_month"], description: "Time period" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_search",
+      description: "Search commits by message text, file name, or author. Use when user asks 'search commits for X', 'find changes about Y', 'commits mentioning Z'.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Search query" },
+          since: { type: "string", description: "ISO date to search from" },
+        },
+        required: ["query"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_hotspots",
+      description: "Show the most actively changed files and areas. Use when user asks 'hotspots', 'most changed files', 'where is most activity', 'active areas'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month"], description: "Time period" },
+          limit: { type: "number", description: "Max results (default 15)" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_velocity",
+      description: "Show commit velocity trends comparing this week vs last week. Use when user asks 'velocity', 'pace', 'are we speeding up', 'commit trends'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_contributors",
+      description: "Show who worked on what. Use when user asks 'who worked on what', 'contributor breakdown', 'team activity', 'who committed'.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "this_month"], description: "Time period" },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "cuflow_report",
+      description: "Generate a shareable engineering report with a unique URL. Use when user asks 'generate report', 'create a report', 'shareable brief'.",
+      parameters: {
+        type: "object",
+        properties: {
+          report_type: { type: "string", enum: ["daily_brief", "weekly_report"], description: "Report type" },
+          period: { type: "string", enum: ["today", "yesterday", "this_week", "last_week", "this_month"], description: "Period to cover" },
+        },
+      },
+    },
+  },
+];
+
 // ─── System prompt ───────────────────────────────────────────────────
 
 interface BizContext {
@@ -1820,193 +1939,6 @@ function getFlowBFeatures(category: string | undefined, user: UserContext, isUse
   return sections.join("\n\n");
 }
 
-function getWhatsNew(period: string | undefined): string {
-  const p = (period || "this_week").toLowerCase();
-
-  // Changelog entries — most recent first, curated from real commits
-  const changelog: Array<{ date: string; title: string; description: string; category: string }> = [
-    // March 11
-    {
-      date: "2026-03-11",
-      title: "FlowB Passport — Single Auth Layer",
-      description: "FlowB has fully migrated from Privy to FlowB Passport (Supabase Auth). All 80 existing users have been migrated automatically — your points, crews, and linked accounts are intact. Sign in with email, magic link, or social login. One identity across Telegram, Farcaster, and Web.",
-      category: "Platform",
-    },
-    // March 9-10
-    {
-      date: "2026-03-09",
-      title: "Seamless AI Chat Experience",
-      description: "FlowB's AI assistant now handles everything through natural language — leads, meetings, settings, crew admin, billing — no commands needed. Just talk to FlowB like you'd talk to a friend. Works across Telegram, Web, and Farcaster with the same quality.",
-      category: "AI",
-    },
-    {
-      date: "2026-03-09",
-      title: "LLM-Primary Mode for Telegram",
-      description: "The Telegram bot now routes unmatched messages directly through the AI with full tool access. No more 'I don't understand' — FlowB actually thinks about your request and uses its tools to help.",
-      category: "AI",
-    },
-    {
-      date: "2026-03-09",
-      title: "FlowB Passport Launch",
-      description: "Introduced Supabase Auth as FlowB's identity layer. Unified identity across all platforms — Telegram, Farcaster, and web accounts all link to one FlowB Passport.",
-      category: "Platform",
-    },
-    {
-      date: "2026-03-09",
-      title: "Rebrand: Find Your Flow",
-      description: "Across all surfaces, FlowB is now about 'finding your flow' — event discovery, social connections, and business tools unified under one vibe.",
-      category: "Brand",
-    },
-    {
-      date: "2026-03-09",
-      title: "Crew Invite Sharing",
-      description: "Share crew invites via inline mode in Telegram — tap the share button, pick a chat, done. Bot auto-joins groups when shared. Deep links work for instant crew joins.",
-      category: "Social",
-    },
-    {
-      date: "2026-03-09",
-      title: "Rich Notification DMs",
-      description: "Event notifications now include direct links, event times, and RSVP buttons right in your DM. No more hunting for the event page.",
-      category: "UX",
-    },
-    // March 8
-    {
-      date: "2026-03-08",
-      title: "Lead Pipeline Board",
-      description: "Visual drag-and-drop lead pipeline at biz.flowb.me. Move leads between stages (New → Contacted → Qualified → Proposal → Won/Lost). FlowB JWT auth, tab switcher between tasks and leads.",
-      category: "Business",
-    },
-    {
-      date: "2026-03-08",
-      title: "Crew Business Platform",
-      description: "Crews can now share leads, meetings, and pipeline data. New crew biz settings let admins control what's shared. Kanban board for team task management.",
-      category: "Business",
-    },
-    {
-      date: "2026-03-08",
-      title: "Meeting Guest Sharing",
-      description: "Share meeting details with guests via multi-channel delivery — Telegram DM, email, or shareable link. Meeting notes and action items included.",
-      category: "Business",
-    },
-    {
-      date: "2026-03-08",
-      title: "Natural Language Leads & Meetings",
-      description: "Say 'met Sarah at Acme' to create a lead, or 'schedule coffee with Mike tomorrow' to book a meeting — the bot parses it all naturally.",
-      category: "AI",
-    },
-    {
-      date: "2026-03-08",
-      title: "Mobile App Push Notifications",
-      description: "Push notifications now work on the mobile app (iOS & Android). Never miss a crew update, event reminder, or lead activity.",
-      category: "Mobile",
-    },
-    // March 7
-    {
-      date: "2026-03-07",
-      title: "Business Platform Scaffolding",
-      description: "Full business platform launched: meetings, leads, kanban boards, referral tracking, and notification preferences. The foundation for FlowB's CRM capabilities.",
-      category: "Business",
-    },
-    // March 6
-    {
-      date: "2026-03-06",
-      title: "Chat Results Sharing",
-      description: "After searching events in chat, ask FlowB to email the results or create a shareable link (flowb.me/r/{code}). Share your curated event list with anyone.",
-      category: "AI",
-    },
-    {
-      date: "2026-03-06",
-      title: "Event Reactions & Engagement Rewards",
-      description: "React to events with a tada emoji in group chats — FlowB sends you a DM with event details and RSVP options. All engagement actions (reactions, RSVPs, check-ins) now earn points.",
-      category: "Social",
-    },
-    {
-      date: "2026-03-06",
-      title: "Partiful Event Source",
-      description: "Partiful added as a worldwide event source. FlowB now aggregates events from Luma, Eventbrite, Meetup, Partiful, and community submissions.",
-      category: "Events",
-    },
-    // March 5
-    {
-      date: "2026-03-05",
-      title: "AI Chat Overhaul",
-      description: "Chat search now queries FlowB's local database instead of external APIs — faster, more accurate, and with full category/venue/price data.",
-      category: "AI",
-    },
-    {
-      date: "2026-03-05",
-      title: "Community Event Submission",
-      description: "Submit your own events via /addmyevent on Telegram, or through the Farcaster and Telegram mini apps. Events go through a simple conversational flow.",
-      category: "Events",
-    },
-    {
-      date: "2026-03-05",
-      title: "Crew Admin Tools",
-      description: "Crew creators and admins can now promote members to moderator/admin, fix display names, and manage crew settings — all from chat.",
-      category: "Social",
-    },
-    // March 4
-    {
-      date: "2026-03-04",
-      title: "Leaderboard & Rankings",
-      description: "/leaderboard command shows top users and crews by points. Works in DMs and group chats. Crew rankings show collective scores.",
-      category: "Social",
-    },
-    {
-      date: "2026-03-04",
-      title: "Web Search Integration",
-      description: "FlowB can now search the web for events using SerpAPI — when local sources don't have what you need, it casts a wider net.",
-      category: "Events",
-    },
-    {
-      date: "2026-03-04",
-      title: "Video Transcription",
-      description: "Send a video URL and FlowB transcribes it — useful for capturing talks, panels, and event recordings.",
-      category: "AI",
-    },
-  ];
-
-  const now = new Date();
-  const todayStr = now.toISOString().slice(0, 10);
-  const weekAgo = new Date(now.getTime() - 7 * 86400_000).toISOString().slice(0, 10);
-  const monthAgo = new Date(now.getTime() - 30 * 86400_000).toISOString().slice(0, 10);
-
-  let filtered = changelog;
-  if (p === "today") {
-    filtered = changelog.filter(e => e.date === todayStr);
-  } else if (p === "this_week") {
-    filtered = changelog.filter(e => e.date >= weekAgo);
-  } else if (p === "this_month") {
-    filtered = changelog.filter(e => e.date >= monthAgo);
-  }
-
-  if (!filtered.length) {
-    return "No updates for that period. Try asking for 'all' updates or 'this month'.";
-  }
-
-  // Group by date
-  const byDate = new Map<string, typeof filtered>();
-  for (const entry of filtered) {
-    const existing = byDate.get(entry.date) || [];
-    existing.push(entry);
-    byDate.set(entry.date, existing);
-  }
-
-  const lines: string[] = ["**What's New with FlowB**\n"];
-  for (const [date, entries] of byDate) {
-    const d = new Date(date + "T12:00:00");
-    const label = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-    lines.push(`**${label}**`);
-    for (const e of entries) {
-      lines.push(`- **${e.title}** [${e.category}]: ${e.description}`);
-    }
-    lines.push("");
-  }
-
-  lines.push(`_${filtered.length} updates shown. FlowB ships daily — ask again anytime!_`);
-  return lines.join("\n");
-}
-
 function buildSystemPrompt(user: UserContext, userCity?: string, biz?: BizContext, platform?: Platform, isAdmin?: boolean): string {
   const now = new Date();
   const nowStr = now.toLocaleString("en-US", {
@@ -2101,6 +2033,7 @@ Topic → feature mapping:
 - **City scanning / scan city / add city / eGator** → "Flowmium+ users can request eGator to scan new cities. Say 'scan [city name]' to add one."
 - **Website / site / products / articles / blog / SEO** → "Say 'my sites' to manage your websites, products, articles, and SEO."
 - **Automations / triggers / workflows** → "Say 'my automations' to see active automations or create new ones."
+- **Engineering brief / dev progress / commits / code changes / what was built / velocity / hotspots / contributors** → ${user.userId ? "Use Cu.Flow tools: cuflow_brief for daily/weekly briefs, cuflow_feature for feature area progress, cuflow_search to search commits, cuflow_hotspots for most active files, cuflow_velocity for trends, cuflow_contributors for who worked on what, cuflow_report to generate shareable reports." : "Use cuflow_whats_new to see recent updates."}
 
 If the topic is COMPLETELY unclear and you have no matching tool, call get_flowb_features to show the user what's available.
 NEVER say "I don't understand" or "that's outside my scope" without offering available alternatives.
@@ -2268,11 +2201,11 @@ export async function handleChat(
   };
 
   // Limit tools for unauthenticated users — public tools include event search + discovery
-  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "get_whats_new"];
-  const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS, ...(isAdmin ? FIFLOW_TOOLS : [])];
+  const PUBLIC_TOOLS = ["search_events", "get_available_cities", "get_event_categories", "get_event_summary", "get_event_details", "get_trending_events", "lookup_location_code", "get_activity_feed", "share_results", "get_flowb_features", "cuflow_whats_new"];
+  const allTools = [...TOOLS, ...BIZ_TOOLS, ...WEBSITE_TOOLS, ...CUFLOW_TOOLS, ...(isAdmin ? FIFLOW_TOOLS : [])];
   const tools = user.userId
     ? allTools
-    : TOOLS.filter((t) => PUBLIC_TOOLS.includes(t.function.name));
+    : [...TOOLS, ...CUFLOW_TOOLS].filter((t) => PUBLIC_TOOLS.includes(t.function.name));
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -2395,8 +2328,38 @@ export async function handleChat(
           case "get_flowb_features":
             result = getFlowBFeatures(args.category, user, isAdmin);
             break;
-          case "get_whats_new":
-            result = getWhatsNew(args.period);
+          // ── Cu.Flow Code Intelligence tools ──
+          case "cuflow_whats_new":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowWhatsNew(args, sb);
+            break;
+          case "cuflow_brief":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowBrief(args, sb);
+            break;
+          case "cuflow_feature":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowFeature(args, sb);
+            break;
+          case "cuflow_search":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowSearch(args, sb);
+            break;
+          case "cuflow_hotspots":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowHotspots(args, sb);
+            break;
+          case "cuflow_velocity":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowVelocity(args, sb);
+            break;
+          case "cuflow_contributors":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowContributors(args, sb);
+            break;
+          case "cuflow_report":
+            activePersona = PERSONAS.cuflow;
+            result = await cuflowReport({ ...args, user_id: user.userId }, sb);
             break;
           // ── Business tools (from chat-tools-biz.ts) ──
           case "create_lead":
