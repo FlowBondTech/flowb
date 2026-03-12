@@ -738,7 +738,9 @@ export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConf
 
   // Find target user by display name or TG @username
   const targets = await findUsersByName(cfg, targetName);
-  if (!targets?.length) return `Couldn't find anyone named "${targetName}". Try their display name or Telegram @username.`;
+  if (!targets?.length) {
+    return `Couldn't find anyone named "${targetName}".\n\nThe user needs to have messaged the FlowB bot at least once. Ask them to DM @FlowBbot (even just "hi"), then try again.\n\nYou can search by their Telegram display name or @username.`;
+  }
 
   if (targets.length > 1) {
     const names = targets.map((t: any) => {

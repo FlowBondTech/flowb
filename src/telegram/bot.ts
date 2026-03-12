@@ -364,12 +364,12 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
   };
   sessions.set(userId, session);
 
-  // Persist to Supabase when identity/verification fields change
-  if (session.verified && (
+  // Persist to Supabase when identity fields change (always, not just verified users)
+  if (
     partial.verified !== undefined ||
     partial.displayName !== undefined ||
     partial.tgUsername !== undefined
-  )) {
+  ) {
     savePersistent(userId, session);
   }
 
@@ -745,6 +745,16 @@ export function startTelegramBot(
   bot.command("start", async (ctx) => {
     const tgId = ctx.from!.id;
     const session = await ensureVerified(tgId);
+
+    // Always persist TG identity so admin tools can find this user
+    const fromName = ctx.from?.first_name || ctx.from?.username || undefined;
+    const fromUsername = ctx.from?.username || undefined;
+    if (fromName && !session.displayName || fromUsername && session.tgUsername !== fromUsername) {
+      setSession(tgId, {
+        displayName: session.displayName || fromName,
+        tgUsername: fromUsername,
+      });
+    }
 
     // Parse deep link arguments: /start ref_CODE, /start f_CODE, /start g_CODE, /start points
     const args = ctx.match?.trim();
@@ -6390,10 +6400,15 @@ export function startTelegramBot(
 
     const session = getSession(tgId) || setSession(tgId, {});
     const displayName = ctx.from?.first_name || ctx.from?.username || undefined;
-    // Backfill tg_username on every message so admin tools can find users by @handle
+    // Backfill display name + tg_username on every message so admin tools can find users
     const tgUsername = ctx.from?.username || undefined;
-    if (tgUsername && session.tgUsername !== tgUsername) {
-      setSession(tgId, { tgUsername });
+    const needsUpdate = (tgUsername && session.tgUsername !== tgUsername) ||
+                        (displayName && !session.displayName);
+    if (needsUpdate) {
+      setSession(tgId, {
+        displayName: session.displayName || displayName,
+        tgUsername: tgUsername || session.tgUsername,
+      });
     }
     const chatResult = LLM_PRIMARY
       ? await sendFlowBChatDirect(session.chatHistory, text, tgId, displayName)
