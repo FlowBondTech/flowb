@@ -105,6 +105,8 @@ async function syncLinkedAccountsToBackend() {
           detail: {
             mergedPoints: data.merged_points ?? 0,
             platformsLinked: data.platforms_linked ?? [],
+            newlyLinked: data.newly_linked ?? [],
+            pointsAwarded: data.points_awarded ?? 0,
           },
         }),
       );

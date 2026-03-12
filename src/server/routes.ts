@@ -40,6 +40,14 @@ import {
   verifyAppKeyWithNeynar,
 } from "@farcaster/miniapp-node";
 import { resolveCanonicalId, getLinkedIds } from "../services/identity.js";
+import {
+  createGuestSession,
+  getGuestSession,
+  joinCrewAsGuest,
+  convertGuestToUser,
+  getGuestCrews,
+  getCrewByJoinCode,
+} from "../services/guest-session.js";
 import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, sbQuery, sbDelete, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { alertAdmins, alertNewEvents } from "../services/admin-alerts.js";
@@ -968,6 +976,223 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { claimed, total: lastTotal };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: Guest Session (join first, signup after)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { joinCode?: string } }>(
+    "/api/v1/auth/guest",
+    {
+      config: { rateLimit: { max: 20, timeWindow: "1 minute" } },
+    },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return { error: "Database not configured" };
+      }
+
+      const { joinCode } = request.body || {};
+
+      try {
+        const result = await createGuestSession(cfg, joinCode);
+        return {
+          ok: true,
+          guestToken: result.guestToken,
+          expiresAt: result.expiresAt,
+          crew: result.crew,
+        };
+      } catch (err: any) {
+        return { ok: false, error: err.message || "Failed to create guest session" };
+      }
+    },
+  );
+
+  app.post<{ Body: { guestToken: string; joinCode: string } }>(
+    "/api/v1/auth/guest/join-crew",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return { error: "Database not configured" };
+      }
+
+      const { guestToken, joinCode } = request.body || {};
+      if (!guestToken || !joinCode) {
+        return { ok: false, error: "Missing guestToken or joinCode" };
+      }
+
+      try {
+        const crew = await joinCrewAsGuest(cfg, guestToken, joinCode);
+        if (!crew) {
+          return { ok: false, error: "Crew not found or closed" };
+        }
+        return {
+          ok: true,
+          crew,
+          message: "Joined as guest. Create an account to save your membership!",
+        };
+      } catch (err: any) {
+        return { ok: false, error: err.message || "Failed to join crew" };
+      }
+    },
+  );
+
+  app.post<{ Body: { guestToken: string; authMethod: string; accessToken?: string; initData?: string; fcMessage?: string; fcSignature?: string } }>(
+    "/api/v1/auth/guest/convert",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return reply.status(500).send({ error: "Database not configured" });
+      }
+
+      const { guestToken, authMethod, accessToken, initData, fcMessage, fcSignature } = request.body || {};
+      if (!guestToken) {
+        return reply.status(400).send({ error: "Missing guestToken" });
+      }
+
+      // Verify guest session exists
+      const session = await getGuestSession(cfg, guestToken);
+      if (!session) {
+        return reply.status(404).send({ error: "Guest session not found or expired" });
+      }
+
+      let userId: string;
+      let platform: "telegram" | "farcaster" | "web" | "app" | "whatsapp" | "signal";
+      let token: string;
+
+      // Authenticate based on method
+      switch (authMethod) {
+        case "google":
+        case "email": {
+          if (!accessToken) {
+            return reply.status(400).send({ error: "Missing accessToken for Supabase auth" });
+          }
+          const supabaseUser = await verifySupabaseToken(accessToken);
+          if (!supabaseUser) {
+            return reply.status(401).send({ error: "Invalid Supabase token" });
+          }
+          userId = `web_${supabaseUser.uid}`;
+          platform = "web";
+          token = signJwt({ sub: userId, platform, supabase_uid: supabaseUser.uid, email: supabaseUser.email });
+          break;
+        }
+
+        case "telegram": {
+          if (!initData) {
+            return reply.status(400).send({ error: "Missing initData for Telegram auth" });
+          }
+          const botToken = process.env.FLOWB_TELEGRAM_BOT_TOKEN;
+          if (!botToken) {
+            return reply.status(500).send({ error: "Bot token not configured" });
+          }
+          const result = validateInitData(initData, botToken);
+          if (!result.valid) {
+            return reply.status(401).send({ error: result.error });
+          }
+          userId = `telegram_${result.user.id}`;
+          platform = "telegram";
+          token = signJwt({ sub: userId, platform, tg_id: result.user.id });
+          break;
+        }
+
+        case "farcaster": {
+          if (!fcMessage || !fcSignature) {
+            return reply.status(400).send({ error: "Missing fcMessage/fcSignature for Farcaster auth" });
+          }
+          const neynarKey = process.env.NEYNAR_API_KEY;
+          const fcResult = await validateFarcasterSignIn(fcMessage, fcSignature, neynarKey);
+          if (!fcResult.valid) {
+            return reply.status(401).send({ error: fcResult.error });
+          }
+          userId = `farcaster_${fcResult.user.fid}`;
+          platform = "farcaster";
+          token = signJwt({ sub: userId, platform, fid: fcResult.user.fid });
+          break;
+        }
+
+        default:
+          return reply.status(400).send({ error: `Unsupported auth method: ${authMethod}` });
+      }
+
+      // Convert guest to user
+      const conversionResult = await convertGuestToUser(
+        cfg,
+        guestToken,
+        userId,
+        async (uid, plat, action) => { await core.awardPoints(uid, plat, action); },
+      );
+
+      // Award signup points
+      fireAndForget(core.awardPoints(userId, platform, "verification_complete"), "award points");
+
+      return {
+        ok: true,
+        token,
+        user: { id: userId, platform },
+        mergedData: {
+          crewsJoined: conversionResult.crewsJoined,
+          pointsTransferred: conversionResult.pointsAwarded,
+        },
+      };
+    },
+  );
+
+  app.get<{ Querystring: { guestToken: string } }>(
+    "/api/v1/auth/guest/crews",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return { crews: [] };
+      }
+
+      const { guestToken } = request.query || {};
+      if (!guestToken) {
+        return { crews: [] };
+      }
+
+      const crews = await getGuestCrews(cfg, guestToken);
+      return { crews };
+    },
+  );
+
+  app.get(
+    "/api/v1/auth/providers",
+    async () => {
+      const supabaseUrl = process.env.SUPABASE_URL;
+      const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+      const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
+
+      return {
+        providers: [
+          { id: "google", name: "Google", enabled: !!supabaseUrl, oneClick: true },
+          { id: "email", name: "Email Magic Link", enabled: !!supabaseUrl },
+          { id: "telegram", name: "Telegram", enabled: true, deepLink: `https://t.me/${botUsername}` },
+          { id: "farcaster", name: "Farcaster", enabled: true },
+        ],
+        supabaseUrl: supabaseUrl || null,
+        supabaseAnonKey: supabaseAnonKey || null,
+      };
+    },
+  );
+
+  app.get<{ Params: { code: string } }>(
+    "/api/v1/crew/:code/info",
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return { crew: null };
+      }
+
+      const { code } = request.params;
+      const crew = await getCrewByJoinCode(cfg, code);
+      return { crew };
     },
   );
 
@@ -2121,13 +2346,19 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // PROFILE: Update own bio, role, tags (requires auth)
+  // PROFILE: Update own profile (requires auth)
   // ------------------------------------------------------------------
   app.patch<{
     Body: {
       bio?: string;
       role?: string;
       tags?: string[];
+      avatar_url?: string;
+      twitter_handle?: string;
+      github_handle?: string;
+      linkedin_url?: string;
+      website_url?: string;
+      wallet_address?: string;
     };
   }>(
     "/api/v1/me/profile",
@@ -2137,10 +2368,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { ok: false, error: "Not configured" };
 
+      // Get current profile to check what fields are new
+      const currentRows = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,avatar_url,twitter_handle,github_handle,wallet_address&limit=1`,
+      );
+      const current = currentRows?.[0] || {};
+
       const body = request.body || {};
       const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      const pointsToAward: string[] = [];
 
-      if (body.bio !== undefined) updates.bio = body.bio;
+      if (body.bio !== undefined) {
+        updates.bio = body.bio;
+        if (body.bio && !current.bio) pointsToAward.push("bio_added");
+      }
       if (body.role !== undefined) updates.role = body.role;
       if (body.tags !== undefined) {
         // Sanitize: lowercase, trim, deduplicate, max 20 tags
@@ -2148,6 +2390,24 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           (body.tags || []).map((t: string) => t.trim().toLowerCase()).filter(Boolean),
         )].slice(0, 20);
         updates.tags = cleaned;
+      }
+      if (body.avatar_url !== undefined) {
+        updates.avatar_url = body.avatar_url;
+        if (body.avatar_url && !current.avatar_url) pointsToAward.push("profile_photo_added");
+      }
+      if (body.twitter_handle !== undefined) {
+        updates.twitter_handle = body.twitter_handle;
+        if (body.twitter_handle && !current.twitter_handle) pointsToAward.push("twitter_linked");
+      }
+      if (body.github_handle !== undefined) {
+        updates.github_handle = body.github_handle;
+        if (body.github_handle && !current.github_handle) pointsToAward.push("github_linked");
+      }
+      if (body.linkedin_url !== undefined) updates.linkedin_url = body.linkedin_url;
+      if (body.website_url !== undefined) updates.website_url = body.website_url;
+      if (body.wallet_address !== undefined) {
+        updates.wallet_address = body.wallet_address;
+        if (body.wallet_address && !current.wallet_address) pointsToAward.push("wallet_linked");
       }
 
       // Upsert session row (POST + merge-duplicates)
@@ -2170,12 +2430,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         return { ok: false, error: "Update failed" };
       }
 
-      return { ok: true };
+      // Award points for newly added fields
+      for (const action of pointsToAward) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, action), `award ${action} points`);
+      }
+
+      return { ok: true, pointsAwarded: pointsToAward.length };
     },
   );
 
   // ------------------------------------------------------------------
-  // PROFILE: Get own profile (bio, role, tags) (requires auth)
+  // PROFILE: Get own profile with completion tracking (requires auth)
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/me/profile",
@@ -2187,18 +2452,113 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,role,tags,display_name&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=bio,role,tags,display_name,avatar_url,twitter_handle,github_handle,linkedin_url,website_url,wallet_address,profile_completion_pct&limit=1`,
+      );
+
+      // Get linked identities
+      const identities = await sbFetch<any[]>(
+        cfg,
+        `flowb_identities?canonical_id=eq.${jwt.sub}&select=platform,platform_user_id`,
       );
 
       const row = rows?.[0] || {};
+
+      // Calculate profile completion
+      const completionFields = [
+        { field: "avatar_url", weight: 10 },
+        { field: "bio", weight: 10 },
+        { field: "display_name", weight: 5 },
+        { field: "twitter_handle", weight: 10 },
+        { field: "github_handle", weight: 10 },
+        { field: "wallet_address", weight: 15 },
+      ];
+      const linkedPlatforms = new Set((identities || []).map((i: any) => i.platform));
+      let totalWeight = completionFields.reduce((sum, f) => sum + f.weight, 0);
+      let completedWeight = completionFields.filter(f => row[f.field]).reduce((sum, f) => sum + f.weight, 0);
+      // Add bonus for linked identities
+      if (linkedPlatforms.has("telegram")) { totalWeight += 15; completedWeight += 15; }
+      if (linkedPlatforms.has("farcaster")) { totalWeight += 15; completedWeight += 15; }
+      if (linkedPlatforms.has("web")) { totalWeight += 15; completedWeight += 15; }
+      const completionPct = Math.round((completedWeight / totalWeight) * 100);
+
       return {
         profile: {
           bio: row.bio || null,
           role: row.role || null,
           tags: row.tags || [],
           display_name: row.display_name || null,
+          avatar_url: row.avatar_url || null,
+          twitter_handle: row.twitter_handle || null,
+          github_handle: row.github_handle || null,
+          linkedin_url: row.linkedin_url || null,
+          website_url: row.website_url || null,
+          wallet_address: row.wallet_address || null,
+          completion_pct: completionPct,
+          linked_platforms: Array.from(linkedPlatforms),
         },
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PROFILE: Link identity (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { platform: string; platformUserId: string } }>(
+    "/api/v1/me/link-identity",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { platform, platformUserId } = request.body || {};
+      if (!platform || !platformUserId) {
+        return reply.status(400).send({ error: "Missing platform or platformUserId" });
+      }
+
+      // Check if this identity is already linked to another user
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_identities?platform_user_id=eq.${encodeURIComponent(platformUserId)}&select=canonical_id&limit=1`,
+      );
+
+      if (existing?.length) {
+        if (existing[0].canonical_id === jwt.sub) {
+          return { ok: true, alreadyLinked: true };
+        }
+        return reply.status(409).send({ error: "This account is already linked to another user" });
+      }
+
+      // Create identity link
+      await fetch(`${cfg.supabaseUrl}/rest/v1/flowb_identities`, {
+        method: "POST",
+        headers: {
+          apikey: cfg.supabaseKey,
+          Authorization: `Bearer ${cfg.supabaseKey}`,
+          "Content-Type": "application/json",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          canonical_id: jwt.sub,
+          platform,
+          platform_user_id: platformUserId,
+        }),
+      });
+
+      // Award points for linking identity
+      const actionMap: Record<string, string> = {
+        telegram: "telegram_linked",
+        farcaster: "farcaster_linked",
+        twitter: "twitter_linked",
+        github: "github_linked",
+        google: "google_linked",
+      };
+      const pointAction = actionMap[platform];
+      if (pointAction && core) {
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, pointAction), "award link points");
+      }
+
+      return { ok: true };
     },
   );
 
@@ -4729,6 +5089,34 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             platformUserId: `phone_${account.number}`,
           });
         }
+        if (account.type === "linkedin_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "linkedin",
+            platformUserId: `linkedin_${account.subject}`,
+            displayName: account.name || undefined,
+          });
+        }
+        if (account.type === "tiktok_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "tiktok",
+            platformUserId: `tiktok_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "instagram_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "instagram",
+            platformUserId: `instagram_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "wallet" && account.address) {
+          linkedPlatformIds.push({
+            platform: "wallet",
+            platformUserId: `wallet_${account.address}`,
+            displayName: account.address,
+          });
+        }
       }
 
       // Determine canonical_id: check if any of these IDs already have one
@@ -4764,10 +5152,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         } catch {}
       }
 
-      // Also ensure points rows exist for key platforms (telegram, farcaster, web)
+      // Award 5 points for each newly linked platform account
+      // Track which platforms were newly linked (not already in identities)
+      const newlyLinked: string[] = [];
       for (const entry of linkedPlatformIds) {
-        if (["telegram", "farcaster", "web"].includes(entry.platform)) {
-          fireAndForget(core.awardPoints(entry.platformUserId, entry.platform, "account_linked"), "award points");
+        // Check if this platform was already linked before this sync
+        const existingRows = await sbFetch<any[]>(
+          cfg,
+          `flowb_identities?platform_user_id=eq.${encodeURIComponent(entry.platformUserId)}&canonical_id=eq.${encodeURIComponent(canonicalId)}&select=created_at&limit=1`,
+        );
+        // Only award if this is a new link (row was just created or didn't exist before)
+        const wasJustCreated = !existingRows?.length ||
+          (existingRows[0].created_at && new Date(existingRows[0].created_at).getTime() > Date.now() - 5000);
+        if (wasJustCreated) {
+          fireAndForget(core.awardPoints(entry.platformUserId, entry.platform, "account_linked"), "award points for linking");
+          newlyLinked.push(entry.platform);
         }
       }
 
@@ -4819,8 +5218,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts)`);
-      return { ok: true, synced, canonical_id: canonicalId, merged_points: mergedPoints, platforms_linked: platformsLinked };
+      // Calculate points awarded for newly linked accounts (5 points each)
+      const pointsAwarded = newlyLinked.length * 5;
+      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts, new: ${newlyLinked.join(",")} +${pointsAwarded}pts)`);
+      return {
+        ok: true,
+        synced,
+        canonical_id: canonicalId,
+        merged_points: mergedPoints + pointsAwarded,
+        platforms_linked: platformsLinked,
+        newly_linked: newlyLinked,
+        points_awarded: pointsAwarded,
+      };
     },
   );
 

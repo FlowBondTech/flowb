@@ -75,6 +75,7 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   social_post:           { points: 5,   dailyCap: 25 },
   social_scheduled:      { points: 3,   dailyCap: 15 },
   social_account_linked: { points: 10,  dailyCap: 30 },
+  account_linked:        { points: 5,   dailyCap: 50 },
   social_org_created:    { points: 20,  dailyCap: 20 },
   // SocialB auto-repost actions
   socialb_repost:        { points: 3,   dailyCap: 30 },
@@ -124,6 +125,17 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   chat:                  { points: 1,   dailyCap: 20 },
   results_shared:        { points: 5,   dailyCap: 25 },
   results_emailed:       { points: 3,   dailyCap: 15 },
+  // Profile completion (universal auth)
+  profile_photo_added:   { points: 10,  dailyCap: 10, once: true },
+  bio_added:             { points: 5,   dailyCap: 5,  once: true },
+  twitter_linked:        { points: 10,  dailyCap: 10, once: true },
+  github_linked:         { points: 10,  dailyCap: 10, once: true },
+  google_linked:         { points: 15,  dailyCap: 15, once: true },
+  telegram_linked:       { points: 15,  dailyCap: 15, once: true },
+  farcaster_linked:      { points: 15,  dailyCap: 15, once: true },
+  profile_50_complete:   { points: 20,  dailyCap: 20, once: true },
+  profile_100_complete:  { points: 50,  dailyCap: 50, once: true },
+  guest_converted:       { points: 25,  dailyCap: 25, once: true },
 };
 
 const MILESTONES = [
