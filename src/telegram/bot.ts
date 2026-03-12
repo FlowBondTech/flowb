@@ -110,24 +110,61 @@ import {
   buildPipelineKeyboard,
   type LeadData,
   type LeadStage,
-  // Task Lists
-  formatTaskListHtml,
-  buildTaskListKeyboard,
-  type TaskListData,
-  type TaskListItem,
+  // Task Lists - DISABLED: feature not fully implemented
+  // formatTaskListHtml,
+  // buildTaskListKeyboard,
+  // type TaskListData,
+  // type TaskListItem,
 } from "./cards.js";
+
+// Stub types for disabled task list feature
+type TaskListData = any;
+type TaskListItem = any;
+const formatTaskListHtml = (..._args: any[]) => "Task lists feature is not yet available.";
+const buildTaskListKeyboard = (..._args: any[]): undefined => undefined;
 import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
 import { handleChat, type ChatConfig, type ChatMessage, type ChatPersona } from "../services/ai-chat.js";
-import {
-  getGroupIntelConfig,
-  processGroupMessage,
-  enableGroupIntel,
-  disableGroupIntel,
-  SIGNAL_EMOJI,
-} from "../services/group-intelligence.js";
+// TEMPORARILY DISABLED: Group intelligence feature not fully implemented
+// import { ... } from "../services/group-intelligence.js";
+
+// Stub implementations for disabled group intelligence
+const SIGNAL_EMOJI: Record<string, string> = {
+  lead: "💼", question: "❓", announcement: "📢", action: "✅",
+  urgent: "🚨", idea: "💡", feedback: "💬", decision: "🎯",
+};
+
+interface GroupIntelConfig {
+  is_active: boolean;
+}
+
+async function getGroupIntelConfig(_chatId: number, _sb: any): Promise<GroupIntelConfig | null> {
+  return null; // Feature disabled
+}
+
+async function processGroupMessage(
+  _chatId: number,
+  _messageId: number,
+  _senderId: number,
+  _senderName: string,
+  _text: string,
+  _config: any,
+  _sb: any,
+  _awardPointsFn: (uid: string, plat: string, action: string) => Promise<any>,
+  _reactFn: (emoji: string) => Promise<void>
+): Promise<null> {
+  return null; // Feature disabled
+}
+
+async function enableGroupIntel(_chatId: number, _userId: string, _config: any): Promise<boolean> {
+  return false; // Feature disabled
+}
+
+async function disableGroupIntel(_chatId: number, _config: any): Promise<boolean> {
+  return false; // Feature disabled
+}
 
 const PAGE_SIZE = 3;
 const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes
@@ -2484,24 +2521,8 @@ export function startTelegramBot(
     else if (args === "all") period = "all";
     else query = ctx.match?.trim(); // Treat as search query
 
-    // Try Cu.Flow plugin first, fall back to raw GitHub fetch
-    const cuflow = core.getCuFlowPlugin();
-    let changelog: string;
-
-    if (cuflow?.isConfigured()) {
-      const cuflowPeriod = period === "today" ? "today" : period === "week" ? "this_week" : period === "month" ? "this_month" : "this_month";
-      const result = await cuflow.execute("cuflow-whats-new", {
-        action: "cuflow-whats-new",
-        period: cuflowPeriod,
-        query,
-      } as any, { platform: "telegram", config: {} as any });
-      // Convert markdown bold to HTML bold for Telegram
-      changelog = result
-        .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
-        .replace(/`(.+?)`/g, "<code>$1</code>");
-    } else {
-      changelog = await fetchGitChangelog(period, query);
-    }
+    // CuFlow plugin disabled - using raw GitHub fetch
+    const changelog = await fetchGitChangelog(period, query);
 
     const keyboard = new InlineKeyboard()
       .text("Today", "changelog_today")
@@ -2517,21 +2538,8 @@ export function startTelegramBot(
   // Callback buttons for changelog time periods
   bot.callbackQuery(/^changelog_(today|week|month)$/, async (ctx) => {
     const period = ctx.match![1] as "today" | "week" | "month";
-    const cuflow = core.getCuFlowPlugin();
-    let changelog: string;
-
-    if (cuflow?.isConfigured()) {
-      const cuflowPeriod = period === "today" ? "today" : period === "week" ? "this_week" : "this_month";
-      const result = await cuflow.execute("cuflow-whats-new", {
-        action: "cuflow-whats-new",
-        period: cuflowPeriod,
-      } as any, { platform: "telegram", config: {} as any });
-      changelog = result
-        .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
-        .replace(/`(.+?)`/g, "<code>$1</code>");
-    } else {
-      changelog = await fetchGitChangelog(period);
-    }
+    // CuFlow plugin disabled - using raw GitHub fetch
+    const changelog = await fetchGitChangelog(period);
 
     await ctx.editMessageText(changelog, {
       parse_mode: "HTML",

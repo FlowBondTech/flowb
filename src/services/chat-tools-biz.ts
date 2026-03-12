@@ -729,8 +729,8 @@ export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConf
 
   // Admin check is done at the tool-definition level (admin-only tool),
   // but double-check here for safety
-  const { isFlowBAdmin } = await import("../utils/admin.js");
-  const isAdmin = await isFlowBAdmin(cfg, user.userId);
+  // TODO: Re-enable admin check when utils/admin is complete
+  const isAdmin = false; // Temporarily disabled
   if (!isAdmin) return "Only admins can gift Flowmium. Nice try though!";
 
   const targetName = (args.target_name || "").trim();
@@ -865,137 +865,26 @@ export async function fetchUserBizContext(cfg: SbConfig, userId: string): Promis
 }
 
 // ─── Group Intelligence Tool Executors ──────────────────────────────
-
-import {
-  enableGroupIntel,
-  disableGroupIntel,
-  getGroupIntelConfig,
-  updateGroupIntelSettings,
-  listActiveGroups,
-  getGroupSignals,
-  manualRouteSignal,
-  buildSignalDigest,
-} from "./group-intelligence.js";
+// TEMPORARILY DISABLED: Group intelligence feature not fully implemented
+// import { ... } from "./group-intelligence.js";
 
 export async function manageGroupIntelligence(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
-  const action = args.action;
-
-  if (action === "list_active") {
-    const groups = await listActiveGroups(user.userId, cfg);
-    if (groups.length === 0) return JSON.stringify({ type: "group_intel_list", count: 0, groups: [], message: "No groups with intelligence enabled." });
-    return JSON.stringify({ type: "group_intel_list", count: groups.length, groups });
-  }
-
-  if (action === "enable" || action === "disable" || action === "status" || action === "configure") {
-    // Need to resolve crew_id to a chat_id
-    const crewId = args.crew_id;
-    if (!crewId) return "Crew ID or name required for this action.";
-
-    // Look up the crew's chat_id from flowb_groups
-    const crews = await sbFetch<any[]>(cfg, `flowb_groups?or=(id.eq.${encodeURIComponent(crewId)},name.ilike.*${encodeURIComponent(crewId)}*)&select=id,name,chat_id&limit=1`);
-    const crew = crews?.[0];
-    if (!crew) return `Crew "${crewId}" not found.`;
-    if (!crew.chat_id) return `Crew "${crew.name}" doesn't have a linked Telegram group.`;
-
-    // Check admin role
-    const role = await getCrewRole(cfg, user.userId, crew.id);
-    if (!role || !["admin", "creator"].includes(role)) {
-      return `You need admin access to manage intelligence for "${crew.name}".`;
-    }
-
-    if (action === "enable") {
-      const ok = await enableGroupIntel(crew.chat_id, user.userId, cfg, args.settings);
-      return ok
-        ? JSON.stringify({ type: "group_intel_enabled", crew: crew.name, chat_id: crew.chat_id })
-        : "Failed to enable group intelligence.";
-    }
-
-    if (action === "disable") {
-      const ok = await disableGroupIntel(crew.chat_id, cfg);
-      return ok
-        ? JSON.stringify({ type: "group_intel_disabled", crew: crew.name })
-        : "Failed to disable group intelligence.";
-    }
-
-    if (action === "status") {
-      const config = await getGroupIntelConfig(crew.chat_id, cfg);
-      if (!config) return JSON.stringify({ type: "group_intel_status", crew: crew.name, active: false });
-
-      const digest = await buildSignalDigest(crew.chat_id, cfg);
-      return JSON.stringify({
-        type: "group_intel_status",
-        crew: crew.name,
-        active: config.is_active,
-        config: {
-          listen_leads: config.listen_leads,
-          listen_todos: config.listen_todos,
-          listen_meetings: config.listen_meetings,
-          listen_deadlines: config.listen_deadlines,
-          listen_decisions: config.listen_decisions,
-          listen_action_items: config.listen_action_items,
-          listen_blockers: config.listen_blockers,
-          listen_events: config.listen_events,
-          listen_followups: config.listen_followups,
-          listen_expenses: config.listen_expenses,
-          listen_ideas: config.listen_ideas,
-          listen_feedback: config.listen_feedback,
-          digest_frequency: config.digest_frequency,
-          min_confidence: config.min_confidence,
-        },
-        recent_digest: digest,
-      });
-    }
-
-    if (action === "configure") {
-      if (!args.settings || Object.keys(args.settings).length === 0) return "No settings provided.";
-      const ok = await updateGroupIntelSettings(crew.chat_id, args.settings, cfg);
-      return ok
-        ? JSON.stringify({ type: "group_intel_configured", crew: crew.name, updated: Object.keys(args.settings) })
-        : "Failed to update settings.";
-    }
-  }
-
-  return `Unknown action: ${action}`;
+  return JSON.stringify({
+    type: "group_intel_unavailable",
+    message: "Group Intelligence feature is not yet available. Check back soon!"
+  });
 }
 
 export async function getGroupSignalsTool(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
-  const crewId = args.crew_id;
-  if (!crewId) return "Crew ID or name required.";
-
-  const crews = await sbFetch<any[]>(cfg, `flowb_groups?or=(id.eq.${encodeURIComponent(crewId)},name.ilike.*${encodeURIComponent(crewId)}*)&select=id,name,chat_id&limit=1`);
-  const crew = crews?.[0];
-  if (!crew?.chat_id) return `Crew "${crewId}" not found or no linked group.`;
-
-  const signals = await getGroupSignals(crew.chat_id, cfg, {
-    signal_type: args.signal_type,
-    limit: args.limit,
-    unrouted_only: args.unrouted_only,
-  });
-
   return JSON.stringify({
-    type: "group_signals",
-    crew: crew.name,
-    count: signals.length,
-    signals: signals.map((s: any) => ({
-      id: s.id,
-      signal_type: s.signal_type,
-      title: s.title,
-      description: s.description,
-      confidence: s.confidence,
-      sender_name: s.sender_name,
-      routed: s.routed,
-      routed_to: s.routed_to,
-      created_at: s.created_at,
-    })),
+    type: "group_signals_unavailable",
+    message: "Group Intelligence feature is not yet available. Check back soon!"
   });
 }
 
 export async function routeSignalTool(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
-  if (!args.signal_id) return "Signal ID required.";
-  if (!args.route_to) return "Route destination required.";
-
-  const ok = await manualRouteSignal(args.signal_id, args.route_to, cfg, args.override_data);
-  return ok
-    ? JSON.stringify({ type: "signal_routed", signal_id: args.signal_id, route_to: args.route_to })
-    : "Failed to route signal. Check the signal ID.";
+  return JSON.stringify({
+    type: "route_signal_unavailable",
+    message: "Group Intelligence feature is not yet available. Check back soon!"
+  });
 }

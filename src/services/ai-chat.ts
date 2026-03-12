@@ -9,7 +9,6 @@
  * chat-tools-biz.ts and wired into the executor switch below.
  */
 import { sbFetch, sbPost, sbPatch, type SbConfig } from "../utils/supabase.js";
-import { isFlowBAdmin } from "../utils/admin.js";
 import { sendEmail, resolveUserEmail, wrapInTemplate, escHtml } from "./email.js";
 import {
   createLead, listLeads, updateLead, getPipeline, getLeadTimeline,
@@ -26,18 +25,51 @@ import {
 } from "./chat-tools-biz.js";
 import { getMemoryContext, processConversationMemories, type MemoryConfig } from "./agent-memory.js";
 import { FiFlowPlugin, type FiFlowPluginConfig } from "../plugins/fiflow/index.js";
-import {
-  siteList, siteStatus, siteRebuild, siteActivity,
-  siteListProducts, siteAddProduct, siteUpdateProduct, siteDeleteProduct,
-  siteListArticles, siteCreateArticle, siteUpdateArticle, siteScheduleArticle, sitePublishArticle,
-  siteSeoStatus, siteSeoCheckArticle, siteSeoSuggestions,
-  stripeListProducts as ecStripeListProducts, stripeCreateCheckout, stripeListOrders,
-  stripeRefund, stripeRevenue, stripeSyncProducts,
-} from "./chat-tools-websites.js";
-import {
-  cuflowBrief, cuflowFeature, cuflowSearch, cuflowHotspots,
-  cuflowVelocity, cuflowContributors, cuflowWhatsNew, cuflowReport,
-} from "./chat-tools-cuflow.js";
+
+// TEMPORARILY DISABLED: incomplete features
+// import { isFlowBAdmin } from "../utils/admin.js";
+// import { ... } from "./chat-tools-websites.js";
+// import { ... } from "./chat-tools-cuflow.js";
+
+// Stubs for disabled features
+async function isFlowBAdmin(..._args: any[]): Promise<boolean> {
+  return false; // Admin check disabled until utils/admin is complete
+}
+
+// Website tool stubs
+const notImplemented = async (..._args: any[]): Promise<string> => "This feature is not yet available.";
+const siteList = notImplemented;
+const siteStatus = notImplemented;
+const siteRebuild = notImplemented;
+const siteActivity = notImplemented;
+const siteListProducts = notImplemented;
+const siteAddProduct = notImplemented;
+const siteUpdateProduct = notImplemented;
+const siteDeleteProduct = notImplemented;
+const siteListArticles = notImplemented;
+const siteCreateArticle = notImplemented;
+const siteUpdateArticle = notImplemented;
+const siteScheduleArticle = notImplemented;
+const sitePublishArticle = notImplemented;
+const siteSeoStatus = notImplemented;
+const siteSeoCheckArticle = notImplemented;
+const siteSeoSuggestions = notImplemented;
+const ecStripeListProducts = notImplemented;
+const stripeCreateCheckout = notImplemented;
+const stripeListOrders = notImplemented;
+const stripeRefund = notImplemented;
+const stripeRevenue = notImplemented;
+const stripeSyncProducts = notImplemented;
+
+// CuFlow tool stubs
+const cuflowBrief = notImplemented;
+const cuflowFeature = notImplemented;
+const cuflowSearch = notImplemented;
+const cuflowHotspots = notImplemented;
+const cuflowVelocity = notImplemented;
+const cuflowContributors = notImplemented;
+const cuflowWhatsNew = notImplemented;
+const cuflowReport = notImplemented;
 
 // ─── Types ───────────────────────────────────────────────────────────
 

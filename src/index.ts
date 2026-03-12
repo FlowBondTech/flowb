@@ -27,10 +27,8 @@ async function main() {
       import("./telegram/bot.js"),
       import("./services/privy.js"),
     ]).then(([{ startTelegramBot }, { PrivyClient }]) => {
-      const privy = config.plugins?.privy
-        ? new PrivyClient(config.plugins.privy)
-        : undefined;
-      startTelegramBot(tgToken, core, privy);
+      // Note: Privy integration is handled within the bot
+      startTelegramBot(tgToken, core);
     }).catch(err => console.error("[flowb-telegram] Failed to start:", err));
   }
 

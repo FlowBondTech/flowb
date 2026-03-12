@@ -47,11 +47,13 @@ import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js"
 import { registerAgentRoutes } from "./agent-routes.js";
 import { registerFiFlowRoutes } from "./fiflow-routes.js";
 import { registerPaymentRoutes } from "./payment-routes.js";
-import {
-  createProject, listProjects, getProject, updateProject, deleteProject,
-  testConnection, getActivityLog, createWebhook, listWebhooks, logActivity,
-  dispatchWebhook, type BizProject,
-} from "../plugins/websites/index.js";
+// TEMPORARILY DISABLED: websites plugin not fully implemented
+// import {
+//   createProject, listProjects, getProject, updateProject, deleteProject,
+//   testConnection, getActivityLog, createWebhook, listWebhooks, logActivity,
+//   dispatchWebhook, type BizProject,
+// } from "../plugins/websites/index.js";
+type BizProject = any;
 
 
 // ============================================================================
@@ -6092,170 +6094,24 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ============================================================================
   // BIZ PROJECTS — FlowB EC managed websites
   // ============================================================================
+  // TEMPORARILY DISABLED: websites plugin not fully implemented
+  // These routes will be re-enabled once the websites plugin is complete
 
-  // Create project
-  app.post<{ Body: any }>("/api/v1/biz/projects", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-
-    const { name, slug, domain, platform, supabase_url, supabase_anon_key, supabase_service_key,
-            netlify_site_id, netlify_build_hook, stripe_account_id, tg_channel_id, settings } = (request.body || {}) as any;
-    if (!name || !slug) return reply.status(400).send({ error: "name and slug required" });
-    if (!/^[a-z0-9-]+$/.test(slug)) return reply.status(400).send({ error: "slug must be lowercase alphanumeric with hyphens" });
-
-    const project = await createProject(sb, jwt.sub, {
-      name, slug, domain, platform, supabase_url, supabase_anon_key, supabase_service_key,
-      netlify_site_id, netlify_build_hook, stripe_account_id, tg_channel_id, settings,
-    });
-    if (!project) return reply.status(500).send({ error: "Failed to create project" });
-    return { ok: true, project };
-  });
-
-  // List projects
   app.get("/api/v1/biz/projects", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const projects = await listProjects(sb, jwt.sub);
-    return { projects };
+    return reply.status(501).send({ error: "Feature not yet available" });
   });
 
-  // Get project details
-  app.get<{ Params: { slug: string } }>("/api/v1/biz/projects/:slug", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const project = await getProject(sb, request.params.slug);
-    if (!project) return reply.status(404).send({ error: "Not found" });
-    if (project.owner_id !== jwt.sub) return reply.status(403).send({ error: "Forbidden" });
-    // Strip encrypted keys from response
-    const { supabase_service_key_enc, ...safe } = project;
-    return { project: { ...safe, has_service_key: !!supabase_service_key_enc } };
+  app.all("/api/v1/biz/projects/*", async (request, reply) => {
+    return reply.status(501).send({ error: "Feature not yet available" });
   });
 
-  // Update project
-  app.patch<{ Params: { slug: string }; Body: any }>("/api/v1/biz/projects/:slug", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const ok = await updateProject(sb, request.params.slug, jwt.sub, request.body || {});
-    if (!ok) return reply.status(400).send({ error: "Update failed" });
-    return { ok: true };
+  app.all("/api/v1/biz/webhooks/*", async (request, reply) => {
+    return reply.status(501).send({ error: "Feature not yet available" });
   });
 
-  // Delete project
-  app.delete<{ Params: { slug: string } }>("/api/v1/biz/projects/:slug", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const ok = await deleteProject(sb, request.params.slug, jwt.sub);
-    if (!ok) return reply.status(400).send({ error: "Delete failed" });
-    return { ok: true };
+  app.post("/api/v1/biz/inbound-webhook", async (request, reply) => {
+    return reply.status(501).send({ error: "Feature not yet available" });
   });
-
-  // Test connection
-  app.post<{ Params: { slug: string } }>("/api/v1/biz/projects/:slug/test", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const result = await testConnection(sb, request.params.slug);
-    return result;
-  });
-
-  // Activity log
-  app.get<{ Params: { slug: string }; Querystring: { limit?: string } }>(
-    "/api/v1/biz/projects/:slug/activity",
-    async (request, reply) => {
-      const jwt = extractJwt(request);
-      if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-      const sb = getSupabaseConfig();
-      if (!sb) return reply.status(500).send({ error: "DB not configured" });
-      const project = await getProject(sb, request.params.slug);
-      if (!project) return reply.status(404).send({ error: "Not found" });
-      if (project.owner_id !== jwt.sub) return reply.status(403).send({ error: "Forbidden" });
-      const limit = parseInt(request.query.limit || "50", 10);
-      const activity = await getActivityLog(sb, project.id, limit);
-      return { activity };
-    },
-  );
-
-  // Configure webhook
-  app.post<{ Body: { project_slug: string; event_type: string; target: string; target_config?: Record<string, any> } }>(
-    "/api/v1/biz/webhooks",
-    async (request, reply) => {
-      const jwt = extractJwt(request);
-      if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-      const sb = getSupabaseConfig();
-      if (!sb) return reply.status(500).send({ error: "DB not configured" });
-      const { project_slug, event_type, target, target_config } = request.body || {};
-      if (!project_slug || !event_type) return reply.status(400).send({ error: "project_slug and event_type required" });
-      const project = await getProject(sb, project_slug);
-      if (!project || project.owner_id !== jwt.sub) return reply.status(403).send({ error: "Forbidden" });
-      const hook = await createWebhook(sb, project.id, event_type, target || "telegram", target_config || {});
-      return { ok: true, webhook: hook };
-    },
-  );
-
-  // List webhooks
-  app.get<{ Params: { projectSlug: string } }>("/api/v1/biz/webhooks/:projectSlug", async (request, reply) => {
-    const jwt = extractJwt(request);
-    if (!jwt?.sub) return reply.status(401).send({ error: "Unauthorized" });
-    const sb = getSupabaseConfig();
-    if (!sb) return reply.status(500).send({ error: "DB not configured" });
-    const project = await getProject(sb, request.params.projectSlug);
-    if (!project || project.owner_id !== jwt.sub) return reply.status(403).send({ error: "Forbidden" });
-    const webhooks = await listWebhooks(sb, project.id);
-    return { webhooks };
-  });
-
-  // Inbound webhook (receives events FROM managed sites)
-  app.post<{ Body: { project_slug: string; api_key: string; event: string; data?: any } }>(
-    "/api/v1/biz/inbound-webhook",
-    async (request, reply) => {
-      const sb = getSupabaseConfig();
-      if (!sb) return reply.status(500).send({ error: "DB not configured" });
-      const { project_slug, api_key, event, data } = request.body || {};
-      if (!project_slug || !api_key || !event) return reply.status(400).send({ error: "Missing required fields" });
-
-      const project = await getProject(sb, project_slug);
-      if (!project) return reply.status(404).send({ error: "Unknown project" });
-
-      // Verify API key matches stored (encrypted) service key
-      if (!project.supabase_service_key_enc) return reply.status(403).send({ error: "No key configured" });
-      try {
-        const { decrypt } = await import("../plugins/websites/vault.js");
-        const stored = decrypt(project.supabase_service_key_enc);
-        if (stored !== api_key) return reply.status(403).send({ error: "Invalid API key" });
-      } catch {
-        return reply.status(403).send({ error: "Key verification failed" });
-      }
-
-      // Log activity
-      await logActivity(sb, project.id, "site", event, data?.entity_type, data?.entity_id, data);
-
-      // Dispatch to configured webhooks
-      await dispatchWebhook(sb, project.id, event, { project_slug, event, ...data });
-
-      // Notify TG channel
-      if (project.tg_channel_id) {
-        try {
-          const { notifyBizChannel } = await import("../services/biz-notifications.js");
-          await notifyBizChannel(project, event, data || {});
-        } catch (err) {
-          console.error("[biz-webhook] notification error:", err);
-        }
-      }
-
-      return { ok: true };
-    },
-  );
 
   // ============================================================================
   // AGENTS — see agent-routes.ts
