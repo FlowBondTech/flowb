@@ -94,6 +94,54 @@ export async function authFarcaster(message: string, signature: string): Promise
 }
 
 // ============================================================================
+// Guest Auth
+// ============================================================================
+
+export interface GuestSession {
+  guestToken: string;
+  expiresAt: string;
+  crew?: {
+    id: string;
+    name: string;
+    emoji: string;
+    member_count?: number;
+  };
+}
+
+export interface GuestCrewInfo {
+  id: string;
+  name: string;
+  emoji: string;
+  join_code: string;
+}
+
+export async function createGuestSession(joinCode?: string): Promise<GuestSession> {
+  return post<GuestSession>("/api/v1/auth/guest", { joinCode });
+}
+
+export async function joinCrewAsGuest(guestToken: string, joinCode: string): Promise<GuestCrewInfo | null> {
+  const data = await post<{ crew: GuestCrewInfo | null }>("/api/v1/auth/guest/join-crew", { guestToken, joinCode });
+  return data.crew;
+}
+
+export async function getGuestCrews(guestToken: string): Promise<GuestCrewInfo[]> {
+  const data = await post<{ crews: GuestCrewInfo[] }>("/api/v1/auth/guest/crews", { guestToken });
+  return data.crews;
+}
+
+export async function convertGuestToUser(
+  guestToken: string,
+  authMethod: string,
+  authData: { accessToken?: string; initData?: string; fcMessage?: string; fcSignature?: string },
+): Promise<{ ok: boolean; token: string; user: { id: string; platform: string }; mergedData: { crewsJoined: number; pointsAwarded: number } }> {
+  const data = await post<any>("/api/v1/auth/guest/convert", { guestToken, authMethod, ...authData });
+  if (data.token) {
+    authToken = data.token;
+  }
+  return data;
+}
+
+// ============================================================================
 // Events
 // ============================================================================
 
@@ -463,10 +511,17 @@ export interface CheckoutIntent {
   method: string;
   amountUsdc: number;
   expiresAt: string;
+  // Crypto payments
   paymentAddress?: string;
   network?: string;
   chainId?: number;
+  // Stripe payments
   clientSecret?: string;
+  stripePublishableKey?: string;
+  stripeCheckoutUrl?: string;
+  // Telegram Stars payments
+  telegramInvoiceUrl?: string;
+  starsAmount?: number;
 }
 
 export interface CheckoutConfirmResult {

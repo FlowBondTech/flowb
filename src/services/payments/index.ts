@@ -152,16 +152,27 @@ export class PaymentService {
     switch (params.paymentMethod) {
       case "stripe":
       case "apple_pay": {
-        const stripeIntent = await this.stripe.createPaymentIntent({
+        // Use Checkout Sessions for web/miniapp contexts (redirects to Stripe hosted page)
+        const baseUrl = process.env.FLOWB_MINIAPP_URL || "https://t.me/Flow_b_bot/flowb";
+        const checkoutSession = await this.stripe.createCheckoutSession({
           orderId: order.id,
-          amount: order.amount_usdc,
           productName: product.name,
+          amount: order.amount_usdc,
+          successUrl: `${baseUrl}?checkout=success&orderId=${order.id}`,
+          cancelUrl: `${baseUrl}?checkout=cancelled&orderId=${order.id}`,
           customerId: params.userId,
-          enableApplePay: params.paymentMethod === "apple_pay",
         });
+
+        // Update order with checkout session ID
+        await this.supabase
+          .from("flowb_orders")
+          .update({ stripe_checkout_session_id: checkoutSession.sessionId })
+          .eq("id", order.id);
+
         return {
           ...baseIntent,
-          clientSecret: stripeIntent.clientSecret,
+          clientSecret: checkoutSession.sessionId, // Store session ID for verification
+          stripeCheckoutUrl: checkoutSession.url, // URL to redirect user to
           stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY,
         };
       }

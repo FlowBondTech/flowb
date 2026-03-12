@@ -87,6 +87,7 @@ export interface PaymentIntent {
   // Stripe-specific
   clientSecret?: string;
   stripePublishableKey?: string;
+  stripeCheckoutUrl?: string;
   // Crypto-specific
   paymentAddress?: string;
   network?: PaymentNetwork;
