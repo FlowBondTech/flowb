@@ -26,18 +26,17 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/signal` | No | Signal Mini App (HMAC-based, same pattern as WhatsApp) |
 | `POST` | `/api/v1/auth/passport` | No | FlowB Passport (Supabase Auth) — primary new auth endpoint |
 | `POST` | `/api/v1/auth/claim-points` | Yes | Claim pending points (pre-auth actions → backend account) |
-
-## FEED
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/v1/feed/community` | No | Community Farcaster Feed (aggregates posts with keywords) |
-| `GET` | `/api/v1/feed/activity` | Yes | Global activity feed — check-ins, crew messages, hot venues, trending events |
+| `POST` | `/api/v1/auth/guest` | No | Guest Session (join first, signup after) |
 
 ## Other
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
+| `POST` | `/api/v1/auth/guest/join-crew` | No |  |
+| `POST` | `/api/v1/auth/guest/convert` | No |  |
+| `GET` | `/api/v1/auth/guest/crews` | No |  |
+| `GET` | `/api/v1/auth/providers` | No |  |
+| `GET` | `/api/v1/crew/:code/info` | No |  |
 | `GET` | `/api/v1/feed/ethdenver` | No |  |
 | `GET` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
 | `PATCH` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
@@ -144,6 +143,13 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/chat/email-results` | No |  |
 | `POST` | `/api/v1/admin/scan-events` | No |  |
 
+## FEED
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/v1/feed/community` | No | Community Farcaster Feed (aggregates posts with keywords) |
+| `GET` | `/api/v1/feed/activity` | Yes | Global activity feed — check-ins, crew messages, hot venues, trending events |
+
 ## EVENTS
 
 | Method | Path | Auth | Description |
@@ -205,8 +211,9 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `PATCH` | `unknown` | Yes | Update own bio, role, tags (requires auth) |
-| `GET` | `/api/v1/me/profile` | Yes | Get own profile (bio, role, tags) (requires auth) |
+| `PATCH` | `unknown` | Yes | Update own profile (requires auth) |
+| `GET` | `/api/v1/me/profile` | Yes | Get own profile with completion tracking (requires auth) |
+| `POST` | `/api/v1/me/link-identity` | Yes | Link identity (requires auth) |
 
 ## POINTS
 
@@ -468,4 +475,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 20:06:58 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-12 20:47:02 UTC*
