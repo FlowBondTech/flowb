@@ -21,6 +21,7 @@ declare global {
     flowbPrivy: {
       login: () => void;
       logout: () => Promise<void>;
+      createWallet: () => Promise<void>;
       linkEmail: () => void;
       linkPhone: () => void;
       linkWallet: () => void;
@@ -30,7 +31,11 @@ declare global {
       linkFarcaster: () => void;
       linkTelegram: () => void;
       linkApple: () => void;
+      linkLinkedIn: () => void;
+      linkTikTok: () => void;
+      linkInstagram: () => void;
       getLinkedAccounts: () => LinkedAccountInfo[];
+      hasEmbeddedWallet: () => boolean;
     };
   }
 }
@@ -123,6 +128,10 @@ function AuthBridge() {
     window.flowbPrivy = {
       login,
       logout,
+      createWallet: async () => {
+        if (!authenticated) throw new Error('Must be logged in to create wallet');
+        await privy.createWallet();
+      },
       linkEmail: () => privy.linkEmail(),
       linkPhone: () => privy.linkPhone(),
       linkWallet: () => privy.linkWallet(),
@@ -132,10 +141,14 @@ function AuthBridge() {
       linkFarcaster: () => privy.linkFarcaster(),
       linkTelegram: () => privy.linkTelegram(),
       linkApple: () => privy.linkApple(),
+      linkLinkedIn: () => privy.linkLinkedIn(),
+      linkTikTok: () => privy.linkTiktok(),
+      linkInstagram: () => privy.linkInstagram(),
       getLinkedAccounts,
+      hasEmbeddedWallet: () => !!user?.wallet?.walletClientType?.includes('privy'),
     };
     console.log('[privy] window.flowbPrivy set');
-  }, [login, logout, privy, getLinkedAccounts]);
+  }, [login, logout, privy, getLinkedAccounts, authenticated, user]);
 
   // Emit auth state changes for vanilla JS to consume
   // Include linked accounts so the settings page can render them
@@ -195,11 +208,16 @@ if (el) {
             appearance: {
               theme: 'dark',
               accentColor: '#6366f1',
+              logo: 'https://flowb.me/flowb-logo.png',
             },
-            loginMethods: ['email', 'telegram', 'farcaster'],
-            walletConnectCloudProjectId: undefined,
+            loginMethods: ['email', 'wallet', 'telegram', 'farcaster', 'discord', 'twitter', 'github', 'linkedin', 'tiktok', 'instagram', 'phone'],
+            walletConnectCloudProjectId: '6a48b68b21541e70f93d9fbb70759652',
             embeddedWallets: {
-              createOnLogin: 'off',
+              createOnLogin: 'off', // We create on-demand with "Create your Flow Wallet" button
+              noPromptOnSignature: false,
+            },
+            externalWallets: {
+              coinbaseWallet: { connectionOptions: 'smartWalletOnly' },
             },
           }}
         >
