@@ -2263,6 +2263,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.patch<{
     Body: {
+      display_name?: string;
       bio?: string;
       role?: string;
       tags?: string[];

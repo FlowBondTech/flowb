@@ -252,6 +252,169 @@
       color: var(--text-muted);
     }
 
+    /* Profile header card */
+    .profile-header {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .profile-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+    .profile-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .profile-info { flex: 1; min-width: 0; }
+    .profile-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .profile-email {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .profile-id {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: monospace;
+    }
+    .profile-completion {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .profile-completion-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      max-width: 180px;
+    }
+    .profile-completion-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #8b5cf6);
+      border-radius: 3px;
+      transition: width 0.5s ease;
+    }
+    .profile-completion-text {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .profile-edit-btn {
+      padding: 8px 18px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-pill);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s;
+      flex-shrink: 0;
+    }
+    .profile-edit-btn:hover { border-color: var(--accent); }
+
+    /* Profile form */
+    .profile-field {
+      margin-bottom: 16px;
+    }
+    .profile-field label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+    }
+    .profile-field input,
+    .profile-field textarea {
+      width: 100%;
+      padding: 10px 14px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font: inherit;
+      font-size: 0.88rem;
+      transition: border-color 0.2s;
+    }
+    .profile-field input:focus,
+    .profile-field textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .profile-field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .profile-field .field-hint {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+    .profile-tags-input {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      min-height: 40px;
+      cursor: text;
+    }
+    .profile-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      background: rgba(99,102,241,0.1);
+      border: 1px solid rgba(99,102,241,0.2);
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
+      color: var(--accent-light);
+    }
+    .profile-tag-remove {
+      cursor: pointer;
+      opacity: 0.6;
+      font-size: 0.9rem;
+    }
+    .profile-tag-remove:hover { opacity: 1; }
+    .profile-save-msg {
+      font-size: 0.82rem;
+      color: var(--green);
+      margin-top: 8px;
+      display: none;
+    }
+
+    @media (max-width: 600px) {
+      .profile-header { flex-direction: column; text-align: center; gap: 14px; }
+      .profile-edit-btn { width: 100%; }
+    }
+
     /* Encouragement banner */
     .settings-encourage {
       background: linear-gradient(135deg, rgba(37,99,235,0.08), rgba(168,85,247,0.08));
@@ -482,16 +645,97 @@
         <h1 class="settings-title">Settings</h1>
         <p class="settings-subtitle">Your data, your rules. Control how FlowB works for you.</p>
 
+        <!-- Profile Header Card -->
+        <div class="profile-header" id="profileHeader">
+          <div class="profile-avatar" id="profileAvatar">?</div>
+          <div class="profile-info">
+            <div class="profile-name" id="profileName">Loading...</div>
+            <div class="profile-email" id="profileEmail"></div>
+            <div class="profile-id" id="profileId"></div>
+            <div class="profile-completion" id="profileCompletion">
+              <div class="profile-completion-bar"><div class="profile-completion-fill" id="profileCompletionFill" style="width:0%"></div></div>
+              <span class="profile-completion-text" id="profileCompletionText">0% complete</span>
+            </div>
+          </div>
+          <button class="profile-edit-btn" id="profileEditBtn">Edit Profile</button>
+        </div>
+
         <!-- Tabs -->
         <div class="settings-tabs">
-          <button class="settings-tab active" data-tab="accounts">Connected Accounts</button>
+          <button class="settings-tab active" data-tab="profile">Profile</button>
+          <button class="settings-tab" data-tab="accounts">Connected Accounts</button>
           <button class="settings-tab" data-tab="privacy">Privacy</button>
           <button class="settings-tab" data-tab="crews">Crews & Groups</button>
           <button class="settings-tab" data-tab="notifications">Notifications</button>
         </div>
 
+        <!-- ====== PROFILE TAB ====== -->
+        <div class="settings-panel active" id="panel-profile">
+          <div class="settings-section">
+            <h3 class="settings-section-title">Your Profile</h3>
+            <p class="settings-section-desc">This is how you appear across FlowB. Your display name shows on the leaderboard, crews, and activity feed.</p>
+
+            <div class="profile-field">
+              <label for="profileDisplayName">Display Name</label>
+              <input type="text" id="profileDisplayName" placeholder="e.g. cryptokoh" maxlength="50">
+              <div class="field-hint">How others see you on FlowB</div>
+            </div>
+
+            <div class="profile-field">
+              <label for="profileBio">Bio</label>
+              <textarea id="profileBio" placeholder="Tell people about yourself..." maxlength="280"></textarea>
+              <div class="field-hint">Short bio shown on your profile (max 280 chars)</div>
+            </div>
+
+            <div class="profile-field">
+              <label for="profileRole">Role / Title</label>
+              <input type="text" id="profileRole" placeholder="e.g. Builder, Designer, Community Lead" maxlength="100">
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Social Links</h3>
+            <p class="settings-section-desc">Optional links displayed on your profile card.</p>
+
+            <div class="profile-field">
+              <label for="profileTwitter">X / Twitter</label>
+              <input type="text" id="profileTwitter" placeholder="@handle">
+            </div>
+
+            <div class="profile-field">
+              <label for="profileGithub">GitHub</label>
+              <input type="text" id="profileGithub" placeholder="username">
+            </div>
+
+            <div class="profile-field">
+              <label for="profileLinkedin">LinkedIn URL</label>
+              <input type="url" id="profileLinkedin" placeholder="https://linkedin.com/in/...">
+            </div>
+
+            <div class="profile-field">
+              <label for="profileWebsite">Website</label>
+              <input type="url" id="profileWebsite" placeholder="https://...">
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <h3 class="settings-section-title">Wallet Address</h3>
+            <p class="settings-section-desc">Your public wallet address for on-chain rewards and payments.</p>
+
+            <div class="profile-field">
+              <label for="profileWallet">Wallet Address</label>
+              <input type="text" id="profileWallet" placeholder="0x... or SOL address">
+            </div>
+          </div>
+
+          <div style="margin-top:16px;display:flex;align-items:center;gap:12px;">
+            <button class="settings-save-btn" id="saveProfileBtn">Save Profile</button>
+            <span class="profile-save-msg" id="profileSaveMsg">Profile saved!</span>
+          </div>
+        </div>
+
         <!-- ====== CONNECTED ACCOUNTS TAB ====== -->
-        <div class="settings-panel active" id="panel-accounts">
+        <div class="settings-panel" id="panel-accounts">
 
           <!-- Encouragement Banner -->
           <div class="settings-encourage" id="accountsEncourage">
@@ -922,12 +1166,123 @@
     // ===== Load All Settings =====
 
     async function loadAllSettings() {
+      loadProfileSection();
       renderWalletSection();
       loadLinkedAccounts();
       loadPrivacySettings();
       loadCrewVisibility();
       loadNotificationSettings();
     }
+
+    // ===== Profile Section =====
+
+    async function loadProfileSection() {
+      const data = await fetchAuthed('/api/v1/me/profile');
+      const p = data?.profile || {};
+
+      // Update the header card
+      const nameEl = document.getElementById('profileName');
+      const emailEl = document.getElementById('profileEmail');
+      const idEl = document.getElementById('profileId');
+      const avatarEl = document.getElementById('profileAvatar');
+      const fillEl = document.getElementById('profileCompletionFill');
+      const textEl = document.getElementById('profileCompletionText');
+
+      const displayName = p.display_name || Auth.user?.username || Auth.user?.email || 'User';
+      if (nameEl) nameEl.textContent = displayName;
+      if (emailEl) emailEl.textContent = Auth.user?.email || '';
+      if (idEl && Auth.user?.id) {
+        const uid = Auth.user.id;
+        idEl.textContent = uid.length > 30 ? uid.slice(0, 16) + '...' + uid.slice(-8) : uid;
+      }
+
+      // Avatar
+      if (avatarEl) {
+        if (p.avatar_url) {
+          avatarEl.innerHTML = '<img src="' + escapeHtml(p.avatar_url) + '" alt="Avatar">';
+        } else {
+          avatarEl.textContent = (displayName || '?')[0].toUpperCase();
+        }
+      }
+
+      // Completion
+      const pct = p.completion_pct || 0;
+      if (fillEl) fillEl.style.width = pct + '%';
+      if (textEl) textEl.textContent = pct + '% complete';
+
+      // Linked platforms badge
+      if (p.linked_platforms?.length) {
+        const platforms = p.linked_platforms.map(pl => pl.charAt(0).toUpperCase() + pl.slice(1)).join(', ');
+        if (emailEl && !Auth.user?.email) emailEl.textContent = platforms;
+      }
+
+      // Populate form fields
+      document.getElementById('profileDisplayName').value = p.display_name || '';
+      document.getElementById('profileBio').value = p.bio || '';
+      document.getElementById('profileRole').value = p.role || '';
+      document.getElementById('profileTwitter').value = p.twitter_handle || '';
+      document.getElementById('profileGithub').value = p.github_handle || '';
+      document.getElementById('profileLinkedin').value = p.linkedin_url || '';
+      document.getElementById('profileWebsite').value = p.website_url || '';
+      document.getElementById('profileWallet').value = p.wallet_address || '';
+
+      // If display name is "User" or empty, nudge them
+      if (!p.display_name || p.display_name === 'User') {
+        const nameInput = document.getElementById('profileDisplayName');
+        if (nameInput) {
+          nameInput.style.borderColor = 'var(--accent)';
+          nameInput.placeholder = 'Set your display name!';
+        }
+      }
+    }
+
+    // Edit Profile button scrolls to Profile tab
+    document.getElementById('profileEditBtn')?.addEventListener('click', () => {
+      const profileTab = document.querySelector('.settings-tab[data-tab="profile"]');
+      if (profileTab) profileTab.click();
+      document.getElementById('profileDisplayName')?.focus();
+    });
+
+    // Save Profile
+    document.getElementById('saveProfileBtn')?.addEventListener('click', async () => {
+      if (!Auth.isAuthenticated) return;
+      const btn = document.getElementById('saveProfileBtn');
+      const msg = document.getElementById('profileSaveMsg');
+      btn.textContent = 'Saving...';
+      btn.disabled = true;
+
+      const newName = document.getElementById('profileDisplayName').value.trim();
+      const body = {
+        display_name: newName || undefined,
+        bio: document.getElementById('profileBio').value.trim(),
+        role: document.getElementById('profileRole').value.trim(),
+        twitter_handle: document.getElementById('profileTwitter').value.trim().replace(/^@/, ''),
+        github_handle: document.getElementById('profileGithub').value.trim(),
+        linkedin_url: document.getElementById('profileLinkedin').value.trim(),
+        website_url: document.getElementById('profileWebsite').value.trim(),
+        wallet_address: document.getElementById('profileWallet').value.trim(),
+      };
+
+      await fetchAuthed('/api/v1/me/profile', {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      });
+
+      // Update local auth state with new display name
+      if (newName && newName !== 'User' && Auth.user) {
+        Auth.user.username = newName;
+        localStorage.setItem('flowb-auth', JSON.stringify(Auth.user));
+        renderAuthState();
+      }
+
+      btn.textContent = 'Save Profile';
+      btn.disabled = false;
+      msg.style.display = 'inline';
+      setTimeout(() => { msg.style.display = 'none'; }, 2500);
+
+      // Refresh the header card
+      loadProfileSection();
+    });
 
     // ===== Wallet Section =====
 
@@ -939,7 +1294,7 @@
       const hasEmbeddedWallet = window.flowbPrivy?.hasEmbeddedWallet?.() || false;
 
       // Check for connected external wallets
-      const walletAccount = privyLinkedAccounts.find(a => a.type === 'wallet');
+      const walletAccount = linkedAccounts.find(a => a.type === 'wallet');
       const hasExternalWallet = !!walletAccount && !hasEmbeddedWallet;
 
       let html = '';
