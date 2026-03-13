@@ -47,10 +47,12 @@ function getFeaturedEvents(): FeaturedEvent[] {
       { title: "SXSW Opening Day", date: "Thu, Mar 12", time: "10:00 AM - 6:00 PM CT", location: "Austin Convention Center", badge: "Opening", url: "https://sxsw.com", isFree: false },
     ],
     13: [
+      { title: "own. Frequency", date: "Fri, Mar 13", time: "3:00 PM - 12:30 AM CT", location: "Austin, TX", badge: "Creator Economy", url: "https://luma.com/xboyz2o0", isFree: true },
       { title: "SXSW Conference & Showcases", date: "Fri, Mar 13", time: "9:00 AM - 12:00 AM CT", location: "Downtown Austin", badge: "Main Event", url: "https://sxsw.com", isFree: false },
       { title: "Web3 & Crypto Summit", date: "Fri, Mar 13", time: "All Day", location: "Austin, TX", badge: "Side Event", url: "https://sxsw.com", isFree: false },
     ],
     14: [
+      { title: "own. Frequency", date: "Sat, Mar 14", time: "3:00 PM - 12:30 AM CT", location: "Austin, TX", badge: "Creator Economy", url: "https://luma.com/xboyz2o0", isFree: true },
       { title: "SXSW Music Festival Kickoff", date: "Sat, Mar 14", time: "12:00 PM - 2:00 AM CT", location: "6th Street & Rainey St, Austin", badge: "Music", url: "https://sxsw.com", isFree: false },
     ],
     15: [
@@ -533,15 +535,27 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             </div>
           ) : (
             <>
+              {/* Featured Event - Always at top when present */}
+              {dateFiltered.filter(e => e.isFeatured).length > 0 && (
+                <>
+                  <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Featured Event</span>
+                  </div>
+                  {dateFiltered.filter(e => e.isFeatured).map((e) => (
+                    <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />
+                  ))}
+                </>
+              )}
+
               {isNowFilter ? (
-                happeningNow.length > 0 ? (
+                happeningNow.filter(e => !e.isFeatured).length > 0 ? (
                   <>
                     <div className="section-title">Happening Now</div>
-                    {happeningNow.map((e) => (
-                      <EventCard key={e.id} event={e} onClick={() => onNavigate({ name: "event", id: e.id })} />
+                    {happeningNow.filter(e => !e.isFeatured).map((e) => (
+                      <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />
                     ))}
                   </>
-                ) : (
+                ) : dateFiltered.filter(e => e.isFeatured).length === 0 ? (
                   <div className="card">
                     <div className="empty-state">
                       <div className="empty-state-emoji">{"\u23F0"}</div>
@@ -552,32 +566,32 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
                       </button>
                     </div>
                   </div>
-                )
+                ) : null
               ) : (
                 <>
-                  {happeningNow.length > 0 && (
+                  {happeningNow.filter(e => !e.isFeatured).length > 0 && (
                     <>
                       <div className="section-title">Happening Now</div>
-                      {happeningNow.map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => onNavigate({ name: "event", id: e.id })} />
+                      {happeningNow.filter(e => !e.isFeatured).map((e) => (
+                        <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />
                       ))}
                     </>
                   )}
 
-                  {nextUp.length > 0 && (
+                  {nextUp.filter(e => !e.isFeatured).length > 0 && (
                     <>
                       <div className="section-title">Next Up</div>
-                      {nextUp.map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => onNavigate({ name: "event", id: e.id })} />
+                      {nextUp.filter(e => !e.isFeatured).map((e) => (
+                        <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />
                       ))}
                     </>
                   )}
 
-                  {later.length > 0 && (
+                  {later.filter(e => !e.isFeatured).length > 0 && (
                     <>
                       <div className="section-title">Later</div>
-                      {later.slice(0, 15).map((e) => (
-                        <EventCard key={e.id} event={e} onClick={() => onNavigate({ name: "event", id: e.id })} />
+                      {later.filter(e => !e.isFeatured).slice(0, 15).map((e) => (
+                        <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />
                       ))}
                     </>
                   )}

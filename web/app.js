@@ -267,6 +267,14 @@ function createEventCard(e) {
   const venue = e.venue?.name || (e.isOnline ? 'Online' : '');
   const org = e.organizer?.name || '';
 
+  // Featured/Boosted badges
+  let boostBadgeHtml = '';
+  if (e.isFeatured) {
+    boostBadgeHtml = '<span class="event-badge featured" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;font-weight:700;padding:3px 8px;border-radius:4px;font-size:11px;">Featured</span>';
+  } else if (e.isBoosted) {
+    boostBadgeHtml = '<span class="event-badge boosted" style="background:#a855f7;color:#fff;font-weight:600;padding:3px 8px;border-radius:4px;font-size:11px;">Boosted</span>';
+  }
+
   let priceHtml = '';
   if (e.isSoldOut) {
     priceHtml = '<span class="event-sold-out">Sold Out</span>';
@@ -317,7 +325,7 @@ function createEventCard(e) {
         ${sourceBadge}
       </div>
       <div class="event-card-body">
-        <div class="event-card-cat">${catEmoji} ${catLabel}</div>
+        <div class="event-card-cat" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${boostBadgeHtml}${catEmoji} ${catLabel}</div>
         <h3 class="event-card-title">${escapeHtml(e.title)}</h3>
         <div class="event-card-meta">
           <div class="event-card-meta-row">
