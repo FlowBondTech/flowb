@@ -126,6 +126,7 @@ import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../ut
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
+import { isFlowBAdmin } from "../utils/admin.js";
 import { handleChat, type ChatConfig, type ChatMessage, type ChatPersona } from "../services/ai-chat.js";
 // TEMPORARILY DISABLED: Group intelligence feature not fully implemented
 // import { ... } from "../services/group-intelligence.js";
@@ -2407,6 +2408,24 @@ export function startTelegramBot(
       "/suggestfeature - Suggest a feature",
       "/reportbug - Report a bug",
     ];
+
+    // Show admin section only for admins
+    const sbUrlHelp = process.env.SUPABASE_URL;
+    const sbKeyHelp = process.env.SUPABASE_KEY;
+    if (sbUrlHelp && sbKeyHelp) {
+      const isAdminHelp = await isFlowBAdmin({ supabaseUrl: sbUrlHelp, supabaseKey: sbKeyHelp }, userId(tgId));
+      if (isAdminHelp) {
+        help.push(
+          "",
+          "<b>Admin</b>",
+          "/admin id - Chat/group/user IDs",
+          "/admin user <i>name</i> - Lookup user",
+          "/admin active [1d|7d|30d] - Active users",
+          "/admin stats - User overview",
+        );
+      }
+    }
+
     await ctx.reply(help.join("\n"), {
       parse_mode: "HTML",
       reply_markup: buildBackToMenuKeyboard(),
@@ -3302,6 +3321,86 @@ export function startTelegramBot(
     } catch (err) {
       await ctx.reply(`Stats failed: ${err instanceof Error ? err.message : String(err)}`);
     }
+  });
+
+  // ========================================================================
+  // Admin: /admin — admin-only utilities (chat ID, user lookup, active users)
+  // ========================================================================
+
+  bot.command("admin", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Supabase not configured."); return; }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+    // Check admin via DB
+    const admin = await isFlowBAdmin(cfg, userId(tgId));
+    if (!admin) {
+      await ctx.reply("Admin only.");
+      return;
+    }
+
+    const args = (ctx.match?.trim() || "help").toLowerCase();
+
+    // --- /admin id — show chat & user IDs ---
+    if (args === "id" || args === "chatid" || args === "chat") {
+      const chatId = ctx.chat.id;
+      const chatType = ctx.chat.type;
+      const chatTitle = (ctx.chat as any).title || "(DM)";
+      const lines = [
+        "<b>Chat Info</b>",
+        "",
+        `Chat ID: <code>${chatId}</code>`,
+        `Type: <b>${chatType}</b>`,
+        `Title: ${escapeHtml(chatTitle)}`,
+        "",
+        `Your TG ID: <code>${tgId}</code>`,
+        `Your user_id: <code>${userId(tgId)}</code>`,
+      ];
+      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+      return;
+    }
+
+    // --- /admin user <name or tg_id> — lookup user across all platforms ---
+    if (args.startsWith("user ") || args.startsWith("whois ") || args.startsWith("lookup ") || args.startsWith("info ")) {
+      const query = args.replace(/^(user|whois|lookup|info)\s+/, "").trim();
+      if (!query) { await ctx.reply("Usage: /admin user <name or tg_id>"); return; }
+      await ctx.replyWithChatAction("typing");
+      await adminUserLookup(ctx, cfg, query);
+      return;
+    }
+
+    // --- /admin active [1d|7d|30d] — list active users ---
+    if (args === "active" || args.startsWith("active ")) {
+      const periodArg = args.replace("active", "").trim() || "7d";
+      await ctx.replyWithChatAction("typing");
+      await adminActiveUsers(ctx, cfg, periodArg);
+      return;
+    }
+
+    // --- /admin stats — quick user/session stats ---
+    if (args === "stats" || args === "userstats") {
+      await ctx.replyWithChatAction("typing");
+      await adminUserStats(ctx, cfg);
+      return;
+    }
+
+    // --- help ---
+    const help = [
+      "<b>Admin Commands</b>",
+      "",
+      "/admin id — Chat ID, type, your TG ID",
+      "/admin user <i>name or tg_id</i> — Lookup user info",
+      "/admin active [1d|7d|30d] — Active users",
+      "/admin stats — User/session overview",
+      "",
+      "Or ask naturally:",
+      '<i>"flowb what\'s the chat id"</i>',
+      '<i>"flowb who is steph"</i>',
+      '<i>"flowb active users last 7 days"</i>',
+    ];
+    await ctx.reply(help.join("\n"), { parse_mode: "HTML" });
   });
 
   // ========================================================================
@@ -5630,6 +5729,55 @@ export function startTelegramBot(
       }
     }
 
+    // ---- Admin natural language queries (admin-only) ----
+    const adminNlMatch =
+      lower.match(/^(?:what(?:'?s| is) (?:the )?(?:chat ?id|id|group ?id)|chat ?id|group ?id|this (?:group|chat)(?:'?s)? id)/) ||
+      lower.match(/^(?:who ?is|what(?:'?s| is) |look ?up |info (?:on |about )?)(\w[\w\s]{0,30})(?:'s info)?$/i) ||
+      lower.match(/^(?:active users?|who(?:'?s| is) active|list (?:active )?users?)(?:\s+(?:last |past )?(\d+)\s*d(?:ays?)?)?/i);
+
+    if (adminNlMatch) {
+      const sbUrlNl = process.env.SUPABASE_URL;
+      const sbKeyNl = process.env.SUPABASE_KEY;
+      if (sbUrlNl && sbKeyNl) {
+        const cfgNl = { supabaseUrl: sbUrlNl, supabaseKey: sbKeyNl };
+        const isAdminUser = await isFlowBAdmin(cfgNl, userId(tgId));
+        if (isAdminUser) {
+          await ctx.replyWithChatAction("typing");
+
+          // Chat ID queries
+          if (/(?:chat ?id|group ?id|(?:this )?(?:group|chat)(?:'?s)? id)/i.test(lower)) {
+            const chatId = ctx.chat.id;
+            const chatType = ctx.chat.type;
+            const chatTitle = (ctx.chat as any).title || "(DM)";
+            await ctx.reply(
+              `<b>Chat Info</b>\n\nChat ID: <code>${chatId}</code>\nType: <b>${chatType}</b>\nTitle: ${escapeHtml(chatTitle)}\n\nYour TG ID: <code>${tgId}</code>\nuser_id: <code>${userId(tgId)}</code>`,
+              { parse_mode: "HTML" },
+            );
+            return;
+          }
+
+          // Active users queries
+          if (/active|who(?:'?s| is) active|list.*users?/i.test(lower)) {
+            const daysMatch = lower.match(/(\d+)\s*d/);
+            const period = daysMatch ? `${daysMatch[1]}d` : "7d";
+            await adminActiveUsers(ctx, cfgNl, period);
+            return;
+          }
+
+          // User lookup ("who is steph", "what's steph's info", "lookup mike")
+          const nameMatch = lower.match(/^(?:who ?is|what(?:'?s| is) |look ?up |info (?:on |about )?)\s*(.+?)(?:'s info)?$/i);
+          if (nameMatch) {
+            const name = nameMatch[1].trim();
+            if (name.length >= 2) {
+              await adminUserLookup(ctx, cfgNl, name);
+              return;
+            }
+          }
+        }
+        // Non-admins: fall through silently to normal handling
+      }
+    }
+
     // ---- Natural text command router ----
     // Matches plain words, phrases, and conversational triggers so users
     // never need slash commands. Order matters: more specific first.
@@ -7615,4 +7763,190 @@ async function submitEventFromGroup(
     console.error("[flowb-telegram] group event submit error:", err.message);
     await ctx.reply("Something went wrong. Try again!", { parse_mode: "HTML" });
   }
+}
+
+// ============================================================================
+// Admin helper functions
+// ============================================================================
+
+interface SbCfg { supabaseUrl: string; supabaseKey: string }
+
+async function adminUserLookup(ctx: any, cfg: SbCfg, query: string): Promise<void> {
+  try {
+    // Search by tg_id (numeric), display_name (ilike), or tg_username (ilike)
+    const isNumeric = /^\d+$/.test(query);
+    let sessions: any[] = [];
+
+    if (isNumeric) {
+      // Exact user_id match
+      sessions = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?user_id=eq.telegram_${query}&select=user_id,display_name,tg_username,verified,created_at,updated_at`,
+      ) || [];
+    }
+
+    if (!sessions.length) {
+      // Search by display_name or tg_username (case-insensitive)
+      sessions = await sbFetch<any[]>(
+        cfg,
+        `flowb_sessions?or=(display_name.ilike.*${encodeURIComponent(query)}*,tg_username.ilike.*${encodeURIComponent(query)}*)&select=user_id,display_name,tg_username,verified,created_at,updated_at&limit=10`,
+      ) || [];
+    }
+
+    if (!sessions.length) {
+      await ctx.reply(`No users found matching "${escapeHtml(query)}".`, { parse_mode: "HTML" });
+      return;
+    }
+
+    const lines: string[] = [`<b>User Lookup: "${escapeHtml(query)}"</b>`, `Found ${sessions.length} result(s)`, ""];
+
+    for (const s of sessions) {
+      const uid = s.user_id || "?";
+      const tgIdStr = uid.replace("telegram_", "");
+      const name = s.display_name || "—";
+      const username = s.tg_username ? `@${s.tg_username}` : "—";
+      const verified = s.verified ? "\u2705" : "\u274C";
+
+      lines.push(`<b>${escapeHtml(name)}</b> ${verified}`);
+      lines.push(`  TG: <code>${tgIdStr}</code> | ${username}`);
+      lines.push(`  user_id: <code>${uid}</code>`);
+
+      // Fetch points
+      const points = await sbFetch<any[]>(
+        cfg,
+        `flowb_points_ledger?user_id=eq.${encodeURIComponent(uid)}&select=points&limit=50000`,
+      );
+      const totalPts = points?.reduce((sum: number, p: any) => sum + (p.points || 0), 0) || 0;
+
+      // Fetch connections count
+      const conns = await sbFetch<any[]>(
+        cfg,
+        `flowb_connections?or=(user_id.eq.${encodeURIComponent(uid)},friend_id.eq.${encodeURIComponent(uid)})&status=eq.accepted&select=id&limit=50000`,
+      );
+
+      // Fetch crew memberships
+      const crews = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_members?user_id=eq.${encodeURIComponent(uid)}&select=crew_id&limit=50`,
+      );
+
+      // Check if admin
+      const isAdmin = await isFlowBAdmin(cfg, uid);
+
+      lines.push(`  Points: <b>${totalPts}</b> | Connections: <b>${conns?.length || 0}</b> | Crews: <b>${crews?.length || 0}</b>`);
+      if (isAdmin) lines.push(`  Role: <b>Admin</b>`);
+
+      const joined = s.created_at ? new Date(s.created_at).toLocaleDateString() : "?";
+      const lastSeen = s.updated_at ? timeAgo(new Date(s.updated_at)) : "?";
+      lines.push(`  Joined: ${joined} | Last seen: ${lastSeen}`);
+      lines.push("");
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  } catch (err: any) {
+    console.error("[admin] user lookup error:", err.message);
+    await ctx.reply(`Lookup failed: ${err.message}`);
+  }
+}
+
+async function adminActiveUsers(ctx: any, cfg: SbCfg, periodArg: string): Promise<void> {
+  try {
+    // Parse period
+    const match = periodArg.match(/^(\d+)\s*d/);
+    const days = match ? parseInt(match[1], 10) : 7;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+    const sessions = await sbFetch<any[]>(
+      cfg,
+      `flowb_sessions?updated_at=gte.${since}&select=user_id,display_name,tg_username,verified,updated_at&order=updated_at.desc&limit=50`,
+    ) || [];
+
+    if (!sessions.length) {
+      await ctx.reply(`No active users in the last ${days} day(s).`);
+      return;
+    }
+
+    const lines: string[] = [
+      `<b>Active Users (last ${days}d)</b>`,
+      `<i>${sessions.length}${sessions.length === 50 ? "+" : ""} users</i>`,
+      "",
+    ];
+
+    for (const s of sessions) {
+      const name = s.display_name || "Anon";
+      const username = s.tg_username ? ` @${s.tg_username}` : "";
+      const verified = s.verified ? "\u2705" : "";
+      const lastSeen = timeAgo(new Date(s.updated_at));
+      const tgIdStr = (s.user_id || "").replace("telegram_", "");
+      lines.push(`${verified} <b>${escapeHtml(name)}</b>${username} — ${lastSeen} <code>${tgIdStr}</code>`);
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  } catch (err: any) {
+    console.error("[admin] active users error:", err.message);
+    await ctx.reply(`Failed: ${err.message}`);
+  }
+}
+
+async function adminUserStats(ctx: any, cfg: SbCfg): Promise<void> {
+  try {
+    const [allSessions, verifiedSessions] = await Promise.all([
+      sbFetch<any[]>(cfg, "flowb_sessions?select=user_id&limit=50000"),
+      sbFetch<any[]>(cfg, "flowb_sessions?verified=eq.true&select=user_id&limit=50000"),
+    ]);
+
+    const total = allSessions?.length || 0;
+    const verified = verifiedSessions?.length || 0;
+
+    // Active in periods
+    const now = Date.now();
+    const day1 = new Date(now - 1 * 24 * 60 * 60 * 1000).toISOString();
+    const day7 = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const day30 = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    const [a1, a7, a30] = await Promise.all([
+      sbFetch<any[]>(cfg, `flowb_sessions?updated_at=gte.${day1}&select=user_id&limit=50000`),
+      sbFetch<any[]>(cfg, `flowb_sessions?updated_at=gte.${day7}&select=user_id&limit=50000`),
+      sbFetch<any[]>(cfg, `flowb_sessions?updated_at=gte.${day30}&select=user_id&limit=50000`),
+    ]);
+
+    // Admin count
+    const admins = await sbFetch<any[]>(cfg, "flowb_admins?select=user_id,label&limit=100");
+
+    const lines = [
+      "<b>User Stats</b>",
+      "",
+      `Total users: <b>${total}</b>`,
+      `Verified: <b>${verified}</b> (${total > 0 ? Math.round((verified / total) * 100) : 0}%)`,
+      "",
+      "<b>Active Users</b>",
+      `  24h: <b>${a1?.length || 0}</b>`,
+      `  7d:  <b>${a7?.length || 0}</b>`,
+      `  30d: <b>${a30?.length || 0}</b>`,
+      "",
+      `<b>Admins</b> (${admins?.length || 0})`,
+    ];
+
+    if (admins?.length) {
+      for (const a of admins) {
+        lines.push(`  ${a.label || a.user_id}`);
+      }
+    }
+
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  } catch (err: any) {
+    console.error("[admin] stats error:", err.message);
+    await ctx.reply(`Failed: ${err.message}`);
+  }
+}
+
+function timeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
 }
