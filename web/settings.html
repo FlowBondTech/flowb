@@ -511,7 +511,7 @@
 
           <div class="settings-section">
             <h3 class="settings-section-title">Your Connected Accounts</h3>
-            <p class="settings-section-desc">These are linked to your FlowB identity through Privy. Your data syncs across all connected platforms. <span style="color:var(--accent-light);">+5 Flow points</span> for each account you connect!</p>
+            <p class="settings-section-desc">These are linked to your FlowB Passport. Your data syncs across all connected platforms.</p>
             <div id="accountsList">
               <div style="color:var(--text-dim);font-size:0.85rem;padding:16px 0;">Loading accounts...</div>
             </div>
@@ -638,7 +638,6 @@
             <p class="settings-encourage-msg">Form a crew with your friends to coordinate events, check in together, and climb the leaderboard. Everyone in your crew can see shared RSVPs so nobody misses the move.</p>
             <div class="settings-encourage-actions">
               <a href="https://t.me/Flow_b_bot" target="_blank" class="settings-encourage-btn">Create a Crew on Telegram</a>
-              <a href="https://wa.flowb.me" target="_blank" class="settings-encourage-btn">Create a Crew on WhatsApp</a>
               <a href="/leaderboard" class="settings-encourage-btn secondary">View Leaderboard</a>
             </div>
           </div>
@@ -795,7 +794,7 @@
       </div>
       <div class="footer-right">
         <a href="https://t.me/Flow_b_bot" target="_blank" class="footer-link">Telegram Bot</a>
-        <a href="https://wa.flowb.me" target="_blank" class="footer-link">WhatsApp</a>
+
         <a href="https://farcaster.xyz/miniapps/oCHuaUqL5dRT/flowb" target="_blank" class="footer-link">Farcaster MiniApp</a>
         <a href="https://flowb.fly.dev/api/v1/events" target="_blank" class="footer-link">API</a>
       </div>
@@ -805,8 +804,6 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Privy Auth Mount -->
-  <div id="privy-root"></div>
 
 
   <script src="points.js"></script>
@@ -890,7 +887,6 @@
     }
 
     window.addEventListener('flowb-auth-ready', () => setTimeout(updateSettingsPage, 200));
-    window.addEventListener('privy-auth-change', () => setTimeout(updateSettingsPage, 500));
 
     // Handle deep link from Telegram/Farcaster/WhatsApp mini apps
     (function handleFromPlatform() {
@@ -901,23 +897,23 @@
       if (from === 'telegram') {
         banner.querySelector('.settings-encourage-title').textContent = 'Welcome from Telegram!';
         banner.querySelector('.settings-encourage-msg').textContent =
-          'Log in with Privy below, then connect your Farcaster, WhatsApp, email, and other accounts to merge all your points into one identity.';
+          'Sign in below, then connect your Farcaster, WhatsApp, email, and other accounts to merge all your points into one identity.';
       } else if (from === 'farcaster') {
         banner.querySelector('.settings-encourage-title').textContent = 'Welcome from Farcaster!';
         banner.querySelector('.settings-encourage-msg').textContent =
-          'Log in with Privy below, then connect your Telegram, WhatsApp, and other accounts to merge all your points into one identity.';
+          'Sign in below, then connect your Telegram, WhatsApp, and other accounts to merge all your points into one identity.';
       } else if (from === 'whatsapp') {
         banner.querySelector('.settings-encourage-title').textContent = 'Welcome from WhatsApp!';
         banner.querySelector('.settings-encourage-msg').textContent =
-          'Log in with Privy below, then connect your Telegram, Farcaster, and other accounts to merge all your points into one identity.';
+          'Sign in below, then connect your Telegram, Farcaster, and other accounts to merge all your points into one identity.';
       }
       banner.style.border = '1px solid var(--accent)';
       banner.style.background = 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))';
     })();
 
     document.getElementById('settingsSigninBtn')?.addEventListener('click', () => {
-      if (window.flowbPrivy) {
-        window.flowbPrivy.login();
+      if (window.flowbAuth) {
+        window.flowbAuth.login();
       } else {
         document.getElementById('authBtn')?.click();
       }
@@ -1123,8 +1119,8 @@
 
     // ===== Connected Accounts =====
 
-    // All linkable platforms with Privy method names
-    // Keys match Privy v2 LinkedAccountType values
+    // All linkable platforms
+    // Keys match linked account type values
     const ALL_PLATFORMS = {
       email: {
         name: 'Email', icon: 'web', desc: 'Link your email address',
@@ -1191,14 +1187,14 @@
       },
     };
 
-    // Store the latest Privy linked accounts for reactive updates
-    let privyLinkedAccounts = [];
+    // Store the latest linked accounts for reactive updates
+    let linkedAccounts = [];
 
-    // Listen for Privy state changes to update linked accounts in real-time
-    window.addEventListener('privy-auth-change', (e) => {
+    // Listen for auth state changes to update linked accounts in real-time
+    window.addEventListener('supabase-auth-change', (e) => {
       const { user } = e.detail || {};
       if (user && user.linkedAccounts) {
-        privyLinkedAccounts = user.linkedAccounts;
+        linkedAccounts = user.linkedAccounts;
         // Re-render if the settings page is visible
         if (Auth.isAuthenticated) {
           renderLinkedAccounts();
@@ -1231,17 +1227,17 @@
     }
 
     async function loadLinkedAccounts() {
-      // First render from Privy client-side data (instant)
-      if (window.flowbPrivy && window.flowbPrivy.getLinkedAccounts) {
-        privyLinkedAccounts = window.flowbPrivy.getLinkedAccounts();
+      // First render from client-side data (instant)
+      if (window.flowbAuth && window.flowbAuth.getLinkedAccounts) {
+        linkedAccounts = window.flowbAuth.getLinkedAccounts();
       }
       renderLinkedAccounts();
 
-      // Also fetch backend data (for cross-platform links not in Privy)
+      // Also fetch backend data (for cross-platform links)
       const data = await fetchAuthed('/api/v1/me/linked-accounts');
       if (data?.accounts?.length) {
-        // Merge backend accounts with Privy accounts
-        const platformToPrivyType = {
+        // Merge backend accounts with local accounts
+        const platformToAccountType = {
           telegram: 'telegram',
           farcaster: 'farcaster',
           discord: 'discord_oauth',
@@ -1253,11 +1249,11 @@
           web: 'wallet',
         };
         for (const ba of data.accounts) {
-          const privyType = platformToPrivyType[ba.platform] || ba.platform;
-          const alreadyLinked = privyLinkedAccounts.some(pa => pa.type === privyType);
+          const accountType = platformToAccountType[ba.platform] || ba.platform;
+          const alreadyLinked = linkedAccounts.some(pa => pa.type === accountType);
           if (!alreadyLinked) {
-            privyLinkedAccounts.push({
-              type: privyType,
+            linkedAccounts.push({
+              type: accountType,
               username: ba.display_name,
             });
           }
@@ -1271,13 +1267,13 @@
       const availEl = document.getElementById('availableAccounts');
       if (!listEl || !availEl) return;
 
-      const connectedTypes = new Set(privyLinkedAccounts.map(a => a.type));
+      const connectedTypes = new Set(linkedAccounts.map(a => a.type));
 
       // Render connected accounts
       const connected = [];
       for (const [type, platform] of Object.entries(ALL_PLATFORMS)) {
         if (!connectedTypes.has(type)) continue;
-        const account = privyLinkedAccounts.find(a => a.type === type);
+        const account = linkedAccounts.find(a => a.type === type);
         const displayId = account?.username || account?.email || account?.telegramUserId || '';
         const bgStyle = platform.iconBg ? `background:${platform.iconBg}` : '';
         connected.push(`
@@ -1293,7 +1289,7 @@
       }
 
       // Also show wallet if connected (separate from the platform list)
-      const walletAccount = privyLinkedAccounts.find(a => a.type === 'wallet');
+      const walletAccount = linkedAccounts.find(a => a.type === 'wallet');
       if (walletAccount) {
         const addr = walletAccount.address || '';
         const short = addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '';
@@ -1319,7 +1315,7 @@
           <div class="account-card connected">
             <div class="account-card-icon web"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
             <div class="account-card-info">
-              <div class="account-card-name">Web (Privy)</div>
+              <div class="account-card-name">Web</div>
               <div class="account-card-detail">${escapeHtml(name)} (current session)</div>
             </div>
             <span class="account-card-status linked">Linked</span>
@@ -1365,16 +1361,16 @@
         availEl.querySelectorAll('.link-account-btn').forEach(btn => {
           btn.addEventListener('click', async () => {
             const method = btn.dataset.linkMethod;
-            if (!window.flowbPrivy || !window.flowbPrivy[method]) {
-              // Privy not loaded yet, load it first
+            if (!window.flowbAuth || !window.flowbAuth[method]) {
+              // Auth not loaded yet, load it first
               const loader = document.createElement('script');
               loader.type = 'module';
-              loader.src = '/privy-mount.js';
+              loader.src = '/supabase-auth.js';
               document.body.appendChild(loader);
-              // Wait for Privy to load then retry
+              // Wait for auth to load then retry
               setTimeout(() => {
-                if (window.flowbPrivy && window.flowbPrivy[method]) {
-                  window.flowbPrivy[method]();
+                if (window.flowbAuth && window.flowbAuth[method]) {
+                  window.flowbAuth[method]();
                 }
               }, 2000);
               return;
@@ -1386,7 +1382,7 @@
                 statusEl.classList.remove('available');
                 statusEl.style.color = 'var(--text-muted)';
               }
-              await window.flowbPrivy[method]();
+              await window.flowbAuth[method]();
             } catch (err) {
               console.warn('[settings] Link failed:', err);
               const statusEl = btn.querySelector('.account-card-status');
@@ -1489,9 +1485,9 @@
         emailDesc.textContent = 'Receive updates and digests via email.';
       } else {
         // Check linked accounts for email
-        const hasEmail = privyLinkedAccounts.some(a => a.type === 'email');
+        const hasEmail = linkedAccounts.some(a => a.type === 'email');
         if (hasEmail) {
-          const emailAccount = privyLinkedAccounts.find(a => a.type === 'email');
+          const emailAccount = linkedAccounts.find(a => a.type === 'email');
           emailStatus.style.display = 'block';
           emailAddrEl.textContent = 'Sending to: ' + (emailAccount?.address || emailAccount?.email || '');
           emailDesc.textContent = 'Receive updates and digests via email.';
@@ -1501,7 +1497,7 @@
       }
 
       // Disable email toggles if no email is linked
-      const hasAnyEmail = emailAddr || privyLinkedAccounts.some(a => a.type === 'email');
+      const hasAnyEmail = emailAddr || linkedAccounts.some(a => a.type === 'email');
       ['notifEmail', 'notifEmailDigest', 'notifEmailEvents', 'notifEmailCrew'].forEach(id => {
         const el = document.getElementById(id);
         if (el && !hasAnyEmail) {
@@ -1583,28 +1579,14 @@
     // Init
     updateSettingsPage();
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-auth.js"></script>
   <script>
     (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        document.body.appendChild(s);
-      }
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      } else {
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
-      }
+      var btn = document.getElementById('authBtn');
+      if (btn) btn.addEventListener('click', function() {
+        if (window.flowbAuth) window.flowbAuth.login();
+      });
     })();
   </script>
   <script src="mobile-menu.js"></script>
