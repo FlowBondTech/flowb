@@ -25,6 +25,7 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/passport` | No | FlowB Passport (Supabase Auth) — primary new auth endpoint |
 | `POST` | `/api/v1/auth/claim-points` | Yes | Claim pending points (pre-auth actions → backend account) |
 | `POST` | `/api/v1/auth/guest` | No | Guest Session (join first, signup after) |
+| `POST` | `/api/v1/auth/pending-session` | No | Cross-device magic link coordination |
 
 ## Other
 
@@ -34,6 +35,8 @@ FlowB exposes two backend servers:
 | `POST` | `/api/v1/auth/guest/convert` | No |  |
 | `GET` | `/api/v1/auth/guest/crews` | No |  |
 | `GET` | `/api/v1/auth/providers` | No |  |
+| `GET` | `/api/v1/auth/check-pending/:id` | Yes |  |
+| `POST` | `/api/v1/auth/resolve-pending` | No |  |
 | `GET` | `/api/v1/crew/:code/info` | No |  |
 | `GET` | `/api/v1/feed/ethdenver` | No |  |
 | `GET` | `/api/v1/flow/crews/:id/biz-settings` | Yes |  |
@@ -70,6 +73,7 @@ FlowB exposes two backend servers:
 | `PATCH` | `unknown` | Yes |  |
 | `GET` | `/api/v1/me/crew-visibility` | Yes |  |
 | `GET` | `/api/v1/events/:id/social` | No |  |
+| `PATCH` | `/api/v1/admin/notification-prefs` | Yes |  |
 | `GET` | `/api/v1/biz/projects` | No |  |
 | `POST` | `/api/v1/biz/inbound-webhook` | No |  |
 | `POST` | `/api/v1/social/orgs` | Yes |  |
@@ -290,6 +294,7 @@ FlowB exposes two backend servers:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
+| `GET` | `/api/v1/admin/notification-prefs` | Yes | Notification Preferences |
 | `GET` | `/api/v1/admin/stats` | No | Live dashboard stats |
 | `GET` | `/api/v1/admin/plugins` | No | List plugins |
 | `POST` | `/api/v1/admin/plugins/:id/configure` | No | Configure plugin |
@@ -473,4 +478,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-13 00:11:25 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-13 01:01:54 UTC*
