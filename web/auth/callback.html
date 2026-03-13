@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB - Signing In...</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+  <style>
+    body { margin: 0; background: #0a0b0e; color: #e5e7eb; font-family: 'Inter', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { text-align: center; padding: 2rem; max-width: 360px; }
+    .spinner { width: 40px; height: 40px; border: 3px solid #1f2937; border-top-color: #6366f1; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    h2 { font-size: 1.2rem; margin: 0 0 0.5rem; }
+    p { color: #9ca3af; font-size: 0.9rem; margin: 0; }
+    .error { color: #ef4444; }
+    .success-check { width: 48px; height: 48px; margin: 0 auto 1rem; color: #22c55e; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="spinner" id="spinner"></div>
+    <h2 id="title">Completing sign in...</h2>
+    <p id="message">You'll be redirected shortly.</p>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    (function () {
+      var SUPABASE_URL = 'https://eoajujwpdkfuicnoxetk.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvYWp1andwZGtmdWljbm94ZXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NDQzMzQsImV4cCI6MjA3MDIyMDMzNH0.NpMiRO22b-y-7zHo-RhA0ZX8tHkSZiTk9jlWcF-UZEg';
+      var FLOWB_API = 'https://flowb.fly.dev';
+
+      var client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Extract pending ID from URL (set by Device A when requesting the magic link)
+      var urlParams = new URLSearchParams(window.location.search);
+      var pendingId = urlParams.get('pending');
+
+      function onAuthSuccess(session) {
+        if (pendingId && session && session.access_token) {
+          // Cross-device flow: resolve the pending session so Device A auto-signs in
+          resolvePending(session);
+        } else {
+          // Same-device flow: just redirect home
+          document.getElementById('title').textContent = 'Signed in!';
+          document.getElementById('message').textContent = 'Redirecting...';
+          setTimeout(function () { window.location.href = '/'; }, 500);
+        }
+      }
+
+      function resolvePending(session) {
+        document.getElementById('title').textContent = 'Signing you in...';
+        document.getElementById('message').textContent = 'Notifying your other device...';
+
+        fetch(FLOWB_API + '/api/v1/auth/resolve-pending', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pendingId: pendingId,
+            accessToken: session.access_token,
+            displayName: session.user?.user_metadata?.display_name || session.user?.email?.split('@')[0],
+          }),
+        })
+          .then(function (res) { return res.json(); })
+          .then(function (data) {
+            document.getElementById('spinner').outerHTML = '<svg class="success-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>';
+            if (data.ok) {
+              document.getElementById('title').textContent = 'Signed in!';
+              document.getElementById('message').innerHTML = 'Your other device has been updated.<br><span style="font-size:0.8rem;color:#6b7280">You can close this tab or <a href="/" style="color:#6366f1">continue to FlowB</a>.</span>';
+            } else {
+              // Resolve failed but auth itself worked — still redirect
+              document.getElementById('title').textContent = 'Signed in!';
+              document.getElementById('message').textContent = 'Redirecting...';
+              setTimeout(function () { window.location.href = '/'; }, 500);
+            }
+          })
+          .catch(function () {
+            // Network error resolving pending — still redirect since auth worked
+            document.getElementById('title').textContent = 'Signed in!';
+            document.getElementById('message').textContent = 'Redirecting...';
+            setTimeout(function () { window.location.href = '/'; }, 500);
+          });
+      }
+
+      // Supabase Auth handles the hash/query params automatically
+      client.auth.getSession().then(function (result) {
+        if (result.data.session) {
+          onAuthSuccess(result.data.session);
+        } else {
+          // Check for error in URL
+          var params = new URLSearchParams(window.location.hash.substring(1) || window.location.search);
+          var error = params.get('error_description') || params.get('error');
+          if (error) {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('title').textContent = 'Sign in failed';
+            document.getElementById('message').textContent = decodeURIComponent(error);
+            document.getElementById('message').className = 'error';
+          } else {
+            // No session yet -- wait for Supabase to process the callback
+            document.getElementById('message').textContent = 'Processing...';
+            client.auth.onAuthStateChange(function (event, session) {
+              if (event === 'SIGNED_IN' && session) {
+                onAuthSuccess(session);
+              }
+            });
+            // Timeout after 10 seconds
+            setTimeout(function () {
+              document.getElementById('spinner').style.display = 'none';
+              document.getElementById('title').textContent = 'Something went wrong';
+              document.getElementById('message').innerHTML = 'Please <a href="/" style="color:#6366f1">return to FlowB</a> and try again.';
+            }, 10000);
+          }
+        }
+      }).catch(function (err) {
+        document.getElementById('spinner').style.display = 'none';
+        document.getElementById('title').textContent = 'Error';
+        document.getElementById('message').textContent = err.message || 'Unknown error';
+        document.getElementById('message').className = 'error';
+      });
+    })();
+  </script>
+</body>
+</html>

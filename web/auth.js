@@ -41,6 +41,10 @@ function initAuth() {
       if (!Auth.jwt && Auth.user.id) {
         getFlowbJwtFromPassport();
       }
+      // Refresh display name from backend on page load
+      if (Auth.jwt) {
+        fetchBackendProfile();
+      }
     } catch {
       localStorage.removeItem(AUTH_KEY);
     }
@@ -185,8 +189,40 @@ async function handleSupabaseLogin(user, session) {
   renderAuthState();
   claimPendingPointsToBackend();
 
+  // Fetch backend profile to get real display name
+  fetchBackendProfile();
+
   window.dispatchEvent(new CustomEvent('flowb-auth-ready'));
   setTimeout(() => checkAndPromptLinking(), 1500);
+}
+
+async function fetchBackendProfile() {
+  const token = getAuthToken();
+  if (!token) return;
+  try {
+    const res = await fetch(`${FLOWB_API_BASE}/api/v1/me/profile`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const p = data.profile;
+    if (!p) return;
+    // Update Auth.user with backend data if richer than what we have
+    const backendName = p.display_name;
+    if (backendName && backendName !== 'User' && Auth.user) {
+      Auth.user.username = backendName;
+      if (p.avatar_url) Auth.user.avatarUrl = p.avatar_url;
+      if (p.bio) Auth.user.bio = p.bio;
+      Auth.user.profile = p;
+      localStorage.setItem(AUTH_KEY, JSON.stringify(Auth.user));
+      renderAuthState();
+    } else if (Auth.user) {
+      Auth.user.profile = p;
+    }
+    window.dispatchEvent(new CustomEvent('flowb-profile-loaded', { detail: { profile: p } }));
+  } catch (err) {
+    console.warn('[auth] Failed to fetch profile:', err);
+  }
 }
 
 async function claimPendingPointsToBackend() {
@@ -415,8 +451,14 @@ function renderAuthState() {
     authBtn?.classList.add('hidden');
     userMenu?.classList.remove('hidden');
 
-    const initial = (Auth.user.username || Auth.user.email || '?')[0].toUpperCase();
-    if (userAvatar) userAvatar.textContent = initial;
+    if (userAvatar) {
+      if (Auth.user.avatarUrl) {
+        userAvatar.innerHTML = '<img src="' + escapeHtml(Auth.user.avatarUrl) + '" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover">';
+      } else {
+        const initial = (Auth.user.username || Auth.user.email || '?')[0].toUpperCase();
+        userAvatar.textContent = initial;
+      }
+    }
 
     if (userDropdownHeader) {
       const provider = 'FlowB Passport';

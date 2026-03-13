@@ -5,7 +5,7 @@
  * Auth endpoints issue JWTs for Telegram and Farcaster users.
  */
 
-import { createHash } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { FlowBCore } from "../core/flowb.js";
 import type { FlowPluginConfig } from "../plugins/flow/index.js";
@@ -49,7 +49,7 @@ import {
 } from "../services/guest-session.js";
 import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, sbQuery, sbDelete, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
-import { alertAdmins, alertNewEvents } from "../services/admin-alerts.js";
+import { alertAdmins, alertNewEvents, getAdminNotifPrefs, updateAdminNotifPrefs, ADMIN_ALERT_CATEGORIES } from "../services/admin-alerts.js";
 import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js";
 import { registerAgentRoutes } from "./agent-routes.js";
 import { registerFiFlowRoutes } from "./fiflow-routes.js";
@@ -134,7 +134,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const who = user.username
           ? `<a href="https://t.me/${user.username}">@${user.username}</a>`
           : user.first_name || `User ${user.id}`;
-        alertAdmins(`New user: <b>${who}</b> on telegram`, "info");
+        alertAdmins(`New user: <b>${who}</b> on telegram`, "info", "new_user");
       }
 
       // Create/link Supabase Auth user (FlowB Passport)
@@ -267,7 +267,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               const who = username
                 ? `<a href="https://warpcast.com/${username}">@${username}</a>`
                 : displayName || `FID ${fid}`;
-              alertAdmins(`New user: <b>${who}</b> on farcaster`, "info");
+              alertAdmins(`New user: <b>${who}</b> on farcaster`, "info", "new_user");
             }
           }
 
@@ -920,6 +920,173 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         supabaseUrl: supabaseUrl || null,
         supabaseAnonKey: supabaseAnonKey || null,
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: Cross-device magic link coordination
+  // Device A creates a pending-auth session, polls for resolution.
+  // Device B clicks the magic link, resolves the pending session.
+  // ------------------------------------------------------------------
+
+  app.post<{ Body: { email: string } }>(
+    "/api/v1/auth/pending-session",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["email"],
+          properties: { email: { type: "string", format: "email" } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return reply.status(500).send({ error: "Database not configured" });
+      }
+      const { email } = request.body;
+      const pendingId = randomBytes(16).toString("base64url");
+
+      await sbInsert(cfg, "flowb_pending_auth", {
+        id: pendingId,
+        email,
+        resolved: false,
+      });
+
+      return { pendingId };
+    },
+  );
+
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/auth/check-pending/:id",
+    {
+      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return reply.status(500).send({ error: "Database not configured" });
+      }
+      const { id } = request.params;
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_pending_auth?id=eq.${encodeURIComponent(id)}&select=resolved,jwt,user_json,created_at&limit=1`,
+      );
+      const row = rows?.[0];
+      if (!row) {
+        return reply.status(404).send({ error: "Not found" });
+      }
+      // Expire after 10 minutes
+      if (Date.now() - new Date(row.created_at).getTime() > 10 * 60 * 1000) {
+        return { resolved: false, expired: true };
+      }
+      if (row.resolved && row.jwt) {
+        // Clean up after delivery
+        fireAndForget(
+          sbDelete(cfg, "flowb_pending_auth", { id: `eq.${id}` }),
+          "cleanup pending auth",
+        );
+        return { resolved: true, token: row.jwt, user: row.user_json };
+      }
+      return { resolved: false };
+    },
+  );
+
+  app.post<{ Body: { pendingId: string; accessToken: string; displayName?: string } }>(
+    "/api/v1/auth/resolve-pending",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["pendingId", "accessToken"],
+          properties: {
+            pendingId: { type: "string" },
+            accessToken: { type: "string" },
+            displayName: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
+        return reply.status(500).send({ error: "Database not configured" });
+      }
+      const { pendingId, accessToken, displayName } = request.body;
+
+      // Verify the pending session exists and is not expired
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_pending_auth?id=eq.${encodeURIComponent(pendingId)}&resolved=eq.false&select=id,email,created_at&limit=1`,
+      );
+      const pending = rows?.[0];
+      if (!pending) {
+        return reply.status(404).send({ error: "Pending session not found or already resolved" });
+      }
+      if (Date.now() - new Date(pending.created_at).getTime() > 10 * 60 * 1000) {
+        return reply.status(410).send({ error: "Pending session expired" });
+      }
+
+      // Verify Supabase Auth token
+      const verified = await verifySupabaseToken(accessToken);
+      if (!verified) {
+        return reply.status(401).send({ error: "Invalid Supabase Auth token" });
+      }
+
+      const { uid: supabaseUid, email } = verified;
+      let canonicalId = `web_${supabaseUid}`;
+
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_passport?supabase_uid=eq.${supabaseUid}&select=canonical_id&limit=1`,
+      );
+      if (existing?.[0]?.canonical_id) {
+        canonicalId = existing[0].canonical_id;
+      } else {
+        await getOrCreateSupabaseUser(canonicalId, "web", {
+          email: email || undefined,
+          displayName: displayName || email?.split("@")[0],
+        });
+        try { await resolveCanonicalId(cfg, canonicalId, { displayName: displayName || email?.split("@")[0] }); } catch {}
+      }
+
+      // Upsert session
+      fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+        user_id: canonicalId,
+        display_name: displayName || email?.split("@")[0] || "User",
+        ...(email ? { email } : {}),
+      }, "return=minimal,resolution=merge-duplicates"), "upsert passport session");
+
+      fireAndForget(core.awardPoints(canonicalId, "web", "miniapp_open"), "award points");
+
+      const token = signJwt({
+        sub: canonicalId,
+        platform: "web",
+        username: displayName || email?.split("@")[0] || "User",
+        supabase_uid: supabaseUid,
+        email,
+      });
+
+      const userJson = {
+        id: canonicalId,
+        supabase_uid: supabaseUid,
+        platform: "web",
+        email,
+        username: displayName || email?.split("@")[0] || "User",
+      };
+
+      // Resolve the pending session so Device A can pick it up
+      await sbPatchRaw(cfg, `flowb_pending_auth?id=eq.${encodeURIComponent(pendingId)}`, {
+        resolved: true,
+        jwt: token,
+        user_json: userJson,
+        resolved_at: new Date().toISOString(),
+      });
+
+      return { ok: true, token, user: userJson };
     },
   );
 
@@ -1738,6 +1905,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify crew member rsvp");
       }
 
+      // Alert admins about RSVP
+      alertAdmins(`RSVP: <b>${jwt.sub}</b> → ${eventTitle}`, "info", "rsvp");
+
       return { ok: true, status, attendance };
     },
   );
@@ -1931,6 +2101,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         fireAndForget(notifyCrewJoin(joinNotifyCtx, jwt.sub, request.params.id, name, emoji), "notify crew join");
       }
 
+      alertAdmins(`User joined crew: <b>${name}</b> (${jwt.sub})`, "info", "crew_joined");
+
       return { ok: true, message: result };
     },
   );
@@ -2120,6 +2292,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const updates: Record<string, any> = { updated_at: new Date().toISOString() };
       const pointsToAward: string[] = [];
 
+      if (body.display_name !== undefined) {
+        const name = (body.display_name || "").trim().slice(0, 50);
+        if (name && name !== "User") updates.display_name = name;
+      }
       if (body.bio !== undefined) {
         updates.bio = body.bio;
         if (body.bio && !current.bio) pointsToAward.push("bio_added");
@@ -2775,6 +2951,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         group_id: request.params.id,
         friend_id: request.params.userId,
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
+
+      // Alert admins about role change
+      alertAdmins(
+        `Role change: <b>${request.params.userId}</b> → ${request.body.role} in crew ${request.params.id}`,
+        "info",
+        "crew_role_change",
+      );
 
       return { ok: true, message: result };
     },
@@ -5062,6 +5245,54 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   }
 
   // ------------------------------------------------------------------
+  // ADMIN: Notification Preferences
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/notification-prefs",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const jwt = request.jwtPayload!;
+
+      const prefs = await getAdminNotifPrefs(jwt.sub);
+      if (!prefs) {
+        return reply.status(404).send({ error: "Not an admin or DB not configured" });
+      }
+
+      return { ok: true, categories: [...ADMIN_ALERT_CATEGORIES], prefs };
+    },
+  );
+
+  app.patch<{ Body: Record<string, boolean> }>(
+    "/api/v1/admin/notification-prefs",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const jwt = request.jwtPayload!;
+      const updates = request.body || {};
+
+      // Validate: only known categories with boolean values
+      const cleaned: Record<string, boolean> = {};
+      for (const [key, val] of Object.entries(updates)) {
+        if ((ADMIN_ALERT_CATEGORIES as readonly string[]).includes(key) && typeof val === "boolean") {
+          cleaned[key] = val;
+        }
+      }
+
+      if (!Object.keys(cleaned).length) {
+        return reply.status(400).send({ error: "No valid category updates provided" });
+      }
+
+      const ok = await updateAdminNotifPrefs(jwt.sub, cleaned);
+      if (!ok) {
+        return reply.status(500).send({ error: "Failed to update preferences" });
+      }
+
+      return { ok: true, updated: cleaned };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // ADMIN: Live dashboard stats
   // ------------------------------------------------------------------
   app.get(
@@ -6131,7 +6362,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const who = userId || "anonymous";
         const preview = message.length > 200 ? message.slice(0, 197) + "..." : message;
         const label = type === "bug" ? "Bug report" : "Feature request";
-        alertAdmins(`${label} from <b>${who}</b> (${platform}):\n\n${preview}`, type === "bug" ? "urgent" : "important");
+        alertAdmins(`${label} from <b>${who}</b> (${platform}):\n\n${preview}`, type === "bug" ? "urgent" : "important", type === "bug" ? "bug_report" : "feature_request");
       }
 
       // 4. Award points for giving feedback
@@ -7162,6 +7393,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       alertAdmins(
         `New TODO [${(priority || "medium").toUpperCase()}]: <b>${title}</b>${category ? ` (${category})` : ""}${assigned_to ? `\nAssigned: ${assigned_to}` : ""}`,
         priority === "critical" || priority === "high" ? "important" : "info",
+        "todo_created",
       );
 
       return { todo };
@@ -7234,6 +7466,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         alertAdmins(
           `TODO completed: <b>${todo.title}</b>`,
           "info",
+          "todo_completed",
         );
       }
 
@@ -8823,6 +9056,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       alertAdmins(
         `<b>Biz Onboard: Gate Passed</b>\nIP: ${ip}\nRef: ${ref}\nUA: ${ua.slice(0, 80)}`,
         "info",
+        "biz_onboard",
       );
 
       return { ok: true };
@@ -8883,6 +9117,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           `<a href="https://biz.flowb.me">View in Biz Dashboard</a>`,
         ].join("\n"),
         "important",
+        "biz_onboard",
       );
 
       return { ok: true };

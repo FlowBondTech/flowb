@@ -9,8 +9,12 @@
   const SUPABASE_URL = 'https://eoajujwpdkfuicnoxetk.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvYWp1andwZGtmdWljbm94ZXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NDQzMzQsImV4cCI6MjA3MDIyMDMzNH0.NpMiRO22b-y-7zHo-RhA0ZX8tHkSZiTk9jlWcF-UZEg';
 
+  var FLOWB_API = 'https://flowb.fly.dev';
+
   let supabase = null;
   let currentSession = null;
+  let pendingAuthId = null;
+  let pendingPollTimer = null;
 
   // ===== Initialize Supabase =====
 
@@ -35,7 +39,7 @@
               authenticated: true,
               user: {
                 id: user.id,
-                displayName: user.user_metadata?.display_name || user.email?.split('@')[0] || shortenAddress(user.user_metadata?.wallet_address) || 'User',
+                displayName: user.user_metadata?.display_name || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || shortenAddress(user.user_metadata?.wallet_address) || 'User',
                 email: user.email || null,
                 wallet: user.user_metadata?.wallet_address || null,
                 linkedAccounts: buildLinkedAccounts(user),
@@ -375,16 +379,81 @@
 
   function loginWithEmail(email) {
     if (!supabase) return Promise.reject(new Error('Not initialized'));
-    // No emailRedirectTo → Supabase sends a 6-digit OTP code instead of a link
-    return supabase.auth.signInWithOtp({
-      email: email,
-    }).then(function (result) {
-      if (result.error) throw result.error;
-    });
+
+    // Create a pending-auth session for cross-device magic link support
+    return fetch(FLOWB_API + '/api/v1/auth/pending-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email }),
+    })
+      .then(function (res) { return res.ok ? res.json() : { pendingId: null }; })
+      .then(function (data) {
+        pendingAuthId = data.pendingId;
+
+        // Include emailRedirectTo so the email contains BOTH a 6-digit code and a clickable link
+        var redirectUrl = window.location.origin + '/auth/callback';
+        if (pendingAuthId) {
+          redirectUrl += '?pending=' + encodeURIComponent(pendingAuthId);
+        }
+
+        return supabase.auth.signInWithOtp({
+          email: email,
+          options: {
+            emailRedirectTo: redirectUrl,
+          },
+        });
+      })
+      .then(function (result) {
+        if (result.error) throw result.error;
+
+        // Start polling for cross-device resolution
+        if (pendingAuthId) {
+          startPendingPoll(pendingAuthId);
+        }
+      });
+  }
+
+  function startPendingPoll(pid) {
+    stopPendingPoll();
+    var attempts = 0;
+    var maxAttempts = 200; // ~10 minutes at 3s intervals
+    pendingPollTimer = setInterval(function () {
+      attempts++;
+      if (attempts > maxAttempts) {
+        stopPendingPoll();
+        return;
+      }
+      fetch(FLOWB_API + '/api/v1/auth/check-pending/' + encodeURIComponent(pid))
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          if (!data) return;
+          if (data.expired) {
+            stopPendingPoll();
+            return;
+          }
+          if (data.resolved && data.token) {
+            stopPendingPoll();
+            // Dispatch auth event so Device A auto-signs in
+            window.dispatchEvent(new CustomEvent('flowb-pending-resolved', {
+              detail: { token: data.token, user: data.user },
+            }));
+          }
+        })
+        .catch(function () { /* ignore poll errors */ });
+    }, 3000);
+  }
+
+  function stopPendingPoll() {
+    if (pendingPollTimer) {
+      clearInterval(pendingPollTimer);
+      pendingPollTimer = null;
+    }
+    pendingAuthId = null;
   }
 
   function verifyOtp(email, code) {
     if (!supabase) return Promise.reject(new Error('Not initialized'));
+    stopPendingPoll(); // Code entered locally, no need to poll
     return supabase.auth.verifyOtp({
       email: email,
       token: code,
@@ -422,6 +491,7 @@
 
 
   function logout() {
+    stopPendingPoll();
     if (!supabase) return Promise.resolve();
     return supabase.auth.signOut().then(function () {
       currentSession = null;
