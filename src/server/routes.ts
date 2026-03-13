@@ -108,26 +108,27 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Store display name in sessions for leaderboard/member resolution
       const displayName = user.first_name || user.username || `User ${user.id}`;
       const cfg = getSupabaseConfig();
+
+      // Look up existing session FIRST (before upsert) to detect new vs returning user
+      let locale = user.language_code || 'en';
+      let isNewTgUser = false;
+      let onboardingComplete = false;
+      if (cfg) {
+        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale,created_at,onboarding_complete&limit=1`);
+        if (sessions?.length) {
+          if (sessions[0].locale) locale = sessions[0].locale;
+          if (sessions[0].onboarding_complete) onboardingComplete = true;
+        } else {
+          // No session row exists — this is genuinely a new user
+          isNewTgUser = true;
+        }
+      }
+
       if (cfg) {
         fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
           user_id: userId,
           display_name: displayName,
         }, "return=minimal,resolution=merge-duplicates"), "upsert session");
-      }
-
-      // Look up locale from session or fallback to Telegram language_code
-      let locale = user.language_code || 'en';
-      let isNewTgUser = true;
-      let onboardingComplete = false;
-      if (cfg) {
-        const sessions = await sbFetch<any[]>(cfg, `flowb_sessions?user_id=eq.${userId}&select=locale,created_at,onboarding_complete&limit=1`);
-        if (sessions?.[0]?.locale) locale = sessions[0].locale;
-        if (sessions?.[0]?.onboarding_complete) onboardingComplete = true;
-        // If session was created more than 60s ago, it's a returning user
-        if (sessions?.[0]?.created_at) {
-          const created = new Date(sessions[0].created_at).getTime();
-          if (Date.now() - created > 60_000) isNewTgUser = false;
-        }
       }
 
       if (isNewTgUser) {
