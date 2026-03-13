@@ -1127,7 +1127,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         cfg,
         guestToken,
         userId,
-        async (uid, plat, action) => { await core.awardPoints(uid, plat, action); },
+        async (uid: string, plat: string, action: string) => { await core.awardPoints(uid, plat, action); },
       );
 
       // Award signup points
