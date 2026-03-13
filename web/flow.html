@@ -253,6 +253,17 @@
             </div>
           </div>
 
+          <!-- Connected Accounts -->
+          <div class="flow-card">
+            <div class="flow-card-header">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/></svg>
+              <span>Connected Accounts</span>
+            </div>
+            <div class="flow-card-body" id="flowLinkedAccounts">
+              <div class="flow-loading">Loading...</div>
+            </div>
+          </div>
+
           <!-- Connections -->
           <div class="flow-card">
             <div class="flow-card-header">
@@ -289,8 +300,6 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Privy Auth Mount -->
-  <div id="privy-root"></div>
 
 
   <script src="points.js"></script>
@@ -341,12 +350,11 @@
     }
 
     window.addEventListener('flowb-auth-ready', () => setTimeout(updateFlowPage, 200));
-    window.addEventListener('privy-auth-change', () => setTimeout(updateFlowPage, 500));
 
     // Sign-in button
     document.getElementById('flowSigninBtn')?.addEventListener('click', () => {
-      if (window.flowbPrivy) {
-        window.flowbPrivy.login();
+      if (window.flowbAuth) {
+        window.flowbAuth.login();
       } else {
         document.getElementById('authBtn')?.click();
       }
@@ -359,6 +367,7 @@
       loadSchedule();
       loadCrews();
       loadPoints();
+      loadLinkedAccounts();
       loadFriends();
     }
 
@@ -381,7 +390,7 @@
           <div class="dash-avatar">${initial}</div>
           <div class="dash-profile-info">
             <h3 class="dash-username">${escapeHtml(displayName)}</h3>
-            <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'Connected via Privy'}</p>
+            <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'FlowB Passport'}</p>
           </div>
           <div class="dash-stats-row">
             <div class="dash-stat">
@@ -717,6 +726,63 @@
       el.innerHTML = html;
     }
 
+    async function loadLinkedAccounts() {
+      const el = document.getElementById('flowLinkedAccounts');
+      if (!el) return;
+
+      const data = await fetchAuthed('/api/v1/me/link-status');
+      if (!data) {
+        el.innerHTML = '<div class="dash-empty dash-empty-sm"><p>Could not load accounts</p></div>';
+        return;
+      }
+
+      const platforms = [
+        {
+          key: 'telegram', label: 'Telegram', connected: data.has_telegram,
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.5-.84-.27-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.78 4.07-1.77 6.79-2.94 8.15-3.5 3.88-1.62 4.69-1.9 5.21-1.91.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z"/></svg>',
+          connectUrl: 'https://flowb.fly.dev/connect',
+        },
+        {
+          key: 'farcaster', label: 'Farcaster', connected: data.has_farcaster,
+          icon: '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>',
+          connectUrl: 'https://fc.flowb.me?link=true',
+        },
+        {
+          key: 'web', label: 'Web', connected: data.has_web,
+          icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>',
+          connectUrl: null,
+        },
+      ];
+
+      const allConnected = platforms.every(p => p.connected);
+
+      let html = '<div class="dash-linked-accounts">';
+      for (const p of platforms) {
+        html += `
+          <div class="dash-linked-item ${p.connected ? 'connected' : 'disconnected'}">
+            <span class="dash-linked-icon">${p.icon}</span>
+            <span class="dash-linked-label">${p.label}</span>
+            ${p.connected
+              ? '<span class="dash-linked-status connected">Connected</span>'
+              : p.connectUrl
+                ? `<a href="${p.connectUrl}" target="_blank" class="dash-linked-connect">Connect</a>`
+                : '<span class="dash-linked-status connected">Connected</span>'
+            }
+          </div>`;
+      }
+      html += '</div>';
+
+      if (data.merged_points > 0 && data.total_linked > 1) {
+        html += `<p class="dash-linked-merged">${data.merged_points} merged points across ${data.total_linked} accounts</p>`;
+      }
+
+      if (!allConnected) {
+        html += '<p class="dash-linked-hint">Connect more platforms to merge your points into one identity.</p>';
+      }
+
+      el.innerHTML = html;
+    }
+
     async function loadFriends() {
       const el = document.getElementById('flowFriends');
       if (!el) return;
@@ -742,28 +808,14 @@
     // Init
     updateFlowPage();
   </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="supabase-auth.js"></script>
   <script>
     (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        document.body.appendChild(s);
-      }
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      } else {
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
-      }
+      var btn = document.getElementById('authBtn');
+      if (btn) btn.addEventListener('click', function() {
+        if (window.flowbAuth) window.flowbAuth.login();
+      });
     })();
   </script>
   <script src="mobile-menu.js"></script>
