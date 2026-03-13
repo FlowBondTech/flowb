@@ -538,8 +538,14 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
               {/* Featured Event - Always at top when present */}
               {dateFiltered.filter(e => e.isFeatured).length > 0 && (
                 <>
-                  <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "space-between" }}>
                     <span style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Featured Event</span>
+                    <span
+                      style={{ fontSize: 12, color: "var(--text-muted)", cursor: "pointer", fontWeight: 500 }}
+                      onClick={() => onNavigate({ name: "featured" })}
+                    >
+                      See All &rsaquo;
+                    </span>
                   </div>
                   {dateFiltered.filter(e => e.isFeatured).map((e) => (
                     <EventCard key={e.id} event={e} sponsorAmount={e.boost?.amountUsdc} onClick={() => onNavigate({ name: "event", id: e.id })} />

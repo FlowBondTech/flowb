@@ -1533,63 +1533,52 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      // Fetch active boosts and prioritize boosted events
-      const now = new Date().toISOString();
-      const boosts = await sbFetch<any[]>(
-        cfg,
-        `flowb_event_boosts?active=eq.true&expires_at=gt.${now}&select=event_id,amount_usdc,expires_at,agent_name,product_slug`,
-      );
+      // Fetch featured event from System 2 (boost auction cycles + sponsorships)
+      const boostRows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
+      const currentBoost = boostRows?.[0] || null;
+      const featuredUrl = currentBoost?.target_id || null; // effective URL (respects admin override)
 
-      // Create a map of event_id -> boost info
-      const boostMap = new Map<string, { amountUsdc: number; expiresAt: string; agentName?: string; productSlug?: string }>();
-      for (const boost of boosts || []) {
-        // If multiple boosts for same event, keep the highest value one
-        const existing = boostMap.get(boost.event_id);
-        if (!existing || boost.amount_usdc > existing.amountUsdc) {
-          boostMap.set(boost.event_id, {
-            amountUsdc: parseFloat(boost.amount_usdc),
-            expiresAt: boost.expires_at,
-            agentName: boost.agent_name,
-            productSlug: boost.product_slug,
+      // Fetch verified sponsorships for current cycle to build boost map
+      const boostCycleId = currentBoost?.cycle_id;
+      const sponsorships = boostCycleId
+        ? await sbFetch<any[]>(
+            cfg,
+            `flowb_sponsorships?cycle_id=eq.${boostCycleId}&status=eq.verified&target_type=eq.featured_event&select=target_id,amount_usdc,created_at&order=amount_usdc.desc`,
+          )
+        : [];
+
+      // Build a map of event URL -> boost info from sponsorships
+      const boostMap = new Map<string, { amountUsdc: number; expiresAt: string }>();
+      for (const s of sponsorships || []) {
+        const existing = boostMap.get(s.target_id);
+        if (!existing || parseFloat(s.amount_usdc) > existing.amountUsdc) {
+          boostMap.set(s.target_id, {
+            amountUsdc: parseFloat(s.amount_usdc),
+            expiresAt: currentBoost?.ends_at || "",
           });
         }
       }
 
-      // Find the highest boosted event to mark as featured
-      let featuredEventId: string | null = null;
-      let featuredBidAmount = 0;
-      if (boosts && boosts.length > 0) {
-        // Sort boosts by amount descending to find highest
-        const sortedBoosts = [...boosts].sort((a, b) =>
-          parseFloat(b.amount_usdc) - parseFloat(a.amount_usdc)
-        );
-        const topBoost = sortedBoosts[0];
-        if (topBoost && parseFloat(topBoost.amount_usdc) > 0) {
-          featuredEventId = topBoost.event_id;
-          featuredBidAmount = parseFloat(topBoost.amount_usdc);
-        }
-      }
-
-      // Mark boosted events - the highest boost is marked as featured
-      const eventsWithBoost = events.map(e => ({
-        ...e,
-        isBoosted: boostMap.has(e.id),
-        boost: boostMap.get(e.id) || null,
-        isFeatured: e.id === featuredEventId, // Mark highest boost as featured
-      }));
+      // Match events by URL to mark isFeatured and isBoosted
+      const eventsWithBoost = events.map((e: any) => {
+        const eventUrl = e.url || e.id;
+        return {
+          ...e,
+          isBoosted: boostMap.has(eventUrl),
+          boost: boostMap.get(eventUrl) || null,
+          isFeatured: featuredUrl ? eventUrl === featuredUrl : false,
+        };
+      });
 
       // Sort: featured first, then boosted by amount desc, then non-boosted by starts_at
-      eventsWithBoost.sort((a, b) => {
-        // Featured event always first
+      eventsWithBoost.sort((a: any, b: any) => {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
-        // Then boosted events by amount
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
         if (a.isBoosted && b.isBoosted) {
           return (b.boost?.amountUsdc || 0) - (a.boost?.amountUsdc || 0);
         }
-        // Non-boosted by starts_at
         return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
       });
 
@@ -1598,7 +1587,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         total: eventsWithBoost.length,
         ...(city ? { city } : {}),
         ...(citySource ? { citySource } : {}),
-        ...(featuredEventId ? { featuredEventId } : {}),
+        ...(featuredUrl ? { featuredEventUrl: featuredUrl } : {}),
       };
     },
   );
@@ -6044,6 +6033,93 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // ADMIN: Set/clear featured event override
+  // ------------------------------------------------------------------
+  app.post<{ Body: { eventUrl: string | null } }>(
+    "/api/v1/admin/featured-event",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { eventUrl } = request.body || {};
+      const jwt = request.jwtPayload;
+      const adminId = jwt?.sub || "admin";
+
+      // Find active boost cycle
+      const cycles = await sbFetch<any[]>(cfg, "flowb_boost_cycles?is_active=eq.true&order=cycle_number.desc&limit=1");
+      if (!cycles?.length) {
+        return reply.status(404).send({ error: "No active boost cycle" });
+      }
+
+      const cycleId = cycles[0].id;
+      const overrideData: Record<string, any> = {
+        admin_override_url: eventUrl || null,
+        admin_override_by: eventUrl ? adminId : null,
+        admin_override_at: eventUrl ? new Date().toISOString() : null,
+      };
+
+      const ok = await sbPatchRaw(
+        cfg,
+        `flowb_boost_cycles?id=eq.${cycleId}`,
+        overrideData,
+      );
+
+      return {
+        ok,
+        action: eventUrl ? "override_set" : "override_cleared",
+        eventUrl: eventUrl || null,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PUBLIC: Featured events page data
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/featured",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { current: null, history: [] };
+
+      // Current featured (from view, respects admin override)
+      const currentRows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
+      const current = currentRows?.[0] || null;
+
+      // History: last 10 completed cycles
+      const historyRows = await sbFetch<any[]>(
+        cfg,
+        "flowb_boost_cycles?is_active=eq.false&order=cycle_number.desc&limit=10&select=id,cycle_number,started_at,ends_at,highest_bid_usdc,winning_event_url,admin_override_url",
+      );
+
+      return {
+        current: current
+          ? {
+              cycleId: current.cycle_id,
+              cycleNumber: current.cycle_number,
+              effectiveUrl: current.target_id,
+              auctionWinnerUrl: current.winning_event_url,
+              adminOverrideUrl: current.admin_override_url,
+              amountUsdc: parseFloat(current.amount_usdc) || 0,
+              endsAt: current.ends_at,
+              timeRemainingSeconds: current.time_remaining_seconds,
+              minNextBid: parseFloat(current.min_next_bid) || 0.10,
+            }
+          : null,
+        history: (historyRows || []).map((h: any) => ({
+          cycleNumber: h.cycle_number,
+          eventUrl: h.winning_event_url,
+          adminOverrideUrl: h.admin_override_url,
+          amountUsdc: parseFloat(h.highest_bid_usdc) || 0,
+          startedAt: h.started_at,
+          endedAt: h.ends_at,
+        })),
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // ADMIN: All events (for curation - includes featured/hidden)
   // ------------------------------------------------------------------
   app.get<{ Querystring: { limit?: string; offset?: string; search?: string } }>(
@@ -6656,7 +6732,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ==================================================================
-  // SPONSOR: Featured event boost (highest verified boost for featured spot)
+  // SPONSOR: Featured event boost (from cycle view, respects admin override)
   // ==================================================================
   app.get(
     "/api/v1/sponsor/featured-event",
@@ -6664,22 +6740,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { featured: null };
 
-      // Get all verified featured_event sponsorships, ordered by amount desc
-      const rows = await sbFetch<any[]>(
-        cfg,
-        "flowb_sponsorships?target_type=eq.featured_event&status=eq.verified&order=amount_usdc.desc&limit=1",
-      );
-
+      const rows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
       if (!rows?.length) return { featured: null };
 
-      const top = rows[0];
+      const f = rows[0];
       return {
         featured: {
-          target_id: top.target_id,
-          amount_usdc: Number(top.amount_usdc),
-          sponsor_user_id: top.sponsor_user_id,
-          created_at: top.created_at,
-          expires_at: top.expires_at,
+          target_id: f.target_id,
+          amount_usdc: Number(f.amount_usdc) || 0,
+          ends_at: f.ends_at,
+          time_remaining_seconds: f.time_remaining_seconds,
+          admin_override_url: f.admin_override_url,
+          winning_event_url: f.winning_event_url,
         },
       };
     },

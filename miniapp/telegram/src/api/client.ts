@@ -21,6 +21,7 @@ import type {
   SponsorRanking,
   RankedLocation,
   FeaturedEventBoost,
+  FeaturedPageData,
   AgentsResponse,
   MyAgentResponse,
 } from "./types";
@@ -419,6 +420,18 @@ export async function getFeaturedEventBoost(): Promise<FeaturedEventBoost | null
   } catch {
     return null;
   }
+}
+
+// ============================================================================
+// Featured Page
+// ============================================================================
+
+export async function getFeaturedPageData(): Promise<FeaturedPageData> {
+  return get<FeaturedPageData>("/api/v1/featured");
+}
+
+export async function setAdminFeaturedEvent(eventUrl: string | null): Promise<{ ok: boolean }> {
+  return post<{ ok: boolean }>("/api/v1/admin/featured-event", { eventUrl });
 }
 
 // Legacy function for backwards compatibility
