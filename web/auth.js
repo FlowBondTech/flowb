@@ -57,6 +57,32 @@ function initAuth() {
     }
   });
 
+  // Cross-device magic link: Device B clicked the link, Device A auto-signs in
+  window.addEventListener('flowb-pending-resolved', (e) => {
+    const { token, user } = e.detail;
+    if (!token || !user) return;
+    Auth.jwt = token;
+    Auth.user = {
+      id: user.id,
+      username: user.username || user.email?.split('@')[0],
+      email: user.email,
+      loginAt: Date.now(),
+      authProvider: 'supabase',
+    };
+    Auth.isAuthenticated = true;
+    localStorage.setItem(JWT_KEY, token);
+    localStorage.setItem(AUTH_KEY, JSON.stringify(Auth.user));
+    renderAuthState();
+    // Close the auth modal if open
+    var modal = document.getElementById('flowb-auth-modal');
+    if (modal) {
+      modal.remove();
+      document.body.style.overflow = '';
+    }
+    window.dispatchEvent(new CustomEvent('flowb-auth-ready'));
+    setTimeout(() => checkAndPromptLinking(), 1500);
+  });
+
   // Listen for account linking events
   window.addEventListener('flowb-accounts-linked', (e) => {
     const { mergedPoints } = e.detail;
@@ -300,7 +326,7 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
 
   let buttons = '';
   if (suggestTelegram) {
-    buttons += `<a href="https://t.me/flow_b_bot?start=link" target="_blank" class="signin-prompt-btn" style="margin-bottom:0.5rem;display:inline-flex;align-items:center;text-decoration:none">
+    buttons += `<a href="https://flowb.fly.dev/connect" target="_blank" class="signin-prompt-btn" style="margin-bottom:0.5rem;display:inline-flex;align-items:center;text-decoration:none">
       <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:6px"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.5-.84-.27-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.78 4.07-1.77 6.79-2.94 8.15-3.5 3.88-1.62 4.69-1.9 5.21-1.91.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z"/></svg>
       Connect Telegram</a>`;
   }
