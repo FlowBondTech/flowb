@@ -128,9 +128,12 @@ export function EventCard({ event, flowGoing, sponsorAmount, onClick }: Props) {
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-        {sponsorAmount != null && sponsorAmount > 0 && (
-          <span className="badge badge-purple">Sponsored</span>
+        {event.isFeatured && (
+          <span className="badge" style={{ background: "linear-gradient(135deg, #f59e0b, #ef4444)", color: "#fff", fontWeight: 700 }}>Featured</span>
         )}
+        {(sponsorAmount != null && sponsorAmount > 0) || (event.isBoosted && !event.isFeatured) ? (
+          <span className="badge badge-purple">Boosted</span>
+        ) : null}
         {event.isFree && <span className="badge badge-green">Free</span>}
         {event.source && (
           <span

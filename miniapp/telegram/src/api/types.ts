@@ -34,11 +34,20 @@ export interface EventResult {
   rsvpCount?: number;
   featured?: boolean;
   qualityScore?: number;
+  // Boost/sponsorship fields from API
+  isBoosted?: boolean;
+  isFeatured?: boolean;
+  boost?: {
+    amountUsdc: number;
+    expiresAt: string;
+    agentName?: string;
+    productSlug?: string;
+  } | null;
 }
 
 export interface UserProfile {
   id: string;
-  platform: "telegram" | "farcaster";
+  platform: "telegram" | "farcaster" | "web";
   tg_id?: number;
   fid?: number;
   username?: string;
@@ -47,6 +56,7 @@ export interface UserProfile {
   photoUrl?: string;
   displayName?: string;
   pfpUrl?: string;
+  isGuest?: boolean;
 }
 
 export interface AuthResponse {
@@ -128,6 +138,7 @@ export interface DiscoveredCrew {
   join_mode: string;
   member_count: number;
   created_at: string;
+  user_status?: "not_member" | "member" | "pending";
 }
 
 export interface CrewActivity {

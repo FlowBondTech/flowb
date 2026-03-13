@@ -1554,22 +1554,41 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      // Mark boosted events and sort: boosted first (by amount desc), then by starts_at
+      // Find the highest boosted event to mark as featured
+      let featuredEventId: string | null = null;
+      let featuredBidAmount = 0;
+      if (boosts && boosts.length > 0) {
+        // Sort boosts by amount descending to find highest
+        const sortedBoosts = [...boosts].sort((a, b) =>
+          parseFloat(b.amount_usdc) - parseFloat(a.amount_usdc)
+        );
+        const topBoost = sortedBoosts[0];
+        if (topBoost && parseFloat(topBoost.amount_usdc) > 0) {
+          featuredEventId = topBoost.event_id;
+          featuredBidAmount = parseFloat(topBoost.amount_usdc);
+        }
+      }
+
+      // Mark boosted events - the highest boost is marked as featured
       const eventsWithBoost = events.map(e => ({
         ...e,
         isBoosted: boostMap.has(e.id),
         boost: boostMap.get(e.id) || null,
+        isFeatured: e.id === featuredEventId, // Mark highest boost as featured
       }));
 
-      // Sort: boosted events first (sorted by boost amount desc), then non-boosted by starts_at
+      // Sort: featured first, then boosted by amount desc, then non-boosted by starts_at
       eventsWithBoost.sort((a, b) => {
+        // Featured event always first
+        if (a.isFeatured && !b.isFeatured) return -1;
+        if (!a.isFeatured && b.isFeatured) return 1;
+        // Then boosted events by amount
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
         if (a.isBoosted && b.isBoosted) {
-          // Both boosted: higher amount first
           return (b.boost?.amountUsdc || 0) - (a.boost?.amountUsdc || 0);
         }
-        // Both non-boosted: by starts_at (already sorted from query, but ensure consistency)
+        // Non-boosted by starts_at
         return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
       });
 
@@ -1578,6 +1597,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         total: eventsWithBoost.length,
         ...(city ? { city } : {}),
         ...(citySource ? { citySource } : {}),
+        ...(featuredEventId ? { featuredEventId } : {}),
       };
     },
   );
@@ -2956,39 +2976,85 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // FLOW: Discover all crews (public, no auth required)
+  // FLOW: Discover all crews (public, optionally shows user status if authed)
   // ------------------------------------------------------------------
-  app.get(
+  app.get<{ Querystring: { userId?: string } }>(
     "/api/v1/flow/crews/discover",
-    async () => {
-      if (!flowPlugin || !flowCfg) {
+    async (request) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) {
         return { crews: [] };
       }
 
-      const result = await flowPlugin.execute("crew-browse", {
-        action: "crew-browse",
-      }, { userId: "", platform: "telegram", config: {} as any });
-
-      let crews: any[] = [];
+      // Try to get authenticated user (optional)
+      let userId: string | null = null;
       try {
-        crews = JSON.parse(result);
+        const authHeader = request.headers.authorization;
+        if (authHeader?.startsWith("Bearer ")) {
+          const token = authHeader.slice(7);
+          const payload = JSON.parse(Buffer.from(token.split(".")[1], "base64").toString());
+          userId = payload.sub || null;
+        }
       } catch {
-        crews = [];
+        // Not authenticated, that's fine
+      }
+
+      // Get all public crews (not closed)
+      const crews = await sbFetch<any[]>(
+        cfg,
+        `flowb_groups?is_public=eq.true&join_mode=neq.closed&select=id,name,emoji,description,join_code,join_mode,created_at&order=created_at.desc&limit=100`,
+      );
+
+      if (!crews?.length) {
+        return { crews: [] };
       }
 
       // Enrich with member counts
-      const cfg = getSupabaseConfig();
-      if (cfg && crews.length) {
-        for (const crew of crews) {
-          const members = await sbFetch<any[]>(
-            cfg,
-            `flowb_group_members?group_id=eq.${crew.id}&select=user_id`,
-          );
-          crew.member_count = members?.length || 0;
+      const crewIds = crews.map((c) => c.id);
+      const allMembers = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=in.(${crewIds.join(",")})&select=group_id,user_id`,
+      );
+      const memberCounts = new Map<string, number>();
+      const userMemberships = new Set<string>();
+      for (const m of allMembers || []) {
+        memberCounts.set(m.group_id, (memberCounts.get(m.group_id) || 0) + 1);
+        if (userId && m.user_id === userId) {
+          userMemberships.add(m.group_id);
         }
       }
 
-      return { crews };
+      // Check for pending requests (if authenticated)
+      const userPendingRequests = new Set<string>();
+      if (userId) {
+        const pendingReqs = await sbFetch<any[]>(
+          cfg,
+          `flowb_crew_join_requests?user_id=eq.${userId}&status=eq.pending&select=group_id`,
+        );
+        for (const r of pendingReqs || []) {
+          userPendingRequests.add(r.group_id);
+        }
+      }
+
+      // Build response
+      const enrichedCrews = crews.map((crew) => ({
+        id: crew.id,
+        name: crew.name,
+        emoji: crew.emoji || "",
+        description: crew.description || "",
+        join_code: crew.join_code,
+        join_mode: crew.join_mode || "open",
+        member_count: memberCounts.get(crew.id) || 0,
+        user_status: userId
+          ? userMemberships.has(crew.id)
+            ? "member"
+            : userPendingRequests.has(crew.id)
+            ? "pending"
+            : "not_member"
+          : "not_member",
+      }));
+
+      return { crews: enrichedCrews };
     },
   );
 
@@ -3080,6 +3146,174 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       });
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Get pending join requests (admin only, requires auth)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/requests",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { requests: [] };
+
+      // Verify caller is admin/creator
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${request.params.id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length || !["creator", "admin"].includes(membership[0].role)) {
+        return { requests: [], error: "Admin access required" };
+      }
+
+      // Get pending requests
+      const requests = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_join_requests?group_id=eq.${request.params.id}&status=eq.pending&select=id,user_id,requested_at&order=requested_at.desc`,
+      );
+
+      // Enrich with user display names
+      if (requests?.length) {
+        const userIds = requests.map((r) => r.user_id);
+        const sessions = await sbFetch<any[]>(
+          cfg,
+          `flowb_sessions?user_id=in.(${userIds.map((id) => `"${id}"`).join(",")})&select=user_id,display_name`,
+        );
+        const nameMap = new Map((sessions || []).map((s) => [s.user_id, s.display_name]));
+        for (const req of requests) {
+          req.display_name = nameMap.get(req.user_id) || req.user_id.replace(/^(telegram_|farcaster_)/, "@");
+        }
+      }
+
+      return { requests: requests || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Request to join a crew (creates pending request)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/flow/crews/:id/request-join",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      const crewId = request.params.id;
+
+      // Check if already a member
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${crewId}&user_id=eq.${jwt.sub}&select=user_id&limit=1`,
+      );
+      if (existing?.length) {
+        return { ok: false, error: "Already a member of this crew" };
+      }
+
+      // Check if there's already a pending request
+      const pendingReq = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_join_requests?group_id=eq.${crewId}&user_id=eq.${jwt.sub}&status=eq.pending&select=id&limit=1`,
+      );
+      if (pendingReq?.length) {
+        return { ok: false, error: "You already have a pending request", alreadyPending: true };
+      }
+
+      // Create join request
+      await sbInsert(cfg, "flowb_crew_join_requests", {
+        group_id: crewId,
+        user_id: jwt.sub,
+        status: "pending",
+      });
+
+      return { ok: true, message: "Request sent! The crew admin will review it." };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Approve join request (admin only)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string; reqId: string } }>(
+    "/api/v1/flow/crews/:id/requests/:reqId/approve",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Verify caller is admin/creator
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${request.params.id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length || !["creator", "admin"].includes(membership[0].role)) {
+        return { ok: false, error: "Admin access required" };
+      }
+
+      // Get the request
+      const reqs = await sbFetch<any[]>(
+        cfg,
+        `flowb_crew_join_requests?id=eq.${request.params.reqId}&group_id=eq.${request.params.id}&status=eq.pending&select=id,user_id&limit=1`,
+      );
+      if (!reqs?.length) {
+        return { ok: false, error: "Request not found or already processed" };
+      }
+
+      const req = reqs[0];
+
+      // Update request status
+      await sbPatchRaw(cfg, `flowb_crew_join_requests?id=eq.${req.id}`, {
+        status: "approved",
+        reviewed_by: jwt.sub,
+        reviewed_at: new Date().toISOString(),
+      });
+
+      // Add user to crew
+      await sbInsert(cfg, "flowb_group_members", {
+        group_id: request.params.id,
+        user_id: req.user_id,
+        role: "member",
+      });
+
+      // Award points
+      fireAndForget(core.awardPoints(req.user_id, "telegram", "crew_joined"), "award points");
+
+      return { ok: true, message: "Request approved" };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // FLOW: Deny join request (admin only)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string; reqId: string } }>(
+    "/api/v1/flow/crews/:id/requests/:reqId/deny",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Verify caller is admin/creator
+      const membership = await sbFetch<any[]>(
+        cfg,
+        `flowb_group_members?group_id=eq.${request.params.id}&user_id=eq.${jwt.sub}&select=role&limit=1`,
+      );
+      if (!membership?.length || !["creator", "admin"].includes(membership[0].role)) {
+        return { ok: false, error: "Admin access required" };
+      }
+
+      // Update request status
+      await sbPatchRaw(cfg, `flowb_crew_join_requests?id=eq.${request.params.reqId}&group_id=eq.${request.params.id}&status=eq.pending`, {
+        status: "denied",
+        reviewed_by: jwt.sub,
+        reviewed_at: new Date().toISOString(),
+      });
+
+      return { ok: true, message: "Request denied" };
     },
   );
 
