@@ -214,6 +214,28 @@ export interface FeaturedEventBoost {
   time_remaining_seconds?: number;
 }
 
+export interface FeaturedPageData {
+  current: {
+    cycleId: number;
+    cycleNumber: number;
+    effectiveUrl: string | null;
+    auctionWinnerUrl: string | null;
+    adminOverrideUrl: string | null;
+    amountUsdc: number;
+    endsAt: string;
+    timeRemainingSeconds: number;
+    minNextBid: number;
+  } | null;
+  history: {
+    cycleNumber: number;
+    eventUrl: string | null;
+    adminOverrideUrl: string | null;
+    amountUsdc: number;
+    startedAt: string;
+    endedAt: string;
+  }[];
+}
+
 export interface SponsorRanking {
   target_id: string;
   total_usdc: number;

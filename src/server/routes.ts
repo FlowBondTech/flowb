@@ -5,7 +5,7 @@
  * Auth endpoints issue JWTs for Telegram and Farcaster users.
  */
 
-import { createHash, randomBytes } from "node:crypto";
+import { createHash } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import type { FlowBCore } from "../core/flowb.js";
 import type { FlowPluginConfig } from "../plugins/flow/index.js";
@@ -18,6 +18,7 @@ import {
   type JWTPayload,
 } from "./auth.js";
 import { getOrCreateSupabaseUser, verifySupabaseToken } from "../services/supabase-auth.js";
+import { isSupabaseAuthEnabled, isPrivyEnabled } from "../config.js";
 import {
   upsertNotificationToken,
   disableNotificationToken,
@@ -49,11 +50,10 @@ import {
 } from "../services/guest-session.js";
 import { sbFetch, sbPost, sbInsert, sbPatch, sbPatchRaw, sbQuery, sbDelete, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
-import { alertAdmins, alertNewEvents, getAdminNotifPrefs, updateAdminNotifPrefs, ADMIN_ALERT_CATEGORIES } from "../services/admin-alerts.js";
+import { alertAdmins, alertNewEvents } from "../services/admin-alerts.js";
 import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js";
 import { registerAgentRoutes } from "./agent-routes.js";
 import { registerFiFlowRoutes } from "./fiflow-routes.js";
-import { registerCuFlowRoutes } from "./cuflow-routes.js";
 import { registerPaymentRoutes } from "./payment-routes.js";
 // TEMPORARILY DISABLED: websites plugin not fully implemented
 // import {
@@ -135,15 +135,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const who = user.username
           ? `<a href="https://t.me/${user.username}">@${user.username}</a>`
           : user.first_name || `User ${user.id}`;
-        alertAdmins(`New user: <b>${who}</b> on telegram`, "info", "new_user");
+        alertAdmins(`New user: <b>${who}</b> on telegram`, "info");
       }
 
       // Create/link Supabase Auth user (FlowB Passport)
       let supabaseUid: string | undefined;
-      const sbUser = await getOrCreateSupabaseUser(userId, "telegram", {
-        displayName,
-      });
-      if (sbUser) supabaseUid = sbUser.uid;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "telegram", {
+          displayName,
+        });
+        if (sbUser) supabaseUid = sbUser.uid;
+      }
 
       const token = signJwt({
         sub: userId,
@@ -232,6 +234,28 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             } catch {}
           }
 
+          // Check for existing Privy account linked to this FID
+          let privyUserId: string | undefined;
+          const privyAppId = process.env.PRIVY_APP_ID;
+          const privyAppSecret = process.env.PRIVY_APP_SECRET;
+          if (privyAppId && privyAppSecret) {
+            try {
+              const credentials = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+              const privyRes = await fetch(`https://auth.privy.io/api/v2/users/farcaster:${fid}`, {
+                headers: {
+                  Authorization: `Basic ${credentials}`,
+                  "privy-app-id": privyAppId,
+                  "Content-Type": "application/json",
+                },
+              });
+              if (privyRes.ok) {
+                const privyUser = await privyRes.json() as any;
+                privyUserId = privyUser?.id;
+                console.log(`[auth] Linked Farcaster FID ${fid} to Privy user ${privyUserId}`);
+              }
+            } catch {}
+          }
+
           // Look up locale + onboarding from session
           let locale = 'en';
           let onboardingComplete = false;
@@ -268,23 +292,26 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               const who = username
                 ? `<a href="https://warpcast.com/${username}">@${username}</a>`
                 : displayName || `FID ${fid}`;
-              alertAdmins(`New user: <b>${who}</b> on farcaster`, "info", "new_user");
+              alertAdmins(`New user: <b>${who}</b> on farcaster`, "info");
             }
           }
 
           // Create/link Supabase Auth user (FlowB Passport)
           let supabaseUid: string | undefined;
-          const sbUser = await getOrCreateSupabaseUser(userId, "farcaster", {
-            displayName: displayName || username,
-            avatarUrl: pfpUrl,
-          });
-          if (sbUser) supabaseUid = sbUser.uid;
+          if (isSupabaseAuthEnabled()) {
+            const sbUser = await getOrCreateSupabaseUser(userId, "farcaster", {
+              displayName: displayName || username,
+              avatarUrl: pfpUrl,
+            });
+            if (sbUser) supabaseUid = sbUser.uid;
+          }
 
           const token = signJwt({
             sub: userId,
             platform: "farcaster",
             fid,
             username,
+            ...(privyUserId ? { privyUserId } : {}),
             ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
           });
 
@@ -299,6 +326,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               username,
               displayName,
               pfpUrl,
+              ...(privyUserId ? { privyUserId } : {}),
               ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
             },
           };
@@ -335,11 +363,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Create/link Supabase Auth user (FlowB Passport)
       let legacyFcSupabaseUid: string | undefined;
-      const sbUser2 = await getOrCreateSupabaseUser(userId, "farcaster", {
-        displayName: user.displayName || user.username,
-        avatarUrl: user.pfpUrl,
-      });
-      if (sbUser2) legacyFcSupabaseUid = sbUser2.uid;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "farcaster", {
+          displayName: user.displayName || user.username,
+          avatarUrl: user.pfpUrl,
+        });
+        if (sbUser) legacyFcSupabaseUid = sbUser.uid;
+      }
 
       const token = signJwt({
         sub: userId,
@@ -427,6 +457,227 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // AUTH: Web (Privy legacy + Supabase Auth dual mode)
+  // Accepts { privyUserId } (legacy) OR { supabaseAccessToken } (new)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { privyUserId?: string; supabaseAccessToken?: string; displayName?: string } }>(
+    "/api/v1/auth/web",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            privyUserId: { type: "string" },
+            supabaseAccessToken: { type: "string" },
+            displayName: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { privyUserId, supabaseAccessToken, displayName } = request.body || {};
+
+      // --- New Supabase Auth path ---
+      if (supabaseAccessToken && isSupabaseAuthEnabled()) {
+        const verified = await verifySupabaseToken(supabaseAccessToken);
+        if (!verified) {
+          return reply.status(401).send({ error: "Invalid Supabase Auth token" });
+        }
+        // Redirect to passport endpoint logic
+        const passportRes = await fetch(`http://localhost:${process.env.PORT || 3000}/api/v1/auth/passport`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ accessToken: supabaseAccessToken, displayName }),
+        });
+        if (!passportRes.ok) {
+          return reply.status(passportRes.status).send(await passportRes.json());
+        }
+        return passportRes.json();
+      }
+
+      // --- Legacy Privy path ---
+      if (!privyUserId) {
+        return reply.status(400).send({ error: "Missing privyUserId or supabaseAccessToken" });
+      }
+
+      if (!isPrivyEnabled()) {
+        return reply.status(503).send({ error: "Privy auth is disabled. Use /api/v1/auth/passport instead." });
+      }
+
+      const userId = `web_${privyUserId}`;
+
+      // Ensure user exists in points table
+      fireAndForget(core.awardPoints(userId, "web", "miniapp_open"), "award points");
+
+      // Auto-resolve cross-platform identity on web login
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        try {
+          await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
+        } catch {}
+      }
+
+      // Upsert session row for web users
+      {
+        const webCfgSession = getSupabaseConfig();
+        if (webCfgSession) {
+          fireAndForget(sbPost(webCfgSession, "flowb_sessions?on_conflict=user_id", {
+            user_id: userId,
+            display_name: displayName || privyUserId,
+          }, "return=minimal,resolution=merge-duplicates"), "upsert web session");
+        }
+      }
+
+      // Alert admins for new web users
+      {
+        const webCfg = getSupabaseConfig();
+        let isNewWebUser = true;
+        if (webCfg) {
+          const existing = await sbFetch<any[]>(webCfg, `flowb_sessions?user_id=eq.${userId}&select=created_at&limit=1`);
+          if (existing?.[0]?.created_at) {
+            const created = new Date(existing[0].created_at).getTime();
+            if (Date.now() - created > 60_000) isNewWebUser = false;
+          }
+        }
+        if (isNewWebUser) {
+          const who = displayName || privyUserId;
+          alertAdmins(`New user: <b>${who}</b> on web`, "info");
+        }
+      }
+
+      // Create/link Supabase Auth user in dual mode
+      let supabaseUid: string | undefined;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "web", {
+          displayName: displayName || undefined,
+        });
+        if (sbUser) supabaseUid = sbUser.uid;
+      }
+
+      const token = signJwt({
+        sub: userId,
+        platform: "web" as any,
+        username: displayName || "User",
+        ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "web",
+          username: displayName,
+          ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // AUTH: Privy (Mobile) — verify Privy access token, issue FlowB JWT
+  // ------------------------------------------------------------------
+  app.post<{ Body: { privyAccessToken: string; displayName?: string; email?: string } }>(
+    "/api/v1/auth/privy",
+    {
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["privyAccessToken"],
+          properties: {
+            privyAccessToken: { type: "string" },
+            displayName: { type: "string" },
+            email: { type: "string" },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { privyAccessToken, displayName, email } = request.body || {};
+      if (!privyAccessToken) {
+        return reply.status(400).send({ error: "Missing privyAccessToken" });
+      }
+
+      const privyAppId = process.env.PRIVY_APP_ID;
+      const privyAppSecret = process.env.PRIVY_APP_SECRET;
+      if (!privyAppId || !privyAppSecret) {
+        return reply.status(500).send({ error: "Privy not configured" });
+      }
+
+      // Verify the access token with Privy's API
+      let privyUserId: string;
+      try {
+        const credentials = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+        const verifyRes = await fetch("https://auth.privy.io/api/v1/token/verify", {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${credentials}`,
+            "privy-app-id": privyAppId,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ token: privyAccessToken }),
+        });
+
+        if (!verifyRes.ok) {
+          const errText = await verifyRes.text().catch(() => "");
+          log.warn("[auth/privy]", `Token verification failed: ${verifyRes.status}`, { errText });
+          return reply.status(401).send({ error: "Invalid Privy token" });
+        }
+
+        const verifyData = await verifyRes.json() as any;
+        privyUserId = verifyData.user_id || verifyData.sub;
+        if (!privyUserId) {
+          return reply.status(401).send({ error: "Could not extract user ID from Privy token" });
+        }
+      } catch (err: any) {
+        log.error("[auth/privy]", "Token verification error", { error: err.message });
+        return reply.status(500).send({ error: "Privy verification failed" });
+      }
+
+      const userId = `web_${privyUserId}`;
+
+      // Ensure user exists in points table
+      fireAndForget(core.awardPoints(userId, "app", "miniapp_open"), "award points");
+
+      // Upsert session
+      const cfg = getSupabaseConfig();
+      if (cfg) {
+        const sessionData: any = {
+          user_id: userId,
+          display_name: displayName || privyUserId,
+        };
+        if (email) sessionData.email = email;
+        fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", sessionData,
+          "return=minimal,resolution=merge-duplicates"), "upsert privy session");
+      }
+
+      // Resolve cross-platform identity
+      if (cfg) {
+        try {
+          await resolveCanonicalId(cfg, userId, { displayName: displayName || undefined });
+        } catch {}
+      }
+
+      const token = signJwt({
+        sub: userId,
+        platform: "app" as any,
+        username: displayName || "User",
+      });
+
+      return {
+        token,
+        user: {
+          id: userId,
+          platform: "app",
+          username: displayName || email || "User",
+          displayName: displayName || email || "User",
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // AUTH: WhatsApp Mini App (HMAC-based phone verification)
   // Bot sends CTA URL: wa.flowb.me?phone={phone}&ts={timestamp}&sig={hmac}
   // ------------------------------------------------------------------
@@ -486,8 +737,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Create/link Supabase Auth user (FlowB Passport)
       let waSupabaseUid: string | undefined;
-      const wasbUser = await getOrCreateSupabaseUser(userId, "whatsapp");
-      if (wasbUser) waSupabaseUid = wasbUser.uid;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "whatsapp");
+        if (sbUser) waSupabaseUid = sbUser.uid;
+      }
 
       const token = signJwt({
         sub: userId,
@@ -562,8 +815,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Create/link Supabase Auth user (FlowB Passport)
       let sigSupabaseUid: string | undefined;
-      const sigsbUser = await getOrCreateSupabaseUser(userId, "signal");
-      if (sigsbUser) sigSupabaseUid = sigsbUser.uid;
+      if (isSupabaseAuthEnabled()) {
+        const sbUser = await getOrCreateSupabaseUser(userId, "signal");
+        if (sbUser) sigSupabaseUid = sbUser.uid;
+      }
 
       const token = signJwt({
         sub: userId,
@@ -604,6 +859,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       },
     },
     async (request, reply) => {
+      if (!isSupabaseAuthEnabled()) {
+        return reply.status(503).send({ error: "Supabase Auth not enabled" });
+      }
+
       const { accessToken, displayName } = request.body || {};
       if (!accessToken) {
         return reply.status(400).send({ error: "Missing accessToken" });
@@ -921,173 +1180,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         supabaseUrl: supabaseUrl || null,
         supabaseAnonKey: supabaseAnonKey || null,
       };
-    },
-  );
-
-  // ------------------------------------------------------------------
-  // AUTH: Cross-device magic link coordination
-  // Device A creates a pending-auth session, polls for resolution.
-  // Device B clicks the magic link, resolves the pending session.
-  // ------------------------------------------------------------------
-
-  app.post<{ Body: { email: string } }>(
-    "/api/v1/auth/pending-session",
-    {
-      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
-      schema: {
-        body: {
-          type: "object",
-          required: ["email"],
-          properties: { email: { type: "string", format: "email" } },
-        },
-      },
-    },
-    async (request, reply) => {
-      const cfg = getSupabaseConfig();
-      if (!cfg) {
-        return reply.status(500).send({ error: "Database not configured" });
-      }
-      const { email } = request.body;
-      const pendingId = randomBytes(16).toString("base64url");
-
-      await sbInsert(cfg, "flowb_pending_auth", {
-        id: pendingId,
-        email,
-        resolved: false,
-      });
-
-      return { pendingId };
-    },
-  );
-
-  app.get<{ Params: { id: string } }>(
-    "/api/v1/auth/check-pending/:id",
-    {
-      config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
-    },
-    async (request, reply) => {
-      const cfg = getSupabaseConfig();
-      if (!cfg) {
-        return reply.status(500).send({ error: "Database not configured" });
-      }
-      const { id } = request.params;
-      const rows = await sbFetch<any[]>(
-        cfg,
-        `flowb_pending_auth?id=eq.${encodeURIComponent(id)}&select=resolved,jwt,user_json,created_at&limit=1`,
-      );
-      const row = rows?.[0];
-      if (!row) {
-        return reply.status(404).send({ error: "Not found" });
-      }
-      // Expire after 10 minutes
-      if (Date.now() - new Date(row.created_at).getTime() > 10 * 60 * 1000) {
-        return { resolved: false, expired: true };
-      }
-      if (row.resolved && row.jwt) {
-        // Clean up after delivery
-        fireAndForget(
-          sbDelete(cfg, "flowb_pending_auth", { id: `eq.${id}` }),
-          "cleanup pending auth",
-        );
-        return { resolved: true, token: row.jwt, user: row.user_json };
-      }
-      return { resolved: false };
-    },
-  );
-
-  app.post<{ Body: { pendingId: string; accessToken: string; displayName?: string } }>(
-    "/api/v1/auth/resolve-pending",
-    {
-      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
-      schema: {
-        body: {
-          type: "object",
-          required: ["pendingId", "accessToken"],
-          properties: {
-            pendingId: { type: "string" },
-            accessToken: { type: "string" },
-            displayName: { type: "string" },
-          },
-        },
-      },
-    },
-    async (request, reply) => {
-      const cfg = getSupabaseConfig();
-      if (!cfg) {
-        return reply.status(500).send({ error: "Database not configured" });
-      }
-      const { pendingId, accessToken, displayName } = request.body;
-
-      // Verify the pending session exists and is not expired
-      const rows = await sbFetch<any[]>(
-        cfg,
-        `flowb_pending_auth?id=eq.${encodeURIComponent(pendingId)}&resolved=eq.false&select=id,email,created_at&limit=1`,
-      );
-      const pending = rows?.[0];
-      if (!pending) {
-        return reply.status(404).send({ error: "Pending session not found or already resolved" });
-      }
-      if (Date.now() - new Date(pending.created_at).getTime() > 10 * 60 * 1000) {
-        return reply.status(410).send({ error: "Pending session expired" });
-      }
-
-      // Verify Supabase Auth token
-      const verified = await verifySupabaseToken(accessToken);
-      if (!verified) {
-        return reply.status(401).send({ error: "Invalid Supabase Auth token" });
-      }
-
-      const { uid: supabaseUid, email } = verified;
-      let canonicalId = `web_${supabaseUid}`;
-
-      const existing = await sbFetch<any[]>(
-        cfg,
-        `flowb_passport?supabase_uid=eq.${supabaseUid}&select=canonical_id&limit=1`,
-      );
-      if (existing?.[0]?.canonical_id) {
-        canonicalId = existing[0].canonical_id;
-      } else {
-        await getOrCreateSupabaseUser(canonicalId, "web", {
-          email: email || undefined,
-          displayName: displayName || email?.split("@")[0],
-        });
-        try { await resolveCanonicalId(cfg, canonicalId, { displayName: displayName || email?.split("@")[0] }); } catch {}
-      }
-
-      // Upsert session
-      fireAndForget(sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
-        user_id: canonicalId,
-        display_name: displayName || email?.split("@")[0] || "User",
-        ...(email ? { email } : {}),
-      }, "return=minimal,resolution=merge-duplicates"), "upsert passport session");
-
-      fireAndForget(core.awardPoints(canonicalId, "web", "miniapp_open"), "award points");
-
-      const token = signJwt({
-        sub: canonicalId,
-        platform: "web",
-        username: displayName || email?.split("@")[0] || "User",
-        supabase_uid: supabaseUid,
-        email,
-      });
-
-      const userJson = {
-        id: canonicalId,
-        supabase_uid: supabaseUid,
-        platform: "web",
-        email,
-        username: displayName || email?.split("@")[0] || "User",
-      };
-
-      // Resolve the pending session so Device A can pick it up
-      await sbPatchRaw(cfg, `flowb_pending_auth?id=eq.${encodeURIComponent(pendingId)}`, {
-        resolved: true,
-        jwt: token,
-        user_json: userJson,
-        resolved_at: new Date().toISOString(),
-      });
-
-      return { ok: true, token, user: userJson };
     },
   );
 
@@ -1441,63 +1533,52 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      // Fetch active boosts and prioritize boosted events
-      const now = new Date().toISOString();
-      const boosts = await sbFetch<any[]>(
-        cfg,
-        `flowb_event_boosts?active=eq.true&expires_at=gt.${now}&select=event_id,amount_usdc,expires_at,agent_name,product_slug`,
-      );
+      // Fetch featured event from System 2 (boost auction cycles + sponsorships)
+      const boostRows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
+      const currentBoost = boostRows?.[0] || null;
+      const featuredUrl = currentBoost?.target_id || null; // effective URL (respects admin override)
 
-      // Create a map of event_id -> boost info
-      const boostMap = new Map<string, { amountUsdc: number; expiresAt: string; agentName?: string; productSlug?: string }>();
-      for (const boost of boosts || []) {
-        // If multiple boosts for same event, keep the highest value one
-        const existing = boostMap.get(boost.event_id);
-        if (!existing || boost.amount_usdc > existing.amountUsdc) {
-          boostMap.set(boost.event_id, {
-            amountUsdc: parseFloat(boost.amount_usdc),
-            expiresAt: boost.expires_at,
-            agentName: boost.agent_name,
-            productSlug: boost.product_slug,
+      // Fetch verified sponsorships for current cycle to build boost map
+      const boostCycleId = currentBoost?.cycle_id;
+      const sponsorships = boostCycleId
+        ? await sbFetch<any[]>(
+            cfg,
+            `flowb_sponsorships?cycle_id=eq.${boostCycleId}&status=eq.verified&target_type=eq.featured_event&select=target_id,amount_usdc,created_at&order=amount_usdc.desc`,
+          )
+        : [];
+
+      // Build a map of event URL -> boost info from sponsorships
+      const boostMap = new Map<string, { amountUsdc: number; expiresAt: string }>();
+      for (const s of sponsorships || []) {
+        const existing = boostMap.get(s.target_id);
+        if (!existing || parseFloat(s.amount_usdc) > existing.amountUsdc) {
+          boostMap.set(s.target_id, {
+            amountUsdc: parseFloat(s.amount_usdc),
+            expiresAt: currentBoost?.ends_at || "",
           });
         }
       }
 
-      // Find the highest boosted event to mark as featured
-      let featuredEventId: string | null = null;
-      let featuredBidAmount = 0;
-      if (boosts && boosts.length > 0) {
-        // Sort boosts by amount descending to find highest
-        const sortedBoosts = [...boosts].sort((a, b) =>
-          parseFloat(b.amount_usdc) - parseFloat(a.amount_usdc)
-        );
-        const topBoost = sortedBoosts[0];
-        if (topBoost && parseFloat(topBoost.amount_usdc) > 0) {
-          featuredEventId = topBoost.event_id;
-          featuredBidAmount = parseFloat(topBoost.amount_usdc);
-        }
-      }
-
-      // Mark boosted events - the highest boost is marked as featured
-      const eventsWithBoost = events.map(e => ({
-        ...e,
-        isBoosted: boostMap.has(e.id),
-        boost: boostMap.get(e.id) || null,
-        isFeatured: e.id === featuredEventId, // Mark highest boost as featured
-      }));
+      // Match events by URL to mark isFeatured and isBoosted
+      const eventsWithBoost = events.map((e: any) => {
+        const eventUrl = e.url || e.id;
+        return {
+          ...e,
+          isBoosted: boostMap.has(eventUrl),
+          boost: boostMap.get(eventUrl) || null,
+          isFeatured: featuredUrl ? eventUrl === featuredUrl : false,
+        };
+      });
 
       // Sort: featured first, then boosted by amount desc, then non-boosted by starts_at
-      eventsWithBoost.sort((a, b) => {
-        // Featured event always first
+      eventsWithBoost.sort((a: any, b: any) => {
         if (a.isFeatured && !b.isFeatured) return -1;
         if (!a.isFeatured && b.isFeatured) return 1;
-        // Then boosted events by amount
         if (a.isBoosted && !b.isBoosted) return -1;
         if (!a.isBoosted && b.isBoosted) return 1;
         if (a.isBoosted && b.isBoosted) {
           return (b.boost?.amountUsdc || 0) - (a.boost?.amountUsdc || 0);
         }
-        // Non-boosted by starts_at
         return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
       });
 
@@ -1506,7 +1587,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         total: eventsWithBoost.length,
         ...(city ? { city } : {}),
         ...(citySource ? { citySource } : {}),
-        ...(featuredEventId ? { featuredEventId } : {}),
+        ...(featuredUrl ? { featuredEventUrl: featuredUrl } : {}),
       };
     },
   );
@@ -1926,9 +2007,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify crew member rsvp");
       }
 
-      // Alert admins about RSVP
-      alertAdmins(`RSVP: <b>${jwt.sub}</b> → ${eventTitle}`, "info", "rsvp");
-
       return { ok: true, status, attendance };
     },
   );
@@ -2122,8 +2200,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         fireAndForget(notifyCrewJoin(joinNotifyCtx, jwt.sub, request.params.id, name, emoji), "notify crew join");
       }
 
-      alertAdmins(`User joined crew: <b>${name}</b> (${jwt.sub})`, "info", "crew_joined");
-
       return { ok: true, message: result };
     },
   );
@@ -2284,7 +2360,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.patch<{
     Body: {
-      display_name?: string;
       bio?: string;
       role?: string;
       tags?: string[];
@@ -2314,10 +2389,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const updates: Record<string, any> = { updated_at: new Date().toISOString() };
       const pointsToAward: string[] = [];
 
-      if (body.display_name !== undefined) {
-        const name = (body.display_name || "").trim().slice(0, 50);
-        if (name && name !== "User") updates.display_name = name;
-      }
       if (body.bio !== undefined) {
         updates.bio = body.bio;
         if (body.bio && !current.bio) pointsToAward.push("bio_added");
@@ -3019,13 +3090,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         group_id: request.params.id,
         friend_id: request.params.userId,
       }, { userId: jwt.sub, platform: jwt.platform, config: {} as any });
-
-      // Alert admins about role change
-      alertAdmins(
-        `Role change: <b>${request.params.userId}</b> → ${request.body.role} in crew ${request.params.id}`,
-        "info",
-        "crew_role_change",
-      );
 
       return { ok: true, message: result };
     },
@@ -5040,7 +5104,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Fetch identity rows with display names
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_identities?canonical_id=eq.${encodeURIComponent(canonicalId)}&select=platform,platform_user_id,display_name,avatar_url`,
+        `flowb_identities?canonical_id=eq.${encodeURIComponent(canonicalId)}&select=platform,platform_user_id,display_name,avatar_url,privy_id`,
       );
 
       const accounts = (rows || []).map((r: any) => ({
@@ -5098,7 +5162,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
   // ------------------------------------------------------------------
   // SYNC LINKED ACCOUNTS: Re-resolve identity after account linking
-  // Called from web after user links a new account via FlowB Passport
+  // Called from web after user links a new account (Privy or Supabase Auth)
   // ------------------------------------------------------------------
   app.post(
     "/api/v1/me/sync-linked-accounts",
@@ -5108,14 +5172,233 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { ok: false, error: "Not configured" };
 
-      // Re-resolve canonical ID from local identity tables
-      const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
-      const linkedIds = await getLinkedIds(cfg, canonicalId);
+      // In supabase-only mode, sync from local flowb_identities + flowb_passport
+      if (!isPrivyEnabled()) {
+        // Just re-resolve canonical ID from local tables
+        const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+        const linkedIds = await getLinkedIds(cfg, canonicalId);
+        return { ok: true, synced: linkedIds.length, canonical_id: canonicalId, merged_points: 0, platforms_linked: linkedIds.map(id => id.split("_")[0]) };
+      }
+
+      // For web users, look up their full Privy profile and sync all linked accounts
+      const privyAppId = process.env.PRIVY_APP_ID;
+      const privyAppSecret = process.env.PRIVY_APP_SECRET;
+
+      if (!privyAppId || !privyAppSecret) {
+        // Fall back to local-only sync
+        const canonicalId = await resolveCanonicalId(cfg, jwt.sub);
+        return { ok: true, synced: 0, message: "Privy not configured, local sync only", canonical_id: canonicalId };
+      }
+
+      // Determine the Privy user ID
+      let privyDid: string | undefined;
+      if (jwt.sub.startsWith("web_")) {
+        privyDid = jwt.sub.replace("web_", "");
+      } else if (jwt.privyUserId) {
+        privyDid = jwt.privyUserId;
+      } else {
+        // For telegram/farcaster users, search Privy
+        const basicAuth = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+        let searchFilter: Record<string, any> | null = null;
+        if (jwt.sub.startsWith("telegram_")) {
+          searchFilter = { telegram: { subject: jwt.sub.replace("telegram_", "") } };
+        } else if (jwt.sub.startsWith("farcaster_")) {
+          searchFilter = { farcaster: { subject: jwt.sub.replace("farcaster_", "") } };
+        }
+
+        if (searchFilter) {
+          try {
+            const res = await fetch("https://auth.privy.io/api/v1/users/search", {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${basicAuth}`,
+                "privy-app-id": privyAppId,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ filter: searchFilter, limit: 1 }),
+            });
+            if (res.ok) {
+              const data = await res.json() as any;
+              privyDid = data?.data?.[0]?.id || data?.data?.[0]?.did;
+            }
+          } catch {}
+        }
+      }
+
+      if (!privyDid) {
+        return { ok: true, synced: 0, message: "No Privy account found" };
+      }
+
+      // Fetch the full Privy user with all linked accounts
+      const basicAuth = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
+      let privyUser: any;
+      try {
+        const res = await fetch(`https://auth.privy.io/api/v2/users/${encodeURIComponent(privyDid)}`, {
+          headers: {
+            Authorization: `Basic ${basicAuth}`,
+            "privy-app-id": privyAppId,
+          },
+        });
+        if (!res.ok) {
+          return { ok: false, error: `Privy lookup failed: ${res.status}` };
+        }
+        privyUser = await res.json();
+      } catch (err: any) {
+        return { ok: false, error: `Privy error: ${err.message}` };
+      }
+
+      // Extract all platform user IDs from Privy linked accounts
+      const linkedPlatformIds: { platform: string; platformUserId: string; displayName?: string }[] = [];
+
+      // Always include the web/privy identity
+      linkedPlatformIds.push({
+        platform: "web",
+        platformUserId: `web_${privyDid}`,
+        displayName: undefined,
+      });
+
+      for (const account of privyUser.linked_accounts || []) {
+        if (account.type === "telegram" && (account.telegram_user_id || account.telegramUserId)) {
+          const tgId = account.telegram_user_id || account.telegramUserId;
+          linkedPlatformIds.push({
+            platform: "telegram",
+            platformUserId: `telegram_${tgId}`,
+            displayName: account.username || account.first_name || undefined,
+          });
+        }
+        if (account.type === "farcaster" && account.fid) {
+          linkedPlatformIds.push({
+            platform: "farcaster",
+            platformUserId: `farcaster_${account.fid}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "discord_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "discord",
+            platformUserId: `discord_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "twitter_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "twitter",
+            platformUserId: `twitter_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "github_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "github",
+            platformUserId: `github_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "apple_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "apple",
+            platformUserId: `apple_${account.subject}`,
+          });
+        }
+        if (account.type === "email" && account.address) {
+          linkedPlatformIds.push({
+            platform: "email",
+            platformUserId: `email_${account.address}`,
+            displayName: account.address,
+          });
+        }
+        if (account.type === "phone" && account.number) {
+          linkedPlatformIds.push({
+            platform: "phone",
+            platformUserId: `phone_${account.number}`,
+          });
+        }
+        if (account.type === "linkedin_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "linkedin",
+            platformUserId: `linkedin_${account.subject}`,
+            displayName: account.name || undefined,
+          });
+        }
+        if (account.type === "tiktok_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "tiktok",
+            platformUserId: `tiktok_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "instagram_oauth" && account.subject) {
+          linkedPlatformIds.push({
+            platform: "instagram",
+            platformUserId: `instagram_${account.subject}`,
+            displayName: account.username || undefined,
+          });
+        }
+        if (account.type === "wallet" && account.address) {
+          linkedPlatformIds.push({
+            platform: "wallet",
+            platformUserId: `wallet_${account.address}`,
+            displayName: account.address,
+          });
+        }
+      }
+
+      // Determine canonical_id: check if any of these IDs already have one
+      let canonicalId: string | null = null;
+      for (const entry of linkedPlatformIds) {
+        const rows = await sbFetch<any[]>(
+          cfg,
+          `flowb_identities?platform_user_id=eq.${encodeURIComponent(entry.platformUserId)}&select=canonical_id&limit=1`,
+        );
+        if (rows?.length) {
+          canonicalId = rows[0].canonical_id;
+          break;
+        }
+      }
+
+      // If no existing canonical_id, use the current user's sub
+      if (!canonicalId) {
+        canonicalId = jwt.sub;
+      }
+
+      // Upsert identity rows for all linked accounts
+      let synced = 0;
+      for (const entry of linkedPlatformIds) {
+        try {
+          await sbPost(cfg, "flowb_identities?on_conflict=platform_user_id", {
+            canonical_id: canonicalId,
+            platform: entry.platform,
+            platform_user_id: entry.platformUserId,
+            privy_id: privyDid,
+            display_name: entry.displayName || null,
+          }, "return=minimal,resolution=merge-duplicates");
+          synced++;
+        } catch {}
+      }
+
+      // Award 5 points for each newly linked platform account
+      // Track which platforms were newly linked (not already in identities)
+      const newlyLinked: string[] = [];
+      for (const entry of linkedPlatformIds) {
+        // Check if this platform was already linked before this sync
+        const existingRows = await sbFetch<any[]>(
+          cfg,
+          `flowb_identities?platform_user_id=eq.${encodeURIComponent(entry.platformUserId)}&canonical_id=eq.${encodeURIComponent(canonicalId)}&select=created_at&limit=1`,
+        );
+        // Only award if this is a new link (row was just created or didn't exist before)
+        const wasJustCreated = !existingRows?.length ||
+          (existingRows[0].created_at && new Date(existingRows[0].created_at).getTime() > Date.now() - 5000);
+        if (wasJustCreated) {
+          fireAndForget(core.awardPoints(entry.platformUserId, entry.platform, "account_linked"), "award points for linking");
+          newlyLinked.push(entry.platform);
+        }
+      }
 
       // Aggregate merged points across all linked accounts
       let mergedPoints = 0;
-      if (linkedIds.length > 0) {
-        const inList = linkedIds.map(id => encodeURIComponent(id)).join(",");
+      const platformsLinked: string[] = [];
+      if (linkedPlatformIds.length > 0) {
+        const inList = linkedPlatformIds.map(e => encodeURIComponent(e.platformUserId)).join(",");
         const pointRows = await sbFetch<any[]>(
           cfg,
           `flowb_user_points?user_id=in.(${inList})&select=total_points`,
@@ -5123,12 +5406,54 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         for (const row of pointRows || []) {
           mergedPoints += row.total_points || 0;
         }
+        for (const entry of linkedPlatformIds) {
+          if (!platformsLinked.includes(entry.platform)) {
+            platformsLinked.push(entry.platform);
+          }
+        }
       }
 
-      const platformsLinked = [...new Set(linkedIds.map(id => id.split("_")[0]))];
+      // Store email in session and send welcome email for newly linked emails
+      const emailEntry = linkedPlatformIds.find((e) => e.platform === "email");
+      if (emailEntry) {
+        const emailAddr = emailEntry.displayName; // email address
+        if (emailAddr) {
+          // Check if we already have this email stored (i.e. not a new link)
+          const existing = await sbFetch<any[]>(
+            cfg,
+            `flowb_sessions?user_id=eq.${encodeURIComponent(jwt.sub)}&select=email&limit=1`,
+          );
+          const hadEmail = existing?.[0]?.email;
 
-      console.log(`[sync] Synced ${linkedIds.length} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts)`);
-      return { ok: true, synced: linkedIds.length, canonical_id: canonicalId, merged_points: mergedPoints, platforms_linked: platformsLinked };
+          // Store email in session row
+          fireAndForget(
+            sbPost(cfg, "flowb_sessions?on_conflict=user_id", {
+              user_id: jwt.sub,
+              email: emailAddr,
+            }, "return=minimal,resolution=merge-duplicates"),
+            "store email in session",
+          );
+
+          // Send welcome email if this is a newly linked email
+          if (!hadEmail || hadEmail !== emailAddr) {
+            const displayName = linkedPlatformIds.find((e) => e.displayName && e.platform !== "email")?.displayName || emailAddr.split("@")[0];
+            fireAndForget(sendWelcomeEmail(emailAddr, displayName), "send welcome email");
+          }
+        }
+      }
+
+      // Calculate points awarded for newly linked accounts (5 points each)
+      const pointsAwarded = newlyLinked.length * 5;
+      console.log(`[sync] Synced ${synced} linked accounts for ${jwt.sub} (canonical: ${canonicalId}, merged: ${mergedPoints}pts, new: ${newlyLinked.join(",")} +${pointsAwarded}pts)`);
+      return {
+        ok: true,
+        synced,
+        canonical_id: canonicalId,
+        merged_points: mergedPoints + pointsAwarded,
+        platforms_linked: platformsLinked,
+        newly_linked: newlyLinked,
+        points_awarded: pointsAwarded,
+      };
     },
   );
 
@@ -5481,54 +5806,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   }
 
   // ------------------------------------------------------------------
-  // ADMIN: Notification Preferences
-  // ------------------------------------------------------------------
-  app.get(
-    "/api/v1/admin/notification-prefs",
-    { preHandler: authMiddleware },
-    async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
-      const jwt = request.jwtPayload!;
-
-      const prefs = await getAdminNotifPrefs(jwt.sub);
-      if (!prefs) {
-        return reply.status(404).send({ error: "Not an admin or DB not configured" });
-      }
-
-      return { ok: true, categories: [...ADMIN_ALERT_CATEGORIES], prefs };
-    },
-  );
-
-  app.patch<{ Body: Record<string, boolean> }>(
-    "/api/v1/admin/notification-prefs",
-    { preHandler: authMiddleware },
-    async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
-      const jwt = request.jwtPayload!;
-      const updates = request.body || {};
-
-      // Validate: only known categories with boolean values
-      const cleaned: Record<string, boolean> = {};
-      for (const [key, val] of Object.entries(updates)) {
-        if ((ADMIN_ALERT_CATEGORIES as readonly string[]).includes(key) && typeof val === "boolean") {
-          cleaned[key] = val;
-        }
-      }
-
-      if (!Object.keys(cleaned).length) {
-        return reply.status(400).send({ error: "No valid category updates provided" });
-      }
-
-      const ok = await updateAdminNotifPrefs(jwt.sub, cleaned);
-      if (!ok) {
-        return reply.status(500).send({ error: "Failed to update preferences" });
-      }
-
-      return { ok: true, updated: cleaned };
-    },
-  );
-
-  // ------------------------------------------------------------------
   // ADMIN: Live dashboard stats
   // ------------------------------------------------------------------
   app.get(
@@ -5752,6 +6029,93 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const { runEmailDigest } = await import("../services/email-digest.js");
       const result = await runEmailDigest(cfg);
       return { ok: true, ...result };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Set/clear featured event override
+  // ------------------------------------------------------------------
+  app.post<{ Body: { eventUrl: string | null } }>(
+    "/api/v1/admin/featured-event",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      if (!requireAdmin(request, reply)) return;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { eventUrl } = request.body || {};
+      const jwt = request.jwtPayload;
+      const adminId = jwt?.sub || "admin";
+
+      // Find active boost cycle
+      const cycles = await sbFetch<any[]>(cfg, "flowb_boost_cycles?is_active=eq.true&order=cycle_number.desc&limit=1");
+      if (!cycles?.length) {
+        return reply.status(404).send({ error: "No active boost cycle" });
+      }
+
+      const cycleId = cycles[0].id;
+      const overrideData: Record<string, any> = {
+        admin_override_url: eventUrl || null,
+        admin_override_by: eventUrl ? adminId : null,
+        admin_override_at: eventUrl ? new Date().toISOString() : null,
+      };
+
+      const ok = await sbPatchRaw(
+        cfg,
+        `flowb_boost_cycles?id=eq.${cycleId}`,
+        overrideData,
+      );
+
+      return {
+        ok,
+        action: eventUrl ? "override_set" : "override_cleared",
+        eventUrl: eventUrl || null,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PUBLIC: Featured events page data
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/featured",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { current: null, history: [] };
+
+      // Current featured (from view, respects admin override)
+      const currentRows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
+      const current = currentRows?.[0] || null;
+
+      // History: last 10 completed cycles
+      const historyRows = await sbFetch<any[]>(
+        cfg,
+        "flowb_boost_cycles?is_active=eq.false&order=cycle_number.desc&limit=10&select=id,cycle_number,started_at,ends_at,highest_bid_usdc,winning_event_url,admin_override_url",
+      );
+
+      return {
+        current: current
+          ? {
+              cycleId: current.cycle_id,
+              cycleNumber: current.cycle_number,
+              effectiveUrl: current.target_id,
+              auctionWinnerUrl: current.winning_event_url,
+              adminOverrideUrl: current.admin_override_url,
+              amountUsdc: parseFloat(current.amount_usdc) || 0,
+              endsAt: current.ends_at,
+              timeRemainingSeconds: current.time_remaining_seconds,
+              minNextBid: parseFloat(current.min_next_bid) || 0.10,
+            }
+          : null,
+        history: (historyRows || []).map((h: any) => ({
+          cycleNumber: h.cycle_number,
+          eventUrl: h.winning_event_url,
+          adminOverrideUrl: h.admin_override_url,
+          amountUsdc: parseFloat(h.highest_bid_usdc) || 0,
+          startedAt: h.started_at,
+          endedAt: h.ends_at,
+        })),
+      };
     },
   );
 
@@ -6154,12 +6518,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ==================================================================
   // SPONSOR: Create sponsorship (requires auth)
   // ==================================================================
-  app.post<{ Body: { targetType: string; targetId: string; amountUsdc: number; txHash: string; eventName?: string } }>(
+  app.post<{ Body: { targetType: string; targetId: string; amountUsdc: number; txHash: string } }>(
     "/api/v1/sponsor",
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      const { targetType, targetId, amountUsdc, txHash, eventName } = request.body || {};
+      const { targetType, targetId, amountUsdc, txHash } = request.body || {};
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -6178,7 +6542,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         sponsor_user_id: jwt.sub,
         target_type: targetType,
         target_id: targetId,
-        event_name: eventName || null,
         amount_usdc: amountUsdc,
         tx_hash: txHash,
         status: "pending",
@@ -6369,7 +6732,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ==================================================================
-  // SPONSOR: Featured event boost (highest verified boost for featured spot)
+  // SPONSOR: Featured event boost (from cycle view, respects admin override)
   // ==================================================================
   app.get(
     "/api/v1/sponsor/featured-event",
@@ -6377,23 +6740,18 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return { featured: null };
 
-      // Get all verified featured_event sponsorships, ordered by amount desc
-      const rows = await sbFetch<any[]>(
-        cfg,
-        "flowb_sponsorships?target_type=eq.featured_event&status=eq.verified&order=amount_usdc.desc&limit=1",
-      );
-
+      const rows = await sbFetch<any[]>(cfg, "v_current_featured_boost?select=*&limit=1");
       if (!rows?.length) return { featured: null };
 
-      const top = rows[0];
+      const f = rows[0];
       return {
         featured: {
-          target_id: top.target_id,
-          event_name: top.event_name || null,
-          amount_usdc: Number(top.amount_usdc),
-          sponsor_user_id: top.sponsor_user_id,
-          created_at: top.created_at,
-          expires_at: top.expires_at,
+          target_id: f.target_id,
+          amount_usdc: Number(f.amount_usdc) || 0,
+          ends_at: f.ends_at,
+          time_remaining_seconds: f.time_remaining_seconds,
+          admin_override_url: f.admin_override_url,
+          winning_event_url: f.winning_event_url,
         },
       };
     },
@@ -6517,7 +6875,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ============================================================================
   registerAgentRoutes(app, core);
   registerFiFlowRoutes(app, core);
-  registerCuFlowRoutes(app, core);
 
   // ------------------------------------------------------------------
   // Payment Routes (checkout, subscriptions, wallets)
@@ -6600,7 +6957,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         const who = userId || "anonymous";
         const preview = message.length > 200 ? message.slice(0, 197) + "..." : message;
         const label = type === "bug" ? "Bug report" : "Feature request";
-        alertAdmins(`${label} from <b>${who}</b> (${platform}):\n\n${preview}`, type === "bug" ? "urgent" : "important", type === "bug" ? "bug_report" : "feature_request");
+        alertAdmins(`${label} from <b>${who}</b> (${platform}):\n\n${preview}`, type === "bug" ? "urgent" : "important");
       }
 
       // 4. Award points for giving feedback
@@ -7631,7 +7988,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       alertAdmins(
         `New TODO [${(priority || "medium").toUpperCase()}]: <b>${title}</b>${category ? ` (${category})` : ""}${assigned_to ? `\nAssigned: ${assigned_to}` : ""}`,
         priority === "critical" || priority === "high" ? "important" : "info",
-        "todo_created",
       );
 
       return { todo };
@@ -7704,7 +8060,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         alertAdmins(
           `TODO completed: <b>${todo.title}</b>`,
           "info",
-          "todo_completed",
         );
       }
 
@@ -9294,7 +9649,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       alertAdmins(
         `<b>Biz Onboard: Gate Passed</b>\nIP: ${ip}\nRef: ${ref}\nUA: ${ua.slice(0, 80)}`,
         "info",
-        "biz_onboard",
       );
 
       return { ok: true };
@@ -9355,7 +9709,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           `<a href="https://biz.flowb.me">View in Biz Dashboard</a>`,
         ].join("\n"),
         "important",
-        "biz_onboard",
       );
 
       return { ok: true };

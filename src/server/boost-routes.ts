@@ -2,23 +2,20 @@
  * Event Boost Auction Routes
  *
  * 24-hour auction system where users bid to feature their event at the top.
- * Supports crypto (USDC on Base), Stripe, and Apple Pay.
+ * Supports crypto (USDC on Base) and Stripe. Apple/Android Pay coming soon.
  * Amount resets to $0.10 after 24h but last boost stays until outbid.
  */
 
 import type { FastifyInstance } from "fastify";
 import { authMiddleware } from "./auth.js";
 import { getPaymentService } from "../services/payments/index.js";
+import { CryptoService } from "../services/payments/crypto.js";
 import type { PaymentMethod } from "../services/payments/types.js";
 import { createClient } from "@supabase/supabase-js";
 import { log, fireAndForget } from "../utils/logger.js";
 
-// Boost wallet for crypto payments (Base network)
-const BOOST_WALLET_ADDRESS = "0xD9Ab3B89cb5E09fbdA46c20D8849fd1E75486002";
-
-// USDC contract on Base
-const BASE_USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
-const BASE_RPC_URL = "https://mainnet.base.org";
+const BOOST_WALLET_ADDRESS =
+  process.env.BOOST_WALLET_ADDRESS || "0xD9Ab3B89cb5E09fbdA46c20D8849fd1E75486002";
 
 function getSupabase() {
   const url = process.env.SUPABASE_URL;
@@ -29,6 +26,7 @@ function getSupabase() {
 
 export function registerBoostRoutes(app: FastifyInstance) {
   const paymentService = getPaymentService();
+  const cryptoService = new CryptoService(BOOST_WALLET_ADDRESS);
 
   // ──────────────────────────────────────────────────────────────────────────
   // GET /api/v1/boost/status - Get current auction status
@@ -56,7 +54,8 @@ export function registerBoostRoutes(app: FastifyInstance) {
         },
         wallet: BOOST_WALLET_ADDRESS,
         network: "base",
-        paymentMethods: ["crypto", "stripe", "apple_pay"],
+        paymentMethods: ["crypto", "stripe"],
+        comingSoon: ["apple_pay", "android_pay"],
       };
     }
 
@@ -71,12 +70,15 @@ export function registerBoostRoutes(app: FastifyInstance) {
         highestBidUsdc: parseFloat(cycle.highest_bid_usdc) || 0,
         highestBidderUserId: cycle.highest_bidder_user_id,
         winningEventUrl: cycle.winning_event_url,
+        adminOverrideUrl: cycle.admin_override_url || null,
+        effectiveFeaturedUrl: cycle.effective_featured_url || cycle.winning_event_url,
         timeRemainingSeconds: cycle.time_remaining_seconds || 0,
       },
       minNextBid: Math.max(0.10, (parseFloat(cycle.highest_bid_usdc) || 0) + 0.10),
       wallet: BOOST_WALLET_ADDRESS,
       network: "base",
-      paymentMethods: ["crypto", "stripe", "apple_pay"],
+      paymentMethods: ["crypto", "stripe"],
+      comingSoon: ["apple_pay", "android_pay"],
     };
   });
 
@@ -94,7 +96,7 @@ export function registerBoostRoutes(app: FastifyInstance) {
     Body: {
       eventUrl: string;
       amountUsdc: number;
-      paymentMethod: "crypto" | "stripe" | "apple_pay";
+      paymentMethod: "crypto" | "stripe";
     };
   }>(
     "/api/v1/boost/checkout",
@@ -118,8 +120,8 @@ export function registerBoostRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: "Minimum bid is $0.10 USDC" });
       }
 
-      if (!paymentMethod || !["crypto", "stripe", "apple_pay"].includes(paymentMethod)) {
-        return reply.status(400).send({ error: "paymentMethod must be crypto, stripe, or apple_pay" });
+      if (!paymentMethod || !["crypto", "stripe"].includes(paymentMethod)) {
+        return reply.status(400).send({ error: "paymentMethod must be crypto or stripe" });
       }
 
       const supabase = getSupabase();
@@ -166,9 +168,9 @@ export function registerBoostRoutes(app: FastifyInstance) {
         };
       }
 
-      // For Stripe/Apple Pay, create payment intent
+      // For Stripe, create payment intent
       try {
-        const stripeMethod: PaymentMethod = paymentMethod === "apple_pay" ? "apple_pay" : "stripe";
+        const stripeMethod: PaymentMethod = "stripe";
 
         // Create order through payment service
         const intent = await paymentService.createOrder({
@@ -261,7 +263,7 @@ export function registerBoostRoutes(app: FastifyInstance) {
 
       // Verify on-chain (async)
       fireAndForget(
-        verifyAndUpdateBoost(supabase, sponsorshipId, txHash, sponsor.amount_usdc),
+        verifyAndUpdateBoost(cryptoService, supabase, sponsorshipId, txHash, sponsor.amount_usdc),
         "verify boost payment"
       );
 
@@ -274,7 +276,7 @@ export function registerBoostRoutes(app: FastifyInstance) {
   );
 
   // ──────────────────────────────────────────────────────────────────────────
-  // POST /api/v1/boost/confirm-stripe - Confirm Stripe/Apple Pay payment
+  // POST /api/v1/boost/confirm-stripe - Confirm Stripe payment
   // ──────────────────────────────────────────────────────────────────────────
   app.post<{
     Body: {
@@ -376,89 +378,34 @@ export function registerBoostRoutes(app: FastifyInstance) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// Helper: Verify USDC transfer on Base
+// Helper: Verify USDC transfer on Base using shared CryptoService
 // ════════════════════════════════════════════════════════════════════════════
 async function verifyAndUpdateBoost(
+  cryptoService: CryptoService,
   supabase: any,
   sponsorshipId: string,
   txHash: string,
   expectedAmount: number
 ): Promise<void> {
   try {
-    const verified = await verifyUSDCTransfer(txHash, BOOST_WALLET_ADDRESS, expectedAmount);
+    const verified = await cryptoService.verifyTransaction({
+      txHash,
+      expectedAmount,
+      expectedRecipient: BOOST_WALLET_ADDRESS,
+      network: "base",
+    });
 
-    if (verified.valid) {
-      // Use database function to verify and update winner
+    if (verified) {
       await supabase.rpc("verify_boost_payment", { p_sponsorship_id: sponsorshipId });
       log.info("[boost]", "Crypto boost verified", { sponsorshipId, txHash });
     } else {
-      // Mark as rejected
       await supabase
         .from("flowb_sponsorships")
         .update({ status: "rejected" })
         .eq("id", sponsorshipId);
-      log.warn("[boost]", "Crypto boost rejected", { sponsorshipId, reason: verified.error });
+      log.warn("[boost]", "Crypto boost rejected", { sponsorshipId });
     }
   } catch (err: any) {
     log.error("[boost]", "Verification error", { sponsorshipId, error: err.message });
-  }
-}
-
-async function verifyUSDCTransfer(
-  txHash: string,
-  recipient: string,
-  minAmount: number
-): Promise<{ valid: boolean; amount?: number; error?: string }> {
-  try {
-    // Get transaction receipt
-    const receiptRes = await fetch(BASE_RPC_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "eth_getTransactionReceipt",
-        params: [txHash],
-      }),
-    });
-    const receiptData = await receiptRes.json();
-    const receipt = receiptData?.result;
-
-    if (!receipt) {
-      return { valid: false, error: "Transaction not found or not confirmed" };
-    }
-
-    if (receipt.status !== "0x1") {
-      return { valid: false, error: "Transaction failed" };
-    }
-
-    // Parse logs for ERC20 Transfer event
-    // Transfer(address indexed from, address indexed to, uint256 value)
-    const transferTopic = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
-    const recipientPadded = "0x000000000000000000000000" + recipient.slice(2).toLowerCase();
-
-    const transferLog = receipt.logs?.find(
-      (log: any) =>
-        log.address?.toLowerCase() === BASE_USDC_ADDRESS.toLowerCase() &&
-        log.topics?.[0] === transferTopic &&
-        log.topics?.[2]?.toLowerCase() === recipientPadded
-    );
-
-    if (!transferLog) {
-      return { valid: false, error: "No USDC transfer to boost wallet found" };
-    }
-
-    // USDC has 6 decimals
-    const rawAmount = BigInt(transferLog.data);
-    const amount = Number(rawAmount) / 1e6;
-
-    // Allow 1% slippage
-    if (amount < minAmount * 0.99) {
-      return { valid: false, error: `Amount $${amount.toFixed(2)} below minimum $${minAmount.toFixed(2)}` };
-    }
-
-    return { valid: true, amount };
-  } catch (err: any) {
-    return { valid: false, error: `RPC error: ${err.message}` };
   }
 }
