@@ -10,6 +10,7 @@
  */
 
 import { sbFetch, sbPost, sbPatch, sbQuery, type SbConfig } from "../utils/supabase.js";
+import { isFlowBAdmin } from "../utils/admin.js";
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -727,11 +728,9 @@ export async function getMyPlan(args: any, user: BizUserContext, cfg: SbConfig):
 export async function grantFlowmium(args: any, user: BizUserContext, cfg: SbConfig): Promise<string> {
   if (!user.userId) return "Log in to gift Flowmium.";
 
-  // Admin check is done at the tool-definition level (admin-only tool),
-  // but double-check here for safety
-  // TODO: Re-enable admin check when utils/admin is complete
-  const isAdmin = false; // Temporarily disabled
-  if (!isAdmin) return "Only admins can gift Flowmium. Nice try though!";
+  // Admin check: verify against flowb_admins table
+  const admin = await isFlowBAdmin(cfg, user.userId);
+  if (!admin) return "Only admins can gift Flowmium. Nice try though!";
 
   const targetName = (args.target_name || "").trim();
   if (!targetName) return "Who should receive the gift of Flowmium? Provide a name or @username.";

@@ -10,6 +10,7 @@ import type { FlowBCore } from "../core/flowb.js";
 import { authMiddleware, type JWTPayload } from "./auth.js";
 import type { SbConfig } from "../utils/supabase.js";
 import type { FiFlowPlugin } from "../plugins/fiflow/index.js";
+import { isFlowBAdmin } from "../utils/admin.js";
 
 // ============================================================================
 // Helpers
@@ -22,14 +23,14 @@ function getSupabaseConfig(): SbConfig | null {
   return { supabaseUrl: url, supabaseKey: key };
 }
 
-const ADMIN_USER_IDS = (process.env.FIFLOW_ADMIN_IDS || process.env.ADMIN_USER_IDS || "").split(",").filter(Boolean);
-
-function isAdmin(userId: string): boolean {
-  return ADMIN_USER_IDS.includes(userId);
-}
-
-function requireAdmin(reply: any, userId: string): boolean {
-  if (!isAdmin(userId)) {
+async function requireAdmin(reply: any, userId: string): Promise<boolean> {
+  const cfg = getSupabaseConfig();
+  if (!cfg) {
+    reply.status(500).send({ error: "Server configuration error" });
+    return false;
+  }
+  const admin = await isFlowBAdmin(cfg, userId, "fiflow");
+  if (!admin) {
     reply.status(403).send({ error: "Admin access required" });
     return false;
   }
@@ -51,7 +52,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -75,7 +76,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -94,7 +95,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -111,7 +112,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -129,7 +130,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -148,7 +149,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -181,7 +182,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -213,7 +214,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -233,7 +234,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
@@ -252,7 +253,7 @@ export function registerFiFlowRoutes(app: FastifyInstance, core: FlowBCore) {
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      if (!requireAdmin(reply, jwt.sub)) return;
+      if (!(await requireAdmin(reply, jwt.sub))) return;
 
       const cfg = getSupabaseConfig();
       if (!cfg || !plugin) return reply.status(500).send({ error: "FiFlow not configured" });
