@@ -248,3 +248,40 @@ export function checkMilestone(
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Support Channel Alert
+// ---------------------------------------------------------------------------
+
+/**
+ * Send a message to the dedicated support topic in the FlowB Ops group.
+ * Fire-and-forget — errors are logged silently.
+ */
+export function alertSupportChannel(
+  message: string,
+  replyMarkup?: any,
+): void {
+  const botToken = getBotToken();
+  const chatId = process.env.FLOWB_SUPPORT_CHANNEL_ID;
+  const topicId = process.env.FLOWB_SUPPORT_TOPIC_ID;
+  if (!botToken || !chatId) return;
+
+  const body: any = {
+    chat_id: chatId,
+    text: message,
+    parse_mode: "HTML",
+    link_preview_options: { is_disabled: true },
+  };
+  if (topicId) body.message_thread_id = parseInt(topicId, 10);
+  if (replyMarkup) body.reply_markup = replyMarkup;
+
+  fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch((err) =>
+    log.warn("[admin-alert]", "Failed to send support channel message", {
+      error: err instanceof Error ? err.message : String(err),
+    }),
+  );
+}

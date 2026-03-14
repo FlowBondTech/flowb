@@ -1630,3 +1630,196 @@ export function buildPipelineKeyboard(): InlineKeyboard {
     .row()
     .text("\u25c0\ufe0f Menu", "mn:menu");
 }
+
+// ==========================================================================
+// Task Lists (Checklists)
+// ==========================================================================
+
+export interface TaskListItem {
+  text: string;
+  done: boolean;
+  done_by?: string;
+  done_by_name?: string;
+  done_at?: string;
+}
+
+export interface TaskListData {
+  id: string;
+  chat_id: number;
+  message_id?: number;
+  creator_id: string;
+  creator_name: string;
+  title: string;
+  items: TaskListItem[];
+  status: string;        // 'active' | 'pending_review' | 'completed'
+  reviewed_by?: string;
+  reviewed_by_name?: string;
+  reviewed_at?: string;
+  is_active: boolean;
+  share_code?: string;
+  board_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function progressBar(done: number, total: number, width: number = 12): string {
+  if (total === 0) return "\u2591".repeat(width);
+  const filled = Math.round((done / total) * width);
+  return "\u2588".repeat(filled) + "\u2591".repeat(width - filled);
+}
+
+const STATUS_BADGE: Record<string, string> = {
+  active: "Active",
+  pending_review: "\u23f3 Pending review",
+  completed: "\u2705 Done",
+};
+
+export function formatTaskListHtml(list: TaskListData): string {
+  const done = list.items.filter((i) => i.done).length;
+  const total = list.items.length;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+
+  const lines: string[] = [
+    `\ud83d\udccb <b>${escapeHtml(list.title)}</b>`,
+    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`,
+  ];
+
+  if (total > 0) {
+    lines.push(`${progressBar(done, total)} ${done}/${total} (${pct}%)`);
+    lines.push("");
+  }
+
+  for (const item of list.items) {
+    const check = item.done ? "\u2611" : "\u2610";
+    const byTag = item.done && item.done_by_name ? ` (\u2713 ${escapeHtml(item.done_by_name)})` : "";
+    lines.push(`${check} ${escapeHtml(item.text)}${byTag}`);
+  }
+
+  if (total === 0) {
+    lines.push("");
+    lines.push("<i>No items yet. Tap + Add to get started.</i>");
+  }
+
+  // Footer
+  lines.push("");
+  lines.push(`\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`);
+  const creator = list.creator_name ? `By ${escapeHtml(list.creator_name)}` : "";
+  const updated = list.updated_at ? ` \u00b7 Updated ${relativeTime(list.updated_at)}` : "";
+  if (creator || updated) lines.push(`${creator}${updated}`);
+  if (list.status && list.status !== "active") {
+    lines.push(STATUS_BADGE[list.status] || list.status);
+  }
+
+  return lines.join("\n");
+}
+
+export function buildTaskListKeyboard(list: TaskListData): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  const short = list.id.slice(0, 8);
+
+  // Item toggle buttons (rows of 4)
+  for (let i = 0; i < list.items.length; i++) {
+    const item = list.items[i];
+    const label = item.done ? `${i + 1} \u2611` : `${i + 1} \u2610`;
+    kb.text(label, `tl:t:${short}:${i}`);
+    if ((i + 1) % 4 === 0) kb.row();
+  }
+  if (list.items.length % 4 !== 0) kb.row();
+
+  // Action row
+  kb.text("+ Add", `tl:a:${short}`);
+  kb.text("\ud83d\uddd1 Delete", `tl:d:${short}`);
+
+  // Nav row
+  kb.row();
+  kb.text("\u25c0 Back", "tl:back");
+  kb.text("\ud83d\udd17 Share", `tl:share:${short}`);
+  kb.text("\ud83d\udcca Kanban", `tl:kanban:${short}`);
+
+  return kb;
+}
+
+// --- Task List Index (browse/paginated) ---
+
+const TL_PAGE_SIZE = 5;
+
+export function formatTaskListIndexHtml(
+  lists: TaskListData[],
+  page: number,
+  filter: string,
+): string {
+  if (!lists.length) {
+    return [
+      "<b>\ud83d\udccb Checklists</b>",
+      "",
+      "No checklists yet!",
+      "",
+      "Try: <code>create checklist My List</code>",
+    ].join("\n");
+  }
+
+  const start = page * TL_PAGE_SIZE;
+  const pageItems = lists.slice(start, start + TL_PAGE_SIZE);
+  const total = lists.length;
+  const end = Math.min(start + TL_PAGE_SIZE, total);
+
+  const filterLabel = filter !== "all" ? ` \u00b7 ${filter}` : "";
+  const lines: string[] = [
+    `<b>\ud83d\udccb Checklists</b>  (${start + 1}\u2013${end} of ${total}${filterLabel})`,
+    `\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501`,
+    "",
+  ];
+
+  for (let i = 0; i < pageItems.length; i++) {
+    const list = pageItems[i];
+    const num = NUM_EMOJI[i] || `${i + 1}.`;
+    const done = list.items.filter((it) => it.done).length;
+    const total = list.items.length;
+    const bar = progressBar(done, total);
+    const badge = STATUS_BADGE[list.status] || "";
+    const dateStr = relativeTime(list.updated_at || list.created_at);
+
+    lines.push(`${num} <b>${escapeHtml(list.title)}</b>`);
+    lines.push(`   ${bar} ${done}/${total} \u00b7 ${badge} \u00b7 ${dateStr}`);
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+export function buildTaskListIndexKeyboard(
+  listsOnPage: TaskListData[],
+  page: number,
+  totalPages: number,
+  filter: string,
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+
+  // Number buttons to view detail
+  for (let i = 0; i < listsOnPage.length; i++) {
+    const short = listsOnPage[i].id.slice(0, 8);
+    kb.text(NUM_EMOJI[i] || `${i + 1}`, `tl:v:${short}`);
+  }
+  kb.row();
+
+  // Nav row
+  if (page > 0) kb.text("\u25c0\ufe0f", `tl:idx:${page - 1}`);
+  const filterLabel = filter === "all" ? "All" : filter === "active" ? "Active" : filter === "pending_review" ? "Pending" : "Done";
+  kb.text(`Filter: ${filterLabel} \u25be`, "tl:f:cycle");
+  kb.text("+ New", "tl:new");
+  if (page < totalPages - 1) kb.text("\u25b6\ufe0f", `tl:idx:${page + 1}`);
+
+  return kb;
+}

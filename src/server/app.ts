@@ -8,6 +8,7 @@ import {
 } from "../services/telegram-auth.js";
 import { registerMiniAppRoutes } from "./routes.js";
 import { registerBoostRoutes } from "./boost-routes.js";
+import { registerSupportRoutes } from "./support-routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 import { runContextNotifications } from "../services/context-notifications.js";
@@ -40,6 +41,9 @@ export async function buildApp(core: FlowBCore) {
 
   // Register boost/auction routes (featured event bidding)
   registerBoostRoutes(app);
+
+  // Register support email routes (inbound webhook + admin API)
+  registerSupportRoutes(app, core);
 
   // Register WhatsApp webhook (conditional on env vars)
   if (process.env.WHATSAPP_ACCESS_TOKEN) {
