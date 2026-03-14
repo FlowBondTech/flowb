@@ -427,7 +427,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
               </span>
               <div className="featured-banner-text">
                 <span className="featured-banner-title">
-                  {featuredBoost ? featuredBoost.target_id : "Boost Your Event Here"}
+                  {featuredBoost ? (featuredBoost.event_name || featuredBoost.target_id) : "Boost Your Event Here"}
                 </span>
                 <span className="featured-banner-sub">
                   {featuredBoost

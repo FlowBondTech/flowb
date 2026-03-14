@@ -22,6 +22,7 @@ function formatCountdown(seconds: number): string {
 
 export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
   const [status, setStatus] = useState<BoostStatus | null>(null);
+  const [eventName, setEventName] = useState("");
   const [eventUrl, setEventUrl] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("crypto");
@@ -70,6 +71,12 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
   const handleCheckout = async () => {
     setError(null);
 
+    // Validate event name
+    if (!eventName.trim()) {
+      setError("Enter your event name");
+      return;
+    }
+
     // Validate URL
     if (!eventUrl.trim()) {
       setError("Enter your event URL");
@@ -91,7 +98,7 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
 
     setSubmitting(true);
     try {
-      const result = await createBoostCheckout(eventUrl.trim(), amountNum, paymentMethod);
+      const result = await createBoostCheckout(eventUrl.trim(), amountNum, paymentMethod, eventName.trim());
       setCheckout(result);
 
       if (paymentMethod === "crypto") {
@@ -199,6 +206,19 @@ export function FeaturedSponsorModal({ onClose, onSuccess }: Props) {
         {/* Step: Form */}
         {step === "form" && (
           <>
+            {/* Event Name input */}
+            <div style={{ marginBottom: 12 }}>
+              <div className="sponsor-label">Event Name</div>
+              <input
+                className="input"
+                type="text"
+                placeholder="e.g. Own. App Unoffciall Sxsw event"
+                value={eventName}
+                onChange={(e) => setEventName(e.target.value)}
+                style={{ fontSize: 16 }}
+              />
+            </div>
+
             {/* Event URL input */}
             <div style={{ marginBottom: 12 }}>
               <div className="sponsor-label">Your Event Link</div>

@@ -360,6 +360,7 @@ export interface BoostStatus {
     highestBidUsdc: number;
     highestBidderUserId: string | null;
     winningEventUrl: string | null;
+    winningEventName: string | null;
     timeRemainingSeconds: number;
   };
   minNextBid: number;
@@ -394,8 +395,9 @@ export async function createBoostCheckout(
   eventUrl: string,
   amountUsdc: number,
   paymentMethod: "crypto" | "stripe" | "apple_pay",
+  eventName?: string,
 ): Promise<BoostCheckoutResult> {
-  return post<BoostCheckoutResult>("/api/v1/boost/checkout", { eventUrl, amountUsdc, paymentMethod });
+  return post<BoostCheckoutResult>("/api/v1/boost/checkout", { eventUrl, eventName, amountUsdc, paymentMethod });
 }
 
 export async function confirmCryptoBoost(sponsorshipId: string, txHash: string): Promise<{ success: boolean; message: string }> {
@@ -407,15 +409,26 @@ export async function confirmStripeBoost(orderId: string, paymentIntentId: strin
 }
 
 export async function getFeaturedEventBoost(): Promise<FeaturedEventBoost | null> {
+  // Try boost status endpoint first
   try {
     const status = await getBoostStatus();
-    if (!status.cycle.winningEventUrl) return null;
-    return {
-      target_id: status.cycle.winningEventUrl,
-      amount_usdc: status.cycle.highestBidUsdc,
-      ends_at: status.cycle.endsAt,
-      time_remaining_seconds: status.cycle.timeRemainingSeconds,
-    };
+    if (status.cycle.winningEventUrl) {
+      return {
+        target_id: status.cycle.winningEventUrl,
+        event_name: status.cycle.winningEventName || undefined,
+        amount_usdc: status.cycle.highestBidUsdc,
+        ends_at: status.cycle.endsAt,
+        time_remaining_seconds: status.cycle.timeRemainingSeconds,
+      };
+    }
+  } catch {
+    // Fall through to sponsor endpoint
+  }
+
+  // Fallback to sponsor featured-event endpoint
+  try {
+    const data = await get<{ featured: FeaturedEventBoost | null }>("/api/v1/sponsor/featured-event");
+    return data.featured || null;
   } catch {
     return null;
   }
