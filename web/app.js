@@ -52,6 +52,144 @@ const chatStatus = document.getElementById('flowbStatus');
 const chatStatusText = document.getElementById('flowbStatusText');
 
 
+// ===== Featured Event Modal =====
+
+let _featuredCountdownTimer;
+let _featuredCountdownSecs = 0;
+
+function closeFeaturedModal() {
+  const overlay = document.getElementById('featuredModal');
+  if (!overlay || overlay.classList.contains('hidden')) return;
+  overlay.classList.add('closing');
+  setTimeout(() => {
+    overlay.classList.add('hidden');
+    overlay.classList.remove('closing');
+  }, 250);
+}
+
+// Close on X click
+document.getElementById('featuredModalClose')?.addEventListener('click', closeFeaturedModal);
+
+// Close on overlay (outside card) click
+document.getElementById('featuredModal')?.addEventListener('click', (e) => {
+  if (e.target === document.getElementById('featuredModal')) closeFeaturedModal();
+});
+
+// Close on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeFeaturedModal();
+});
+
+async function loadFeaturedBanner() {
+  try {
+    const res = await fetch(`${API}/api/v1/featured`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const cur = data.current;
+    if (!cur || !cur.effectiveUrl) return;
+
+    const overlay = document.getElementById('featuredModal');
+    const titleEl = document.getElementById('featuredModalTitle');
+    const detailsEl = document.getElementById('featuredModalDetails');
+    const countdownEl = document.getElementById('featuredModalCountdown');
+    const ctaEl = document.getElementById('featuredModalCta');
+    const imgWrap = document.getElementById('featuredModalImgWrap');
+    if (!overlay) return;
+
+    // Check if user already dismissed this session
+    const dismissedUrl = sessionStorage.getItem('featuredModalDismissed');
+    if (dismissedUrl === cur.effectiveUrl) return;
+
+    // Store dismiss on close
+    const origClose = closeFeaturedModal;
+    document.getElementById('featuredModalClose').onclick = () => {
+      sessionStorage.setItem('featuredModalDismissed', cur.effectiveUrl);
+      closeFeaturedModal();
+    };
+
+    // Try to get event details from our events DB
+    let eventData = null;
+    try {
+      const evtRes = await fetch(`${API}/api/v1/events?q=${encodeURIComponent(cur.effectiveUrl)}&limit=1`);
+      const evtJson = await evtRes.json();
+      if (evtJson.events?.length) eventData = evtJson.events[0];
+    } catch {}
+
+    // Title
+    let eventTitle = eventData?.title || '';
+    if (!eventTitle) {
+      try {
+        const u = new URL(cur.effectiveUrl);
+        eventTitle = u.hostname + u.pathname;
+      } catch { eventTitle = cur.effectiveUrl; }
+    }
+    titleEl.textContent = eventTitle;
+
+    // Image
+    if (eventData?.imageUrl) {
+      imgWrap.innerHTML = `<img src="${eventData.imageUrl}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'featured-modal-img-placeholder\\'></div>'">`;
+    }
+
+    // Details
+    let detailsHtml = '';
+    if (eventData?.startTime) {
+      const d = new Date(eventData.startTime);
+      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      detailsHtml += `<div class="featured-modal-detail">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        ${dateStr} at ${timeStr}
+      </div>`;
+    }
+    const venue = eventData?.venue?.name || (eventData?.isOnline ? 'Online' : '');
+    if (venue) {
+      detailsHtml += `<div class="featured-modal-detail">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        ${venue}
+      </div>`;
+    }
+    if (cur.amountUsdc && !cur.adminOverrideUrl) {
+      detailsHtml += `<div class="featured-modal-detail" style="color:#22c55e">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        $${(cur.amountUsdc).toFixed(2)} boost bid
+      </div>`;
+    }
+    if (cur.adminOverrideUrl) {
+      detailsHtml += `<div class="featured-modal-detail" style="color:#a78bfa">Admin Pick</div>`;
+    }
+    detailsEl.innerHTML = detailsHtml;
+
+    // Countdown
+    _featuredCountdownSecs = cur.timeRemainingSeconds || 0;
+    function updateCountdown() {
+      if (_featuredCountdownSecs <= 0) { countdownEl.textContent = ''; return; }
+      const h = Math.floor(_featuredCountdownSecs / 3600);
+      const m = Math.floor((_featuredCountdownSecs % 3600) / 60);
+      const s = _featuredCountdownSecs % 60;
+      countdownEl.textContent = `${h}h ${m}m ${s}s remaining`;
+    }
+    updateCountdown();
+    clearInterval(_featuredCountdownTimer);
+    _featuredCountdownTimer = setInterval(() => {
+      _featuredCountdownSecs = Math.max(0, _featuredCountdownSecs - 1);
+      updateCountdown();
+      if (_featuredCountdownSecs <= 0) clearInterval(_featuredCountdownTimer);
+    }, 1000);
+
+    // CTA link
+    ctaEl.href = cur.effectiveUrl;
+
+    // Show modal with slight delay for page load
+    setTimeout(() => overlay.classList.remove('hidden'), 800);
+
+  } catch (err) {
+    console.error('Featured modal load failed:', err);
+  }
+}
+
+// Load featured modal on startup
+loadFeaturedBanner();
+
 // ===== API =====
 
 // Map category icon names to emoji
@@ -1211,6 +1349,16 @@ widgetFab.addEventListener('click', () => {
       runIntroInChat();
     } else {
       addChatMessage("Hey! What can I help you find?", 'bot');
+      // Also mention featured event for returning users
+      try {
+        fetch(`${API}/api/v1/featured`).then(r => r.json()).then(data => {
+          if (data.current && data.current.effectiveUrl) {
+            setTimeout(() => {
+              addChatMessage(`Check out tonight's [featured event](${data.current.effectiveUrl})!`, 'bot');
+            }, 800);
+          }
+        }).catch(() => {});
+      } catch {}
     }
   }
 });
@@ -1274,6 +1422,9 @@ async function handleFlowAction(action) {
       break;
     case 'leaderboard':
       await handleLeaderboardAction();
+      break;
+    case 'featured':
+      sendChatMessage("What's the featured event right now?");
       break;
     default:
       sendChatMessage(action);
@@ -1465,6 +1616,11 @@ function formatMarkdown(text) {
     links.push({ label, href });
     return `\x00LINK${links.length - 1}\x00`;
   });
+  // Also extract raw HTML <a> tags (AI sometimes outputs these)
+  clean = clean.replace(/<a\s+href="(https?:\/\/[^"]+)"[^>]*>([^<]+)<\/a>/gi, (_m, href, label) => {
+    links.push({ label, href });
+    return `\x00LINK${links.length - 1}\x00`;
+  });
   let html = escapeHtml(clean);
   html = html.replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
@@ -1474,8 +1630,11 @@ function formatMarkdown(text) {
   links.forEach((link, i) => {
     html = html.replace(`\x00LINK${i}\x00`, `<a href="${link.href}" target="_blank">${escapeHtml(link.label)}</a>`);
   });
-  // Linkify remaining bare URLs (not already inside <a> tags)
-  html = html.replace(/(https?:\/\/[^\s<&]+)/g, '<a href="$1" target="_blank">$1</a>');
+  // Linkify remaining bare URLs (skip URLs already inside <a> tags)
+  html = html.replace(/(<a[^>]*>.*?<\/a>)|(https?:\/\/[^\s<&]+)/g, (match, tag, url) => {
+    if (tag) return tag; // already a link, keep as-is
+    return `<a href="${url}" target="_blank">${url}</a>`;
+  });
   html = html.replace(/^([-*])\s+(.+)$/gm, '<li>$2</li>');
   html = html.replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>');
   html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
@@ -1838,6 +1997,19 @@ async function runIntroInChat() {
   // Step 4: description
   addChatMessage("I help you discover events and find what's happening around you.", 'bot');
   await introWait(500);
+
+  // Step 4.5: featured event callout
+  try {
+    const res = await fetch(`${API}/api/v1/featured`);
+    const data = await res.json();
+    if (data.current && data.current.effectiveUrl) {
+      addTypingIndicator();
+      await introWait(700);
+      removeTypingIndicator();
+      addChatMessage(`Check out tonight's [featured event](${data.current.effectiveUrl})!`, 'bot');
+      await introWait(500);
+    }
+  } catch {}
 
   // Step 5: typing
   addTypingIndicator();
