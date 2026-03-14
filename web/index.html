@@ -95,47 +95,30 @@
     </div>
   </div>
 
-  <!-- Featured Event Modal -->
-  <div class="featured-modal-overlay hidden" id="featuredModal">
-    <!-- Confetti canvas -->
-    <canvas class="featured-confetti" id="featuredConfetti"></canvas>
-    <!-- Spotlight beams -->
-    <div class="featured-spotlights">
-      <div class="featured-spot spot-1"></div>
-      <div class="featured-spot spot-2"></div>
-      <div class="featured-spot spot-3"></div>
-    </div>
-    <div class="featured-modal" id="featuredModalCard">
-      <button class="featured-modal-close" id="featuredModalClose" aria-label="Close">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      <!-- Top glow -->
-      <div class="featured-modal-glow"></div>
-      <!-- Shimmer border -->
-      <div class="featured-modal-shimmer"></div>
-      <!-- Floating particles -->
-      <div class="featured-particles">
-        <span class="fp fp1"></span><span class="fp fp2"></span><span class="fp fp3"></span>
-        <span class="fp fp4"></span><span class="fp fp5"></span><span class="fp fp6"></span>
+  <!-- Featured Event Banner -->
+  <div class="fb hidden" id="featuredBanner">
+    <div class="fb-shimmer"></div>
+    <div class="fb-glow"></div>
+    <div class="container fb-inner">
+      <div class="fb-left">
+        <img class="fb-img" id="fbImg" src="" alt="" style="display:none">
+        <span class="fb-badge">Featured</span>
+        <a class="fb-link" id="fbLink" href="#" target="_blank" rel="noopener">
+          <span class="fb-title" id="fbTitle"></span>
+          <span class="fb-desc" id="fbDesc"></span>
+        </a>
       </div>
-      <!-- Label -->
-      <div class="featured-modal-label-wrap">
-        <div class="featured-modal-label">Featured Event</div>
+      <div class="fb-right">
+        <span class="fb-countdown" id="fbCountdown"></span>
+        <a href="#" class="fb-cta" id="fbCta" target="_blank" rel="noopener">
+          <span class="cta-shine"></span>
+          View
+        </a>
+        <a href="/featured" class="fb-boost">Boost</a>
+        <button class="fb-close" id="fbClose" aria-label="Dismiss">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
       </div>
-      <!-- Hero image -->
-      <div class="featured-modal-img-wrap" id="featuredModalImgWrap">
-        <div class="featured-modal-img-placeholder"></div>
-      </div>
-      <!-- Content -->
-      <h2 class="featured-modal-title" id="featuredModalTitle"></h2>
-      <p class="featured-modal-desc" id="featuredModalDesc"></p>
-      <div class="featured-modal-details" id="featuredModalDetails"></div>
-      <div class="featured-modal-countdown" id="featuredModalCountdown"></div>
-      <a class="featured-modal-cta" id="featuredModalCta" href="#" target="_blank" rel="noopener">
-        <span class="cta-shine"></span>
-        View Event
-      </a>
-      <a href="/featured" class="featured-modal-boost">Boost your event</a>
     </div>
   </div>
 

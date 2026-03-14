@@ -52,99 +52,23 @@ const chatStatus = document.getElementById('flowbStatus');
 const chatStatusText = document.getElementById('flowbStatusText');
 
 
-// ===== Featured Event Modal (Extravagant) =====
+// ===== Featured Event Banner =====
 
 let _featuredCountdownTimer;
 let _featuredCountdownSecs = 0;
-let _confettiAnim = null;
 
-function closeFeaturedModal() {
-  const overlay = document.getElementById('featuredModal');
-  if (!overlay || overlay.classList.contains('hidden')) return;
-  overlay.classList.add('closing');
-  if (_confettiAnim) { cancelAnimationFrame(_confettiAnim); _confettiAnim = null; }
-  sessionStorage.setItem('featuredModalDismissed', overlay.dataset.eventUrl || '');
+function closeFeaturedBanner() {
+  const banner = document.getElementById('featuredBanner');
+  if (!banner || banner.classList.contains('hidden')) return;
+  banner.classList.add('closing');
+  sessionStorage.setItem('fbDismissed', banner.dataset.eventUrl || '');
   setTimeout(() => {
-    overlay.classList.add('hidden');
-    overlay.classList.remove('closing');
-  }, 350);
+    banner.classList.add('hidden');
+    banner.classList.remove('closing');
+  }, 300);
 }
 
-document.getElementById('featuredModalClose')?.addEventListener('click', closeFeaturedModal);
-document.getElementById('featuredModal')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('featuredModal') || e.target.classList.contains('featured-confetti') || e.target.closest('.featured-spotlights')) closeFeaturedModal();
-});
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFeaturedModal(); });
-
-// Confetti engine
-function launchConfetti(canvas) {
-  const ctx = canvas.getContext('2d');
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-  const colors = ['#f59e0b','#ef4444','#a78bfa','#22c55e','#60a5fa','#fbbf24','#ec4899','#14b8a6'];
-  const pieces = [];
-  for (let i = 0; i < 120; i++) {
-    pieces.push({
-      x: canvas.width * 0.5 + (Math.random() - 0.5) * 200,
-      y: canvas.height * 0.4,
-      vx: (Math.random() - 0.5) * 16,
-      vy: -Math.random() * 18 - 4,
-      w: Math.random() * 8 + 4,
-      h: Math.random() * 6 + 2,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      rot: Math.random() * 360,
-      rotV: (Math.random() - 0.5) * 12,
-      gravity: 0.25 + Math.random() * 0.15,
-      opacity: 1,
-      delay: Math.random() * 20,
-    });
-  }
-  let frame = 0;
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    let alive = false;
-    pieces.forEach(p => {
-      if (frame < p.delay) { alive = true; return; }
-      p.vy += p.gravity;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.rot += p.rotV;
-      p.vx *= 0.99;
-      if (p.y > canvas.height + 20) { p.opacity -= 0.05; }
-      if (p.opacity <= 0) return;
-      alive = true;
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.rot * Math.PI / 180);
-      ctx.globalAlpha = p.opacity;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      ctx.restore();
-    });
-    frame++;
-    if (alive) _confettiAnim = requestAnimationFrame(draw);
-  }
-  draw();
-  // Second burst after 600ms
-  setTimeout(() => {
-    for (let i = 0; i < 60; i++) {
-      pieces.push({
-        x: canvas.width * 0.5 + (Math.random() - 0.5) * 300,
-        y: canvas.height * 0.3,
-        vx: (Math.random() - 0.5) * 14,
-        vy: -Math.random() * 14 - 2,
-        w: Math.random() * 6 + 3,
-        h: Math.random() * 4 + 2,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        rot: Math.random() * 360,
-        rotV: (Math.random() - 0.5) * 10,
-        gravity: 0.2 + Math.random() * 0.15,
-        opacity: 1,
-        delay: 0,
-      });
-    }
-  }, 600);
-}
+document.getElementById('fbClose')?.addEventListener('click', closeFeaturedBanner);
 
 async function loadFeaturedBanner() {
   try {
@@ -154,94 +78,68 @@ async function loadFeaturedBanner() {
     const cur = data.current;
     if (!cur || !cur.effectiveUrl) return;
 
-    const overlay = document.getElementById('featuredModal');
-    const titleEl = document.getElementById('featuredModalTitle');
-    const descEl = document.getElementById('featuredModalDesc');
-    const detailsEl = document.getElementById('featuredModalDetails');
-    const countdownEl = document.getElementById('featuredModalCountdown');
-    const ctaEl = document.getElementById('featuredModalCta');
-    const imgWrap = document.getElementById('featuredModalImgWrap');
-    const confettiCanvas = document.getElementById('featuredConfetti');
-    if (!overlay) return;
+    const banner = document.getElementById('featuredBanner');
+    if (!banner) return;
 
-    // Check if user already dismissed this session
-    const dismissedUrl = sessionStorage.getItem('featuredModalDismissed');
-    if (dismissedUrl === cur.effectiveUrl) return;
-    overlay.dataset.eventUrl = cur.effectiveUrl;
+    // Check if dismissed this session
+    if (sessionStorage.getItem('fbDismissed') === cur.effectiveUrl) return;
+    banner.dataset.eventUrl = cur.effectiveUrl;
 
-    // Title — use server-provided OG title, fallback to URL
-    let eventTitle = cur.title || '';
-    // Clean up lu.ma suffix
-    eventTitle = eventTitle.replace(/\s*[·|]\s*Luma$/i, '').trim();
-    if (!eventTitle) {
-      try { const u = new URL(cur.effectiveUrl); eventTitle = u.hostname + u.pathname; }
-      catch { eventTitle = cur.effectiveUrl; }
+    // Title
+    let title = cur.title || '';
+    title = title.replace(/\s*[·|]\s*Luma$/i, '').trim();
+    if (!title) {
+      try { const u = new URL(cur.effectiveUrl); title = u.hostname + u.pathname; }
+      catch { title = cur.effectiveUrl; }
     }
-    titleEl.textContent = eventTitle;
+    document.getElementById('fbTitle').textContent = title;
 
     // Description
-    if (cur.description && descEl) {
-      let desc = cur.description.replace(/\s*[·|]\s*Luma$/i, '').trim();
-      if (desc.length > 120) desc = desc.slice(0, 120) + '...';
+    const descEl = document.getElementById('fbDesc');
+    if (cur.description) {
+      let desc = cur.description.replace(/\s*[·|]\s*Luma$/i, '').replace(/\n/g, ' ').trim();
+      if (desc.length > 80) desc = desc.slice(0, 80) + '...';
       descEl.textContent = desc;
-      descEl.style.display = '';
-    } else if (descEl) {
-      descEl.style.display = 'none';
     }
 
-    // Image — use server-provided OG image
+    // Image thumbnail
+    const imgEl = document.getElementById('fbImg');
     if (cur.image) {
-      imgWrap.innerHTML = `<img src="${cur.image}" alt="" loading="eager" onerror="this.parentElement.innerHTML='<div class=\\'featured-modal-img-placeholder\\'></div>'">`;
+      imgEl.src = cur.image;
+      imgEl.style.display = '';
+      imgEl.onerror = () => { imgEl.style.display = 'none'; };
     }
 
-    // Details
-    let detailsHtml = '';
-    if (cur.adminOverrideUrl) {
-      detailsHtml += `<div class="featured-modal-detail" style="color:#a78bfa">Admin Pick</div>`;
-    }
-    if (cur.amountUsdc && !cur.adminOverrideUrl) {
-      detailsHtml += `<div class="featured-modal-detail" style="color:#22c55e">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-        $${(cur.amountUsdc).toFixed(2)} boost bid
-      </div>`;
-    }
-    detailsEl.innerHTML = detailsHtml;
+    // Links
+    document.getElementById('fbLink').href = cur.effectiveUrl;
+    document.getElementById('fbCta').href = cur.effectiveUrl;
 
     // Countdown
     _featuredCountdownSecs = cur.timeRemainingSeconds || 0;
+    const countdownEl = document.getElementById('fbCountdown');
     function updateCountdown() {
       if (_featuredCountdownSecs <= 0) { countdownEl.textContent = ''; return; }
       const h = Math.floor(_featuredCountdownSecs / 3600);
       const m = Math.floor((_featuredCountdownSecs % 3600) / 60);
-      const s = _featuredCountdownSecs % 60;
-      countdownEl.textContent = `${h}h ${m}m ${s}s remaining`;
+      countdownEl.textContent = `${h}h ${m}m`;
     }
     updateCountdown();
     clearInterval(_featuredCountdownTimer);
     _featuredCountdownTimer = setInterval(() => {
-      _featuredCountdownSecs = Math.max(0, _featuredCountdownSecs - 1);
+      _featuredCountdownSecs = Math.max(0, _featuredCountdownSecs - 60);
       updateCountdown();
       if (_featuredCountdownSecs <= 0) clearInterval(_featuredCountdownTimer);
-    }, 1000);
+    }, 60000);
 
-    // CTA link
-    ctaEl.href = cur.effectiveUrl;
-
-    // Show modal with delay, then fire confetti
-    setTimeout(() => {
-      overlay.classList.remove('hidden');
-      // Fire confetti after card animation settles
-      setTimeout(() => {
-        if (confettiCanvas) launchConfetti(confettiCanvas);
-      }, 400);
-    }, 800);
+    // Show
+    banner.classList.remove('hidden');
 
   } catch (err) {
-    console.error('Featured modal load failed:', err);
+    console.error('Featured banner load failed:', err);
   }
 }
 
-// Load featured modal on startup
+// Load featured banner on startup
 loadFeaturedBanner();
 
 // ===== API =====
