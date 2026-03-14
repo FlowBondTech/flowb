@@ -612,10 +612,11 @@ export default function FarcasterApp() {
 
   return (
     <div className="app">
-      {/* Overhaul Notice */}
-      <div style={{ background: "linear-gradient(90deg, #1a1a2e, #2a1a3e)", borderBottom: "1px solid rgba(245,158,11,0.2)", padding: "10px 16px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#fbbf24" }}>
-        <span style={{ fontSize: 16, flexShrink: 0 }}>&#x1F6A7;</span>
-        <span style={{ flex: 1 }}>FlowB is being overhauled — sign-in systems and the coordination layer are changing. Some features may be temporarily unavailable.</span>
+      {/* Under Construction Banner */}
+      <div style={{ background: "repeating-linear-gradient(45deg, #1a1a2e, #1a1a2e 10px, #2a1a3e 10px, #2a1a3e 20px)", borderBottom: "2px solid #fbbf24", padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "#fbbf24", fontWeight: 600 }}>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>&#x1F6A7;</span>
+        <span style={{ flex: 1, lineHeight: 1.4 }}>Under Construction — We're rebuilding FlowB with new features. Some things may not work yet. Stay tuned!</span>
+        <span style={{ fontSize: 20, flexShrink: 0 }}>&#x1F6A7;</span>
       </div>
 
       {/* Home Screen */}

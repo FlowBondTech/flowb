@@ -1,6 +1,6 @@
 // ===== FlowB Auth System =====
-// Login via Privy — Privy is the source of truth for auth state
-// After Privy login, we exchange the Privy user ID for a FlowB JWT
+// Login via FlowB Passport (Supabase Auth + Farcaster SIWF)
+// After auth, we exchange for a FlowB JWT from the backend
 
 const AUTH_KEY = 'flowb-auth';
 const JWT_KEY = 'flowb-jwt';
@@ -16,12 +16,11 @@ const Auth = {
 // ===== Init =====
 
 function initAuth() {
-  // Capture ?from= param (e.g. ?from=telegram) before Privy redirects clear it
+  // Capture ?from= param (e.g. ?from=telegram)
   const urlParams = new URLSearchParams(window.location.search);
   const fromPlatform = urlParams.get('from');
   if (fromPlatform) {
     sessionStorage.setItem('flowb-from-platform', fromPlatform);
-    // Clean param from URL without reload
     urlParams.delete('from');
     const cleanUrl = urlParams.toString()
       ? `${window.location.pathname}?${urlParams}`
@@ -32,60 +31,43 @@ function initAuth() {
   // Restore JWT from localStorage
   Auth.jwt = localStorage.getItem(JWT_KEY);
 
-  // Restore user from localStorage as a temporary UI hint while Privy loads.
+  // Restore user from localStorage as a temporary UI hint
   const stored = localStorage.getItem(AUTH_KEY);
   if (stored) {
     try {
       Auth.user = JSON.parse(stored);
       Auth.isAuthenticated = !!Auth.jwt;
       renderAuthState();
-      // If we have a stored user but no JWT, get one
-      if (!Auth.jwt && Auth.user.id) {
-        getFlowbJwt(Auth.user.id, Auth.user.username);
-      }
     } catch {
       localStorage.removeItem(AUTH_KEY);
     }
   }
 
-  // Privy is the source of truth — always obey its auth state
-  window.addEventListener('privy-auth-change', (e) => {
-    const { authenticated, user } = e.detail;
+  // Listen for auth events from supabase-auth.js (Supabase Auth + Farcaster SIWF)
+  window.addEventListener('flowb-auth-change', (e) => {
+    const { authenticated, user, jwt } = e.detail;
 
     if (authenticated && user) {
-      handlePrivyLogin(user);
+      handleAuthLogin(user, jwt);
     } else {
-      // Privy says not authenticated — clear everything
       clearLocalAuth();
     }
   });
 
-  // Listen for account linking events from privy-mount.tsx
-  window.addEventListener('flowb-accounts-linked', (e) => {
-    const { mergedPoints, platformsLinked } = e.detail;
-    // Close any open linking prompt
-    document.getElementById('linkingPrompt')?.remove();
-    document.body.style.overflow = '';
-    // Show points toast
-    if (mergedPoints > 0 && typeof showPointsToast === 'function') {
-      showPointsToast(mergedPoints, 'Points merged across platforms!', 'bonus');
+  // Sign In click — open FlowB Passport modal
+  document.getElementById('authBtn')?.addEventListener('click', () => {
+    if (window.flowbAuth) {
+      window.flowbAuth.login();
     }
-    // Re-fetch points to update badge
-    refreshPointsBadge();
   });
 
-  // Sign In click is handled by the inline script in index.html
-  // which manages Privy lazy-loading + login with visual feedback
-
   document.getElementById('logoutBtn')?.addEventListener('click', async () => {
-    // Clear local state immediately for responsive UI
     clearLocalAuth();
-    // Then tell Privy to end the session
-    if (window.flowbPrivy) {
+    if (window.flowbAuth) {
       try {
-        await window.flowbPrivy.logout();
+        await window.flowbAuth.logout();
       } catch (err) {
-        console.warn('[auth] Privy logout error:', err);
+        console.warn('[auth] Logout error:', err);
       }
     }
   });
@@ -106,14 +88,56 @@ function initAuth() {
   renderAuthState();
 }
 
-// ===== Get FlowB JWT from backend =====
+// ===== Get auth token for API calls =====
 
-async function getFlowbJwt(privyUserId, displayName) {
+function getAuthToken() {
+  return Auth.jwt || localStorage.getItem(JWT_KEY) || null;
+}
+
+// ===== Auth Login Handler =====
+
+async function handleAuthLogin(user, directJwt) {
+  Auth.user = {
+    id: user.id,
+    username: user.displayName,
+    wallet: user.wallet,
+    email: user.email,
+    platform: user.platform || 'web',
+    loginAt: Date.now(),
+  };
+  localStorage.setItem(AUTH_KEY, JSON.stringify(Auth.user));
+
+  // If we got a JWT directly (e.g. from Farcaster SIWF), use it
+  if (directJwt) {
+    Auth.jwt = directJwt;
+    localStorage.setItem(JWT_KEY, directJwt);
+  } else if (user.session?.access_token) {
+    // For Supabase auth, exchange session for FlowB JWT
+    await getFlowbJwtFromPassport(user.session.access_token, user.displayName);
+  }
+
+  Auth.isAuthenticated = true;
+
+  if (typeof awardFirstAction === 'function') {
+    awardFirstAction('first_login', 10, 'First login bonus!');
+  }
+
+  renderAuthState();
+  claimPendingPointsToBackend();
+
+  window.dispatchEvent(new CustomEvent('flowb-auth-ready'));
+
+  setTimeout(() => checkAndPromptLinking(), 1500);
+}
+
+// ===== Get FlowB JWT from Passport (Supabase Auth) =====
+
+async function getFlowbJwtFromPassport(supabaseAccessToken, displayName) {
   try {
-    const authRes = await fetch(`${FLOWB_API_BASE}/api/v1/auth/web`, {
+    const authRes = await fetch(`${FLOWB_API_BASE}/api/v1/auth/passport`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ privyUserId, displayName: displayName || 'User' }),
+      body: JSON.stringify({ supabaseAccessToken, displayName: displayName || 'User' }),
     });
     if (!authRes.ok) {
       console.warn('[auth] Failed to get FlowB JWT:', authRes.status);
@@ -122,52 +146,12 @@ async function getFlowbJwt(privyUserId, displayName) {
     const data = await authRes.json();
     Auth.jwt = data.token;
     localStorage.setItem(JWT_KEY, data.token);
-    Auth.isAuthenticated = true;
     console.log('[auth] FlowB JWT obtained for', displayName);
     return data.token;
   } catch (err) {
     console.warn('[auth] Failed to get FlowB JWT:', err);
     return null;
   }
-}
-
-// ===== Get auth token for API calls =====
-
-function getAuthToken() {
-  return Auth.jwt || localStorage.getItem(JWT_KEY) || null;
-}
-
-// ===== Privy Login Handler =====
-
-async function handlePrivyLogin(user) {
-  Auth.user = {
-    id: user.id,
-    username: user.displayName,
-    wallet: user.wallet,
-    email: user.email,
-    loginAt: Date.now(),
-  };
-  localStorage.setItem(AUTH_KEY, JSON.stringify(Auth.user));
-
-  // Get FlowB JWT from backend (this is the critical step!)
-  await getFlowbJwt(user.id, user.displayName);
-  Auth.isAuthenticated = true;
-
-  // Award first login bonus
-  if (typeof awardFirstAction === 'function') {
-    awardFirstAction('first_login', 10, 'First login bonus!');
-  }
-
-  renderAuthState();
-
-  // Claim pending anonymous points to backend account
-  claimPendingPointsToBackend();
-
-  // Dispatch custom event so dashboard and other components can react
-  window.dispatchEvent(new CustomEvent('flowb-auth-ready'));
-
-  // Check if we should prompt for account linking (after a brief delay for UX)
-  setTimeout(() => checkAndPromptLinking(), 1500);
 }
 
 async function claimPendingPointsToBackend() {
@@ -189,7 +173,6 @@ async function claimPendingPointsToBackend() {
     if (!claimRes.ok) return;
     const { claimed, total } = await claimRes.json();
 
-    // Clear the ledger
     if (typeof clearPendingActions === 'function') clearPendingActions();
 
     if (claimed > 0 && typeof showPointsToast === 'function') {
@@ -211,7 +194,6 @@ function requireAuth(actionLabel) {
 }
 
 function showSignInPrompt(actionLabel) {
-  // Remove any existing prompt
   document.getElementById('signInPrompt')?.remove();
 
   const prompt = document.createElement('div');
@@ -226,7 +208,7 @@ function showSignInPrompt(actionLabel) {
       <h3 class="signin-prompt-title">Sign in to continue</h3>
       <p class="signin-prompt-msg">Sign in to ${actionLabel || 'use this feature'}. Your points and activity will be saved to your account.</p>
       <button class="signin-prompt-btn" id="signInPromptBtn">Sign In</button>
-      <p class="signin-prompt-sub">Connect with email, wallet, or social accounts</p>
+      <p class="signin-prompt-sub">Sign in with email, wallet, or Farcaster</p>
     </div>
   `;
   document.body.appendChild(prompt);
@@ -244,12 +226,8 @@ function showSignInPrompt(actionLabel) {
 
   prompt.querySelector('#signInPromptBtn').addEventListener('click', () => {
     close();
-    // Trigger Privy login
-    if (window.flowbPrivy) {
-      window.flowbPrivy.login();
-    } else {
-      // Privy not loaded yet - trigger the lazy loader
-      document.getElementById('authBtn')?.click();
+    if (window.flowbAuth) {
+      window.flowbAuth.login();
     }
   });
 }
@@ -257,7 +235,6 @@ function showSignInPrompt(actionLabel) {
 // ===== Cross-Platform Account Linking =====
 
 async function checkAndPromptLinking() {
-  // Skip if dismissed within 7 days
   const dismissed = localStorage.getItem('flowb-link-prompt-dismissed');
   if (dismissed) {
     const dismissedAt = parseInt(dismissed, 10);
@@ -276,7 +253,6 @@ async function checkAndPromptLinking() {
 
     const fromPlatform = sessionStorage.getItem('flowb-from-platform') || null;
 
-    // Determine which platforms to suggest linking
     const suggestTelegram = !status.has_telegram && fromPlatform !== 'telegram';
     const suggestFarcaster = !status.has_farcaster && fromPlatform !== 'farcaster';
 
@@ -289,14 +265,12 @@ async function checkAndPromptLinking() {
 }
 
 function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, mergedPoints }) {
-  // Remove any existing prompt
   document.getElementById('linkingPrompt')?.remove();
 
-  // Contextual heading
   let heading, subtext;
   if (fromPlatform === 'telegram') {
     heading = 'Welcome from Telegram!';
-    subtext = 'Connect Farcaster to merge your points across platforms.';
+    subtext = 'Open the Farcaster mini app to link your account.';
   } else if (fromPlatform === 'farcaster') {
     heading = 'Welcome from Farcaster!';
     subtext = 'Connect Telegram to merge your points across platforms.';
@@ -309,17 +283,14 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
     ? `<p style="font-size:0.85rem;color:var(--accent);margin:0.5rem 0 0">${mergedPoints} points across your accounts</p>`
     : '';
 
-  // Build action buttons
   let buttons = '';
   if (suggestTelegram) {
-    buttons += `<button class="signin-prompt-btn" id="linkTgBtn" style="margin-bottom:0.5rem">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:6px;vertical-align:middle"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.5-.84-.27-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.78 4.07-1.77 6.79-2.94 8.15-3.5 3.88-1.62 4.69-1.9 5.21-1.91.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z"/></svg>
-      Connect Telegram</button>`;
+    buttons += `<a href="https://t.me/Flow_b_bot?start=link" target="_blank" class="signin-prompt-btn" style="margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.5-.84-.27-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.78 4.07-1.77 6.79-2.94 8.15-3.5 3.88-1.62 4.69-1.9 5.21-1.91.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z"/></svg>
+      Connect Telegram</a>`;
   }
   if (suggestFarcaster) {
-    buttons += `<button class="signin-prompt-btn" id="linkFcBtn" style="background:var(--accent-secondary,#8b5cf6)">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16" style="margin-right:6px;vertical-align:middle"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>
-      Connect Farcaster</button>`;
+    buttons += `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.5rem">Sign in from the <a href="https://fc.flowb.me" target="_blank" style="color:var(--accent)">Farcaster mini app</a> to link your Farcaster account.</p>`;
   }
 
   const prompt = document.createElement('div');
@@ -346,7 +317,6 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
     document.body.style.overflow = '';
   };
 
-  // Dismiss with 7-day cooldown
   const dismiss = () => {
     localStorage.setItem('flowb-link-prompt-dismissed', String(Date.now()));
     close();
@@ -357,26 +327,6 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
   prompt.addEventListener('click', (e) => {
     if (e.target === prompt) dismiss();
   });
-
-  // Link buttons: try Privy, with lazy-load fallback
-  const triggerLink = (method) => {
-    if (window.flowbPrivy && typeof window.flowbPrivy[method] === 'function') {
-      window.flowbPrivy[method]();
-    } else {
-      // Privy not loaded yet — trigger lazy load, then retry
-      const script = document.querySelector('script[data-privy-lazy]');
-      if (script) script.dispatchEvent(new Event('load'));
-      setTimeout(() => {
-        if (window.flowbPrivy && typeof window.flowbPrivy[method] === 'function') {
-          window.flowbPrivy[method]();
-        }
-      }, 2000);
-    }
-    close();
-  };
-
-  prompt.querySelector('#linkTgBtn')?.addEventListener('click', () => triggerLink('linkTelegram'));
-  prompt.querySelector('#linkFcBtn')?.addEventListener('click', () => triggerLink('linkFarcaster'));
 }
 
 async function refreshPointsBadge() {
@@ -388,11 +338,9 @@ async function refreshPointsBadge() {
     });
     if (!res.ok) return;
     const data = await res.json();
-    // Update points display if the function exists (defined in points.js or app.js)
     if (typeof updatePointsDisplay === 'function') {
       updatePointsDisplay(data.points);
     }
-    // Also dispatch event for any other listeners
     window.dispatchEvent(new CustomEvent('flowb-points-updated', { detail: data }));
   } catch (err) {
     console.warn('[auth] Failed to refresh points:', err);
@@ -424,15 +372,13 @@ function renderAuthState() {
     authBtn?.classList.add('hidden');
     userMenu?.classList.remove('hidden');
 
-    // Avatar
     const initial = (Auth.user.username || '?')[0].toUpperCase();
     if (userAvatar) userAvatar.textContent = initial;
 
-    // Dropdown header
     if (userDropdownHeader) {
       userDropdownHeader.innerHTML = `
         <div style="font-weight:600;font-size:0.85rem">${escapeHtml(Auth.user.username || Auth.user.email || 'User')}</div>
-        <div style="font-size:0.7rem;color:var(--text-dim)">Connected via Privy</div>`;
+        <div style="font-size:0.7rem;color:var(--text-dim)">FlowB Passport</div>`;
     }
   } else {
     authBtn?.classList.remove('hidden');

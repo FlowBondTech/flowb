@@ -290,8 +290,6 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Privy Auth Mount -->
-  <div id="privy-root"></div>
 
 
   <script src="points.js"></script>
@@ -342,12 +340,12 @@
     }
 
     window.addEventListener('flowb-auth-ready', () => setTimeout(updateFlowPage, 200));
-    window.addEventListener('privy-auth-change', () => setTimeout(updateFlowPage, 500));
+    window.addEventListener('flowb-auth-change', () => setTimeout(updateFlowPage, 500));
 
     // Sign-in button
     document.getElementById('flowSigninBtn')?.addEventListener('click', () => {
-      if (window.flowbPrivy) {
-        window.flowbPrivy.login();
+      if (window.flowbAuth) {
+        window.flowbAuth.login();
       } else {
         document.getElementById('authBtn')?.click();
       }
@@ -382,7 +380,7 @@
           <div class="dash-avatar">${initial}</div>
           <div class="dash-profile-info">
             <h3 class="dash-username">${escapeHtml(displayName)}</h3>
-            <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'Connected via Privy'}</p>
+            <p class="dash-user-meta">${Auth.user.email ? escapeHtml(Auth.user.email) : Auth.user.wallet ? escapeHtml(Auth.user.wallet.slice(0,6) + '...' + Auth.user.wallet.slice(-4)) : 'Connected'}</p>
           </div>
           <div class="dash-stats-row">
             <div class="dash-stat">
@@ -742,30 +740,6 @@
 
     // Init
     updateFlowPage();
-  </script>
-  <script>
-    (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        document.body.appendChild(s);
-      }
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      } else {
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
-      }
-    })();
   </script>
   <script src="mobile-menu.js"></script>
 </body>

@@ -110,24 +110,21 @@ import {
   buildPipelineKeyboard,
   type LeadData,
   type LeadStage,
-  // Task Lists - DISABLED: feature not fully implemented
-  // formatTaskListHtml,
-  // buildTaskListKeyboard,
-  // type TaskListData,
-  // type TaskListItem,
+  // Task Lists
+  formatTaskListHtml,
+  buildTaskListKeyboard,
+  formatTaskListIndexHtml,
+  buildTaskListIndexKeyboard,
+  type TaskListData,
+  type TaskListItem,
 } from "./cards.js";
-
-// Stub types for disabled task list feature
-type TaskListData = any;
-type TaskListItem = any;
-const formatTaskListHtml = (..._args: any[]) => "Task lists feature is not yet available.";
-const buildTaskListKeyboard = (..._args: any[]): undefined => undefined;
 import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
 import { isFlowBAdmin } from "../utils/admin.js";
 import { handleChat, type ChatConfig, type ChatMessage, type ChatPersona } from "../services/ai-chat.js";
+import { generateDraftReply, sendReply, updateTicketStatus, getTicket, type SupportTicket } from "../services/support.js";
 // TEMPORARILY DISABLED: Group intelligence feature not fully implemented
 // import { ... } from "../services/group-intelligence.js";
 
@@ -209,6 +206,13 @@ interface TgSession {
   awaitingLeadDetails?: string; // lead ID being edited
   leadCache?: LeadData[];       // cached leads for callback resolution
   awaitingTaskListItems?: string; // task list UUID when waiting for items to add
+  taskListPage?: number;
+  taskListFilter?: "all" | "active" | "pending_review" | "completed";
+  taskListCache?: TaskListData[];
+  taskListCacheTime?: number;
+  awaitingSupReply?: string;      // support ticket ID waiting for manual reply text
+  awaitingSupEdit?: string;       // support ticket ID waiting for edited AI draft
+  pendingDraft?: string;          // AI-generated draft text for current support ticket
   chatHistory: Array<{ role: "user" | "assistant"; content: string }>;
 }
 
@@ -399,6 +403,13 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingLeadDetails: partial.awaitingLeadDetails ?? existing?.awaitingLeadDetails,
     leadCache: partial.leadCache ?? existing?.leadCache,
     awaitingTaskListItems: partial.awaitingTaskListItems ?? existing?.awaitingTaskListItems,
+    taskListPage: partial.taskListPage ?? existing?.taskListPage,
+    taskListFilter: partial.taskListFilter ?? existing?.taskListFilter,
+    taskListCache: partial.taskListCache ?? existing?.taskListCache,
+    taskListCacheTime: partial.taskListCacheTime ?? existing?.taskListCacheTime,
+    awaitingSupReply: partial.awaitingSupReply ?? existing?.awaitingSupReply,
+    awaitingSupEdit: partial.awaitingSupEdit ?? existing?.awaitingSupEdit,
+    pendingDraft: partial.pendingDraft ?? existing?.pendingDraft,
   };
   sessions.set(userId, session);
 
@@ -2117,7 +2128,8 @@ export function startTelegramBot(
     );
     if (!rows) return null;
     const match = rows.find((r) => r.id.startsWith(short));
-    return match || null;
+    if (!match) return null;
+    return { ...match, items: typeof match.items === "string" ? JSON.parse(match.items) : match.items };
   }
 
   async function updateTaskListItems(listId: string, items: TaskListItem[]): Promise<boolean> {
@@ -2154,6 +2166,107 @@ export function startTelegramBot(
       { id: `eq.${listId}` },
       { is_active: false },
     );
+  }
+
+  async function fetchTaskLists(opts: {
+    creatorId?: string;
+    chatId?: number;
+    status?: string;
+    search?: string;
+  }): Promise<TaskListData[]> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return [];
+    const params: Record<string, string> = {
+      is_active: "eq.true",
+      order: "updated_at.desc",
+      limit: "50",
+    };
+    if (opts.creatorId) params.creator_id = `eq.${opts.creatorId}`;
+    if (opts.chatId) params.chat_id = `eq.${opts.chatId}`;
+    if (opts.status && opts.status !== "all") params.status = `eq.${opts.status}`;
+    if (opts.search) params.title = `ilike.*${opts.search}*`;
+    const rows = await sbQuery<TaskListData[]>(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      params,
+    );
+    return (rows || []).map((r) => ({
+      ...r,
+      items: typeof r.items === "string" ? JSON.parse(r.items) : r.items,
+    }));
+  }
+
+  async function fetchTaskListById(listId: string): Promise<TaskListData | null> {
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) return null;
+    const rows = await sbQuery<TaskListData[]>(
+      { supabaseUrl: sbUrl, supabaseKey: sbKey },
+      "flowb_tasklists",
+      { id: `eq.${listId}`, is_active: "eq.true" },
+    );
+    if (!rows?.length) return null;
+    const r = rows[0];
+    return { ...r, items: typeof r.items === "string" ? JSON.parse(r.items) : r.items };
+  }
+
+  /** Show the task list index for a user (DM) or group */
+  async function showTaskListIndex(
+    ctx: any,
+    tgId: number,
+    chatId: number,
+    isPrivate: boolean,
+    page: number = 0,
+    filter: string = "all",
+    search?: string,
+  ): Promise<void> {
+    const session = getSession(tgId);
+    const cacheAge = session?.taskListCacheTime ? Date.now() - session.taskListCacheTime : Infinity;
+    const sameFilter = session?.taskListFilter === filter;
+
+    let lists: TaskListData[];
+    if (sameFilter && session?.taskListCache && cacheAge < 5 * 60 * 1000 && !search) {
+      lists = session.taskListCache;
+    } else {
+      lists = await fetchTaskLists(
+        isPrivate
+          ? { creatorId: userId(tgId), status: filter, search }
+          : { chatId, status: filter, search },
+      );
+      setSession(tgId, {
+        taskListCache: lists,
+        taskListCacheTime: Date.now(),
+        taskListFilter: filter as any,
+        taskListPage: page,
+      });
+    }
+
+    // If single list and not searching, jump to detail
+    if (lists.length === 1 && !search && page === 0) {
+      const list = lists[0];
+      try {
+        await ctx.reply(formatTaskListHtml(list), {
+          parse_mode: "HTML",
+          reply_markup: buildTaskListKeyboard(list),
+        });
+      } catch { /* parse error fallback */ }
+      return;
+    }
+
+    const TL_PAGE_SIZE = 5;
+    const totalPages = Math.max(1, Math.ceil(lists.length / TL_PAGE_SIZE));
+    const safePage = Math.min(page, totalPages - 1);
+    const pageItems = lists.slice(safePage * TL_PAGE_SIZE, (safePage + 1) * TL_PAGE_SIZE);
+
+    setSession(tgId, { taskListPage: safePage });
+
+    const html = formatTaskListIndexHtml(lists, safePage, filter);
+    const kb = buildTaskListIndexKeyboard(pageItems, safePage, totalPages, filter);
+
+    try {
+      await ctx.reply(html, { parse_mode: "HTML", reply_markup: kb });
+    } catch { /* fallback */ }
   }
 
   // /lead — lead CRUD
@@ -5387,6 +5500,231 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Support callbacks: sup:* ----
+    if (data.startsWith("sup:")) {
+      const parts = data.split(":");
+      const action = parts[1];
+      const ticketId = parts[2];
+
+      if (!ticketId) {
+        await ctx.answerCallbackQuery({ text: "Invalid ticket" });
+        return;
+      }
+
+      // Permission check: admin only
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (!sbUrl || !sbKey) {
+        await ctx.answerCallbackQuery({ text: "DB unavailable" });
+        return;
+      }
+      const isAdmin = await isFlowBAdmin({ supabaseUrl: sbUrl, supabaseKey: sbKey }, userId(tgId));
+      if (!isAdmin) {
+        await ctx.answerCallbackQuery({ text: "Admin only" });
+        return;
+      }
+
+      // sup:ai:{ticketId} — Generate AI draft
+      if (action === "ai") {
+        await ctx.answerCallbackQuery({ text: "Generating AI draft..." });
+        const ticket = await getTicket(ticketId);
+        if (!ticket) {
+          await ctx.reply("Ticket not found.");
+          return;
+        }
+        await ctx.replyWithChatAction("typing");
+        const draft = await generateDraftReply(ticket);
+        setSession(tgId, { pendingDraft: draft });
+
+        const draftMsg = [
+          `🤖 <b>AI Draft Reply</b>`,
+          `<b>Ticket:</b> ${escapeHtml(ticket.subject || "(no subject)")}`,
+          `<b>To:</b> ${escapeHtml(ticket.from_address)}`,
+          "",
+          escapeHtml(draft),
+        ].join("\n");
+
+        await ctx.reply(draftMsg, {
+          parse_mode: "HTML",
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "📤 Send", callback_data: `sup:send:${ticketId}` },
+                { text: "✏️ Edit", callback_data: `sup:edit:${ticketId}` },
+              ],
+              [
+                { text: "🔄 Regenerate", callback_data: `sup:regen:${ticketId}` },
+                { text: "❌ Cancel", callback_data: `sup:cancel:${ticketId}` },
+              ],
+            ],
+          },
+        });
+        return;
+      }
+
+      // sup:reply:{ticketId} — Manual reply prompt
+      if (action === "reply") {
+        await ctx.answerCallbackQuery();
+        setSession(tgId, { awaitingSupReply: ticketId });
+        const ticket = await getTicket(ticketId);
+        await ctx.reply(
+          `✍️ <b>Reply to ticket</b>\n<b>From:</b> ${escapeHtml(ticket?.from_address || "?")}\n<b>Subject:</b> ${escapeHtml(ticket?.subject || "?")}\n\nType your reply below:`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // sup:assign:{ticketId} — Assign to clicking admin
+      if (action === "assign") {
+        await updateTicketStatus(ticketId, "in_progress", userId(tgId));
+        const adminName = ctx.from?.username || ctx.from?.first_name || String(tgId);
+        await ctx.answerCallbackQuery({ text: `Assigned to @${adminName}` });
+
+        // Update the original message to show assignment
+        try {
+          const ticket = await getTicket(ticketId);
+          if (ticket && ctx.callbackQuery.message) {
+            const updatedText = ctx.callbackQuery.message.text + `\n\n👤 <b>Assigned to:</b> @${escapeHtml(adminName)}`;
+            await ctx.editMessageText(updatedText, {
+              parse_mode: "HTML",
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    { text: "🤖 AI Draft", callback_data: `sup:ai:${ticketId}` },
+                    { text: "✍️ Reply", callback_data: `sup:reply:${ticketId}` },
+                  ],
+                  [
+                    { text: "✅ Close", callback_data: `sup:close:${ticketId}` },
+                  ],
+                ],
+              },
+            });
+          }
+        } catch { /* message unchanged */ }
+        return;
+      }
+
+      // sup:close:{ticketId} — Close ticket
+      if (action === "close") {
+        await updateTicketStatus(ticketId, "closed");
+        const adminName = ctx.from?.username || ctx.from?.first_name || String(tgId);
+        await ctx.answerCallbackQuery({ text: "Ticket closed" });
+
+        try {
+          if (ctx.callbackQuery.message) {
+            const text = ctx.callbackQuery.message.text || "";
+            await ctx.editMessageText(
+              text + `\n\n✅ <b>Closed</b> by @${escapeHtml(adminName)}`,
+              { parse_mode: "HTML" },
+            );
+          }
+        } catch { /* message unchanged */ }
+        return;
+      }
+
+      // sup:send:{ticketId} — Send AI draft as-is
+      if (action === "send") {
+        const session = getSession(tgId);
+        const draft = session?.pendingDraft;
+        if (!draft) {
+          await ctx.answerCallbackQuery({ text: "No draft available. Generate one first." });
+          return;
+        }
+
+        await ctx.answerCallbackQuery({ text: "Sending..." });
+        const ok = await sendReply(ticketId, userId(tgId), draft, { aiGenerated: true });
+        setSession(tgId, { pendingDraft: undefined });
+
+        if (ok) {
+          try {
+            await ctx.editMessageText("📤 <b>Reply sent!</b>\n\n" + escapeHtml(draft), { parse_mode: "HTML" });
+          } catch { /* fallback */ }
+        } else {
+          await ctx.reply("Failed to send reply. Check logs.");
+        }
+        return;
+      }
+
+      // sup:edit:{ticketId} — Edit AI draft before sending
+      if (action === "edit") {
+        await ctx.answerCallbackQuery();
+        setSession(tgId, { awaitingSupEdit: ticketId });
+        await ctx.reply(
+          "✏️ <b>Edit the draft</b>\n\nType your edited version below. It will be sent as the reply.",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // sup:regen:{ticketId} — Regenerate AI draft
+      if (action === "regen") {
+        await ctx.answerCallbackQuery({ text: "Regenerating..." });
+        const ticket = await getTicket(ticketId);
+        if (!ticket) {
+          await ctx.reply("Ticket not found.");
+          return;
+        }
+        await ctx.replyWithChatAction("typing");
+        const draft = await generateDraftReply(ticket);
+        setSession(tgId, { pendingDraft: draft });
+
+        const draftMsg = [
+          `🤖 <b>AI Draft Reply (regenerated)</b>`,
+          `<b>To:</b> ${escapeHtml(ticket.from_address)}`,
+          "",
+          escapeHtml(draft),
+        ].join("\n");
+
+        try {
+          await ctx.editMessageText(draftMsg, {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "📤 Send", callback_data: `sup:send:${ticketId}` },
+                  { text: "✏️ Edit", callback_data: `sup:edit:${ticketId}` },
+                ],
+                [
+                  { text: "🔄 Regenerate", callback_data: `sup:regen:${ticketId}` },
+                  { text: "❌ Cancel", callback_data: `sup:cancel:${ticketId}` },
+                ],
+              ],
+            },
+          });
+        } catch {
+          await ctx.reply(draftMsg, {
+            parse_mode: "HTML",
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "📤 Send", callback_data: `sup:send:${ticketId}` },
+                  { text: "✏️ Edit", callback_data: `sup:edit:${ticketId}` },
+                ],
+                [
+                  { text: "🔄 Regenerate", callback_data: `sup:regen:${ticketId}` },
+                  { text: "❌ Cancel", callback_data: `sup:cancel:${ticketId}` },
+                ],
+              ],
+            },
+          });
+        }
+        return;
+      }
+
+      // sup:cancel:{ticketId} — Cancel draft
+      if (action === "cancel") {
+        setSession(tgId, { pendingDraft: undefined });
+        await ctx.answerCallbackQuery({ text: "Draft cancelled" });
+        try {
+          await ctx.editMessageText("❌ Draft cancelled.", { parse_mode: "HTML" });
+        } catch { /* message unchanged */ }
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
     // ---- Task List callbacks: tl:* ----
     if (data.startsWith("tl:")) {
       const parts = data.split(":");
@@ -5471,6 +5809,136 @@ export function startTelegramBot(
           );
         } catch { /* message unchanged */ }
         await ctx.answerCallbackQuery({ text: "List deleted" });
+        return;
+      }
+
+      // tl:v:SHORT — view detail
+      if (action === "v") {
+        const list = await fetchTaskListByShort(chatId, short);
+        if (!list) { await ctx.answerCallbackQuery({ text: "Not found" }); return; }
+        try {
+          await ctx.editMessageText(formatTaskListHtml(list), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListKeyboard(list),
+          });
+        } catch { /* message unchanged */ }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // tl:idx:N — paginate index
+      if (action === "idx") {
+        const page = parseInt(short, 10) || 0;
+        const session = getSession(tgId);
+        const filter = session?.taskListFilter || "all";
+        const isPrivate = ctx.callbackQuery.message?.chat.type === "private";
+        const lists = await fetchTaskLists(
+          isPrivate ? { creatorId: userId(tgId), status: filter } : { chatId, status: filter },
+        );
+        setSession(tgId, { taskListCache: lists, taskListCacheTime: Date.now(), taskListPage: page });
+        const TL_PS = 5;
+        const totalPages = Math.max(1, Math.ceil(lists.length / TL_PS));
+        const safePage = Math.min(page, totalPages - 1);
+        const pageItems = lists.slice(safePage * TL_PS, (safePage + 1) * TL_PS);
+        try {
+          await ctx.editMessageText(formatTaskListIndexHtml(lists, safePage, filter), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListIndexKeyboard(pageItems, safePage, totalPages, filter),
+          });
+        } catch { /* unchanged */ }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // tl:back — back to index
+      if (action === "back") {
+        const session = getSession(tgId);
+        const page = session?.taskListPage || 0;
+        const filter = session?.taskListFilter || "all";
+        const isPrivate = ctx.callbackQuery.message?.chat.type === "private";
+        const lists = await fetchTaskLists(
+          isPrivate ? { creatorId: userId(tgId), status: filter } : { chatId, status: filter },
+        );
+        setSession(tgId, { taskListCache: lists, taskListCacheTime: Date.now() });
+        const TL_PS = 5;
+        const totalPages = Math.max(1, Math.ceil(lists.length / TL_PS));
+        const safePage = Math.min(page, totalPages - 1);
+        const pageItems = lists.slice(safePage * TL_PS, (safePage + 1) * TL_PS);
+        try {
+          await ctx.editMessageText(formatTaskListIndexHtml(lists, safePage, filter), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListIndexKeyboard(pageItems, safePage, totalPages, filter),
+          });
+        } catch { /* unchanged */ }
+        await ctx.answerCallbackQuery();
+        return;
+      }
+
+      // tl:f:cycle — cycle through filters
+      if (action === "f" && short === "cycle") {
+        const session = getSession(tgId);
+        const filters: Array<"all" | "active" | "pending_review" | "completed"> = ["all", "active", "pending_review", "completed"];
+        const current = session?.taskListFilter || "all";
+        const nextIdx = (filters.indexOf(current) + 1) % filters.length;
+        const nextFilter = filters[nextIdx];
+        const isPrivate = ctx.callbackQuery.message?.chat.type === "private";
+        const lists = await fetchTaskLists(
+          isPrivate ? { creatorId: userId(tgId), status: nextFilter } : { chatId, status: nextFilter },
+        );
+        setSession(tgId, { taskListCache: lists, taskListCacheTime: Date.now(), taskListFilter: nextFilter, taskListPage: 0 });
+        const TL_PS = 5;
+        const totalPages = Math.max(1, Math.ceil(lists.length / TL_PS));
+        const pageItems = lists.slice(0, TL_PS);
+        try {
+          await ctx.editMessageText(formatTaskListIndexHtml(lists, 0, nextFilter), {
+            parse_mode: "HTML",
+            reply_markup: buildTaskListIndexKeyboard(pageItems, 0, totalPages, nextFilter),
+          });
+        } catch { /* unchanged */ }
+        await ctx.answerCallbackQuery({ text: `Filter: ${nextFilter === "all" ? "All" : nextFilter}` });
+        return;
+      }
+
+      // tl:share:SHORT — generate share link
+      if (action === "share") {
+        const list = await fetchTaskListByShort(chatId, short);
+        if (!list) { await ctx.answerCallbackQuery({ text: "Not found" }); return; }
+        let code = list.share_code;
+        if (!code) {
+          code = list.id.replace(/-/g, "").slice(0, 8);
+          const sbUrl = process.env.SUPABASE_URL;
+          const sbKey = process.env.SUPABASE_KEY;
+          if (sbUrl && sbKey) {
+            await sbPatch(
+              { supabaseUrl: sbUrl, supabaseKey: sbKey },
+              "flowb_tasklists",
+              { id: `eq.${list.id}` },
+              { share_code: code },
+            );
+          }
+        }
+        const link = `https://flowb.me/cl/${code}`;
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          `<b>\ud83d\udd17 Share Checklist</b>\n\n<code>${link}</code>\n\nAnyone with this link can view <b>${escapeHtml(list.title)}</b>.`,
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
+      // tl:kanban:SHORT — link to kanban (placeholder for Phase 2)
+      if (action === "kanban") {
+        await ctx.answerCallbackQuery({ text: "Kanban sync coming soon!" });
+        return;
+      }
+
+      // tl:new — create new checklist prompt
+      if (action === "new") {
+        await ctx.answerCallbackQuery();
+        await ctx.reply(
+          "Create a new checklist:\n\n<code>create checklist Shopping\nMilk\nEggs\nBread</code>",
+          { parse_mode: "HTML" },
+        );
         return;
       }
 
@@ -6154,6 +6622,24 @@ export function startTelegramBot(
       return;
     }
 
+    // ---- Task List: browse / index ----
+    if (/^(?:my\s+)?(?:checklists?|task\s*lists?|to-?do\s*lists?|todos?)$/i.test(lower)) {
+      const isPrivate = ctx.chat.type === "private";
+      await showTaskListIndex(ctx, tgId, ctx.chat.id, isPrivate);
+      return;
+    }
+
+    // ---- Task List: search ----
+    {
+      const searchMatch = lower.match(/^(?:find|search)\s+(?:checklist|task\s*list|todo)\s+(.+)/i);
+      if (searchMatch) {
+        const term = searchMatch[1].trim();
+        const isPrivate = ctx.chat.type === "private";
+        await showTaskListIndex(ctx, tgId, ctx.chat.id, isPrivate, 0, "all", term);
+        return;
+      }
+    }
+
     // /biz — open biz dashboard
     if (/^(biz|business|dashboard|command center|hq)$/i.test(lower)) {
       await ctx.reply(
@@ -6426,6 +6912,40 @@ export function startTelegramBot(
       if (session?.awaitingSuggestion) {
         setSession(tgId, { awaitingSuggestion: false });
         await handleFeatureSuggestion(ctx, core, tgId, text.trim());
+        return;
+      }
+    }
+
+    // ---- Awaiting support reply (manual) ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingSupReply) {
+        const ticketId = session.awaitingSupReply;
+        setSession(tgId, { awaitingSupReply: undefined });
+        await ctx.replyWithChatAction("typing");
+        const ok = await sendReply(ticketId, userId(tgId), text.trim(), { aiGenerated: false });
+        if (ok) {
+          await ctx.reply("📤 <b>Reply sent!</b>", { parse_mode: "HTML" });
+        } else {
+          await ctx.reply("Failed to send reply. Check logs.");
+        }
+        return;
+      }
+    }
+
+    // ---- Awaiting support edit (edited AI draft) ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingSupEdit) {
+        const ticketId = session.awaitingSupEdit;
+        setSession(tgId, { awaitingSupEdit: undefined, pendingDraft: undefined });
+        await ctx.replyWithChatAction("typing");
+        const ok = await sendReply(ticketId, userId(tgId), text.trim(), { aiGenerated: true, aiEdited: true });
+        if (ok) {
+          await ctx.reply("📤 <b>Edited reply sent!</b>", { parse_mode: "HTML" });
+        } else {
+          await ctx.reply("Failed to send reply. Check logs.");
+        }
         return;
       }
     }

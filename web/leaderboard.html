@@ -157,8 +157,6 @@
   <!-- Points Toast Container -->
   <div class="points-toasts" id="pointsToasts"></div>
 
-  <!-- Privy Auth Mount -->
-  <div id="privy-root"></div>
 
 
   <script src="points.js"></script>
@@ -340,30 +338,6 @@
     loadIndividuals();
     loadCrews();
     loadStats();
-  </script>
-  <script>
-    (function() {
-      var loaded = false;
-      function loadPrivy() {
-        if (loaded) return;
-        loaded = true;
-        var s = document.createElement('script');
-        s.type = 'module';
-        s.src = '/privy-mount.js';
-        document.body.appendChild(s);
-      }
-      if (localStorage.getItem('flowb-auth')) {
-        loadPrivy();
-      } else {
-        var btn = document.getElementById('authBtn');
-        if (btn) btn.addEventListener('click', function() {
-          loadPrivy();
-          setTimeout(function() {
-            if (window.flowbPrivy) window.flowbPrivy.login();
-          }, 1500);
-        }, { once: true });
-      }
-    })();
   </script>
   <script src="mobile-menu.js"></script>
 </body>

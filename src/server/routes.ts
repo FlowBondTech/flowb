@@ -234,28 +234,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             } catch {}
           }
 
-          // Check for existing Privy account linked to this FID
-          let privyUserId: string | undefined;
-          const privyAppId = process.env.PRIVY_APP_ID;
-          const privyAppSecret = process.env.PRIVY_APP_SECRET;
-          if (privyAppId && privyAppSecret) {
-            try {
-              const credentials = Buffer.from(`${privyAppId}:${privyAppSecret}`).toString("base64");
-              const privyRes = await fetch(`https://auth.privy.io/api/v2/users/farcaster:${fid}`, {
-                headers: {
-                  Authorization: `Basic ${credentials}`,
-                  "privy-app-id": privyAppId,
-                  "Content-Type": "application/json",
-                },
-              });
-              if (privyRes.ok) {
-                const privyUser = await privyRes.json() as any;
-                privyUserId = privyUser?.id;
-                console.log(`[auth] Linked Farcaster FID ${fid} to Privy user ${privyUserId}`);
-              }
-            } catch {}
-          }
-
           // Look up locale + onboarding from session
           let locale = 'en';
           let onboardingComplete = false;
@@ -311,7 +289,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
             platform: "farcaster",
             fid,
             username,
-            ...(privyUserId ? { privyUserId } : {}),
             ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
           });
 
@@ -326,7 +303,6 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               username,
               displayName,
               pfpUrl,
-              ...(privyUserId ? { privyUserId } : {}),
               ...(supabaseUid ? { supabase_uid: supabaseUid } : {}),
             },
           };

@@ -169,20 +169,6 @@ export function OnboardingScreen({ onComplete, onNavigateCrew }: Props) {
           >
             Get Started
           </button>
-
-          <div className="onboarding-portal-hint" style={{ marginTop: 16, textAlign: "center" }}>
-            <a
-              href="https://flowb.me/settings?from=farcaster"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "var(--accent-light, #3b82f6)", fontWeight: 600, textDecoration: "none" }}
-            >
-              Already in the flow? Sign in
-            </a>
-            <div style={{ fontSize: 11, color: "var(--hint)", marginTop: 4 }}>
-              Syncs your accounts across platforms — powered by FlowBond.Tech
-            </div>
-          </div>
         </div>
       </div>
     );

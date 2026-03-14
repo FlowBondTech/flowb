@@ -10,7 +10,7 @@ export type AuthMode = "privy" | "dual" | "supabase";
 export function getAuthMode(): AuthMode {
   const mode = process.env.FLOWB_AUTH_MODE;
   if (mode === "privy" || mode === "dual" || mode === "supabase") return mode;
-  return "dual"; // default to dual during migration
+  return "supabase"; // default to supabase (Privy deprecated)
 }
 
 /** Whether Privy auth paths should be active */
