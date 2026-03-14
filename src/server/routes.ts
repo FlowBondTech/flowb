@@ -6069,6 +6069,37 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         "flowb_boost_cycles?is_active=eq.false&order=cycle_number.desc&limit=10&select=id,cycle_number,started_at,ends_at,highest_bid_usdc,winning_event_url,admin_override_url",
       );
 
+      // Try to enrich with OG metadata from the event URL
+      let ogMeta: { title?: string; image?: string; description?: string } = {};
+      const effectiveUrl = current?.target_id;
+      if (effectiveUrl) {
+        // First check our own events DB
+        const dbEvents = await sbFetch<any[]>(
+          cfg,
+          `flowb_events?or=(url.eq.${encodeURIComponent(effectiveUrl)},source_url.eq.${encodeURIComponent(effectiveUrl)})&limit=1`,
+        );
+        if (dbEvents?.length) {
+          const ev = dbEvents[0];
+          ogMeta = { title: ev.title, image: ev.image_url || ev.cover_url, description: ev.description };
+        }
+        // Fallback: fetch OG tags from the URL
+        if (!ogMeta.title) {
+          try {
+            const ogRes = await fetch(effectiveUrl, {
+              headers: { "User-Agent": "FlowB/1.0 (og-scraper)" },
+              signal: AbortSignal.timeout(4000),
+            });
+            const html = await ogRes.text();
+            const getOg = (prop: string) => {
+              const m = html.match(new RegExp(`property=["']og:${prop}["'][^>]*content=["']([^"']+)["']`, "i"))
+                || html.match(new RegExp(`content=["']([^"']+)["'][^>]*property=["']og:${prop}["']`, "i"));
+              return m?.[1]?.replace(/&amp;/g, "&") || "";
+            };
+            ogMeta = { title: getOg("title"), image: getOg("image"), description: getOg("description") };
+          } catch {}
+        }
+      }
+
       return {
         current: current
           ? {
@@ -6081,6 +6112,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
               endsAt: current.ends_at,
               timeRemainingSeconds: current.time_remaining_seconds,
               minNextBid: parseFloat(current.min_next_bid) || 0.10,
+              title: ogMeta.title || undefined,
+              image: ogMeta.image || undefined,
+              description: ogMeta.description || undefined,
             }
           : null,
         history: (historyRows || []).map((h: any) => ({
