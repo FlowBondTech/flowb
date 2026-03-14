@@ -166,6 +166,42 @@
       cursor: pointer;
     }
     .admin-status { font-size: 12px; margin-top: 6px; }
+    .boost-form-section { margin-bottom: 24px; }
+    .boost-form-card {
+      background: #1a1a2e;
+      border: 1px solid #2d2d44;
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .boost-form-title { font-size: 15px; font-weight: 700; color: #e8e8f0; margin: 0 0 4px; }
+    .boost-form-hint { font-size: 12px; color: #6b7280; margin: 0 0 16px; }
+    .boost-form-field { margin-bottom: 12px; }
+    .boost-form-field label { display: block; font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
+    .boost-amount-row { position: relative; display: flex; align-items: center; gap: 8px; }
+    .boost-amount-prefix { position: absolute; left: 10px; font-size: 14px; color: #6b7280; z-index: 1; }
+    .boost-amount-min { font-size: 11px; color: #6b7280; white-space: nowrap; }
+    .boost-method-row { display: flex; gap: 8px; }
+    .boost-method-btn {
+      flex: 1; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid #2d2d44; background: #0f0f1a;
+      color: #9ca3af; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .boost-method-btn.active { border-color: #f59e0b; color: #f59e0b; background: rgba(245,158,11,0.08); }
+    .boost-method-btn:hover { border-color: #4b5563; }
+    .boost-form-status { font-size: 12px; margin-top: 8px; min-height: 18px; }
+    .boost-crypto-details {
+      margin-top: 12px; padding: 12px;
+      background: rgba(34,197,94,0.06); border: 1px solid rgba(34,197,94,0.2);
+      border-radius: 8px;
+    }
+    .boost-crypto-label { font-size: 12px; color: #9ca3af; margin: 0 0 6px; }
+    .boost-crypto-addr {
+      font-size: 13px; font-weight: 600; color: #22c55e;
+      word-break: break-all; cursor: pointer; padding: 6px 8px;
+      background: rgba(34,197,94,0.08); border-radius: 6px;
+    }
+    .boost-crypto-addr:hover { background: rgba(34,197,94,0.15); }
     @media (max-width: 480px) {
       .featured-stats { gap: 20px; }
       .featured-stat-value { font-size: 22px; }
@@ -185,13 +221,13 @@
         <a href="/" class="header-nav-link">Events</a>
         <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/featured" class="header-nav-link featured-nav-link active">Featured</a>
         <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
         <div class="nav-more">
           <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
           </button>
           <div class="nav-more-dropdown">
-            <a href="/featured" class="nav-more-item active">Featured</a>
             <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
             <a href="/agents" class="nav-more-item">Agents</a>
             <a href="/about" class="nav-more-item">About</a>
@@ -244,9 +280,6 @@
           <p class="page-subtitle">24-hour auction to feature your event at the top</p>
         </div>
         <div class="page-header-actions">
-          <a href="https://t.me/Flow_b_bot/flowb?startapp=featured" target="_blank" class="page-action-btn">
-            Open in Telegram
-          </a>
         </div>
       </div>
 
@@ -259,9 +292,48 @@
       <div class="auction-grid" id="auctionStatus" style="display:none"></div>
 
       <!-- Boost CTA -->
-      <a href="https://t.me/Flow_b_bot/flowb?startapp=featured" target="_blank" class="boost-cta">
+      <button class="boost-cta" id="boostCtaBtn" onclick="document.getElementById('boostFormSection').style.display = document.getElementById('boostFormSection').style.display === 'none' ? 'block' : 'none'">
         Boost Your Event
-      </a>
+      </button>
+
+      <!-- Boost Form (inline, no Telegram redirect) -->
+      <div id="boostFormSection" class="boost-form-section" style="display:none">
+        <div class="boost-form-card">
+          <h4 class="boost-form-title">Boost Your Event to the Top</h4>
+          <p class="boost-form-hint">Your event will be featured across the website, chat, and Telegram until outbid or the 24h cycle ends.</p>
+          <div class="boost-form-field">
+            <label for="boostEventUrl">Event URL</label>
+            <input class="admin-input" type="text" id="boostEventUrl" placeholder="https://lu.ma/your-event">
+          </div>
+          <div class="boost-form-field">
+            <label for="boostAmount">Bid Amount (USD)</label>
+            <div class="boost-amount-row">
+              <span class="boost-amount-prefix">$</span>
+              <input class="admin-input" type="number" id="boostAmount" min="0.10" step="0.10" placeholder="0.10" style="padding-left:24px">
+              <span class="boost-amount-min" id="boostMinLabel">Min: $0.10</span>
+            </div>
+          </div>
+          <div class="boost-form-field">
+            <label>Payment Method</label>
+            <div class="boost-method-row">
+              <button class="boost-method-btn active" data-method="crypto" id="methodCrypto">USDC (Base)</button>
+              <button class="boost-method-btn" data-method="stripe" id="methodStripe">Card (Stripe)</button>
+            </div>
+          </div>
+          <button class="boost-cta" id="boostSubmitBtn" style="margin-top:8px">Place Bid</button>
+          <div class="boost-form-status" id="boostFormStatus"></div>
+          <!-- Crypto payment details (shown after checkout) -->
+          <div id="boostCryptoDetails" style="display:none" class="boost-crypto-details">
+            <p class="boost-crypto-label">Send USDC on Base to:</p>
+            <div class="boost-crypto-addr" id="boostWalletAddr"></div>
+            <div class="boost-form-field" style="margin-top:8px">
+              <label for="boostTxHash">Transaction Hash</label>
+              <input class="admin-input" type="text" id="boostTxHash" placeholder="0x...">
+            </div>
+            <button class="boost-cta" id="boostConfirmCryptoBtn" style="background:#22c55e">Confirm Payment</button>
+          </div>
+        </div>
+      </div>
 
       <!-- Admin -->
       <button class="admin-toggle" id="adminToggle">Admin Controls</button>
@@ -298,7 +370,6 @@
   </footer>
 
   <div class="points-toasts" id="pointsToasts"></div>
-  <div id="privy-root"></div>
 
   <script src="points.js"></script>
   <script src="auth.js"></script>
@@ -364,8 +435,8 @@
 
         hero.innerHTML =
           '<div>' + badges + '</div>' +
-          '<div class="featured-url" onclick="window.open(\'' + escapeHtml(cur.effectiveUrl) + '\',\'_blank\')">' + escapeHtml(truncateUrl(cur.effectiveUrl, 60)) + '</div>' +
-          '<div class="featured-url-hint">Tap to view event</div>' +
+          '<div class="featured-url" onclick="window.open(\'' + escapeHtml(cur.effectiveUrl) + '\',\'_blank\')">Check out tonight\'s featured event!</div>' +
+          '<div class="featured-url-hint">Tap to view</div>' +
           '<div class="featured-stats">' +
             '<div><div class="featured-stat-value" id="countdownDisplay">' + formatCountdown(countdownSecs) + '</div><div class="featured-stat-label">Time Remaining</div></div>' +
             '<div><div class="featured-stat-value" style="color:#22c55e">$' + (cur.amountUsdc || 0).toFixed(2) + '</div><div class="featured-stat-label">Current Bid</div></div>' +
@@ -458,6 +529,118 @@
 
     // Load on ready
     loadFeatured();
+
+    // ===== Boost Form Logic =====
+    var selectedMethod = 'crypto';
+    var currentSponsorshipId = null;
+
+    // Payment method toggle
+    document.querySelectorAll('.boost-method-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.boost-method-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        selectedMethod = btn.dataset.method;
+      });
+    });
+
+    // Update min bid from status
+    (async function loadMinBid() {
+      try {
+        var res = await fetch(FLOWB_API + '/api/v1/boost/status');
+        if (!res.ok) return;
+        var data = await res.json();
+        var min = data.minNextBid || 0.10;
+        document.getElementById('boostAmount').min = min;
+        document.getElementById('boostAmount').placeholder = min.toFixed(2);
+        document.getElementById('boostMinLabel').textContent = 'Min: $' + min.toFixed(2);
+      } catch(e) {}
+    })();
+
+    // Submit boost bid
+    document.getElementById('boostSubmitBtn').addEventListener('click', async function() {
+      var eventUrl = document.getElementById('boostEventUrl').value.trim();
+      var amount = parseFloat(document.getElementById('boostAmount').value);
+      var statusEl = document.getElementById('boostFormStatus');
+
+      if (!eventUrl) { statusEl.textContent = 'Enter an event URL'; statusEl.style.color = '#ef4444'; return; }
+      if (!amount || amount < 0.10) { statusEl.textContent = 'Minimum bid is $0.10'; statusEl.style.color = '#ef4444'; return; }
+
+      var token = localStorage.getItem('flowb_token');
+      if (!token) { statusEl.textContent = 'Sign in first to boost an event'; statusEl.style.color = '#ef4444'; return; }
+
+      statusEl.textContent = 'Processing...'; statusEl.style.color = '#6b7280';
+
+      try {
+        var res = await fetch(FLOWB_API + '/api/v1/boost/checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ eventUrl: eventUrl, amountUsdc: amount, paymentMethod: selectedMethod }),
+        });
+
+        var data = await res.json();
+        if (!res.ok) { statusEl.textContent = 'Error: ' + (data.error || res.statusText); statusEl.style.color = '#ef4444'; return; }
+
+        currentSponsorshipId = data.sponsorshipId;
+
+        if (selectedMethod === 'crypto') {
+          // Show wallet address for crypto payment
+          var wallet = data.wallet || '';
+          document.getElementById('boostWalletAddr').textContent = wallet;
+          document.getElementById('boostWalletAddr').onclick = function() {
+            navigator.clipboard.writeText(wallet);
+            this.textContent = 'Copied!';
+            var self = this;
+            setTimeout(function() { self.textContent = wallet; }, 1500);
+          };
+          document.getElementById('boostCryptoDetails').style.display = 'block';
+          statusEl.textContent = 'Send $' + amount.toFixed(2) + ' USDC on Base to the wallet below, then paste your tx hash.';
+          statusEl.style.color = '#22c55e';
+        } else {
+          // Stripe: would use Stripe.js with clientSecret
+          if (data.clientSecret) {
+            statusEl.innerHTML = 'Stripe checkout created. <a href="https://checkout.stripe.com/pay/' + data.orderId + '" target="_blank" style="color:#60a5fa">Complete payment</a>';
+          } else {
+            statusEl.textContent = 'Checkout created! Complete payment in your Stripe window.';
+          }
+          statusEl.style.color = '#22c55e';
+        }
+      } catch(e) {
+        statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#ef4444';
+      }
+    });
+
+    // Confirm crypto payment
+    document.getElementById('boostConfirmCryptoBtn').addEventListener('click', async function() {
+      var txHash = document.getElementById('boostTxHash').value.trim();
+      var statusEl = document.getElementById('boostFormStatus');
+      var token = localStorage.getItem('flowb_token');
+
+      if (!txHash || !txHash.startsWith('0x')) { statusEl.textContent = 'Enter a valid transaction hash (0x...)'; statusEl.style.color = '#ef4444'; return; }
+      if (!currentSponsorshipId) { statusEl.textContent = 'No pending bid found. Place a bid first.'; statusEl.style.color = '#ef4444'; return; }
+
+      statusEl.textContent = 'Verifying...'; statusEl.style.color = '#6b7280';
+
+      try {
+        var res = await fetch(FLOWB_API + '/api/v1/boost/confirm-crypto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ sponsorshipId: currentSponsorshipId, txHash: txHash }),
+        });
+
+        var data = await res.json();
+        if (!res.ok) { statusEl.textContent = 'Error: ' + (data.error || res.statusText); statusEl.style.color = '#ef4444'; return; }
+
+        statusEl.textContent = 'Payment submitted for verification! Your event will be featured once confirmed on-chain.';
+        statusEl.style.color = '#22c55e';
+        document.getElementById('boostCryptoDetails').style.display = 'none';
+        document.getElementById('boostFormSection').style.display = 'none';
+
+        // Reload featured
+        setTimeout(loadFeatured, 3000);
+      } catch(e) {
+        statusEl.textContent = 'Error: ' + e.message; statusEl.style.color = '#ef4444';
+      }
+    });
 
     // Nav more dropdown
     var moreBtn = document.querySelector('.nav-more-btn');

@@ -2320,23 +2320,39 @@ export async function handleChat(
 ): Promise<ChatResponse> {
   const { sb, xaiKey, user, model, platform } = config;
 
-  // Fetch user's current city, biz context, and memory context in parallel
+  // Fetch user's current city, biz context, memory context, and featured event in parallel
   let userCity: string | undefined;
   let bizCtx: BizContext | undefined;
   let memoryCtx = "";
+  let featuredEventCtx = "";
   if (user.userId) {
     const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
     const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content || "";
     try {
-      const [sessions, bctx, memCtx] = await Promise.all([
+      const [sessions, bctx, memCtx, featuredRows] = await Promise.all([
         sbFetch<any[]>(sb, `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`),
         fetchUserBizContext(sb, user.userId).catch(() => undefined),
         lastUserMsg ? getMemoryContext(memCfg, user.userId, lastUserMsg).catch(() => "") : Promise.resolve(""),
+        sbFetch<any[]>(sb, `v_current_featured_boost?select=*&limit=1`).catch(() => null),
       ]);
       const session = sessions?.[0];
       userCity = session?.current_city || session?.destination_city || undefined;
       bizCtx = bctx;
       memoryCtx = memCtx;
+      // Build featured event context for system prompt
+      const featured = featuredRows?.[0];
+      if (featured?.target_id) {
+        featuredEventCtx = `\n\nFEATURED EVENT (promote this when users ask about events or "what's happening tonight"):\n- URL: ${featured.target_id}\n- When users ask about events, mention: "Check out tonight's [featured event](${featured.target_id})!"\n- Use markdown link format [text](url), never raw HTML <a> tags.\n- This is the currently promoted event on FlowB. Mention it naturally when relevant.`;
+      }
+    } catch { /* non-critical */ }
+  } else {
+    // Even for unauthenticated users, fetch featured event
+    try {
+      const featuredRows = await sbFetch<any[]>(sb, `v_current_featured_boost?select=*&limit=1`);
+      const featured = featuredRows?.[0];
+      if (featured?.target_id) {
+        featuredEventCtx = `\n\nFEATURED EVENT (promote this when users ask about events or "what's happening tonight"):\n- URL: ${featured.target_id}\n- When users ask about events, mention: "Check out tonight's [featured event](${featured.target_id})!"\n- Use markdown link format [text](url), never raw HTML <a> tags.\n- This is the currently promoted event on FlowB. Mention it naturally when relevant.`;
+      }
     } catch { /* non-critical */ }
   }
 
@@ -2345,7 +2361,7 @@ export async function handleChat(
 
   // Always use server-side system prompt (has tools awareness + user context)
   const userMessages = messages.filter((m) => m.role !== "system").slice(-24);
-  const systemPrompt = buildSystemPrompt(user, userCity, bizCtx, platform, isAdmin) + memoryCtx;
+  const systemPrompt = buildSystemPrompt(user, userCity, bizCtx, platform, isAdmin) + featuredEventCtx + memoryCtx;
   const chatMessages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
     ...userMessages,
