@@ -29,13 +29,13 @@
         <a href="/" class="header-nav-link active">Events</a>
         <a href="/crews" class="header-nav-link">Crews</a>
         <a href="/feed" class="header-nav-link">Feed</a>
+        <a href="/featured" class="header-nav-link featured-nav-link" id="navFeatured">Featured</a>
         <a href="/flow" class="header-nav-link" id="navMyFlow">Flow</a>
         <div class="nav-more">
           <button class="header-nav-link nav-more-btn" aria-expanded="false" aria-haspopup="true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
           </button>
           <div class="nav-more-dropdown">
-            <a href="/featured" class="nav-more-item">Featured</a>
             <a href="/leaderboard" class="nav-more-item">Leaderboard</a>
             <a href="/agents" class="nav-more-item">Agents</a>
             <a href="/about" class="nav-more-item">About</a>
@@ -92,6 +92,25 @@
         <p class="overhaul-text"><strong>Heads up:</strong> FlowB is currently being overhauled &mdash; sign-in systems are changing and the coordination layer is being rebuilt. Some features may be unavailable or behave unexpectedly.</p>
         <button class="overhaul-close" onclick="document.getElementById('overhaulBanner').style.display='none'">&times;</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Featured Event Modal -->
+  <div class="featured-modal-overlay hidden" id="featuredModal">
+    <div class="featured-modal" id="featuredModalCard">
+      <button class="featured-modal-close" id="featuredModalClose" aria-label="Close">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="featured-modal-glow"></div>
+      <div class="featured-modal-label">Featured Event</div>
+      <div class="featured-modal-img-wrap" id="featuredModalImgWrap">
+        <div class="featured-modal-img-placeholder"></div>
+      </div>
+      <h2 class="featured-modal-title" id="featuredModalTitle"></h2>
+      <div class="featured-modal-details" id="featuredModalDetails"></div>
+      <div class="featured-modal-countdown" id="featuredModalCountdown"></div>
+      <a class="featured-modal-cta" id="featuredModalCta" href="#" target="_blank" rel="noopener">View Event</a>
+      <a href="/featured" class="featured-modal-boost">Boost your event</a>
     </div>
   </div>
 
@@ -466,6 +485,7 @@
 
       <!-- Quick Actions -->
       <div class="flowb-quick-bar" id="flowbQuickBar">
+        <button class="flowb-quick-chip flowb-quick-featured" data-action="featured" style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(239,68,68,0.1));border-color:rgba(245,158,11,0.3);color:#f59e0b;">Featured</button>
         <button class="flowb-quick-chip flowb-quick-flow" data-action="my-crew">My Crew</button>
         <button class="flowb-quick-chip flowb-quick-flow" data-action="my-schedule">My Schedule</button>
         <button class="flowb-quick-chip flowb-quick-flow" data-action="whos-going">Who's going tonight?</button>
