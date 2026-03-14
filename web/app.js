@@ -52,33 +52,99 @@ const chatStatus = document.getElementById('flowbStatus');
 const chatStatusText = document.getElementById('flowbStatusText');
 
 
-// ===== Featured Event Modal =====
+// ===== Featured Event Modal (Extravagant) =====
 
 let _featuredCountdownTimer;
 let _featuredCountdownSecs = 0;
+let _confettiAnim = null;
 
 function closeFeaturedModal() {
   const overlay = document.getElementById('featuredModal');
   if (!overlay || overlay.classList.contains('hidden')) return;
   overlay.classList.add('closing');
+  if (_confettiAnim) { cancelAnimationFrame(_confettiAnim); _confettiAnim = null; }
+  sessionStorage.setItem('featuredModalDismissed', overlay.dataset.eventUrl || '');
   setTimeout(() => {
     overlay.classList.add('hidden');
     overlay.classList.remove('closing');
-  }, 250);
+  }, 350);
 }
 
-// Close on X click
 document.getElementById('featuredModalClose')?.addEventListener('click', closeFeaturedModal);
-
-// Close on overlay (outside card) click
 document.getElementById('featuredModal')?.addEventListener('click', (e) => {
-  if (e.target === document.getElementById('featuredModal')) closeFeaturedModal();
+  if (e.target === document.getElementById('featuredModal') || e.target.classList.contains('featured-confetti') || e.target.closest('.featured-spotlights')) closeFeaturedModal();
 });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeFeaturedModal(); });
 
-// Close on Escape key
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeFeaturedModal();
-});
+// Confetti engine
+function launchConfetti(canvas) {
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const colors = ['#f59e0b','#ef4444','#a78bfa','#22c55e','#60a5fa','#fbbf24','#ec4899','#14b8a6'];
+  const pieces = [];
+  for (let i = 0; i < 120; i++) {
+    pieces.push({
+      x: canvas.width * 0.5 + (Math.random() - 0.5) * 200,
+      y: canvas.height * 0.4,
+      vx: (Math.random() - 0.5) * 16,
+      vy: -Math.random() * 18 - 4,
+      w: Math.random() * 8 + 4,
+      h: Math.random() * 6 + 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rot: Math.random() * 360,
+      rotV: (Math.random() - 0.5) * 12,
+      gravity: 0.25 + Math.random() * 0.15,
+      opacity: 1,
+      delay: Math.random() * 20,
+    });
+  }
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let alive = false;
+    pieces.forEach(p => {
+      if (frame < p.delay) { alive = true; return; }
+      p.vy += p.gravity;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.rotV;
+      p.vx *= 0.99;
+      if (p.y > canvas.height + 20) { p.opacity -= 0.05; }
+      if (p.opacity <= 0) return;
+      alive = true;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+      ctx.restore();
+    });
+    frame++;
+    if (alive) _confettiAnim = requestAnimationFrame(draw);
+  }
+  draw();
+  // Second burst after 600ms
+  setTimeout(() => {
+    for (let i = 0; i < 60; i++) {
+      pieces.push({
+        x: canvas.width * 0.5 + (Math.random() - 0.5) * 300,
+        y: canvas.height * 0.3,
+        vx: (Math.random() - 0.5) * 14,
+        vy: -Math.random() * 14 - 2,
+        w: Math.random() * 6 + 3,
+        h: Math.random() * 4 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rot: Math.random() * 360,
+        rotV: (Math.random() - 0.5) * 10,
+        gravity: 0.2 + Math.random() * 0.15,
+        opacity: 1,
+        delay: 0,
+      });
+    }
+  }, 600);
+}
 
 async function loadFeaturedBanner() {
   try {
@@ -90,72 +156,54 @@ async function loadFeaturedBanner() {
 
     const overlay = document.getElementById('featuredModal');
     const titleEl = document.getElementById('featuredModalTitle');
+    const descEl = document.getElementById('featuredModalDesc');
     const detailsEl = document.getElementById('featuredModalDetails');
     const countdownEl = document.getElementById('featuredModalCountdown');
     const ctaEl = document.getElementById('featuredModalCta');
     const imgWrap = document.getElementById('featuredModalImgWrap');
+    const confettiCanvas = document.getElementById('featuredConfetti');
     if (!overlay) return;
 
     // Check if user already dismissed this session
     const dismissedUrl = sessionStorage.getItem('featuredModalDismissed');
     if (dismissedUrl === cur.effectiveUrl) return;
+    overlay.dataset.eventUrl = cur.effectiveUrl;
 
-    // Store dismiss on close
-    const origClose = closeFeaturedModal;
-    document.getElementById('featuredModalClose').onclick = () => {
-      sessionStorage.setItem('featuredModalDismissed', cur.effectiveUrl);
-      closeFeaturedModal();
-    };
-
-    // Try to get event details from our events DB
-    let eventData = null;
-    try {
-      const evtRes = await fetch(`${API}/api/v1/events?q=${encodeURIComponent(cur.effectiveUrl)}&limit=1`);
-      const evtJson = await evtRes.json();
-      if (evtJson.events?.length) eventData = evtJson.events[0];
-    } catch {}
-
-    // Title
-    let eventTitle = eventData?.title || '';
+    // Title — use server-provided OG title, fallback to URL
+    let eventTitle = cur.title || '';
+    // Clean up lu.ma suffix
+    eventTitle = eventTitle.replace(/\s*[·|]\s*Luma$/i, '').trim();
     if (!eventTitle) {
-      try {
-        const u = new URL(cur.effectiveUrl);
-        eventTitle = u.hostname + u.pathname;
-      } catch { eventTitle = cur.effectiveUrl; }
+      try { const u = new URL(cur.effectiveUrl); eventTitle = u.hostname + u.pathname; }
+      catch { eventTitle = cur.effectiveUrl; }
     }
     titleEl.textContent = eventTitle;
 
-    // Image
-    if (eventData?.imageUrl) {
-      imgWrap.innerHTML = `<img src="${eventData.imageUrl}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'featured-modal-img-placeholder\\'></div>'">`;
+    // Description
+    if (cur.description && descEl) {
+      let desc = cur.description.replace(/\s*[·|]\s*Luma$/i, '').trim();
+      if (desc.length > 120) desc = desc.slice(0, 120) + '...';
+      descEl.textContent = desc;
+      descEl.style.display = '';
+    } else if (descEl) {
+      descEl.style.display = 'none';
+    }
+
+    // Image — use server-provided OG image
+    if (cur.image) {
+      imgWrap.innerHTML = `<img src="${cur.image}" alt="" loading="eager" onerror="this.parentElement.innerHTML='<div class=\\'featured-modal-img-placeholder\\'></div>'">`;
     }
 
     // Details
     let detailsHtml = '';
-    if (eventData?.startTime) {
-      const d = new Date(eventData.startTime);
-      const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-      detailsHtml += `<div class="featured-modal-detail">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        ${dateStr} at ${timeStr}
-      </div>`;
-    }
-    const venue = eventData?.venue?.name || (eventData?.isOnline ? 'Online' : '');
-    if (venue) {
-      detailsHtml += `<div class="featured-modal-detail">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-        ${venue}
-      </div>`;
+    if (cur.adminOverrideUrl) {
+      detailsHtml += `<div class="featured-modal-detail" style="color:#a78bfa">Admin Pick</div>`;
     }
     if (cur.amountUsdc && !cur.adminOverrideUrl) {
       detailsHtml += `<div class="featured-modal-detail" style="color:#22c55e">
         <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         $${(cur.amountUsdc).toFixed(2)} boost bid
       </div>`;
-    }
-    if (cur.adminOverrideUrl) {
-      detailsHtml += `<div class="featured-modal-detail" style="color:#a78bfa">Admin Pick</div>`;
     }
     detailsEl.innerHTML = detailsHtml;
 
@@ -179,8 +227,14 @@ async function loadFeaturedBanner() {
     // CTA link
     ctaEl.href = cur.effectiveUrl;
 
-    // Show modal with slight delay for page load
-    setTimeout(() => overlay.classList.remove('hidden'), 800);
+    // Show modal with delay, then fire confetti
+    setTimeout(() => {
+      overlay.classList.remove('hidden');
+      // Fire confetti after card animation settles
+      setTimeout(() => {
+        if (confettiCanvas) launchConfetti(confettiCanvas);
+      }, 400);
+    }, 800);
 
   } catch (err) {
     console.error('Featured modal load failed:', err);
