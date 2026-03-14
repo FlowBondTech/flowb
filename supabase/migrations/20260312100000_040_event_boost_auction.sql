@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS flowb_sponsorships (
   target_id TEXT NOT NULL,
   amount_usdc NUMERIC(12,6) NOT NULL DEFAULT 0,
   tx_hash TEXT,
-  payment_method TEXT CHECK (payment_method IN ('crypto', 'stripe', 'apple_pay')),
+  payment_method TEXT CHECK (payment_method IN ('crypto', 'stripe')),
   order_id UUID REFERENCES flowb_orders(id),
   stripe_payment_intent_id TEXT,
   status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'rejected', 'expired')),
