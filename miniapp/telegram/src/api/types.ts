@@ -194,6 +194,7 @@ export interface Sponsorship {
 
 export interface FeaturedEventBoost {
   target_id: string;
+  event_name?: string;
   amount_usdc: number;
   sponsor_user_id?: string;
   created_at?: string;

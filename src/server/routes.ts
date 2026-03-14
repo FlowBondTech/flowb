@@ -5919,12 +5919,12 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ==================================================================
   // SPONSOR: Create sponsorship (requires auth)
   // ==================================================================
-  app.post<{ Body: { targetType: string; targetId: string; amountUsdc: number; txHash: string } }>(
+  app.post<{ Body: { targetType: string; targetId: string; amountUsdc: number; txHash: string; eventName?: string } }>(
     "/api/v1/sponsor",
     { preHandler: authMiddleware },
     async (request, reply) => {
       const jwt = request.jwtPayload!;
-      const { targetType, targetId, amountUsdc, txHash } = request.body || {};
+      const { targetType, targetId, amountUsdc, txHash, eventName } = request.body || {};
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -5943,6 +5943,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         sponsor_user_id: jwt.sub,
         target_type: targetType,
         target_id: targetId,
+        event_name: eventName || null,
         amount_usdc: amountUsdc,
         tx_hash: txHash,
         status: "pending",
@@ -6153,6 +6154,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       return {
         featured: {
           target_id: top.target_id,
+          event_name: top.event_name || null,
           amount_usdc: Number(top.amount_usdc),
           sponsor_user_id: top.sponsor_user_id,
           created_at: top.created_at,
