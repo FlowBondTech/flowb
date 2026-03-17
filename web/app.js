@@ -489,9 +489,11 @@ function openEventModal(titleOrEvent, url, img, source, id, meta, shareOnly) {
   titleEl.textContent = title;
 
   // Image
+  const heroEl = document.getElementById('eventModalHero');
   imgEl.src = eventImg || '';
   imgEl.style.display = eventImg ? '' : 'none';
-  imgEl.onerror = function() { this.style.display = 'none'; };
+  heroEl.classList.toggle('no-image', !eventImg);
+  imgEl.onerror = function() { this.style.display = 'none'; heroEl.classList.add('no-image'); };
 
   // Date/Time
   const dateTextEl = document.getElementById('eventModalDateText');
@@ -502,6 +504,25 @@ function openEventModal(titleOrEvent, url, img, source, id, meta, shareOnly) {
     dateTextEl.textContent = `${dateStr} at ${timeStr}`;
   } else {
     dateTextEl.textContent = meta || '';
+  }
+
+  // End Time
+  const endTimeRow = document.getElementById('eventModalEndTime');
+  const endTimeText = document.getElementById('eventModalEndTimeText');
+  if (event.endTime) {
+    const endD = new Date(event.endTime);
+    const startD = event.startTime ? new Date(event.startTime) : null;
+    const sameDay = startD && endD.toDateString() === startD.toDateString();
+    const endTimeStr = endD.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    if (sameDay) {
+      endTimeText.textContent = `Ends at ${endTimeStr}`;
+    } else {
+      const endDateStr = endD.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      endTimeText.textContent = `Ends ${endDateStr} at ${endTimeStr}`;
+    }
+    endTimeRow.style.display = '';
+  } else {
+    endTimeRow.style.display = 'none';
   }
 
   // Venue
@@ -518,6 +539,16 @@ function openEventModal(titleOrEvent, url, img, source, id, meta, shareOnly) {
     venueRow.style.display = '';
   } else {
     venueRow.style.display = 'none';
+  }
+
+  // Directions link (hidden for online events)
+  const directionsEl = document.getElementById('eventModalDirections');
+  if (venueDisplay && !(event.isOnline || event.isVirtual)) {
+    const mapsQuery = encodeURIComponent([venueName, city].filter(Boolean).join(' '));
+    directionsEl.href = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
+    directionsEl.style.display = '';
+  } else {
+    directionsEl.style.display = 'none';
   }
 
   // Organizer
@@ -557,11 +588,15 @@ function openEventModal(titleOrEvent, url, img, source, id, meta, shareOnly) {
   }
   badgesEl.innerHTML = badgesHtml;
 
-  // Description
+  // Description (full on desktop, truncated on mobile)
   const descEl = document.getElementById('eventModalDesc');
   if (event.description) {
     let desc = event.description.replace(/\n/g, ' ').trim();
-    descEl.textContent = desc.length > 400 ? desc.slice(0, 400) + '...' : desc;
+    const isDesktop = window.matchMedia('(min-width: 768px)').matches;
+    if (!isDesktop && desc.length > 400) {
+      desc = desc.slice(0, 400) + '...';
+    }
+    descEl.textContent = desc;
     descEl.style.display = '';
   } else {
     descEl.style.display = 'none';
@@ -940,17 +975,27 @@ function showRsvpConfirmation(eventId, eventData) {
   // Hide detail elements, show confirmation in actions area
   const scrollEl = modal.querySelector('.event-modal-scroll');
   if (scrollEl) {
-    // Hide everything except actions
-    for (const child of scrollEl.children) {
-      if (!child.classList.contains('event-modal-actions')) {
+    // Helper: hide children except actions, recurse into wrapper divs
+    const hideChildren = (parent) => {
+      for (const child of parent.children) {
+        if (child.classList.contains('event-modal-actions')) continue;
+        if (child.classList.contains('event-modal-details')) {
+          hideChildren(child);
+          continue;
+        }
         child.dataset.wasHidden = child.style.display;
         child.style.display = 'none';
       }
-    }
+    };
+    hideChildren(scrollEl);
   }
 
   if (actionsEl) {
     actionsEl.dataset.origHtml = actionsEl.innerHTML;
+    const eventUrl = currentModalEvent.url || '';
+    const eventSource = currentModalEvent.source || '';
+    const srcMeta = getSourceMeta(eventSource);
+    const viewLabel = eventSource ? `View on ${srcMeta.label}` : 'View Event';
     actionsEl.innerHTML = `
       <div class="rsvp-confirm">
         <div class="rsvp-confirm-check">
@@ -961,6 +1006,10 @@ function showRsvpConfirmation(eventId, eventData) {
         <div class="rsvp-confirm-title">You're going!</div>
         <div class="rsvp-confirm-event">${title}</div>
         <div class="rsvp-confirm-msg">Added to your Flow. You'll get reminders before it starts.</div>
+        ${eventUrl && eventUrl !== '#' ? `<a href="${eventUrl}" target="_blank" rel="noopener" class="rsvp-confirm-view-btn">
+          ${viewLabel}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>` : ''}
         <div class="rsvp-confirm-actions">
           ${calUrl ? `<a href="${calUrl}" target="_blank" rel="noopener" class="event-modal-share-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -990,12 +1039,19 @@ closeEventModal = function() {
     const modal = document.getElementById('eventModal');
     const scrollEl = modal.querySelector('.event-modal-scroll');
     if (scrollEl) {
-      for (const child of scrollEl.children) {
-        if (child.dataset.wasHidden !== undefined) {
-          child.style.display = child.dataset.wasHidden;
-          delete child.dataset.wasHidden;
+      const restoreChildren = (parent) => {
+        for (const child of parent.children) {
+          if (child.classList.contains('event-modal-details')) {
+            restoreChildren(child);
+            continue;
+          }
+          if (child.dataset.wasHidden !== undefined) {
+            child.style.display = child.dataset.wasHidden;
+            delete child.dataset.wasHidden;
+          }
         }
-      }
+      };
+      restoreChildren(scrollEl);
     }
 
     const actionsEl = modal.querySelector('.event-modal-actions');
@@ -1136,6 +1192,8 @@ searchInput.addEventListener('input', () => {
     const params = {};
     if (val) params.query = val;
     if (activeCategory !== 'all') params.mainCategory = activeCategory;
+    // When searching, drop city filter so results span all cities
+    if (val) params.city = '';
     allEvents = await fetchEvents(params);
     renderEvents(allEvents);
 
@@ -2682,7 +2740,7 @@ function renderIntroCityPicker(selectedCats) {
   });
 })();
 
-// ===== Mobile Bottom Nav =====
+// ===== Mobile Bottom Nav (chat button — nav transitions in nav.js) =====
 (function() {
   const mobileChat = document.getElementById('mobileNavChat');
   if (mobileChat) {
