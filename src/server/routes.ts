@@ -56,6 +56,7 @@ import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js"
 import { registerAgentRoutes } from "./agent-routes.js";
 import { registerFiFlowRoutes } from "./fiflow-routes.js";
 import { registerPaymentRoutes } from "./payment-routes.js";
+import { linkTokens, generateLinkToken } from "./link-tokens.js";
 // TEMPORARILY DISABLED: websites plugin not fully implemented
 // import {
 //   createProject, listProjects, getProject, updateProject, deleteProject,
@@ -5155,6 +5156,23 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         total_linked: linkedIds.length,
         merged_points,
       };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // LINK TOKEN: Generate a short-lived token for cross-platform linking
+  // Web user calls this, gets a URL to /connect?lt=TOKEN which carries
+  // their identity through the Telegram Login Widget callback.
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/me/link-token",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const token = generateLinkToken();
+      linkTokens.set(token, { webUserId: jwt.sub, createdAt: Date.now() });
+      const connectUrl = `https://flowb.fly.dev/connect?lt=${encodeURIComponent(token)}`;
+      return { token, connectUrl };
     },
   );
 

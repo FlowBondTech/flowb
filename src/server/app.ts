@@ -21,6 +21,8 @@ import { fireAndForget } from "../utils/logger.js";
 import { sbFetch, sbPatchRaw } from "../utils/supabase.js";
 import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
 import { registerSignalWebhook } from "../signal/bot.js";
+import { resolveCanonicalId, ensureIdentityRow } from "../services/identity.js";
+import { linkTokens, LINK_TOKEN_TTL } from "./link-tokens.js";
 
 export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
@@ -611,6 +613,32 @@ export async function buildApp(core: FlowBCore) {
         `[auth/telegram] Linked: telegram_${authData.id} -> ${authData.username || authData.first_name}`,
       );
 
+      // Cross-platform identity link via link token
+      const lt = params.lt || params.link_token;
+      if (lt) {
+        const tokenData = linkTokens.get(lt);
+        if (tokenData && Date.now() - tokenData.createdAt < LINK_TOKEN_TTL) {
+          linkTokens.delete(lt);
+          const supabaseUrl = process.env.SUPABASE_URL;
+          const supabaseKey = process.env.SUPABASE_KEY;
+          if (supabaseUrl && supabaseKey) {
+            const cfg = { supabaseUrl, supabaseKey };
+            try {
+              const canonicalId = await resolveCanonicalId(cfg, tokenData.webUserId);
+              await ensureIdentityRow(cfg, canonicalId, `telegram_${authData.id}`, 'telegram', undefined, {
+                displayName: authData.username || authData.first_name,
+                avatarUrl: authData.photo_url,
+              });
+              app.log.info(`[auth/telegram] Cross-platform link: ${tokenData.webUserId} <-> telegram_${authData.id} (canonical: ${canonicalId})`);
+            } catch (err) {
+              app.log.error(`[auth/telegram] Identity link failed: ${err}`);
+            }
+          }
+        } else {
+          app.log.warn(`[auth/telegram] Link token expired or not found: ${lt}`);
+        }
+      }
+
       fireAndForget(core.awardPoints(`telegram_${authData.id}`, "telegram", "verification_complete"), "award points");
 
       return reply.type("text/html").send(authSuccessPage(authData.first_name, botUsername));
@@ -618,10 +646,11 @@ export async function buildApp(core: FlowBCore) {
   );
 
   // Serves the connect page with the Telegram Login Widget embedded
-  app.get("/connect", async (request, reply) => {
+  app.get<{ Querystring: Record<string, string> }>("/connect", async (request, reply) => {
     const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
-    const callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
-    return reply.type("text/html").send(connectPage(botUsername, callbackUrl));
+    const linkToken = request.query.lt || undefined;
+    let callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
+    return reply.type("text/html").send(connectPage(botUsername, callbackUrl, linkToken));
   });
 
   // ==========================================================================
@@ -833,7 +862,12 @@ h1{font-size:24px;font-weight:700;margin-bottom:8px;background:linear-gradient(1
 </html>`;
 }
 
-function connectPage(botUsername: string, callbackUrl: string): string {
+function connectPage(botUsername: string, callbackUrl: string, linkToken?: string): string {
+  // Embed link token in the callback URL so /auth/telegram receives it
+  if (linkToken) {
+    const sep = callbackUrl.includes('?') ? '&' : '?';
+    callbackUrl = `${callbackUrl}${sep}lt=${encodeURIComponent(linkToken)}`;
+  }
   return `<!DOCTYPE html>
 <html lang="en">
 <head>

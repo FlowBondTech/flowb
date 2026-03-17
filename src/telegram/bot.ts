@@ -984,6 +984,26 @@ export function startTelegramBot(
       return;
     }
 
+    // --- Account link token: link_{token} (from web "Connect Telegram" flow) ---
+    if (args?.startsWith("link_")) {
+      const token = args.slice(5);
+      const tokenConnectUrl = `${connectUrl}${connectUrl.includes('?') ? '&' : '?'}lt=${token}`;
+      await ctx.reply(formatConnectPromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildConnectKeyboard(tokenConnectUrl),
+      });
+      return;
+    }
+
+    // --- Legacy "link" without token (backward compat for TG-only verification) ---
+    if (args === "link") {
+      await ctx.reply(formatConnectPromptHtml(), {
+        parse_mode: "HTML",
+        reply_markup: buildConnectKeyboard(connectUrl),
+      });
+      return;
+    }
+
     // --- Crew deep link via bot: /start crew_CODE → auto-join + open mini app ---
     if (args?.startsWith("crew_")) {
       const crewCode = args.slice(5);

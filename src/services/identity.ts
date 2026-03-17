@@ -119,7 +119,7 @@ function detectPlatform(userId: string): string {
   return "web";
 }
 
-async function ensureIdentityRow(
+export async function ensureIdentityRow(
   cfg: SbConfig,
   canonicalId: string,
   platformUserId: string,

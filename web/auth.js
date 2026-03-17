@@ -137,7 +137,7 @@ async function getFlowbJwtFromPassport(supabaseAccessToken, displayName) {
     const authRes = await fetch(`${FLOWB_API_BASE}/api/v1/auth/passport`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ supabaseAccessToken, displayName: displayName || 'User' }),
+      body: JSON.stringify({ accessToken: supabaseAccessToken, displayName: displayName || 'User' }),
     });
     if (!authRes.ok) {
       console.warn('[auth] Failed to get FlowB JWT:', authRes.status);
@@ -285,9 +285,9 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
 
   let buttons = '';
   if (suggestTelegram) {
-    buttons += `<a href="https://t.me/Flow_b_bot?start=link" target="_blank" class="signin-prompt-btn" style="margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center;gap:6px;text-decoration:none">
+    buttons += `<button onclick="connectTelegram()" class="signin-prompt-btn" style="margin-bottom:0.5rem;display:flex;align-items:center;justify-content:center;gap:6px;cursor:pointer">
       <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.28-.02-.12.02-2.02 1.28-5.69 3.77-.54.37-1.03.55-1.47.54-.48-.01-1.4-.27-2.09-.5-.84-.27-1.51-.42-1.45-.89.03-.25.38-.5 1.04-.78 4.07-1.77 6.79-2.94 8.15-3.5 3.88-1.62 4.69-1.9 5.21-1.91.12 0 .37.03.54.17.14.12.18.28.2.47-.01.06.01.24 0 .37z"/></svg>
-      Connect Telegram</a>`;
+      Connect Telegram</button>`;
   }
   if (suggestFarcaster) {
     buttons += `<p style="font-size:0.85rem;color:var(--text-dim);margin-top:0.5rem">Sign in from the <a href="https://fc.flowb.me" target="_blank" style="color:var(--accent)">Farcaster mini app</a> to link your Farcaster account.</p>`;
@@ -312,20 +312,25 @@ function showLinkingPrompt({ fromPlatform, suggestTelegram, suggestFarcaster, me
   document.body.appendChild(prompt);
   document.body.style.overflow = 'hidden';
 
-  const close = () => {
-    prompt.remove();
-    document.body.style.overflow = '';
-  };
-
-  const dismiss = () => {
+  let dismissed = false;
+  const dismiss = (e) => {
+    if (dismissed) return;
+    dismissed = true;
+    if (e) { e.preventDefault(); e.stopPropagation(); }
     localStorage.setItem('flowb-link-prompt-dismissed', String(Date.now()));
-    close();
+    // Fade out but keep absorbing events to prevent ghost-click on content below
+    prompt.style.opacity = '0';
+    prompt.style.transition = 'opacity 0.15s';
+    document.body.style.overflow = '';
+    // Keep modal in DOM ~350ms to absorb mobile ghost clicks, then remove
+    setTimeout(() => prompt.remove(), 350);
   };
 
+  // Use click only (works on both desktop + mobile, avoids touchend ghost-click issues)
   prompt.querySelector('#linkPromptClose')?.addEventListener('click', dismiss);
   prompt.querySelector('#linkPromptDismiss')?.addEventListener('click', dismiss);
   prompt.addEventListener('click', (e) => {
-    if (e.target === prompt) dismiss();
+    if (e.target === prompt) dismiss(e);
   });
 }
 
@@ -344,6 +349,33 @@ async function refreshPointsBadge() {
     window.dispatchEvent(new CustomEvent('flowb-points-updated', { detail: data }));
   } catch (err) {
     console.warn('[auth] Failed to refresh points:', err);
+  }
+}
+
+// ===== Connect Telegram (token-based linking) =====
+
+async function connectTelegram() {
+  const token = getAuthToken();
+  if (!token) {
+    // Not logged in — fallback to static bot link
+    window.open('https://t.me/Flow_b_bot?start=link', '_blank');
+    return;
+  }
+  try {
+    const res = await fetch(`${FLOWB_API_BASE}/api/v1/me/link-token`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error('Failed to get link token');
+    const data = await res.json();
+    if (data.connectUrl) {
+      window.open(data.connectUrl, '_blank');
+    } else {
+      window.open('https://t.me/Flow_b_bot?start=link', '_blank');
+    }
+  } catch (err) {
+    console.warn('[auth] connectTelegram failed, using fallback:', err);
+    window.open('https://t.me/Flow_b_bot?start=link', '_blank');
   }
 }
 
