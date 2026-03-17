@@ -22,6 +22,7 @@ export interface ScanResult {
   updatedCount: number;
   skippedCount: number;
   newEvents: ScanResultEvent[];
+  newEventIds: string[];
 }
 
 interface CategoryRow { id: string; slug: string; name: string }
@@ -130,6 +131,7 @@ export async function scanForNewEvents(
   let updatedCount = 0;
   let skippedCount = 0;
   const newEvents: ScanResultEvent[] = [];
+  const newEventIds: string[] = [];
 
   try {
     // Load categories and venues for matching
@@ -257,6 +259,7 @@ export async function scanForNewEvents(
         // Auto-categorize
         if (inserted?.id) {
           await updateCategories(cfg, inserted.id, event, categoryMap);
+          newEventIds.push(inserted.id);
         }
         newCount++;
         newEvents.push({
@@ -279,7 +282,7 @@ export async function scanForNewEvents(
   }
 
   console.log(`[event-scanner] Scan complete: ${newCount} new, ${updatedCount} updated, ${skippedCount} unchanged`);
-  return { newCount, updatedCount, skippedCount, newEvents };
+  return { newCount, updatedCount, skippedCount, newEvents, newEventIds };
 }
 
 async function updateCategories(

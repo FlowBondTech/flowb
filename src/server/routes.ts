@@ -27,6 +27,7 @@ import {
   notifyFriendRsvp,
   notifyCrewMemberRsvp,
   notifyCrewJoin,
+  notifyCrewJoinRequest,
   notifyCrewCheckin,
   notifyCrewLocate,
   notifyCrewMessage,
@@ -1555,7 +1556,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         if (a.isBoosted && b.isBoosted) {
           return (b.boost?.amountUsdc || 0) - (a.boost?.amountUsdc || 0);
         }
-        return new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime();
+        return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
       });
 
       return {
@@ -3196,6 +3197,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         status: "pending",
       });
 
+      // Notify crew admins about the pending request
+      const reqNotifyCtx = getNotifyContext();
+      if (reqNotifyCtx) {
+        const crewInfo = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${crewId}&select=name,emoji&limit=1`);
+        const cName = crewInfo?.[0]?.name || "crew";
+        const cEmoji = crewInfo?.[0]?.emoji || "";
+        fireAndForget(notifyCrewJoinRequest(reqNotifyCtx, jwt.sub, crewId, cName, cEmoji), "notify crew join request");
+      }
+
       return { ok: true, message: "Request sent! The crew admin will review it." };
     },
   );
@@ -3247,6 +3257,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       // Award points
       fireAndForget(core.awardPoints(req.user_id, "telegram", "crew_joined"), "award points");
+
+      // Notify crew members about the new join
+      const approveNotifyCtx = getNotifyContext();
+      if (approveNotifyCtx) {
+        const crewInfo = await sbFetch<any[]>(cfg, `flowb_groups?id=eq.${request.params.id}&select=name,emoji&limit=1`);
+        const cName = crewInfo?.[0]?.name || "crew";
+        const cEmoji = crewInfo?.[0]?.emoji || "";
+        fireAndForget(notifyCrewJoin(approveNotifyCtx, req.user_id, request.params.id, cName, cEmoji), "notify crew join after approval");
+      }
 
       return { ok: true, message: "Request approved" };
     },
@@ -4807,7 +4826,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const rows = await sbFetch<any[]>(
         cfg,
-        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at,notify_email,notify_email_digest,notify_email_events,notify_email_crew,email&limit=1`,
+        `flowb_sessions?user_id=eq.${jwt.sub}&select=notifications_enabled,quiet_hours_enabled,timezone,arrival_date,interest_categories,onboarding_complete,reminder_defaults,notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,notify_keyword_alerts,daily_notification_limit,quiet_hours_start,quiet_hours_end,home_city,home_country,current_city,current_country,destination_city,destination_country,locale,location_visibility,location_updated_at,notify_email,notify_email_digest,notify_email_events,notify_email_crew,email&limit=1`,
       );
 
       const pref = rows?.[0] || {};
@@ -4826,6 +4845,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           notify_crew_messages: pref.notify_crew_messages ?? true,
           notify_event_reminders: pref.notify_event_reminders ?? true,
           notify_daily_digest: pref.notify_daily_digest ?? true,
+          notify_keyword_alerts: pref.notify_keyword_alerts ?? true,
           daily_notification_limit: pref.daily_notification_limit ?? 10,
           quiet_hours_start: pref.quiet_hours_start ?? 22,
           quiet_hours_end: pref.quiet_hours_end ?? 8,
@@ -4862,6 +4882,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       notify_crew_messages?: boolean;
       notify_event_reminders?: boolean;
       notify_daily_digest?: boolean;
+      notify_keyword_alerts?: boolean;
       notifications_enabled?: boolean;
       daily_notification_limit?: number;
       quiet_hours_start?: number;
@@ -4903,6 +4924,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (body.notify_crew_messages !== undefined) updates.notify_crew_messages = body.notify_crew_messages;
       if (body.notify_event_reminders !== undefined) updates.notify_event_reminders = body.notify_event_reminders;
       if (body.notify_daily_digest !== undefined) updates.notify_daily_digest = body.notify_daily_digest;
+      if (body.notify_keyword_alerts !== undefined) updates.notify_keyword_alerts = body.notify_keyword_alerts;
       if (body.notifications_enabled !== undefined) updates.notifications_enabled = body.notifications_enabled;
       if (body.daily_notification_limit !== undefined) updates.daily_notification_limit = Math.max(1, Math.min(50, body.daily_notification_limit));
       if (body.quiet_hours_start !== undefined) updates.quiet_hours_start = Math.max(0, Math.min(23, body.quiet_hours_start));
@@ -9720,6 +9742,170 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         ].join("\n"),
         "important",
       );
+
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // KEYWORD ALERTS (requires auth)
+  // ------------------------------------------------------------------
+
+  // GET /api/v1/me/keyword-alerts - list user's alerts
+  app.get(
+    "/api/v1/me/keyword-alerts",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { alerts: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_keyword_alerts?user_id=eq.${jwt.sub}&select=id,keyword,category_slug,crew_id,city,enabled,created_at&order=created_at.desc`,
+      );
+
+      return { alerts: rows || [] };
+    },
+  );
+
+  // POST /api/v1/me/keyword-alerts - create a new alert
+  app.post<{
+    Body: {
+      keyword: string;
+      category_slug?: string;
+      crew_id?: string;
+      city?: string;
+    };
+  }>(
+    "/api/v1/me/keyword-alerts",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { keyword, category_slug, crew_id, city } = request.body || {};
+
+      // Validate keyword
+      if (!keyword || typeof keyword !== "string" || keyword.trim().length === 0) {
+        return reply.status(400).send({ error: "keyword is required" });
+      }
+      if (keyword.length > 100) {
+        return reply.status(400).send({ error: "keyword must be 100 characters or less" });
+      }
+
+      // Check max 20 alerts per user
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_keyword_alerts?user_id=eq.${jwt.sub}&select=id`,
+      );
+      if ((existing?.length || 0) >= 20) {
+        return reply.status(400).send({ error: "Maximum 20 alerts per user" });
+      }
+
+      // Validate crew membership if crew_id is set
+      if (crew_id) {
+        const membership = await sbFetch<any[]>(
+          cfg,
+          `flowb_group_members?user_id=eq.${jwt.sub}&group_id=eq.${crew_id}&select=id&limit=1`,
+        );
+        if (!membership?.length) {
+          return reply.status(403).send({ error: "You must be a member of this crew" });
+        }
+      }
+
+      // Validate category_slug if provided
+      if (category_slug) {
+        const cat = await sbFetch<any[]>(
+          cfg,
+          `flowb_event_categories?slug=eq.${encodeURIComponent(category_slug)}&select=id&limit=1`,
+        );
+        if (!cat?.length) {
+          return reply.status(400).send({ error: "Invalid category_slug" });
+        }
+      }
+
+      const inserted = await sbInsert(cfg, "flowb_keyword_alerts", {
+        user_id: jwt.sub,
+        keyword: keyword.trim().toLowerCase(),
+        category_slug: category_slug || null,
+        crew_id: crew_id || null,
+        city: city || null,
+      });
+
+      if (!inserted) {
+        return reply.status(409).send({ error: "Alert already exists for this keyword + target" });
+      }
+
+      return { ok: true, alert: inserted };
+    },
+  );
+
+  // PATCH /api/v1/me/keyword-alerts/:id - update an alert
+  app.patch<{
+    Params: { id: string };
+    Body: {
+      enabled?: boolean;
+      keyword?: string;
+      category_slug?: string | null;
+      city?: string | null;
+    };
+  }>(
+    "/api/v1/me/keyword-alerts/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { id } = request.params;
+      const body = request.body || {};
+
+      // Ownership check
+      const existing = await sbFetch<any[]>(
+        cfg,
+        `flowb_keyword_alerts?id=eq.${id}&user_id=eq.${jwt.sub}&select=id&limit=1`,
+      );
+      if (!existing?.length) {
+        return reply.status(404).send({ error: "Alert not found" });
+      }
+
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      if (body.enabled !== undefined) updates.enabled = body.enabled;
+      if (body.keyword !== undefined) {
+        if (!body.keyword || body.keyword.trim().length === 0) {
+          return reply.status(400).send({ error: "keyword cannot be empty" });
+        }
+        if (body.keyword.length > 100) {
+          return reply.status(400).send({ error: "keyword must be 100 characters or less" });
+        }
+        updates.keyword = body.keyword.trim().toLowerCase();
+      }
+      if (body.category_slug !== undefined) updates.category_slug = body.category_slug;
+      if (body.city !== undefined) updates.city = body.city;
+
+      await sbPatchRaw(cfg, `flowb_keyword_alerts?id=eq.${id}&user_id=eq.${jwt.sub}`, updates);
+
+      return { ok: true };
+    },
+  );
+
+  // DELETE /api/v1/me/keyword-alerts/:id - delete an alert
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/me/keyword-alerts/:id",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const { id } = request.params;
+
+      await sbDelete(cfg, "flowb_keyword_alerts", {
+        id: `eq.${id}`,
+        user_id: `eq.${jwt.sub}`,
+      });
 
       return { ok: true };
     },

@@ -9,6 +9,7 @@ import {
 import { registerMiniAppRoutes } from "./routes.js";
 import { registerBoostRoutes } from "./boost-routes.js";
 import { registerSupportRoutes } from "./support-routes.js";
+import { registerDocAccessRoutes } from "./doc-access-routes.js";
 import { processEventQueue } from "../services/farcaster-poster.js";
 import { scanForNewEvents } from "../services/event-scanner.js";
 import { runContextNotifications } from "../services/context-notifications.js";
@@ -44,6 +45,9 @@ export async function buildApp(core: FlowBCore) {
 
   // Register support email routes (inbound webhook + admin API)
   registerSupportRoutes(app, core);
+
+  // Register doc access routes (magic-link gated tech docs)
+  registerDocAccessRoutes(app);
 
   // Register WhatsApp webhook (conditional on env vars)
   if (process.env.WHATSAPP_ACCESS_TOKEN) {
@@ -115,6 +119,17 @@ export async function buildApp(core: FlowBCore) {
           }
         }
         alertNewEvents(results, cities);
+
+        // Process keyword alerts for newly discovered events
+        const allNewEventIds = results.flatMap(r => r.newEventIds || []);
+        if (allNewEventIds.length > 0) {
+          fireAndForget(
+            import("../services/keyword-alerts.js").then(m =>
+              m.processKeywordAlerts({ supabase: cfg }, allNewEventIds)
+            ),
+            "keyword alerts for new events",
+          );
+        }
       } catch (err) {
         console.error("[event-scanner] Scheduled scan error:", err);
         alertAdmins(

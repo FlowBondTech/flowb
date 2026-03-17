@@ -227,6 +227,8 @@
     "crew_updates_desc": "Cuando los miembros del crew hagan check in o publiquen",
     "points_alerts": "Puntos e hitos",
     "points_alerts_desc": "Cuando ganes puntos o alcances hitos",
+    "keyword_alerts": "Alertas por palabra clave",
+    "keyword_alerts_desc": "Recibe alertas cuando nuevos eventos coincidan con tus palabras clave",
     "push_notifications": "Notificaciones push",
     "push_notifications_desc": "Recibir notificaciones por DM",
     "platforms": "Obtener FlowB en todas partes",

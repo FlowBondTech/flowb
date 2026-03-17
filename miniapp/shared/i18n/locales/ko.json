@@ -227,6 +227,8 @@
     "crew_updates_desc": "When crew members check in or post",
     "points_alerts": "Points & Milestones",
     "points_alerts_desc": "When you earn points or hit milestones",
+    "keyword_alerts": "Keyword Alerts",
+    "keyword_alerts_desc": "Get notified when new events match your keywords",
     "push_notifications": "Push Notifications",
     "push_notifications_desc": "Receive notifications via DM",
     "platforms": "Get FlowB Everywhere",
