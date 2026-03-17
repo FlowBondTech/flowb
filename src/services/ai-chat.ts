@@ -833,8 +833,9 @@ async function searchEvents(args: any, cfg: SbConfig, userCity?: string): Promis
     // Build PostgREST query against local flowb_events table
     let query = `flowb_events?hidden=eq.false&order=starts_at.asc&limit=${limit}&offset=${offset}`;
 
-    // City filter — use arg, fall back to user's city
-    const city = args.city || userCity;
+    // City filter — use explicit arg, or fall back to user's city only when there's no keyword search
+    // When searching by keyword, don't restrict by city so results span all locations
+    const city = args.city || (args.query ? undefined : userCity);
     if (city) query += `&city=ilike.*${encodeURIComponent(city)}*`;
 
     // Date filters
@@ -2028,7 +2029,8 @@ function getFlowBFeatures(category: string | undefined, user: UserContext, isUse
 - Trending events and popularity rankings
 - Event details with venue, time, price, RSVP counts
 - Submit your own events via /addmyevent
-- Smart short links: flowb.me/e/{id} to share any event`;
+- Smart short links: flowb.me/e/{id} to share any event
+- **Keyword Alerts**: Set alerts for topics like "AI", "party", "DeFi" — get notified when matching events are discovered. Route alerts to a crew chat or personal DM`;
 
   const socialFeatures = `**Crews & Social**
 - Create or join crews (groups) with friends and collaborators

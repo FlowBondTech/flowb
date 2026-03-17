@@ -25,7 +25,7 @@ import { sendExpoPushToUser } from "./expo-push.js";
 import { sbQuery, sbFetch, sbInsert, sbPatch, type SbConfig } from "../utils/supabase.js";
 import { log, fireAndForget } from "../utils/logger.js";
 
-interface NotifyContext {
+export interface NotifyContext {
   supabase: SbConfig;
   botToken?: string;
 }
@@ -577,19 +577,20 @@ async function markReminderSent(cfg: SbConfig, reminderId: string): Promise<void
 }
 
 /** Get user notification preferences (cached-friendly shape) */
-async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
+export async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
   notify_crew_checkins: boolean;
   notify_friend_rsvps: boolean;
   notify_crew_rsvps: boolean;
   notify_crew_messages: boolean;
   notify_event_reminders: boolean;
   notify_daily_digest: boolean;
+  notify_keyword_alerts: boolean;
   daily_notification_limit: number;
   quiet_hours_start: number;
   quiet_hours_end: number;
 }> {
   const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
-    select: "notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,daily_notification_limit,quiet_hours_start,quiet_hours_end",
+    select: "notify_crew_checkins,notify_friend_rsvps,notify_crew_rsvps,notify_crew_messages,notify_event_reminders,notify_daily_digest,notify_keyword_alerts,daily_notification_limit,quiet_hours_start,quiet_hours_end",
     user_id: `eq.${userId}`,
     limit: "1",
   });
@@ -601,6 +602,7 @@ async function getUserNotifyPrefs(cfg: SbConfig, userId: string): Promise<{
     notify_crew_messages: p?.notify_crew_messages ?? true,
     notify_event_reminders: p?.notify_event_reminders ?? true,
     notify_daily_digest: p?.notify_daily_digest ?? true,
+    notify_keyword_alerts: p?.notify_keyword_alerts ?? true,
     daily_notification_limit: p?.daily_notification_limit ?? 10,
     quiet_hours_start: p?.quiet_hours_start ?? 22,
     quiet_hours_end: p?.quiet_hours_end ?? 8,
@@ -734,6 +736,60 @@ export async function notifyCrewMemberRsvp(
         notifiedSet.add(member.user_id);
         sent++;
       }
+    }
+  }
+
+  return sent;
+}
+
+// ============================================================================
+// Crew Join Request Notification (admin-only)
+// ============================================================================
+
+/**
+ * Notify crew admins/creators when someone requests to join their crew.
+ * Only relevant for crews with join_mode !== "open".
+ */
+export async function notifyCrewJoinRequest(
+  ctx: NotifyContext,
+  requesterId: string,
+  crewId: string,
+  crewName: string,
+  crewEmoji: string,
+  sendTelegramMessage?: (chatId: number, text: string) => Promise<void>,
+): Promise<number> {
+  // Get crew admins and creators only
+  const members = await sbQuery<any[]>(ctx.supabase, "flowb_group_members", {
+    select: "user_id,role",
+    group_id: `eq.${crewId}`,
+  });
+
+  const admins = (members || []).filter(
+    (m: any) => m.role === "creator" || m.role === "admin",
+  );
+  if (!admins.length) return 0;
+
+  const displayName = await resolveDisplayName(ctx.supabase, requesterId);
+  const message = `${crewEmoji} ${displayName} wants to join ${crewName}! Review pending requests in crew settings.`;
+
+  let sent = 0;
+  for (const admin of admins) {
+    if (await hasReachedDailyLimit(ctx.supabase, admin.user_id)) continue;
+    if (await isUserQuietHours(ctx.supabase, admin.user_id)) continue;
+
+    const alreadySent = await isAlreadyNotified(
+      ctx.supabase,
+      admin.user_id,
+      "crew_join_request",
+      `${crewId}:${requesterId}`,
+      requesterId,
+    );
+    if (alreadySent) continue;
+
+    const didSend = await sendToUser(ctx, admin.user_id, message, sendTelegramMessage);
+    if (didSend) {
+      await logNotification(ctx.supabase, admin.user_id, "crew_join_request", `${crewId}:${requesterId}`, requesterId);
+      sent++;
     }
   }
 
@@ -1017,7 +1073,7 @@ async function resolveDisplayName(cfg: SbConfig, userId: string): Promise<string
 }
 
 /** Send notification to a user via their primary platform */
-async function sendToUser(
+export async function sendToUser(
   ctx: NotifyContext,
   userId: string,
   message: string,
@@ -1108,7 +1164,7 @@ async function sendToUser(
 }
 
 /** Check if a notification was already sent (dedup) */
-async function isAlreadyNotified(
+export async function isAlreadyNotified(
   cfg: SbConfig,
   recipientId: string,
   type: string,
@@ -1127,7 +1183,7 @@ async function isAlreadyNotified(
 }
 
 /** Log a sent notification for dedup */
-async function logNotification(
+export async function logNotification(
   cfg: SbConfig,
   recipientId: string,
   type: string,
@@ -1150,7 +1206,7 @@ async function logNotification(
 }
 
 /** Check if user has received too many notifications today (configurable limit) */
-async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<boolean> {
+export async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<boolean> {
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
@@ -1171,7 +1227,7 @@ async function hasReachedDailyLimit(cfg: SbConfig, userId: string): Promise<bool
  * Users must enable quiet hours via preferences. Default: OFF.
  * When enabled, uses their timezone and configurable start/end hours.
  */
-async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean> {
+export async function isUserQuietHours(cfg: SbConfig, userId: string): Promise<boolean> {
   const prefs = await sbQuery<any[]>(cfg, "flowb_sessions", {
     select: "quiet_hours_enabled,timezone,quiet_hours_start,quiet_hours_end",
     user_id: `eq.${userId}`,

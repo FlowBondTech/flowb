@@ -223,9 +223,8 @@ const sessions = new Map<number, TgSession>();
 // ============================================================================
 
 interface OnboardingState {
-  step: number;  // 1=when, 2=interests, 3=crew, 4=done
+  step: number;  // 2=interests, 3=crew, 4=done
   data: {
-    arrival_date?: string;
     interest_categories: string[];
   };
 }
@@ -335,7 +334,6 @@ function saveOnboardingPrefs(tgId: number, data: OnboardingState["data"]): void 
     updated_at: new Date().toISOString(),
     onboarding_complete: true,
   };
-  if (data.arrival_date) updates.arrival_date = data.arrival_date;
   if (data.interest_categories?.length) updates.interest_categories = data.interest_categories;
 
   supabase
@@ -433,15 +431,6 @@ function userId(tgId: number): string {
 // Onboarding Helpers
 // ============================================================================
 
-function buildOnboardingWhenKeyboard(): InlineKeyboard {
-  return new InlineKeyboard()
-    .text("Already here!", "onb:when:already_here")
-    .text("Feb 15-27", "onb:when:full_week")
-    .row()
-    .text("Just a few days", "onb:when:few_days")
-    .text("Virtually", "onb:when:virtual");
-}
-
 function buildOnboardingInterestsKeyboard(selected: string[]): InlineKeyboard {
   const categories = ["DeFi", "AI", "Infra", "Build", "Social", "Wellness"];
   const kb = new InlineKeyboard();
@@ -492,7 +481,7 @@ function formatOnboardingDoneHtml(name: string): string {
 /** Start onboarding for a new user */
 async function startOnboarding(ctx: any, tgId: number): Promise<void> {
   onboardingStates.set(tgId, {
-    step: 1,
+    step: 2,
     data: { interest_categories: [] },
   });
 
@@ -500,11 +489,11 @@ async function startOnboarding(ctx: any, tgId: number): Promise<void> {
     [
       "<b>Welcome to FlowB!</b> Let's get you set up.",
       "",
-      "What kind of events are you into?",
+      "What kind of events are you into? (tap to select, then Done)",
     ].join("\n"),
     {
       parse_mode: "HTML",
-      reply_markup: buildOnboardingWhenKeyboard(),
+      reply_markup: buildOnboardingInterestsKeyboard([]),
     },
   );
 }
@@ -2464,6 +2453,7 @@ export function startTelegramBot(
       "/checkin - Check in at an event",
       "/going - RSVP or view your schedule",
       "/schedule - Your event schedule",
+      "<i>Keyword alerts: set via flowb.me/settings to get notified on new events matching your topics</i>",
       "",
       "<b>Flow & Crews</b>",
       "/flow - Your connections & crews",
@@ -3702,14 +3692,6 @@ export function startTelegramBot(
 
       if (!state) {
         await ctx.answerCallbackQuery({ text: "Onboarding expired. Tap /start again." });
-        return;
-      }
-
-      // --- Step 1: When ---
-      if (category === "when") {
-        state.data.arrival_date = value;
-        await ctx.answerCallbackQuery({ text: "Got it!" });
-        await sendOnboardingInterests(ctx, tgId);
         return;
       }
 

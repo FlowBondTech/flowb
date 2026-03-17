@@ -37,10 +37,10 @@ features:
     link: /agents
   - icon: "\uD83D\uDD14"
     title: Cross-Platform Notifications
-    details: Get notified on Telegram, WhatsApp, and Farcaster when friends RSVP, crew members check in, or events start.
+    details: Get notified on Telegram, WhatsApp, Signal, and Farcaster when friends RSVP, crew members check in, or events start.
     link: /features#notifications
   - icon: "\uD83D\uDCF1"
     title: Everywhere You Are
-    details: Telegram bot, WhatsApp bot, Farcaster mini app, web at flowb.me, and iOS mobile app.
+    details: Telegram bot, WhatsApp bot, Signal bot, Farcaster mini app, web at flowb.me, and iOS mobile app.
     link: /features#platforms
 ---

@@ -41,6 +41,7 @@ const TOGGLE_DEFAULTS = {
   reminders: true,
   crewUpdates: true,
   pointsAlerts: true,
+  keywordAlerts: true,
 };
 
 export function Settings({ onNavigate }: Props) {
@@ -252,6 +253,13 @@ export function Settings({ onNavigate }: Props) {
           desc={t("settings.points_alerts_desc")}
           value={toggles.pointsAlerts}
           onChange={(v) => setToggle("pointsAlerts", v)}
+          border
+        />
+        <ToggleRow
+          label={t("settings.keyword_alerts")}
+          desc={t("settings.keyword_alerts_desc")}
+          value={toggles.keywordAlerts}
+          onChange={(v) => setToggle("keywordAlerts", v)}
           border
         />
         <ToggleRow
