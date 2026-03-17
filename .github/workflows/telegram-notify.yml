@@ -2,7 +2,7 @@ name: Telegram Push Notify
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   workflow_dispatch:
 
 jobs:
@@ -23,6 +23,7 @@ jobs:
           COMMIT_URL: ${{ github.event.head_commit.url }}
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
         run: |-
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
           FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
@@ -46,9 +47,14 @@ jobs:
           ADDS=$(echo "$STATS" | grep -oP '\d+ insertion' | grep -oP '\d+' || echo "0")
           DELS=$(echo "$STATS" | grep -oP '\d+ deletion' | grep -oP '\d+' || echo "0")
 
+          BRANCH_LABEL=""
+          if [ "$BRANCH" != "main" ]; then
+            BRANCH_LABEL="  ·  <code>${BRANCH}</code>"
+          fi
+
           TEXT="${ICON} <b>${FIRST_LINE}</b>
 
-          <code>${SHORT_SHA}</code>  ·  ${AUTHOR}
+          <code>${SHORT_SHA}</code>  ·  ${AUTHOR}${BRANCH_LABEL}
           ${FILES} files  ·  <code>+${ADDS}</code>  <code>-${DELS}</code>
 
           <a href=\"${COMMIT_URL}\">View diff →</a>"
