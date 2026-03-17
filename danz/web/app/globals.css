@@ -1,0 +1,187 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Default theme CSS variables (Neon Dark) - RGB format for opacity support */
+:root {
+  /* Primary colors */
+  --color-primary-rgb: 210 92 167;
+  --color-primary-alt-rgb: 146 111 142;
+  /* Neon accents */
+  --color-neon-pink-rgb: 255 110 199;
+  --color-neon-purple-rgb: 185 103 255;
+  --color-neon-blue-rgb: 0 212 255;
+  /* Backgrounds - Dark mode by default */
+  --color-bg-primary-rgb: 10 10 15;
+  --color-bg-secondary-rgb: 18 18 26;
+  --color-bg-card-rgb: 26 26 36;
+  --color-bg-hover-rgb: 34 34 48;
+  /* Text */
+  --color-text-primary-rgb: 255 255 255;
+  --color-text-secondary-rgb: 184 184 200;
+  --color-text-muted-rgb: 122 122 142;
+  /* Default color scheme */
+  color-scheme: dark;
+}
+
+/* Force dark background immediately to prevent white flash */
+html {
+  background-color: rgb(10 10 15);
+}
+
+html.theme-light {
+  background-color: rgb(248 250 252);
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-body min-h-screen overflow-x-hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display font-semibold;
+  }
+}
+
+@layer components {
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-neon bg-clip-text text-transparent;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-neon text-white shadow-glow-pink hover:shadow-glow-purple;
+  }
+
+  .btn-secondary {
+    @apply bg-bg-card text-text-primary hover:bg-bg-hover;
+    border: 1px solid rgb(var(--color-neon-purple-rgb) / 0.3);
+  }
+
+  .btn-secondary:hover {
+    border-color: rgb(var(--color-neon-purple-rgb) / 0.5);
+  }
+
+  .card {
+    @apply bg-bg-card rounded-xl p-6 transition-all duration-300;
+    border: 1px solid rgb(255 255 255 / 0.05);
+  }
+
+  .card:hover {
+    border-color: rgb(var(--color-neon-purple-rgb) / 0.3);
+  }
+
+  .section {
+    @apply py-20 relative;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Miniapp container - optimized for 424x695px Farcaster frame */
+  .miniapp-container {
+    max-width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Safe area for mobile navigation */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE APP-STYLE ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+/* Prevent overscroll bounce on iOS for app feel */
+@media (max-width: 1023px) {
+  html, body {
+    overscroll-behavior: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MINIAPP ANIMATIONS
+   ═══════════════════════════════════════════════════════════════ */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(1.05);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
