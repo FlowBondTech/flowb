@@ -297,6 +297,11 @@ function renderCategories() {
 }
 
 function renderEvents(events) {
+  // Store events by ID for modal lookup
+  for (const e of events) {
+    if (e.id) _eventsById[e.id] = e;
+  }
+
   // Apply platform filter client-side
   let filtered = events;
   if (activePlatform !== 'all') {
@@ -403,33 +408,38 @@ function createEventCard(e) {
     <button class="event-card-action" title="Add to my events" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
     </button>
-    <button class="event-card-action" title="Share" onclick="event.stopPropagation(); openEventModal('${safeTitle}', '${safeUrl}', '${safeImg}', '${safeSource}', '${safeId}', '${dateStr} at ${timeStr}', true)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-    </button>
   </div>`;
 
+  // Truncated description for card preview
+  let descSnippet = '';
+  if (e.description) {
+    let d = e.description.replace(/\s*[·|]\s*Luma$/i, '').replace(/\n/g, ' ').trim();
+    if (d.length > 100) d = d.slice(0, 100) + '...';
+    descSnippet = `<p class="event-card-desc">${escapeHtml(d)}</p>`;
+  }
+
   return `
-    <article class="event-card" onclick="openEventModal('${safeTitle}', '${safeUrl}', '${safeImg}', '${safeSource}', '${safeId}', '${dateStr} at ${timeStr}')">
+    <article class="event-card" onclick="openEventModal(null, null, null, null, '${safeId}')">
       <div class="event-card-img-wrap">
         ${imgInner}
         ${sourceBadge}
       </div>
       <div class="event-card-body">
-        <div class="event-card-cat" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">${boostBadgeHtml}${catEmoji} ${catLabel}</div>
-        <h3 class="event-card-title">${escapeHtml(e.title)}</h3>
-        <div class="event-card-meta">
-          <div class="event-card-meta-row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            ${dateStr} at ${timeStr}
+        <div class="event-card-header-row">
+          <div class="event-card-header-left">
+            <h3 class="event-card-title">${escapeHtml(e.title)}</h3>
+            ${venue ? `<div class="event-card-venue">${escapeHtml(venue)}</div>` : ''}
           </div>
-          ${venue ? `<div class="event-card-meta-row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            ${escapeHtml(venue)}
-          </div>` : ''}
-          ${org ? `<div class="event-card-meta-row">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            ${escapeHtml(org)}
-          </div>` : ''}
+          <div class="event-card-time">
+            <span class="event-card-time-tag">${timeStr}</span>
+            <span class="event-card-date-tag">${dateStr}</span>
+          </div>
+        </div>
+        ${descSnippet}
+        <div class="event-card-badges">
+          ${boostBadgeHtml}
+          ${e.isFree ? '<span class="card-badge free">Free</span>' : ''}
+          ${catEmoji ? `<span class="card-badge cat">${catEmoji} ${catLabel}</span>` : ''}
         </div>
         <div class="event-card-footer">
           ${priceHtml}
@@ -445,33 +455,136 @@ function createEventCard(e) {
 
 let currentModalEvent = {};
 
-function openEventModal(title, url, img, source, id, meta, shareOnly) {
+// Store all events by ID for modal lookup
+let _eventsById = {};
+
+function openEventModal(titleOrEvent, url, img, source, id, meta, shareOnly) {
   // Skip if user was scrolling (not a deliberate tap)
   if (_touchMoved && !shareOnly) return;
-  currentModalEvent = { title, url, img, source, id, meta };
+
+  // Support both old string args and new event object style
+  let event;
+  if (typeof titleOrEvent === 'object' && titleOrEvent !== null) {
+    event = titleOrEvent;
+  } else {
+    // Legacy call — look up the full event or construct a minimal one
+    event = _eventsById[id] || { title: titleOrEvent, url, imageUrl: img, source, id };
+  }
+
+  const title = event.title || '';
+  const eventUrl = event.url || url || '#';
+  const eventImg = event.imageUrl || img || '';
+  const eventSource = event.source || source || '';
+  const eventId = event.id || id || '';
+
+  currentModalEvent = { title, url: eventUrl, img: eventImg, source: eventSource, id: eventId, meta: meta || '', event };
 
   const modal = document.getElementById('eventModal');
   const backdrop = document.getElementById('eventModalBackdrop');
   const titleEl = document.getElementById('eventModalTitle');
-  const metaEl = document.getElementById('eventModalMeta');
   const imgEl = document.getElementById('eventModalImg');
   const openLabel = document.getElementById('eventModalOpenLabel');
-  const sharePanel = document.getElementById('eventSharePanel');
 
+  // Title
   titleEl.textContent = title;
-  metaEl.textContent = meta;
-  const optimizedModalImg = img ? optimizeImageUrl(img, 600, 300) : '';
-  imgEl.src = optimizedModalImg || '';
-  imgEl.style.display = optimizedModalImg ? '' : 'none';
+
+  // Image
+  imgEl.src = eventImg || '';
+  imgEl.style.display = eventImg ? '' : 'none';
   imgEl.onerror = function() { this.style.display = 'none'; };
 
-  const src = getSourceMeta(source);
-  openLabel.textContent = source ? `Open on ${src.label}` : 'Open Event';
-  const openLink = document.getElementById('eventModalOpen');
-  openLink.href = url || '#';
+  // Date/Time
+  const dateTextEl = document.getElementById('eventModalDateText');
+  if (event.startTime) {
+    const d = new Date(event.startTime);
+    const dateStr = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+    const timeStr = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    dateTextEl.textContent = `${dateStr} at ${timeStr}`;
+  } else {
+    dateTextEl.textContent = meta || '';
+  }
 
-  // Reset share panel
-  sharePanel.classList.add('hidden');
+  // Venue
+  const venueRow = document.getElementById('eventModalVenue');
+  const venueText = document.getElementById('eventModalVenueText');
+  const venueName = event.venue?.name || event.locationName || '';
+  const city = event.locationCity || event.city || '';
+  const venueDisplay = [venueName, city].filter(Boolean).join(', ');
+  if (venueDisplay) {
+    venueText.textContent = venueDisplay;
+    venueRow.style.display = '';
+  } else if (event.isOnline || event.isVirtual) {
+    venueText.textContent = 'Online Event';
+    venueRow.style.display = '';
+  } else {
+    venueRow.style.display = 'none';
+  }
+
+  // Organizer
+  const orgRow = document.getElementById('eventModalOrg');
+  const orgText = document.getElementById('eventModalOrgText');
+  const orgName = event.organizer?.name || event.organizerName || '';
+  if (orgName) {
+    orgText.textContent = orgName;
+    orgRow.style.display = '';
+  } else {
+    orgRow.style.display = 'none';
+  }
+
+  // Badges
+  const badgesEl = document.getElementById('eventModalBadges');
+  let badgesHtml = '';
+  if (event.isFeatured) {
+    badgesHtml += '<span class="modal-badge featured">Featured</span>';
+  } else if (event.isBoosted) {
+    badgesHtml += '<span class="modal-badge boosted">Boosted</span>';
+  }
+  if (event.isFree) {
+    badgesHtml += '<span class="modal-badge free">Free</span>';
+  } else if (event.price) {
+    const p = typeof event.price === 'number' ? event.price : event.price.min;
+    if (p) badgesHtml += `<span class="modal-badge paid">$${p}</span>`;
+  }
+  if (event.isSoldOut) {
+    badgesHtml += '<span class="modal-badge sold-out">Sold Out</span>';
+  }
+  if (eventSource) {
+    const src = getSourceMeta(eventSource);
+    badgesHtml += `<span class="modal-badge source" style="border-color:${src.color};color:${src.color}">${src.label}</span>`;
+  }
+  if (event.mainCategoryEmoji && event.mainCategoryLabel) {
+    badgesHtml += `<span class="modal-badge category">${event.mainCategoryEmoji} ${event.mainCategoryLabel}</span>`;
+  }
+  badgesEl.innerHTML = badgesHtml;
+
+  // Description
+  const descEl = document.getElementById('eventModalDesc');
+  if (event.description) {
+    let desc = event.description.replace(/\n/g, ' ').trim();
+    descEl.textContent = desc.length > 400 ? desc.slice(0, 400) + '...' : desc;
+    descEl.style.display = '';
+  } else {
+    descEl.style.display = 'none';
+  }
+
+  // Attendees
+  const attendeesRow = document.getElementById('eventModalAttendees');
+  const attendeesText = document.getElementById('eventModalAttendeesText');
+  const count = event.attendeeCount || event.rsvpCount || 0;
+  if (count > 0) {
+    attendeesText.textContent = `${count} going`;
+    attendeesRow.style.display = '';
+  } else {
+    attendeesRow.style.display = 'none';
+  }
+
+  // External link
+  const srcMeta = getSourceMeta(eventSource);
+  openLabel.textContent = eventSource ? `View on ${srcMeta.label}` : 'Open Event';
+  document.getElementById('eventModalOpen').href = eventUrl;
+
+  // Reset sub-panels
+  document.getElementById('eventReminderPanel').classList.add('hidden');
 
   modal.classList.remove('hidden');
   backdrop.classList.remove('hidden');
@@ -479,17 +592,11 @@ function openEventModal(title, url, img, source, id, meta, shareOnly) {
 
   awardPoints(2, 'Event viewed');
   awardFirstAction('first_event_click', 5, 'First event click!');
-
-  // If opened from share icon, go straight to share panel
-  if (shareOnly) {
-    sharePanel.classList.remove('hidden');
-  }
 }
 
 function closeEventModal() {
   document.getElementById('eventModal').classList.add('hidden');
   document.getElementById('eventModalBackdrop').classList.add('hidden');
-  document.getElementById('eventSharePanel').classList.add('hidden');
   document.getElementById('eventReminderPanel').classList.add('hidden');
   document.body.style.overflow = '';
 }
@@ -510,6 +617,14 @@ document.getElementById('eventModalRsvp').addEventListener('click', () => {
   handleRsvp(currentModalEvent.id, document.getElementById('eventModalRsvp'));
 });
 
+// Maybe button
+document.getElementById('eventModalMaybe').addEventListener('click', () => {
+  if (!currentModalEvent.id) return;
+  if (!requireAuth('add events to your Flow')) return;
+  // Use same RSVP handler with "maybe" indication
+  handleRsvp(currentModalEvent.id, document.getElementById('eventModalMaybe'));
+});
+
 document.getElementById('eventModalCalendar').addEventListener('click', () => {
   if (currentModalEvent.id) {
     handleAddToCalendar(currentModalEvent.id);
@@ -519,25 +634,9 @@ document.getElementById('eventModalCalendar').addEventListener('click', () => {
 document.getElementById('eventModalReminder').addEventListener('click', () => {
   const panel = document.getElementById('eventReminderPanel');
   panel.classList.toggle('hidden');
-  document.getElementById('eventSharePanel').classList.add('hidden');
   if (!panel.classList.contains('hidden') && currentModalEvent.id && Auth.isAuthenticated) {
     loadEventReminders(currentModalEvent.id);
   }
-});
-
-document.getElementById('eventModalShare').addEventListener('click', () => {
-  document.getElementById('eventSharePanel').classList.toggle('hidden');
-  document.getElementById('eventReminderPanel').classList.add('hidden');
-});
-
-document.getElementById('shareToFlow').addEventListener('click', () => {
-  // Open chat with pre-filled share message
-  closeEventModal();
-  expandChat();
-  const msg = `Check out: ${currentModalEvent.title} ${currentModalEvent.url || ''}`;
-  chatInput.value = msg;
-  chatInput.focus();
-  awardPoints(3, 'Shared to Flow');
 });
 
 document.getElementById('shareToSocial').addEventListener('click', () => {
@@ -545,19 +644,18 @@ document.getElementById('shareToSocial').addEventListener('click', () => {
   const url = encodeURIComponent(currentModalEvent.url || window.location.href);
   window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
   awardPoints(3, 'Shared to social');
-  closeEventModal();
 });
 
 document.getElementById('shareCopyLink').addEventListener('click', () => {
   const url = currentModalEvent.url || window.location.href;
   navigator.clipboard.writeText(url).then(() => {
     const btn = document.getElementById('shareCopyLink');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = btn.innerHTML.replace('Copy', 'Copied!');
     btn.classList.add('copied');
-    const orig = btn.innerHTML;
-    btn.innerHTML = btn.innerHTML.replace('Copy Link', 'Copied!');
     setTimeout(() => {
+      btn.innerHTML = origHtml;
       btn.classList.remove('copied');
-      btn.innerHTML = orig;
     }, 1500);
   });
   awardPoints(1, 'Link copied');
@@ -835,16 +933,24 @@ function showRsvpConfirmation(eventId, eventData) {
 
   // Replace modal content with confirmation
   const actionsEl = modal.querySelector('.event-modal-actions');
-  const headerEl = modal.querySelector('.event-modal-header');
   const reminderPanel = document.getElementById('eventReminderPanel');
-  const sharePanel = document.getElementById('eventSharePanel');
 
   if (reminderPanel) reminderPanel.classList.add('hidden');
-  if (sharePanel) sharePanel.classList.add('hidden');
 
-  if (headerEl) headerEl.style.display = 'none';
+  // Hide detail elements, show confirmation in actions area
+  const scrollEl = modal.querySelector('.event-modal-scroll');
+  if (scrollEl) {
+    // Hide everything except actions
+    for (const child of scrollEl.children) {
+      if (!child.classList.contains('event-modal-actions')) {
+        child.dataset.wasHidden = child.style.display;
+        child.style.display = 'none';
+      }
+    }
+  }
 
   if (actionsEl) {
+    actionsEl.dataset.origHtml = actionsEl.innerHTML;
     actionsEl.innerHTML = `
       <div class="rsvp-confirm">
         <div class="rsvp-confirm-check">
@@ -854,14 +960,13 @@ function showRsvpConfirmation(eventId, eventData) {
         </div>
         <div class="rsvp-confirm-title">You're going!</div>
         <div class="rsvp-confirm-event">${title}</div>
-        ${meta ? `<div class="rsvp-confirm-meta">${escapeHtml(meta)}</div>` : ''}
         <div class="rsvp-confirm-msg">Added to your Flow. You'll get reminders before it starts.</div>
         <div class="rsvp-confirm-actions">
-          ${calUrl ? `<a href="${calUrl}" target="_blank" rel="noopener" class="event-modal-chip">
+          ${calUrl ? `<a href="${calUrl}" target="_blank" rel="noopener" class="event-modal-share-btn">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             Add to Calendar
           </a>` : ''}
-          <button class="event-modal-chip" onclick="closeEventModal()">
+          <button class="event-modal-share-btn" onclick="closeEventModal()">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
             Done
           </button>
@@ -882,51 +987,56 @@ closeEventModal = function() {
   _origCloseEventModal();
   // Restore original modal structure after a tick
   setTimeout(() => {
-    const headerEl = document.querySelector('.event-modal-header');
-    if (headerEl) headerEl.style.display = '';
+    const modal = document.getElementById('eventModal');
+    const scrollEl = modal.querySelector('.event-modal-scroll');
+    if (scrollEl) {
+      for (const child of scrollEl.children) {
+        if (child.dataset.wasHidden !== undefined) {
+          child.style.display = child.dataset.wasHidden;
+          delete child.dataset.wasHidden;
+        }
+      }
+    }
 
-    const actionsEl = document.querySelector('.event-modal-actions');
-    if (actionsEl && actionsEl.querySelector('.rsvp-confirm')) {
-      actionsEl.innerHTML = `
-        <button class="event-modal-btn primary" id="eventModalRsvp">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-          Add to My Flow
-        </button>
-        <div class="event-modal-row">
-          <button class="event-modal-chip" id="eventModalCalendar">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            Calendar
-          </button>
-          <button class="event-modal-chip" id="eventModalReminder">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
-            Remind
-          </button>
-          <button class="event-modal-chip" id="eventModalShare">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
-            Share
-          </button>
-        </div>
-        <a class="event-modal-external" id="eventModalOpen" href="#" target="_blank" rel="noopener">
-          <span id="eventModalOpenLabel">Open Event</span>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        </a>
-      `;
+    const actionsEl = modal.querySelector('.event-modal-actions');
+    if (actionsEl && actionsEl.dataset.origHtml) {
+      actionsEl.innerHTML = actionsEl.dataset.origHtml;
+      delete actionsEl.dataset.origHtml;
       // Re-attach event listeners
-      document.getElementById('eventModalRsvp').addEventListener('click', () => {
+      document.getElementById('eventModalRsvp')?.addEventListener('click', () => {
         if (!currentModalEvent.id) return;
         if (!requireAuth('add events to your Flow')) return;
         handleRsvp(currentModalEvent.id, document.getElementById('eventModalRsvp'));
       });
-      document.getElementById('eventModalCalendar').addEventListener('click', () => {
+      document.getElementById('eventModalMaybe')?.addEventListener('click', () => {
+        if (!currentModalEvent.id) return;
+        if (!requireAuth('add events to your Flow')) return;
+        handleRsvp(currentModalEvent.id, document.getElementById('eventModalMaybe'));
+      });
+      document.getElementById('eventModalCalendar')?.addEventListener('click', () => {
         if (currentModalEvent.id) handleAddToCalendar(currentModalEvent.id);
       });
-      document.getElementById('eventModalReminder').addEventListener('click', () => {
+      document.getElementById('eventModalReminder')?.addEventListener('click', () => {
         document.getElementById('eventReminderPanel').classList.toggle('hidden');
       });
-      document.getElementById('eventModalShare').addEventListener('click', () => {
-        document.getElementById('eventSharePanel').classList.toggle('hidden');
+      document.getElementById('shareToSocial')?.addEventListener('click', () => {
+        const text = encodeURIComponent(`${currentModalEvent.title} - found on FlowB`);
+        const url = encodeURIComponent(currentModalEvent.url || window.location.href);
+        window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=550,height=420');
+        awardPoints(3, 'Shared to social');
       });
-      document.getElementById('eventModalOpen').addEventListener('click', closeEventModal);
+      document.getElementById('shareCopyLink')?.addEventListener('click', () => {
+        const url = currentModalEvent.url || window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+          const btn = document.getElementById('shareCopyLink');
+          const origHtml = btn.innerHTML;
+          btn.innerHTML = btn.innerHTML.replace('Copy', 'Copied!');
+          btn.classList.add('copied');
+          setTimeout(() => { btn.innerHTML = origHtml; btn.classList.remove('copied'); }, 1500);
+        });
+        awardPoints(1, 'Link copied');
+      });
+      document.getElementById('eventModalOpen')?.addEventListener('click', closeEventModal);
     }
   }, 300);
 };
@@ -2570,4 +2680,15 @@ function renderIntroCityPicker(selectedCats) {
       submitBtn.disabled = false;
     }
   });
+})();
+
+// ===== Mobile Bottom Nav =====
+(function() {
+  const mobileChat = document.getElementById('mobileNavChat');
+  if (mobileChat) {
+    mobileChat.addEventListener('click', (e) => {
+      e.preventDefault();
+      expandChat();
+    });
+  }
 })();
