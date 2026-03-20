@@ -1,0 +1,211 @@
+# Dev Panel Mutations
+
+# Feature Requests
+mutation CreateFeatureRequest($input: CreateFeatureRequestInput!) {
+  createFeatureRequest(input: $input) {
+    id
+    title
+    description
+    category
+    status
+    priority
+    votes
+    requested_by {
+      privy_id
+      username
+    }
+    created_at
+  }
+}
+
+mutation UpdateFeatureRequest($id: ID!, $input: UpdateFeatureRequestInput!) {
+  updateFeatureRequest(id: $id, input: $input) {
+    id
+    title
+    description
+    category
+    status
+    priority
+    assigned_to {
+      privy_id
+      username
+    }
+    estimated_hours
+    actual_hours
+    target_version
+    github_issue_url
+    github_pr_url
+    tags
+    updated_at
+  }
+}
+
+mutation DeleteFeatureRequest($id: ID!) {
+  deleteFeatureRequest(id: $id)
+}
+
+mutation VoteFeatureRequest($id: ID!, $vote: String!) {
+  voteFeatureRequest(id: $id, vote: $vote) {
+    id
+    votes
+    user_vote
+  }
+}
+
+mutation RemoveFeatureRequestVote($id: ID!) {
+  removeFeatureRequestVote(id: $id) {
+    id
+    votes
+    user_vote
+  }
+}
+
+mutation AddFeatureRequestComment(
+  $feature_request_id: ID!
+  $content: String!
+  $is_internal: Boolean
+) {
+  addFeatureRequestComment(
+    feature_request_id: $feature_request_id
+    content: $content
+    is_internal: $is_internal
+  ) {
+    id
+    content
+    user {
+      privy_id
+      username
+      avatar_url
+    }
+    is_internal
+    created_at
+  }
+}
+
+mutation DeleteFeatureRequestComment($id: ID!) {
+  deleteFeatureRequestComment(id: $id)
+}
+
+# Dev Tasks
+mutation CreateDevTask($input: CreateDevTaskInput!) {
+  createDevTask(input: $input) {
+    id
+    title
+    description
+    task_type
+    status
+    priority
+    assigned_to {
+      privy_id
+      username
+    }
+    due_date
+    estimated_hours
+    sprint
+    created_at
+  }
+}
+
+mutation UpdateDevTask($id: ID!, $input: UpdateDevTaskInput!) {
+  updateDevTask(id: $id, input: $input) {
+    id
+    title
+    description
+    task_type
+    status
+    priority
+    assigned_to {
+      privy_id
+      username
+    }
+    due_date
+    estimated_hours
+    actual_hours
+    github_issue_url
+    github_pr_url
+    tags
+    sprint
+    updated_at
+  }
+}
+
+mutation DeleteDevTask($id: ID!) {
+  deleteDevTask(id: $id)
+}
+
+mutation StartTask($id: ID!) {
+  startTask(id: $id) {
+    id
+    status
+    started_at
+  }
+}
+
+mutation CompleteTask($id: ID!, $actual_hours: Int) {
+  completeTask(id: $id, actual_hours: $actual_hours) {
+    id
+    status
+    actual_hours
+    completed_at
+  }
+}
+
+mutation BlockTask($id: ID!, $reason: String) {
+  blockTask(id: $id, reason: $reason) {
+    id
+    status
+  }
+}
+
+# Changelog
+mutation CreateChangelogEntry($input: CreateChangelogEntryInput!) {
+  createChangelogEntry(input: $input) {
+    id
+    version
+    title
+    description
+    category
+    github_pr_url
+    is_public
+    is_highlighted
+    created_at
+  }
+}
+
+mutation UpdateChangelogEntry($id: ID!, $input: UpdateChangelogEntryInput!) {
+  updateChangelogEntry(id: $id, input: $input) {
+    id
+    version
+    title
+    description
+    category
+    github_pr_url
+    is_public
+    is_highlighted
+  }
+}
+
+mutation DeleteChangelogEntry($id: ID!) {
+  deleteChangelogEntry(id: $id)
+}
+
+# GitHub Actions
+mutation TriggerGitHubAction($repo: String!, $workflow_id: String!, $ref: String) {
+  triggerGitHubAction(repo: $repo, workflow_id: $workflow_id, ref: $ref)
+}
+
+# System
+mutation CheckSystemHealth {
+  checkSystemHealth {
+    service
+    status
+    response_time_ms
+    last_checked
+    error_message
+    details
+  }
+}
+
+mutation ClearGitHubCache($cache_key: String) {
+  clearGitHubCache(cache_key: $cache_key)
+}

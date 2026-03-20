@@ -1,0 +1,75 @@
+fragment GigRoleBasic on GigRole {
+  id
+  name
+  slug
+  description
+  category
+  tier
+  icon
+  baseDanzRate
+  requiresVerification
+  isActive
+}
+
+fragment EventGigBasic on EventGig {
+  id
+  eventId
+  roleId
+  title
+  description
+  slotsAvailable
+  slotsFilled
+  danzReward
+  bonusDanz
+  timeCommitment
+  specificRequirements
+  status
+  createdAt
+}
+
+fragment EventGigFull on EventGig {
+  ...EventGigBasic
+  role {
+    ...GigRoleBasic
+  }
+  event {
+    id
+    title
+    start_date_time
+    end_date_time
+    location_name
+    location_city
+  }
+  canApply
+  myApplication {
+    id
+    status
+  }
+}
+
+fragment GigApplicationBasic on GigApplication {
+  id
+  gigId
+  userId
+  status
+  applicationNote
+  danzAwarded
+  createdAt
+}
+
+fragment GigApplicationWithGig on GigApplication {
+  ...GigApplicationBasic
+  gig {
+    ...EventGigFull
+  }
+}
+
+fragment GigStatsBasic on GigStats {
+  totalGigsCompleted
+  totalDanzEarned
+  activeRoles
+  currentApprovedGigs
+  pendingApplications
+  averageRating
+  lastGigDate
+}

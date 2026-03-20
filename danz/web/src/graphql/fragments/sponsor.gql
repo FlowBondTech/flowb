@@ -1,0 +1,395 @@
+# Sponsor Fragments for FlowBond Sponsorship System
+
+# Basic sponsor category info
+fragment SponsorCategoryBasic on SponsorCategory {
+  id
+  slug
+  name
+  description
+  icon
+  displayOrder
+  isActive
+  sponsorCount
+}
+
+# Allocation config fragment
+fragment AllocationConfigFull on AllocationConfig {
+  paidWorkersPercent
+  volunteerRewardsPercent
+  platformFeePercent
+}
+
+# Impact score fragment
+fragment SponsorImpactScoreFull on SponsorImpactScore {
+  totalScore
+  grade
+  reachScore
+  supportScore
+  totalEvents
+  totalInvested
+}
+
+# Basic sponsor info (for lists, cards)
+fragment SponsorBasic on Sponsor {
+  id
+  userId
+  companyName
+  companyDescription
+  logoUrl
+  websiteUrl
+  contactEmail
+  categories
+  tier
+  isVerified
+  verifiedAt
+  totalEventsSponsored
+  totalFlowContributed
+  createdAt
+}
+
+# Full sponsor profile
+fragment SponsorFull on Sponsor {
+  id
+  userId
+  companyName
+  companyDescription
+  logoUrl
+  websiteUrl
+  contactEmail
+  contactPhone
+  categories
+  tier
+  isVerified
+  verifiedAt
+  preferredRegions
+  preferredEventTypes
+  preferredDanceStyles
+  totalEventsSponsored
+  totalFlowContributed
+  totalDanzDistributed
+  impactScore {
+    ...SponsorImpactScoreFull
+  }
+  createdAt
+  updatedAt
+}
+
+# Event sponsorship basic
+fragment EventSponsorshipBasic on EventSponsorship {
+  id
+  flowAmount
+  flowAllocated
+  flowDistributed
+  status
+  visibility
+  sponsorMessage
+  createdAt
+}
+
+# Event sponsorship with sponsor info
+fragment EventSponsorshipWithSponsor on EventSponsorship {
+  id
+  flowAmount
+  flowAllocated
+  flowDistributed
+  status
+  visibility
+  sponsorMessage
+  allocationConfig {
+    ...AllocationConfigFull
+  }
+  sponsor {
+    ...SponsorBasic
+  }
+  completedAt
+  completionNotes
+  createdAt
+  updatedAt
+}
+
+# User flow balance
+fragment UserFlowBalanceFull on UserFlowBalance {
+  userId
+  availableBalance
+  pendingBalance
+  totalEarned
+  totalWithdrawn
+  totalGigsCompleted
+  totalEventsWorked
+}
+
+# Flow transaction basic
+fragment FlowTransactionBasic on FlowTransaction {
+  id
+  amount
+  transactionType
+  status
+  description
+  createdAt
+  completedAt
+}
+
+# Flow transaction with details
+fragment FlowTransactionFull on FlowTransaction {
+  id
+  amount
+  transactionType
+  status
+  description
+  metadata
+  txHash
+  createdAt
+  completedAt
+  fromUser {
+    privy_id
+    username
+    avatar_url
+  }
+  toUser {
+    privy_id
+    username
+    avatar_url
+  }
+}
+
+# Event flow pool
+fragment EventFlowPoolFull on EventFlowPool {
+  id
+  totalFlow
+  allocatedFlow
+  distributedFlow
+  remainingFlow
+  status
+  lockedAt
+  distributionStartedAt
+  completedAt
+}
+
+# Event sponsorship settings
+fragment EventSponsorshipSettingsFull on EventSponsorshipSettings {
+  id
+  eventId
+  acceptanceMode
+  autoAcceptAll
+  preferredCategories
+  blockedCategories
+  minAutoAcceptAmount
+  seekingSponsorship
+  sponsorshipGoal
+  sponsorshipDeadline
+  pitchMessage
+  notifyOnNewSponsor
+  notifyOnGoalReached
+  currentTotal
+  goalProgress
+}
+
+# Sponsorship approval
+fragment SponsorshipApprovalFull on SponsorshipApproval {
+  id
+  eventId
+  sponsorId
+  proposedFlowAmount
+  proposedVisibility
+  proposedMessage
+  status
+  reviewedAt
+  reviewedBy
+  rejectionReason
+  expiresAt
+  autoExpired
+  createdAt
+  sponsor {
+    ...SponsorBasic
+  }
+}
+
+# Sponsor subscription basic
+fragment SponsorSubscriptionBasic on SponsorSubscription {
+  id
+  planType
+  sponsorshipMode
+  budgetAmount
+  budgetSpent
+  budgetRemaining
+  status
+  discountPercent
+  nextBillingDate
+  createdAt
+}
+
+# Sponsor subscription full
+fragment SponsorSubscriptionFull on SponsorSubscription {
+  id
+  planType
+  sponsorshipMode
+  budgetAmount
+  budgetSpent
+  budgetRemaining
+  targetCategories
+  verifiedEventsOnly
+  autoApprove
+  maxPerEvent
+  defaultAllocationConfig {
+    ...AllocationConfigFull
+  }
+  defaultVisibility
+  status
+  currentPeriodStart
+  currentPeriodEnd
+  nextBillingDate
+  lastBilledAt
+  discountPercent
+  createdAt
+  cancelledAt
+}
+
+# Subscription auto match
+fragment SubscriptionAutoMatchFull on SubscriptionAutoMatch {
+  id
+  subscriptionId
+  matchReason
+  matchedCategories
+  flowAmount
+  status
+  notifiedAt
+  respondedAt
+  expiresAt
+  createdAt
+}
+
+# Suggested event for sponsors
+fragment SuggestedEventFull on SuggestedEvent {
+  matchScore
+  matchReasons
+  estimatedReach
+  categoryMatches
+  currentSponsorshipTotal
+  sponsorshipGoal
+}
+
+# Sponsor stats
+fragment SponsorStatsFull on SponsorStats {
+  totalInvested
+  totalEventsSponsored
+  totalWorkersSupported
+  averageEventRating
+  impactMetrics {
+    totalDancersReached
+    totalHoursSupported
+    communityEngagement
+  }
+}
+
+# Verified event creator
+fragment VerifiedEventCreatorFull on VerifiedEventCreator {
+  id
+  userId
+  isVerified
+  verifiedAt
+  totalEventsHosted
+  averageEventRating
+  totalAttendeesServed
+  autoVerified
+  verificationType
+  verificationNotes
+}
+
+# Verification criteria
+fragment VerificationCriteriaFull on VerificationCriteria {
+  totalEvents
+  averageRating
+  totalAttendees
+  meetsCriteria
+  eventsNeeded
+  ratingNeeded
+  attendeesNeeded
+}
+
+# Sponsor notification preferences
+fragment SponsorNotificationPrefsFull on SponsorNotificationPreferences {
+  emailNewMatchingEvents
+  emailSponsorshipUpdates
+  emailSubscriptionBilling
+  emailWeeklyDigest
+  pushNewMatchingEvents
+  pushSponsorshipUpdates
+  pushBudgetWarnings
+  matchingEventsFrequency
+  digestDay
+}
+
+# Creator sponsorship notification preferences
+fragment CreatorSponsorshipNotificationPrefsFull on CreatorSponsorshipNotificationPreferences {
+  notifyNewSponsorship
+  notifySponsorshipApproved
+  notifyGoalReached
+  notifyApprovalExpiring
+  emailEnabled
+  pushEnabled
+}
+
+# Analytics fragments
+fragment SponsorAnalyticsFull on SponsorAnalytics {
+  totalFlowSpent
+  eventsSponsored
+  dancersReached
+  workersSupported
+  costPerImpression
+  costPerClick
+  brandImpressions
+  websiteClicks
+  spendingTrend {
+    period
+    amount
+  }
+  spendingByCategory {
+    category
+    amount
+    percentage
+  }
+  eventsByDanceStyle {
+    style
+    count
+    percentage
+  }
+  eventsByRegion {
+    region
+    count
+  }
+}
+
+fragment EventSponsorshipAnalyticsFull on EventSponsorshipAnalytics {
+  totalReceived
+  numberOfSponsors
+  goalPercentage
+  distributionBreakdown {
+    workers
+    volunteers
+    platformFees
+  }
+  sponsorsByTier {
+    tier
+    count
+  }
+  sponsorsByCategory {
+    category
+    count
+    totalAmount
+  }
+}
+
+# Flow/DANZ swap
+fragment FlowDanzSwapFull on FlowDanzSwap {
+  id
+  userId
+  flowAmount
+  danzAmount
+  exchangeRate
+  status
+  triggerType
+  createdAt
+  processedAt
+  completedAt
+  errorMessage
+}

@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowBond Prototypes - Theme Collection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700;800&family=Righteous&family=Permanent+Marker&family=Pacifico&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=Bebas+Neue&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: #12121a;
+            --text: #ffffff;
+            --text-muted: #71717a;
+            --border: rgba(255, 255, 255, 0.1);
+            --gradient-1: linear-gradient(135deg, #a855f7 0%, #ec4899 100%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 60px 40px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        h1 {
+            font-size: 56px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        header p {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .category {
+            margin-bottom: 80px;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .category-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+
+        .category h2 {
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .category-desc {
+            color: var(--text-muted);
+            font-size: 16px;
+            margin-left: auto;
+        }
+
+        .themes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 30px;
+        }
+
+        .theme-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            transition: all 0.4s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .theme-card:hover {
+            transform: translateY(-10px);
+            border-color: rgba(168, 85, 247, 0.5);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+        }
+
+        .theme-preview {
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .theme-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(to top, var(--bg-card), transparent);
+        }
+
+        .theme-info {
+            padding: 25px 30px 30px;
+        }
+
+        .theme-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-badge {
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: var(--gradient-1);
+            color: white;
+            font-weight: 600;
+        }
+
+        .theme-desc {
+            color: var(--text-muted);
+            font-size: 15px;
+            line-height: 1.6;
+        }
+
+        /* Light Theme Previews */
+        .preview-light-modern {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 50%, #f1f5f9 100%);
+        }
+
+        .preview-light-pastel {
+            background: linear-gradient(135deg, #fefefe 0%, #fdf4ff 50%, #f0fdf4 100%);
+        }
+
+        .preview-light-minimalist {
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 50%, #f4f4f5 100%);
+        }
+
+        /* Crazy Theme Previews */
+        .preview-disco {
+            background: linear-gradient(135deg, #1a0a2e 0%, #2d1545 50%, #0d0517 100%);
+            position: relative;
+        }
+
+        .preview-disco::before {
+            content: '🪩';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 80px;
+            animation: spin 10s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        .preview-reggae {
+            background: linear-gradient(180deg,
+                #e62020 0%, #e62020 33%,
+                #ffd700 33%, #ffd700 66%,
+                #009b3a 66%, #009b3a 100%
+            );
+        }
+
+        .preview-salsa {
+            background: linear-gradient(135deg, #1a0505 0%, #dc143c 50%, #ff4500 100%);
+            position: relative;
+        }
+
+        .preview-salsa::before {
+            content: '🌹🔥💃';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            letter-spacing: 20px;
+        }
+
+        .preview-bachata {
+            background: linear-gradient(135deg, #0f0a14 0%, #722f37 50%, #301934 100%);
+            position: relative;
+        }
+
+        .preview-bachata::before {
+            content: '🌙💋✨';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            letter-spacing: 20px;
+        }
+
+        .preview-hiphop {
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 50%, #2d2d2d 100%);
+            position: relative;
+        }
+
+        .preview-hiphop::before {
+            content: '🎤🔥💰';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            letter-spacing: 20px;
+        }
+
+        .preview-kpop {
+            background: linear-gradient(135deg, #ff6b9d 0%, #c77dff 50%, #72ddf7 100%);
+            position: relative;
+        }
+
+        .preview-kpop::before {
+            content: '💜⭐💖';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            letter-spacing: 20px;
+            animation: sparkle 2s ease-in-out infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 0.7; transform: translate(-50%, -50%) scale(1.1); }
+        }
+
+        /* Dark Theme Preview */
+        .preview-wearable {
+            background: linear-gradient(135deg, #030305 0%, #0d0d12 50%, #151520 100%);
+        }
+
+        /* Category Icons */
+        .icon-light {
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+        }
+
+        .icon-crazy {
+            background: linear-gradient(135deg, #ffd700, #ec4899, #009b3a);
+        }
+
+        .icon-dark {
+            background: linear-gradient(135deg, #a855f7, #ec4899);
+        }
+
+        /* Preview Decorations */
+        .preview-decoration {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .preview-light-modern .preview-decoration,
+        .preview-light-pastel .preview-decoration,
+        .preview-light-minimalist .preview-decoration {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%);
+            opacity: 0.2;
+        }
+
+        .preview-light-pastel .preview-decoration {
+            background: linear-gradient(135deg, #e879f9 0%, #67e8f9 100%);
+            opacity: 0.3;
+        }
+
+        .preview-light-minimalist .preview-decoration {
+            width: 80px;
+            height: 80px;
+            background: #18181b;
+            opacity: 0.1;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 80px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            body {
+                padding: 40px 20px;
+            }
+
+            h1 {
+                font-size: 40px;
+            }
+
+            .themes-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .category-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .category-desc {
+                margin-left: 0;
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FlowBond Prototypes</h1>
+            <p>Explore different design themes for the FlowBond dance-to-earn wearable platform. Each theme brings a unique vibe to the experience.</p>
+        </header>
+
+        <!-- Light Themes Category -->
+        <section class="category">
+            <div class="category-header">
+                <div class="category-icon icon-light">☀️</div>
+                <h2>Light Themes</h2>
+                <span class="category-desc">Clean, bright designs with excellent contrast</span>
+            </div>
+            <div class="themes-grid">
+                <a href="../../light-modern/index.html" class="theme-card">
+                    <div class="theme-preview preview-light-modern">
+                        <div class="preview-decoration"></div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-title">
+                            Light Modern
+                            <span class="theme-badge">NEW</span>
+                        </div>
+                        <p class="theme-desc">Professional white background with purple gradient accents. Clean, corporate-friendly design.</p>
+                    </div>
+                </a>
+
+                <a href="../../light-pastel/index.html" class="theme-card">
+                    <div class="theme-preview preview-light-pastel">
+                        <div class="preview-decoration"></div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-title">
+                            Light Pastel
+                            <span class="theme-badge">NEW</span>
+                        </div>
+                        <p class="theme-desc">Soft pastel colors with dreamy gradients. Gentle, approachable, and modern.</p>
+                    </div>
+                </a>
+
+                <a href="../../light-minimalist/index.html" class="theme-card">
+                    <div class="theme-preview preview-light-minimalist">
+                        <div class="preview-decoration"></div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-title">
+                            Light Minimalist
+                            <span class="theme-badge">NEW</span>
+                        </div>
+                        <p class="theme-desc">Ultra-clean design with maximum whitespace. Inspired by Apple and modern tech aesthetics.</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Crazy Dance Themes Category -->
+        <section class="category">
+            <div class="category-header">
+                <div class="category-icon icon-crazy">🎉</div>
+                <h2>Dance Culture Themes</h2>
+                <span class="category-desc">Wild, fun designs celebrating global dance culture</span>
+            </div>
+            <div class="themes-grid">
+                <a href="../../disco/index.html" class="theme-card">
+                    <div class="theme-preview preview-disco"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Righteous', cursive;">
+                            Disco Fever
+                            <span class="theme-badge">CRAZY</span>
+                        </div>
+                        <p class="theme-desc">70s disco vibes with gold, mirror ball sparkles, and groovy animations. Stayin' alive!</p>
+                    </div>
+                </a>
+
+                <a href="../../reggae/index.html" class="theme-card">
+                    <div class="theme-preview preview-reggae"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Permanent Marker', cursive;">
+                            Reggae Vibes
+                            <span class="theme-badge">IRIE</span>
+                        </div>
+                        <p class="theme-desc">Jamaica-inspired with red, gold, and green. One love, one dance, tropical paradise vibes.</p>
+                    </div>
+                </a>
+
+                <a href="../../salsa/index.html" class="theme-card">
+                    <div class="theme-preview preview-salsa"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Pacifico', cursive;">
+                            Salsa Caliente
+                            <span class="theme-badge">HOT</span>
+                        </div>
+                        <p class="theme-desc">Latin passion with fiery reds and oranges. Hot, passionate, and full of life!</p>
+                    </div>
+                </a>
+
+                <a href="../../bachata/index.html" class="theme-card">
+                    <div class="theme-preview preview-bachata"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Cormorant Garamond', serif; font-style: italic;">
+                            Bachata Sensual
+                            <span class="theme-badge">ROMANTIC</span>
+                        </div>
+                        <p class="theme-desc">Romantic Dominican vibes with wine reds and moonlit elegance. Intimate and sensual.</p>
+                    </div>
+                </a>
+
+                <a href="../../hiphop/index.html" class="theme-card">
+                    <div class="theme-preview preview-hiphop"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px;">
+                            Hip Hop Street
+                            <span class="theme-badge">FRESH</span>
+                        </div>
+                        <p class="theme-desc">Urban street style with gold chains, graffiti vibes, and bass-heavy energy. Keep it real!</p>
+                    </div>
+                </a>
+
+                <a href="../../kpop/index.html" class="theme-card">
+                    <div class="theme-preview preview-kpop"></div>
+                    <div class="theme-info">
+                        <div class="theme-title" style="font-family: 'Noto Sans KR', sans-serif;">
+                            K-Pop Idol
+                            <span class="theme-badge">STAN</span>
+                        </div>
+                        <p class="theme-desc">Holographic pink and purple dreams. Light sticks, fan chants, and idol aesthetics!</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <!-- Dark/Original Theme Category -->
+        <section class="category">
+            <div class="category-header">
+                <div class="category-icon icon-dark">🌙</div>
+                <h2>Dark Theme</h2>
+                <span class="category-desc">The original neon-tech aesthetic</span>
+            </div>
+            <div class="themes-grid">
+                <a href="../../wearable/index.html" class="theme-card">
+                    <div class="theme-preview preview-wearable">
+                        <div class="preview-decoration" style="width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, #a855f7, #ec4899); opacity: 0.3;"></div>
+                    </div>
+                    <div class="theme-info">
+                        <div class="theme-title">
+                            Neon Tech
+                            <span class="theme-badge">ORIGINAL</span>
+                        </div>
+                        <p class="theme-desc">The original FlowBond Beads design. Dark background with vibrant purple and pink gradients.</p>
+                    </div>
+                </a>
+            </div>
+        </section>
+
+        <footer>
+            <p>© 2025 FlowBond. All themes are password protected (hint: flowbond)</p>
+        </footer>
+    </div>
+</body>
+</html>

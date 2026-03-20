@@ -1,0 +1,58 @@
+query GetEvents($filter: EventFilterInput, $pagination: PaginationInput) {
+  events(filter: $filter, pagination: $pagination) {
+    events {
+      id
+      slug
+      title
+      description
+      category
+      image_url
+      location_name
+      location_address
+      location_city
+      is_public
+      facilitator_id
+      facilitator {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+      max_capacity
+      current_capacity
+      price_usd
+      price_danz
+      is_featured
+      skill_level
+      is_virtual
+      virtual_link
+      requirements
+      tags
+      dance_styles
+      currency
+      start_date_time
+      end_date_time
+      created_at
+      updated_at
+      status
+      is_registered
+      user_registration_status
+      registration_count
+      is_recurring
+      recurrence_type
+      recurrence_end_date
+      recurrence_days
+      recurrence_count
+      parent_event_id
+      allow_sponsors
+      sponsor_count
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}

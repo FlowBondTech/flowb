@@ -1,0 +1,195 @@
+/* Custom Privy Modal Overrides - DANZ NOW Theme */
+
+/* Main modal backdrop */
+#privy-modal-backdrop {
+  backdrop-filter: blur(12px) !important;
+  background: rgba(10, 10, 15, 0.9) !important;
+}
+
+/* Modal container */
+#privy-modal {
+  background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1a 100%) !important;
+  border: 1px solid rgba(255, 110, 199, 0.2) !important;
+  box-shadow: 
+    0 24px 48px rgba(255, 110, 199, 0.2),
+    0 12px 24px rgba(185, 103, 255, 0.15),
+    inset 0 1px 0 rgba(255, 110, 199, 0.1) !important;
+}
+
+/* Privy buttons */
+#privy-modal button {
+  transition: all 0.3s ease !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Primary buttons - Connect Wallet, etc */
+#privy-modal button[data-privy-button="primary"] {
+  background: linear-gradient(135deg, #FF6EC7, #b967ff) !important;
+  border: none !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  letter-spacing: 0.02em !important;
+}
+
+#privy-modal button[data-privy-button="primary"]:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 8px 24px rgba(255, 110, 199, 0.4) !important;
+}
+
+/* Add shimmer effect to primary buttons */
+#privy-modal button[data-privy-button="primary"]::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+#privy-modal button[data-privy-button="primary"]:hover::before {
+  left: 100%;
+}
+
+/* Secondary buttons */
+#privy-modal button[data-privy-button="secondary"] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 110, 199, 0.2) !important;
+  color: #ffffff !important;
+}
+
+#privy-modal button[data-privy-button="secondary"]:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 110, 199, 0.4) !important;
+  transform: translateY(-1px) !important;
+}
+
+/* Wallet option buttons */
+#privy-modal [data-privy-wallet-button] {
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 110, 199, 0.15) !important;
+  transition: all 0.2s ease !important;
+}
+
+#privy-modal [data-privy-wallet-button]:hover {
+  background: rgba(255, 110, 199, 0.1) !important;
+  border-color: rgba(255, 110, 199, 0.3) !important;
+  transform: translateX(4px) !important;
+}
+
+/* Input fields */
+#privy-modal input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 110, 199, 0.2) !important;
+  color: #ffffff !important;
+  transition: all 0.2s ease !important;
+}
+
+#privy-modal input:focus {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: #FF6EC7 !important;
+  box-shadow: 0 0 0 3px rgba(255, 110, 199, 0.1) !important;
+  outline: none !important;
+}
+
+#privy-modal input::placeholder {
+  color: rgba(255, 255, 255, 0.4) !important;
+}
+
+/* Headers and text */
+#privy-modal h1,
+#privy-modal h2,
+#privy-modal h3 {
+  background: linear-gradient(135deg, #ffffff, #f0f0f0) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  font-weight: 700 !important;
+}
+
+/* Links */
+#privy-modal a {
+  color: #FF6EC7 !important;
+  text-decoration: none !important;
+  transition: color 0.2s ease !important;
+}
+
+#privy-modal a:hover {
+  color: #ff4eb2 !important;
+  text-decoration: underline !important;
+}
+
+/* Loading spinner */
+#privy-modal [data-privy-spinner] {
+  border-color: rgba(255, 110, 199, 0.2) !important;
+  border-top-color: #FF6EC7 !important;
+}
+
+/* Social login buttons */
+#privy-modal [data-privy-social-button] {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 110, 199, 0.15) !important;
+}
+
+#privy-modal [data-privy-social-button]:hover {
+  background: rgba(255, 110, 199, 0.1) !important;
+  border-color: rgba(255, 110, 199, 0.3) !important;
+  transform: scale(1.02) !important;
+}
+
+/* Error messages */
+#privy-modal [data-privy-error] {
+  background: rgba(255, 107, 107, 0.1) !important;
+  border: 1px solid rgba(255, 107, 107, 0.3) !important;
+  color: #ff6b6b !important;
+}
+
+/* Success messages */
+#privy-modal [data-privy-success] {
+  background: rgba(76, 175, 80, 0.1) !important;
+  border: 1px solid rgba(76, 175, 80, 0.3) !important;
+  color: #4caf50 !important;
+}
+
+/* Dividers */
+#privy-modal hr {
+  border-color: rgba(255, 110, 199, 0.1) !important;
+}
+
+/* Close button */
+#privy-modal [data-privy-close-button] {
+  color: rgba(255, 255, 255, 0.6) !important;
+  transition: all 0.2s ease !important;
+}
+
+#privy-modal [data-privy-close-button]:hover {
+  color: #ffffff !important;
+  transform: rotate(90deg) !important;
+}
+
+/* Add glow effects */
+@keyframes pulse-glow {
+  0% {
+    box-shadow: 0 0 20px rgba(255, 110, 199, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(255, 110, 199, 0.4);
+  }
+  100% {
+    box-shadow: 0 0 20px rgba(255, 110, 199, 0.2);
+  }
+}
+
+#privy-modal {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  #privy-modal {
+    margin: 16px !important;
+    width: calc(100% - 32px) !important;
+  }
+}

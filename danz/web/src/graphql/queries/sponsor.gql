@@ -1,0 +1,359 @@
+# import "../fragments/sponsor.gql"
+
+# ============================================================================
+# SPONSOR PROFILE QUERIES
+# ============================================================================
+
+query GetSponsor($id: ID!) {
+  sponsor(id: $id) {
+    ...SponsorFull
+    sponsorships {
+      ...EventSponsorshipBasic
+      event {
+        id
+        title
+        image_url
+        start_date_time
+      }
+    }
+  }
+}
+
+query GetSponsorByUserId($userId: String!) {
+  sponsorByUserId(userId: $userId) {
+    ...SponsorFull
+  }
+}
+
+query GetMySponsorProfile {
+  mySponsorProfile {
+    ...SponsorFull
+    sponsorships {
+      ...EventSponsorshipBasic
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        location_name
+      }
+    }
+    subscriptions {
+      ...SponsorSubscriptionBasic
+    }
+  }
+}
+
+query GetSponsorCategories {
+  sponsorCategories {
+    ...SponsorCategoryBasic
+  }
+}
+
+# ============================================================================
+# SPONSOR DASHBOARD QUERIES
+# ============================================================================
+
+query GetSponsorDashboard {
+  sponsorDashboard {
+    sponsor {
+      ...SponsorFull
+    }
+    activeSponsorships {
+      ...EventSponsorshipWithSponsor
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        end_date_time
+        location_name
+        max_capacity
+        registration_count
+      }
+    }
+    suggestedEvents {
+      ...SuggestedEventFull
+      event {
+        id
+        title
+        description
+        image_url
+        start_date_time
+        end_date_time
+        location_name
+        max_capacity
+        registration_count
+        dance_styles
+        category
+        facilitator {
+          privy_id
+          username
+          avatar_url
+        }
+      }
+    }
+    recentActivity {
+      ...FlowTransactionFull
+    }
+    stats {
+      ...SponsorStatsFull
+    }
+    subscriptions {
+      ...SponsorSubscriptionFull
+    }
+    pendingMatches {
+      ...SubscriptionAutoMatchFull
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        location_name
+      }
+    }
+  }
+}
+
+# ============================================================================
+# EVENT DISCOVERY QUERIES
+# ============================================================================
+
+query GetEventsForSponsorship($input: EventsForSponsorshipInput) {
+  eventsForSponsorship(input: $input) {
+    id
+    title
+    description
+    image_url
+    start_date_time
+    end_date_time
+    location_name
+    max_capacity
+    registration_count
+    dance_styles
+    category
+    facilitator {
+      privy_id
+      username
+      avatar_url
+    }
+  }
+}
+
+query GetSuggestedEventsForSponsor($limit: Int) {
+  suggestedEventsForSponsor(limit: $limit) {
+    ...SuggestedEventFull
+    event {
+      id
+      title
+      description
+      image_url
+      start_date_time
+      end_date_time
+      location_name
+      max_capacity
+      registration_count
+      dance_styles
+      category
+      facilitator {
+        privy_id
+        username
+        avatar_url
+      }
+    }
+  }
+}
+
+# ============================================================================
+# FLOW BALANCE & TRANSACTION QUERIES
+# ============================================================================
+
+query GetMyFlowBalance {
+  myFlowBalance {
+    ...UserFlowBalanceFull
+  }
+}
+
+query GetMyFlowTransactions($limit: Int, $offset: Int, $type: FlowTransactionType) {
+  myFlowTransactions(limit: $limit, offset: $offset, type: $type) {
+    ...FlowTransactionFull
+    event {
+      id
+      title
+    }
+    sponsor {
+      id
+      companyName
+      logoUrl
+    }
+  }
+}
+
+# ============================================================================
+# EVENT POOL QUERIES
+# ============================================================================
+
+query GetEventFlowPool($eventId: ID!) {
+  eventFlowPool(eventId: $eventId) {
+    ...EventFlowPoolFull
+    event {
+      id
+      title
+    }
+    sponsors {
+      ...EventSponsorshipBasic
+      sponsor {
+        ...SponsorBasic
+      }
+    }
+  }
+}
+
+query GetEventSponsors($eventId: ID!) {
+  eventSponsors(eventId: $eventId) {
+    ...EventSponsorshipWithSponsor
+    event {
+      id
+      title
+    }
+  }
+}
+
+# ============================================================================
+# EVENT SPONSORSHIP SETTINGS QUERIES (For Event Creators)
+# ============================================================================
+
+query GetEventSponsorshipSettings($eventId: ID!) {
+  eventSponsorshipSettings(eventId: $eventId) {
+    ...EventSponsorshipSettingsFull
+  }
+}
+
+query GetPendingSponsorshipApprovals($eventId: ID!) {
+  pendingSponsorshipApprovals(eventId: $eventId) {
+    ...SponsorshipApprovalFull
+    event {
+      id
+      title
+    }
+    sponsorship {
+      ...EventSponsorshipBasic
+    }
+  }
+}
+
+# ============================================================================
+# SUBSCRIPTION QUERIES
+# ============================================================================
+
+query GetMySubscriptions {
+  mySubscriptions {
+    ...SponsorSubscriptionFull
+    eventsSponsored {
+      ...EventSponsorshipBasic
+      event {
+        id
+        title
+        start_date_time
+      }
+    }
+    pendingMatches {
+      ...SubscriptionAutoMatchFull
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        location_name
+      }
+    }
+  }
+}
+
+query GetSubscription($id: ID!) {
+  subscription(id: $id) {
+    ...SponsorSubscriptionFull
+    sponsor {
+      ...SponsorBasic
+    }
+    eventsSponsored {
+      ...EventSponsorshipWithSponsor
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        location_name
+      }
+    }
+    pendingMatches {
+      ...SubscriptionAutoMatchFull
+      event {
+        id
+        title
+        image_url
+        start_date_time
+        location_name
+      }
+    }
+  }
+}
+
+# ============================================================================
+# VERIFIED CREATOR QUERIES
+# ============================================================================
+
+query GetVerifiedCreatorStatus($userId: String) {
+  verifiedCreatorStatus(userId: $userId) {
+    ...VerifiedEventCreatorFull
+  }
+}
+
+query GetMyVerificationStatus {
+  myVerificationStatus {
+    ...VerifiedEventCreatorFull
+    user {
+      privy_id
+      username
+      avatar_url
+    }
+  }
+}
+
+query GetVerificationCriteria($userId: String) {
+  verificationCriteria(userId: $userId) {
+    ...VerificationCriteriaFull
+  }
+}
+
+# ============================================================================
+# ANALYTICS QUERIES
+# ============================================================================
+
+query GetSponsorAnalytics($periodType: String!, $startDate: DateTime!, $endDate: DateTime!) {
+  sponsorAnalytics(periodType: $periodType, startDate: $startDate, endDate: $endDate) {
+    ...SponsorAnalyticsFull
+  }
+}
+
+query GetEventSponsorshipAnalytics($eventId: ID!) {
+  eventSponsorshipAnalytics(eventId: $eventId) {
+    ...EventSponsorshipAnalyticsFull
+  }
+}
+
+# ============================================================================
+# NOTIFICATION PREFERENCES QUERIES
+# ============================================================================
+
+query GetSponsorNotificationPreferences {
+  sponsorNotificationPreferences {
+    ...SponsorNotificationPrefsFull
+  }
+}
+
+query GetCreatorSponsorshipNotificationPreferences {
+  creatorSponsorshipNotificationPreferences {
+    ...CreatorSponsorshipNotificationPrefsFull
+  }
+}

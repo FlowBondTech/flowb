@@ -1,0 +1,49 @@
+# import "../fragments/user.gql"
+# import "../fragments/gig.gql"
+
+query GetGigManagerDashboard {
+  gigManagerDashboard {
+    pendingGigApplications {
+      id
+      gigId
+      userId
+      status
+      applicationNote
+      createdAt
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+      gig {
+        id
+        eventId
+        roleId
+        title
+        description
+        danzReward
+        role {
+          id
+          name
+          slug
+          icon
+          category
+        }
+        event {
+          id
+          title
+          start_date_time
+          location_name
+        }
+      }
+    }
+    stats {
+      totalReviewed
+      approvedCount
+      rejectedCount
+      averageReviewTime
+      todayReviewed
+    }
+  }
+}

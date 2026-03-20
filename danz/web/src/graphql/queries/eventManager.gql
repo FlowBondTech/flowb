@@ -1,0 +1,99 @@
+# Event Manager Queries
+
+query GetEventManagers($event_id: ID!) {
+  eventManagers(event_id: $event_id) {
+    managers {
+      id
+      event_id
+      user_id
+      role
+      can_edit_details
+      can_manage_registrations
+      can_send_broadcasts
+      can_manage_posts
+      can_invite_managers
+      can_delete_event
+      status
+      invited_by
+      invited_at
+      accepted_at
+      created_at
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+      inviter {
+        username
+        display_name
+      }
+    }
+    total_count
+  }
+}
+
+query GetEventManager($id: ID!) {
+  eventManager(id: $id) {
+    id
+    event_id
+    user_id
+    role
+    can_edit_details
+    can_manage_registrations
+    can_send_broadcasts
+    can_manage_posts
+    can_invite_managers
+    can_delete_event
+    status
+    invited_by
+    invited_at
+    accepted_at
+    created_at
+    event {
+      id
+      title
+      start_date_time
+    }
+    user {
+      privy_id
+      username
+      display_name
+      avatar_url
+    }
+  }
+}
+
+query GetMyEventManagerRole($event_id: ID!) {
+  myEventManagerRole(event_id: $event_id) {
+    id
+    role
+    can_edit_details
+    can_manage_registrations
+    can_send_broadcasts
+    can_manage_posts
+    can_invite_managers
+    can_delete_event
+    status
+  }
+}
+
+query GetMyManagedEvents {
+  myManagedEvents {
+    id
+    title
+    description
+    start_date_time
+    end_date_time
+    location_name
+    location_address
+    image_url
+    status
+    max_capacity
+    current_capacity
+  }
+}
+
+query CheckEventPermission($event_id: ID!, $permission: String!) {
+  checkEventPermission(event_id: $event_id, permission: $permission)
+}

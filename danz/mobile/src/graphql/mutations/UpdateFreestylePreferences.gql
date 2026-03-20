@@ -1,0 +1,7 @@
+mutation UpdateFreestylePreferences($input: UpdateUserPreferencesInput!) {
+  updateFreestylePreferences(input: $input) {
+    daily_reminder_enabled
+    daily_reminder_time
+    live_sessions_enabled
+  }
+}

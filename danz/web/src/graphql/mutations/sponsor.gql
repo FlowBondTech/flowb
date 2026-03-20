@@ -1,0 +1,194 @@
+# import "../fragments/sponsor.gql"
+
+# ============================================================================
+# SPONSOR PROFILE MUTATIONS
+# ============================================================================
+
+mutation CreateSponsorProfile($input: CreateSponsorInput!) {
+  createSponsorProfile(input: $input) {
+    ...SponsorFull
+  }
+}
+
+mutation UpdateSponsorProfile($input: UpdateSponsorInput!) {
+  updateSponsorProfile(input: $input) {
+    ...SponsorFull
+  }
+}
+
+mutation DeleteSponsorProfile {
+  deleteSponsorProfile {
+    success
+    message
+  }
+}
+
+# ============================================================================
+# SPONSORSHIP MUTATIONS
+# ============================================================================
+
+mutation CreateEventSponsorship($input: CreateSponsorshipInput!) {
+  createEventSponsorship(input: $input) {
+    ...EventSponsorshipWithSponsor
+    event {
+      id
+      title
+      image_url
+      start_date_time
+    }
+  }
+}
+
+mutation UpdateEventSponsorship($id: ID!, $input: UpdateSponsorshipInput!) {
+  updateEventSponsorship(id: $id, input: $input) {
+    ...EventSponsorshipWithSponsor
+  }
+}
+
+mutation CancelEventSponsorship($id: ID!, $reason: String) {
+  cancelEventSponsorship(id: $id, reason: $reason) {
+    ...EventSponsorshipBasic
+  }
+}
+
+# ============================================================================
+# SPONSORSHIP APPROVAL MUTATIONS (For Event Creators)
+# ============================================================================
+
+mutation ReviewSponsorshipApproval($approvalId: ID!, $decision: ApprovalStatus!, $reason: String) {
+  reviewSponsorshipApproval(approvalId: $approvalId, decision: $decision, reason: $reason) {
+    ...SponsorshipApprovalFull
+    sponsorship {
+      ...EventSponsorshipBasic
+    }
+  }
+}
+
+# ============================================================================
+# EVENT SPONSORSHIP SETTINGS MUTATIONS (For Event Creators)
+# ============================================================================
+
+mutation UpdateEventSponsorshipSettings($eventId: ID!, $input: EventSponsorshipSettingsInput!) {
+  updateEventSponsorshipSettings(eventId: $eventId, input: $input) {
+    ...EventSponsorshipSettingsFull
+  }
+}
+
+# ============================================================================
+# POOL MANAGEMENT MUTATIONS (For Event Organizers)
+# ============================================================================
+
+mutation LockEventPool($eventId: ID!) {
+  lockEventPool(eventId: $eventId) {
+    ...EventFlowPoolFull
+  }
+}
+
+mutation UnlockEventPool($eventId: ID!) {
+  unlockEventPool(eventId: $eventId) {
+    ...EventFlowPoolFull
+  }
+}
+
+mutation DistributeGigPayment($input: GigPaymentInput!) {
+  distributeGigPayment(input: $input) {
+    ...FlowTransactionFull
+  }
+}
+
+mutation DistributeVolunteerReward($input: VolunteerRewardInput!) {
+  distributeVolunteerReward(input: $input) {
+    ...FlowTransactionFull
+  }
+}
+
+mutation CompleteEventDistribution($eventId: ID!) {
+  completeEventDistribution(eventId: $eventId) {
+    ...EventFlowPoolFull
+  }
+}
+
+# ============================================================================
+# USER FLOW TOKEN MUTATIONS
+# ============================================================================
+
+mutation RequestFlowToDanzSwap($amount: Float!) {
+  requestFlowToDanzSwap(amount: $amount) {
+    ...FlowDanzSwapFull
+  }
+}
+
+mutation WithdrawFlow($amount: Float!, $destinationWallet: String!) {
+  withdrawFlow(amount: $amount, destinationWallet: $destinationWallet) {
+    ...FlowTransactionFull
+  }
+}
+
+# ============================================================================
+# SUBSCRIPTION MUTATIONS
+# ============================================================================
+
+mutation CreateSponsorSubscription($input: CreateSubscriptionInput!) {
+  createSponsorSubscription(input: $input) {
+    ...SponsorSubscriptionFull
+  }
+}
+
+mutation UpdateSponsorSubscription($id: ID!, $input: UpdateSubscriptionInput!) {
+  updateSponsorSubscription(id: $id, input: $input) {
+    ...SponsorSubscriptionFull
+  }
+}
+
+mutation PauseSponsorSubscription($id: ID!) {
+  pauseSponsorSubscription(id: $id) {
+    ...SponsorSubscriptionFull
+  }
+}
+
+mutation ResumeSponsorSubscription($id: ID!) {
+  resumeSponsorSubscription(id: $id) {
+    ...SponsorSubscriptionFull
+  }
+}
+
+mutation CancelSponsorSubscription($id: ID!, $reason: String) {
+  cancelSponsorSubscription(id: $id, reason: $reason) {
+    ...SponsorSubscriptionFull
+  }
+}
+
+# ============================================================================
+# SUBSCRIPTION MATCH MUTATIONS
+# ============================================================================
+
+mutation RespondToSubscriptionMatch($matchId: ID!, $approve: Boolean!) {
+  respondToSubscriptionMatch(matchId: $matchId, approve: $approve) {
+    ...SubscriptionAutoMatchFull
+    event {
+      id
+      title
+    }
+    sponsorship {
+      ...EventSponsorshipBasic
+    }
+  }
+}
+
+# ============================================================================
+# NOTIFICATION PREFERENCES MUTATIONS
+# ============================================================================
+
+mutation UpdateSponsorNotificationPreferences($input: SponsorNotificationPreferencesInput!) {
+  updateSponsorNotificationPreferences(input: $input) {
+    ...SponsorNotificationPrefsFull
+  }
+}
+
+mutation UpdateCreatorSponsorshipNotificationPreferences(
+  $input: CreatorNotificationPreferencesInput!
+) {
+  updateCreatorSponsorshipNotificationPreferences(input: $input) {
+    ...CreatorSponsorshipNotificationPrefsFull
+  }
+}

@@ -1,0 +1,15 @@
+query GetFreestyleStats {
+  myFreestyleStats {
+    total_sessions
+    total_duration_seconds
+    total_points
+    average_movement_score
+    best_movement_score
+    sessions_this_week
+    current_streak
+    longest_streak
+    last_session_date
+  }
+
+  completedFreestyleToday
+}

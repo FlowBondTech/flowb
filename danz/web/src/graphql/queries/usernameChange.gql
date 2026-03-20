@@ -1,0 +1,33 @@
+query GetUsernameChangeEligibility {
+  myUsernameChangeEligibility {
+    can_request
+    is_first_change
+    will_auto_approve
+    pending_request {
+      id
+      current_username
+      requested_username
+      reason
+      status
+      admin_note
+      created_at
+    }
+    change_count
+    last_change_at
+    cooldown_ends_at
+    message
+  }
+}
+
+query GetUsernameChangeHistory {
+  myUsernameChangeHistory {
+    id
+    current_username
+    requested_username
+    reason
+    status
+    admin_note
+    reviewed_at
+    created_at
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "danz-miniapps",
+  "private": true,
+  "workspaces": [
+    "daily-danz",
+    "danz-main",
+    "shared"
+  ],
+  "scripts": {
+    "dev:daily-danz": "npm run dev --workspace=daily-danz",
+    "dev:danz-main": "npm run dev --workspace=danz-main",
+    "build:daily-danz": "npm run build --workspace=daily-danz",
+    "build:danz-main": "npm run build --workspace=danz-main",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "clean": "rm -rf daily-danz/.next danz-main/.next daily-danz/node_modules danz-main/node_modules node_modules"
+  },
+  "packageManager": "npm@10.2.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

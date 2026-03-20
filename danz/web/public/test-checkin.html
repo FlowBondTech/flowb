@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check-in Flow Test</title>
+  <style>
+    body { font-family: system-ui; max-width: 800px; margin: 50px auto; padding: 20px; background: #1a1a2e; color: #eee; }
+    h1 { color: #a855f7; }
+    .test { background: #16213e; padding: 20px; margin: 20px 0; border-radius: 8px; }
+    .pass { border-left: 4px solid #22c55e; }
+    .fail { border-left: 4px solid #ef4444; }
+    .pending { border-left: 4px solid #f59e0b; }
+    pre { background: #0f0f23; padding: 15px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    button { background: #a855f7; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; }
+    button:hover { background: #9333ea; }
+    button:disabled { background: #666; cursor: not-allowed; }
+    .result { margin-top: 10px; }
+    #status { font-size: 14px; color: #888; }
+  </style>
+</head>
+<body>
+  <h1>🎫 Event Check-in Flow Test</h1>
+  <p id="status">Ready to test. Click buttons below to run tests.</p>
+
+  <div class="test pending" id="test1">
+    <h3>Test 1: Query Event by Check-in Code</h3>
+    <button onclick="runTest1()">Run Test</button>
+    <div class="result" id="result1"></div>
+  </div>
+
+  <div class="test pending" id="test2">
+    <h3>Test 2: Check-in with Code (requires auth)</h3>
+    <p>Code: <input id="checkinCode" value="AEZ7UF" style="padding: 8px; width: 100px;"></p>
+    <button onclick="runTest2()">Attempt Check-in</button>
+    <div class="result" id="result2"></div>
+  </div>
+
+  <div class="test pending" id="test3">
+    <h3>Test 3: View Event Detail Page</h3>
+    <button onclick="window.open('/dashboard/events/6981b2f4-cbf9-431c-bdf1-f0f6cd1d7fcf', '_blank')">Open Event Page</button>
+  </div>
+
+  <div class="test pending" id="test4">
+    <h3>Test 4: Open Check-in Page with Code</h3>
+    <button onclick="window.open('/dashboard/checkin?code=AEZ7UF', '_blank')">Open Check-in Page</button>
+  </div>
+
+  <script>
+    const API_URL = 'https://api.danz.now/graphql';
+
+    async function graphql(query, variables = {}) {
+      // Try to get auth token from localStorage (Privy stores it there)
+      let authToken = null;
+      try {
+        const privyToken = localStorage.getItem('privy:token');
+        if (privyToken) {
+          authToken = JSON.parse(privyToken);
+        }
+      } catch (e) {}
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ query, variables })
+      });
+      return res.json();
+    }
+
+    async function runTest1() {
+      document.getElementById('status').textContent = 'Running Test 1...';
+      document.getElementById('test1').className = 'test pending';
+
+      try {
+        const result = await graphql(`
+          query GetEventByCode($code: String!) {
+            eventByCheckinCode(code: $code) {
+              id
+              title
+              description
+              location_name
+              start_date_time
+              end_date_time
+              is_registered
+              checkin_code
+              facilitator {
+                privy_id
+                display_name
+                username
+              }
+            }
+          }
+        `, { code: 'AEZ7UF' });
+
+        const event = result.data?.eventByCheckinCode;
+        const success = event && event.id;
+
+        document.getElementById('test1').className = 'test ' + (success ? 'pass' : 'fail');
+        document.getElementById('result1').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+        document.getElementById('status').textContent = success ? '✅ Test 1 passed' : '❌ Test 1 failed';
+      } catch (e) {
+        document.getElementById('test1').className = 'test fail';
+        document.getElementById('result1').innerHTML = '<pre>Error: ' + e.message + '</pre>';
+        document.getElementById('status').textContent = '❌ Test 1 failed: ' + e.message;
+      }
+    }
+
+    async function runTest2() {
+      const code = document.getElementById('checkinCode').value;
+      document.getElementById('status').textContent = 'Running Test 2 (Check-in)...';
+      document.getElementById('test2').className = 'test pending';
+
+      try {
+        const result = await graphql(`
+          mutation CheckIn($code: String!) {
+            checkInWithCode(code: $code) {
+              success
+              message
+              event {
+                id
+                title
+                location_name
+              }
+              registration {
+                id
+                checked_in
+                check_in_time
+                status
+              }
+            }
+          }
+        `, { code });
+
+        const checkin = result.data?.checkInWithCode;
+        const success = checkin?.success === true;
+        const authError = result.errors?.some(e => e.extensions?.code === 'UNAUTHENTICATED');
+
+        if (authError) {
+          document.getElementById('test2').className = 'test fail';
+          document.getElementById('result2').innerHTML = '<pre>⚠️ Not authenticated!\n\nPlease log in at /login first, then try again.\n\n' + JSON.stringify(result, null, 2) + '</pre>';
+          document.getElementById('status').textContent = '⚠️ Please log in first';
+        } else if (success) {
+          document.getElementById('test2').className = 'test pass';
+          document.getElementById('result2').innerHTML = '<pre>✅ Check-in successful!\n\n' + JSON.stringify(result, null, 2) + '</pre>';
+          document.getElementById('status').textContent = '✅ Check-in successful!';
+        } else {
+          document.getElementById('test2').className = 'test fail';
+          document.getElementById('result2').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+          document.getElementById('status').textContent = '❌ Check-in failed: ' + (checkin?.message || 'Unknown error');
+        }
+      } catch (e) {
+        document.getElementById('test2').className = 'test fail';
+        document.getElementById('result2').innerHTML = '<pre>Error: ' + e.message + '</pre>';
+        document.getElementById('status').textContent = '❌ Test 2 failed: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>

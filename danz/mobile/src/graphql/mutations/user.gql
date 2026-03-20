@@ -1,0 +1,22 @@
+# import "../fragments/user.gql"
+
+mutation UpdateProfile($input: UpdateProfileInput!) {
+  updateProfile(input: $input) {
+    ...UserFullInfo
+  }
+}
+
+mutation CreateDanceBond($userId: String!, $input: CreateDanceBondInput!) {
+  createDanceBond(userId: $userId, input: $input) {
+    id
+    user_id_1
+    user_id_2
+    bond_level
+    shared_events_count
+    total_dances
+    last_dance_date
+    created_at
+    updated_at
+  }
+}
+

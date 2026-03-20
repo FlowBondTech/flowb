@@ -1,0 +1,190 @@
+# Point Actions Management Mutations (Admin Only)
+mutation CreatePointAction($input: CreatePointActionInput!) {
+  createPointAction(input: $input) {
+    id
+    action_key
+    action_name
+    description
+    points_value
+    category
+    is_active
+    requires_verification
+    max_per_day
+    max_per_week
+    max_per_month
+    created_at
+    updated_at
+  }
+}
+
+mutation UpdatePointAction($input: UpdatePointActionInput!) {
+  updatePointAction(input: $input) {
+    id
+    action_key
+    action_name
+    description
+    points_value
+    category
+    is_active
+    requires_verification
+    max_per_day
+    max_per_week
+    max_per_month
+    created_at
+    updated_at
+  }
+}
+
+mutation DeletePointAction($action_key: String!) {
+  deletePointAction(action_key: $action_key) {
+    success
+    message
+  }
+}
+
+mutation TogglePointAction($action_key: String!) {
+  togglePointAction(action_key: $action_key) {
+    id
+    action_key
+    action_name
+    is_active
+    updated_at
+  }
+}
+
+# Award Points Mutations
+mutation AwardPoints($input: AwardPointsInput!) {
+  awardPoints(input: $input) {
+    id
+    user_id
+    action_key
+    points_amount
+    transaction_type
+    reference_id
+    reference_type
+    metadata
+    status
+    created_at
+    user {
+      username
+      display_name
+      xp
+    }
+    action {
+      action_name
+      category
+    }
+  }
+}
+
+mutation AwardManualPoints($input: ManualPointsInput!) {
+  awardManualPoints(input: $input) {
+    id
+    user_id
+    action_key
+    points_amount
+    transaction_type
+    admin_user_id
+    admin_note
+    metadata
+    status
+    created_at
+    user {
+      username
+      display_name
+      xp
+    }
+  }
+}
+
+mutation VerifyPointTransaction($transaction_id: ID!) {
+  verifyPointTransaction(transaction_id: $transaction_id) {
+    id
+    user_id
+    action_key
+    points_amount
+    status
+    created_at
+  }
+}
+
+mutation ReversePointTransaction($transaction_id: ID!, $reason: String!) {
+  reversePointTransaction(transaction_id: $transaction_id, reason: $reason) {
+    id
+    user_id
+    action_key
+    points_amount
+    status
+    admin_note
+    created_at
+  }
+}
+
+# Event Attendance Mutations
+mutation CheckInEvent($input: CheckInEventInput!) {
+  checkInEvent(input: $input) {
+    id
+    event_id
+    user_id
+    checked_in
+    checked_in_at
+    created_at
+    user {
+      username
+      display_name
+    }
+    event {
+      id
+      title
+    }
+  }
+}
+
+mutation CheckOutEvent($input: CheckOutEventInput!) {
+  checkOutEvent(input: $input) {
+    id
+    event_id
+    user_id
+    checked_in
+    checked_in_at
+    checked_out
+    checked_out_at
+    duration_minutes
+    points_earned
+    user {
+      username
+      display_name
+      xp
+    }
+  }
+}
+
+mutation VerifyEventAttendance($input: VerifyAttendanceInput!) {
+  verifyEventAttendance(input: $input) {
+    id
+    event_id
+    user_id
+    attendance_verified
+    verified_by
+    verified_at
+    points_earned
+    user {
+      username
+      display_name
+      xp
+    }
+  }
+}
+
+# Daily Activity Mutation
+mutation TrackAppOpen($user_id: String!) {
+  trackAppOpen(user_id: $user_id) {
+    id
+    user_id
+    activity_date
+    app_opened
+    app_opened_at
+    points_earned_today
+    streak_day
+  }
+}

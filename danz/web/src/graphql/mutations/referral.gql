@@ -1,0 +1,26 @@
+mutation TrackReferralClick($input: TrackReferralClickInput!) {
+  trackReferralClick(input: $input) {
+    success
+    message
+  }
+}
+
+mutation CompleteReferral($input: CompleteReferralInput!) {
+  completeReferral(input: $input) {
+    id
+    referral_code
+    referee_user_id
+    status
+    signed_up_at
+  }
+}
+
+mutation GenerateShareLinks {
+  generateShareLinks {
+    referral_code
+    short_url
+    sms_template
+    whatsapp_template
+    social_media_template
+  }
+}

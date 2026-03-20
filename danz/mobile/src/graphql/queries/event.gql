@@ -1,0 +1,122 @@
+# import "../fragments/event.gql"
+# import "../fragments/user.gql"
+
+query GetEvents($filter: EventFilterInput, $pagination: PaginationInput, $sortBy: EventSortBy) {
+  events(filter: $filter, pagination: $pagination, sortBy: $sortBy) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetEvent($id: ID!) {
+  event(id: $id) {
+    ...EventWithParticipants
+  }
+}
+
+query GetEventsNearLocation($latitude: Float!, $longitude: Float!, $radius: Float) {
+  events(
+    filter: {
+      nearLocation: {
+        latitude: $latitude
+        longitude: $longitude
+        radius: $radius
+      }
+      status: upcoming
+    }
+  ) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetMyRegisteredEvents {
+  events(filter: { registered_by_me: true }) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetMyCreatedEvents {
+  events(filter: { created_by_me: true }) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetOrganizerEvents($organizerId: String!) {
+  events(filter: { facilitator_id: $organizerId }) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetPastEvents {
+  events(filter: { status: past }) {
+    events {
+      ...EventFullInfo
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetEventRegistrations($eventId: ID!, $status: RegistrationStatus) {
+  eventRegistrations(eventId: $eventId, status: $status) {
+    id
+    event_id
+    user_id
+    status
+    registration_date
+    payment_status
+    payment_amount
+    user {
+      ...UserBasicInfo
+    }
+  }
+}

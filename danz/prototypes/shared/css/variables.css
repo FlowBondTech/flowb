@@ -1,0 +1,56 @@
+/* FlowBond Prototypes - CSS Variables Framework */
+
+/*
+  This file defines the structure for theme variables.
+  Each theme overrides these values in their theme.css file.
+*/
+
+:root {
+    /* Primary Brand Colors */
+    --primary-color: #6366f1;
+    --primary-dark: #4f46e5;
+    --secondary-color: #ec4899;
+    --accent-color: #10b981;
+
+    /* Background Colors */
+    --bg-primary: #000000;
+    --bg-secondary: #111111;
+    --bg-gradient: linear-gradient(180deg, #000000 0%, #111111 50%, #000000 100%);
+
+    /* Text Colors */
+    --text-primary: #ffffff;
+    --text-secondary: #a0a0a0;
+    --text-accent: var(--primary-color);
+
+    /* UI Element Colors */
+    --border-color: rgba(255, 255, 255, 0.1);
+    --border-accent: var(--primary-color);
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --card-border: rgba(255, 255, 255, 0.2);
+
+    /* Interactive States */
+    --hover-lift: -3px;
+    --transition-speed: 0.3s;
+    --transition-ease: ease;
+
+    /* Shadows */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.3);
+    --shadow-glow: 0 0 30px;
+
+    /* Typography */
+    --font-primary: 'Outfit', sans-serif;
+    --font-heading: 'Bebas Neue', sans-serif;
+    --font-accent: 'Anton', sans-serif;
+
+    /* Component-Specific Colors */
+    --bead-nfc: linear-gradient(135deg, #6366f1, #4f46e5);
+    --bead-bt: linear-gradient(135deg, #94a3b8, #64748b);
+    --bead-haptic: linear-gradient(135deg, #ef4444, #dc2626);
+    --bead-led: linear-gradient(135deg, #10b981, #059669);
+    --bead-sensor: linear-gradient(135deg, #a855f7, #9333ea);
+    --bead-gps: linear-gradient(135deg, #f97316, #ea580c);
+    --bead-battery: linear-gradient(135deg, #ef4444, #7f1d1d);
+    --bead-motion: linear-gradient(135deg, #6366f1, #ef4444);
+}

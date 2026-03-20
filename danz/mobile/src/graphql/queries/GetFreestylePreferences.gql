@@ -1,0 +1,7 @@
+query GetFreestylePreferences {
+  myFreestylePreferences {
+    daily_reminder_enabled
+    daily_reminder_time
+    live_sessions_enabled
+  }
+}

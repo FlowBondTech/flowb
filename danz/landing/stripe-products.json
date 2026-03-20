@@ -1,0 +1,63 @@
+{
+  "products": [
+    {
+      "id": "prod_StnY4VtcAVlVv6",
+      "name": "Flow Subcription",
+      "description": "Subscirb to the FlowBond ecosystem",
+      "prices": [
+        {
+          "id": "price_1RxzxXPhVlDr0T8WWrZOactu",
+          "amount": 7700,
+          "currency": "usd",
+          "type": "recurring",
+          "nickname": "Annual Flow",
+          "recurring": {
+            "interval": "year",
+            "interval_count": 1,
+            "meter": null,
+            "trial_period_days": null,
+            "usage_type": "licensed"
+          }
+        },
+        {
+          "id": "price_1RxzwvPhVlDr0T8W5dvKNRe7",
+          "amount": 990,
+          "currency": "usd",
+          "type": "recurring",
+          "nickname": null,
+          "recurring": {
+            "interval": "month",
+            "interval_count": 1,
+            "meter": null,
+            "trial_period_days": null,
+            "usage_type": "licensed"
+          }
+        }
+      ]
+    },
+    {
+      "id": "prod_StnUBj8dAHiFGh",
+      "name": "FlowBond Device",
+      "description": "This include just the FlowBond Device at 33% off",
+      "prices": [
+        {
+          "id": "price_1Rxzv1PhVlDr0T8WRfgpdELM",
+          "amount": 14900,
+          "currency": "usd",
+          "type": "one_time",
+          "nickname": "Flow Bond Devive + 1 Year Premium",
+          "recurring": null
+        },
+        {
+          "id": "price_1RxztWPhVlDr0T8WrReOpFGD",
+          "amount": 9900,
+          "currency": "usd",
+          "type": "one_time",
+          "nickname": "FlowBond Device",
+          "recurring": null
+        }
+      ]
+    }
+  ],
+  "timestamp": "2025-08-20T01:00:25.624Z"
+}

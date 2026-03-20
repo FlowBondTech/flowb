@@ -1,0 +1,44 @@
+mutation StartChallenge($challengeId: String!) {
+  startChallenge(challengeId: $challengeId) {
+    id
+    challenge_id
+    status
+    progress
+    started_at
+    expires_at
+    challenge {
+      id
+      title
+      target_value
+      xp_reward
+    }
+  }
+}
+
+mutation UpdateChallengeProgress($challengeId: String!, $progress: Int!) {
+  updateChallengeProgress(challengeId: $challengeId, progress: $progress) {
+    id
+    status
+    progress
+    completed_at
+  }
+}
+
+mutation ClaimChallengeReward($challengeId: String!) {
+  claimChallengeReward(challengeId: $challengeId) {
+    id
+    status
+    claimed_at
+    challenge {
+      xp_reward
+      points_reward
+    }
+  }
+}
+
+mutation AbandonChallenge($challengeId: String!) {
+  abandonChallenge(challengeId: $challengeId) {
+    success
+    message
+  }
+}

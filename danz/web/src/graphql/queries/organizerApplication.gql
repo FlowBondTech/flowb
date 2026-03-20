@@ -1,0 +1,84 @@
+query GetMyOrganizerApplication {
+  myOrganizerApplication {
+    id
+    user_id
+    reason
+    experience
+    venue_name
+    venue_address
+    venue_city
+    venue_capacity
+    dance_styles
+    website_url
+    social_media
+    additional_info
+    status
+    admin_notes
+    reviewed_at
+    created_at
+  }
+}
+
+query GetPendingOrganizerApplications($limit: Int, $offset: Int) {
+  pendingOrganizerApplications(limit: $limit, offset: $offset) {
+    applications {
+      id
+      user_id
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+        created_at
+      }
+      reason
+      experience
+      venue_name
+      venue_address
+      venue_city
+      venue_capacity
+      dance_styles
+      website_url
+      social_media
+      additional_info
+      status
+      created_at
+    }
+    totalCount
+  }
+}
+
+query GetOrganizerApplications($status: ApplicationStatus, $limit: Int, $offset: Int) {
+  organizerApplications(status: $status, limit: $limit, offset: $offset) {
+    applications {
+      id
+      user_id
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+      reason
+      experience
+      venue_name
+      venue_address
+      venue_city
+      venue_capacity
+      dance_styles
+      website_url
+      social_media
+      additional_info
+      status
+      admin_notes
+      reviewed_by
+      reviewer {
+        display_name
+        username
+      }
+      reviewed_at
+      created_at
+    }
+    totalCount
+  }
+}

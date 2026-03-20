@@ -1,0 +1,49 @@
+query GetAllUsers {
+  getAllUsers {
+    privy_id
+    username
+    display_name
+    role
+    xp
+    level
+    referral_count
+    referral_points_earned
+    total_sessions
+    invited_by
+    is_organizer_approved
+    created_at
+    updated_at
+  }
+}
+
+query GetAdminStats {
+  adminStats {
+    totalUsers
+    totalEvents
+    totalRevenue
+    activeUsers
+    upcomingEvents
+    newUsersThisMonth
+    eventsThisMonth
+  }
+}
+
+query GetPendingOrganizers($pagination: PaginationInput) {
+  pendingOrganizers(pagination: $pagination) {
+    users {
+      privy_id
+      username
+      display_name
+      role
+      is_organizer_approved
+      created_at
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}

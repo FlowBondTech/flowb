@@ -1,0 +1,11 @@
+mutation ApplyForGig($gigId: ID!, $note: String) {
+  applyForGig(gigId: $gigId, note: $note) {
+    ...GigApplicationWithGig
+  }
+}
+
+mutation WithdrawGigApplication($applicationId: ID!) {
+  withdrawGigApplication(applicationId: $applicationId) {
+    ...GigApplicationBasic
+  }
+}

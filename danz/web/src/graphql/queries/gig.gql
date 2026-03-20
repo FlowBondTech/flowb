@@ -1,0 +1,185 @@
+# import "../fragments/gig.gql"
+
+# ============================================================================
+# GIG ROLES
+# ============================================================================
+
+query GetAllGigRoles($category: GigRoleCategory, $tier: Int, $activeOnly: Boolean) {
+  allGigRoles(category: $category, tier: $tier, activeOnly: $activeOnly) {
+    ...GigRoleFull
+  }
+}
+
+query GetGigRole($id: ID, $slug: String) {
+  gigRole(id: $id, slug: $slug) {
+    ...GigRoleFull
+  }
+}
+
+# ============================================================================
+# USER GIG ROLES
+# ============================================================================
+
+query GetMyGigRoles($status: UserGigRoleStatus) {
+  myGigRoles(status: $status) {
+    ...UserGigRoleFull
+  }
+}
+
+query GetUserGigRoles($userId: ID!) {
+  userGigRoles(userId: $userId) {
+    ...UserGigRoleFull
+  }
+}
+
+# ============================================================================
+# EVENT GIGS
+# ============================================================================
+
+query GetEventGigs($eventId: ID!) {
+  eventGigs(eventId: $eventId) {
+    ...EventGigFull
+  }
+}
+
+query GetAvailableGigsForMe($eventId: ID, $limit: Int, $offset: Int) {
+  availableGigsForMe(eventId: $eventId, limit: $limit, offset: $offset) {
+    ...EventGigFull
+  }
+}
+
+query GetEventGig($id: ID!) {
+  eventGig(id: $id) {
+    ...EventGigWithApplications
+  }
+}
+
+# ============================================================================
+# GIG APPLICATIONS
+# ============================================================================
+
+query GetMyGigApplications($status: GigApplicationStatus, $limit: Int, $offset: Int) {
+  myGigApplications(status: $status, limit: $limit, offset: $offset) {
+    ...GigApplicationWithGig
+  }
+}
+
+query GetGigApplications($gigId: ID!, $status: GigApplicationStatus) {
+  gigApplications(gigId: $gigId, status: $status) {
+    ...GigApplicationWithUser
+  }
+}
+
+query GetGigApplication($id: ID!) {
+  gigApplication(id: $id) {
+    ...GigApplicationComplete
+  }
+}
+
+# ============================================================================
+# DASHBOARD & STATS
+# ============================================================================
+
+query GetMyGigStats {
+  myGigStats {
+    ...GigStatsBasic
+  }
+}
+
+query GetMyGigDashboard {
+  myGigDashboard {
+    stats {
+      ...GigStatsBasic
+    }
+    myRoles {
+      ...UserGigRoleFull
+    }
+    availableGigs {
+      ...EventGigFull
+    }
+    activeGigs {
+      ...GigApplicationWithGig
+    }
+    recentHistory {
+      ...GigApplicationWithGig
+    }
+  }
+}
+
+query GetGigManagerDashboard {
+  gigManagerDashboard {
+    pendingRoleApplications {
+      ...UserGigRoleWithUser
+    }
+    pendingGigApplications {
+      ...GigApplicationWithUser
+      gig {
+        ...EventGigBasic
+        role {
+          ...GigRoleBasic
+        }
+        event {
+          id
+          title
+          start_date_time
+          location_name
+        }
+      }
+    }
+    pendingSubmissions {
+      ...GigSubmissionFull
+      application {
+        id
+        user {
+          privy_id
+          username
+          display_name
+          avatar_url
+        }
+        gig {
+          id
+          title
+          danzReward
+          role {
+            ...GigRoleBasic
+          }
+        }
+      }
+    }
+    recentlyApproved {
+      ...GigApplicationWithUser
+      gig {
+        ...EventGigBasic
+        role {
+          ...GigRoleBasic
+        }
+      }
+    }
+    stats {
+      ...GigManagerStatsBasic
+    }
+  }
+}
+
+# ============================================================================
+# REWARD RATES
+# ============================================================================
+
+query GetGigRewardRates($roleId: ID) {
+  gigRewardRates(roleId: $roleId) {
+    ...GigRewardRateBasic
+    role {
+      ...GigRoleBasic
+    }
+  }
+}
+
+# ============================================================================
+# EVENT GIG MANAGERS
+# ============================================================================
+
+query GetEventGigManagers($eventId: ID!) {
+  eventGigManagers(eventId: $eventId) {
+    ...EventGigManagerFull
+  }
+}

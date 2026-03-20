@@ -1,0 +1,121 @@
+query GetActivityFeed($limit: Int, $after: String) {
+  activityFeed(limit: $limit, after: $after) {
+    activities {
+      id
+      activity_type
+      user_id
+      visibility
+      title
+      description
+      icon
+      color
+      xp_earned
+      points_earned
+      likes_count
+      comments_count
+      is_liked_by_me
+      is_highlighted
+      created_at
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+    }
+    total_count
+    has_more
+    last_activity_id
+    unread_count
+  }
+}
+
+query GetGlobalActivityFeed($limit: Int, $after: String) {
+  globalActivityFeed(limit: $limit, after: $after) {
+    activities {
+      id
+      activity_type
+      title
+      description
+      icon
+      color
+      xp_earned
+      likes_count
+      created_at
+      user {
+        privy_id
+        username
+        avatar_url
+      }
+    }
+    has_more
+    unread_count
+  }
+}
+
+query GetFriendsActivityFeed($limit: Int, $after: String) {
+  friendsActivityFeed(limit: $limit, after: $after) {
+    activities {
+      id
+      activity_type
+      title
+      description
+      icon
+      color
+      created_at
+      user {
+        privy_id
+        username
+        avatar_url
+      }
+    }
+    has_more
+  }
+}
+
+query GetMyActivityFeed($limit: Int, $after: String) {
+  myActivityFeed(limit: $limit, after: $after) {
+    activities {
+      id
+      activity_type
+      title
+      description
+      icon
+      color
+      xp_earned
+      points_earned
+      created_at
+    }
+    total_count
+    has_more
+  }
+}
+
+query GetTrendingActivities($limit: Int) {
+  trendingActivities(limit: $limit) {
+    activity {
+      id
+      activity_type
+      title
+      icon
+      color
+      likes_count
+      user {
+        username
+        avatar_url
+      }
+    }
+    engagement_score
+    trending_rank
+  }
+}
+
+query GetActivityStats {
+  activityStats {
+    today_activities
+    this_week_activities
+    total_activities
+    most_active_type
+    engagement_rate
+  }
+}

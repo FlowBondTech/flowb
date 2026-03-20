@@ -1,0 +1,102 @@
+query MyAchievements {
+  myAchievements {
+    achievement_type
+    title
+    description
+    icon
+    category
+    rarity
+    xp_reward
+    danz_reward
+    current_progress
+    target
+    percentage
+    is_unlocked
+    unlocked_at
+  }
+}
+
+query MyUnlockedAchievements {
+  myUnlockedAchievements {
+    id
+    user_id
+    achievement_type
+    title
+    description
+    icon
+    category
+    rarity
+    xp_reward
+    danz_reward
+    unlocked_at
+    is_unlocked
+  }
+}
+
+query MyAchievementStats {
+  myAchievementStats {
+    total_unlocked
+    total_available
+    total_xp_earned
+    total_danz_earned
+    by_category {
+      category
+      unlocked
+      total
+    }
+    by_rarity {
+      rarity
+      unlocked
+      total
+    }
+    recent_unlocks {
+      id
+      achievement_type
+      title
+      description
+      icon
+      category
+      rarity
+      xp_reward
+      danz_reward
+      unlocked_at
+    }
+  }
+}
+
+query AchievementDefinitions {
+  achievementDefinitions {
+    type
+    title
+    description
+    icon
+    category
+    rarity
+    xp_reward
+    danz_reward
+    target
+    hidden
+  }
+}
+
+query AchievementsByCategory($category: AchievementCategory!) {
+  achievementsByCategory(category: $category) {
+    achievement_type
+    title
+    description
+    icon
+    category
+    rarity
+    xp_reward
+    danz_reward
+    current_progress
+    target
+    percentage
+    is_unlocked
+    unlocked_at
+  }
+}
+
+query IsAchievementUnlocked($achievementType: String!) {
+  isAchievementUnlocked(achievementType: $achievementType)
+}

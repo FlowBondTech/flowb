@@ -1,0 +1,95 @@
+mutation UpdatePrivacySettings($input: UpdatePrivacySettingsInput!) {
+  updatePrivacySettings(input: $input) {
+    id
+    user_id
+    profile_visibility
+    show_real_name
+    show_bio
+    show_avatar
+    show_city
+    show_dance_styles
+    show_stats
+    show_badges
+    show_events_attending
+    show_events_attended
+    show_check_ins
+    show_leaderboard_rank
+    show_posts
+    show_likes
+    show_comments
+    searchable_by_username
+    appear_in_suggestions
+    appear_in_event_attendees
+    appear_in_nearby
+    allow_bond_requests
+    allow_messages
+    allow_event_invites
+    notify_bonds_on_check_in
+    notify_bonds_on_achievement
+    updated_at
+  }
+}
+
+mutation ApplyPrivacyPreset($preset: PrivacyPresetType!) {
+  applyPrivacyPreset(preset: $preset) {
+    id
+    user_id
+    profile_visibility
+    show_real_name
+    show_bio
+    show_avatar
+    show_city
+    show_dance_styles
+    show_stats
+    show_badges
+    show_events_attending
+    show_events_attended
+    show_check_ins
+    show_leaderboard_rank
+    show_posts
+    show_likes
+    show_comments
+    searchable_by_username
+    appear_in_suggestions
+    appear_in_event_attendees
+    appear_in_nearby
+    allow_bond_requests
+    allow_messages
+    allow_event_invites
+    notify_bonds_on_check_in
+    notify_bonds_on_achievement
+    updated_at
+  }
+}
+
+mutation ResetPrivacyToDefaults {
+  resetPrivacyToDefaults {
+    id
+    user_id
+    profile_visibility
+    updated_at
+  }
+}
+
+mutation DismissSuggestion($suggestionId: ID!) {
+  dismissSuggestion(suggestion_id: $suggestionId)
+}
+
+mutation RefreshSuggestions {
+  refreshSuggestions {
+    suggestions {
+      id
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+      }
+      source
+      score
+      reason
+    }
+    total_count
+    has_more
+  }
+}

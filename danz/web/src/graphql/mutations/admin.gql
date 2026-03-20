@@ -1,0 +1,35 @@
+mutation UpdateUserRole($userId: String!, $role: UserRole!) {
+  updateUserRole(userId: $userId, role: $role) {
+    privy_id
+    username
+    display_name
+    role
+    xp
+    level
+    is_organizer_approved
+    updated_at
+  }
+}
+
+mutation ApproveOrganizer($userId: String!, $approved: Boolean!) {
+  approveOrganizer(userId: $userId, approved: $approved) {
+    privy_id
+    username
+    display_name
+    role
+    is_organizer_approved
+    organizer_approved_at
+    organizer_approved_by
+    organizer_rejection_reason
+    updated_at
+  }
+}
+
+mutation FeatureEvent($eventId: ID!, $featured: Boolean!) {
+  featureEvent(eventId: $eventId, featured: $featured) {
+    id
+    title
+    is_featured
+    updated_at
+  }
+}

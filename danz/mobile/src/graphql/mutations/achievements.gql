@@ -1,0 +1,34 @@
+mutation CheckAchievements {
+  checkAchievements {
+    newly_unlocked {
+      id
+      achievement_type
+      title
+      description
+      icon
+      category
+      rarity
+      xp_reward
+      danz_reward
+      unlocked_at
+      is_unlocked
+    }
+    total_xp_earned
+    total_danz_earned
+  }
+}
+
+mutation ClaimAchievementReward($achievementType: String!) {
+  claimAchievementReward(achievementType: $achievementType) {
+    id
+    achievement_type
+    title
+    description
+    icon
+    category
+    rarity
+    xp_reward
+    danz_reward
+    unlocked_at
+  }
+}

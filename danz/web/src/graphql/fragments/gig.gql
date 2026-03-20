@@ -1,0 +1,272 @@
+# Gig Role Fragments
+fragment GigRoleBasic on GigRole {
+  id
+  name
+  slug
+  description
+  category
+  tier
+  icon
+  baseDanzRate
+  requiresVerification
+  isActive
+}
+
+fragment GigRoleFull on GigRole {
+  ...GigRoleBasic
+  verificationRequirements
+  createdAt
+  registeredWorkers
+  approvedWorkers
+}
+
+# User Gig Role Fragments
+fragment UserGigRoleBasic on UserGigRole {
+  id
+  userId
+  roleId
+  status
+  rating
+  totalGigsCompleted
+  totalDanzEarned
+  createdAt
+}
+
+fragment UserGigRoleFull on UserGigRole {
+  ...UserGigRoleBasic
+  verifiedAt
+  verifiedBy
+  portfolioUrls
+  certifications
+  experienceNotes
+  updatedAt
+  role {
+    ...GigRoleBasic
+  }
+}
+
+fragment UserGigRoleWithUser on UserGigRole {
+  ...UserGigRoleFull
+  user {
+    privy_id
+    username
+    display_name
+    avatar_url
+  }
+}
+
+# Event Gig Fragments
+fragment EventGigBasic on EventGig {
+  id
+  eventId
+  roleId
+  title
+  description
+  slotsAvailable
+  slotsFilled
+  danzReward
+  bonusDanz
+  timeCommitment
+  specificRequirements
+  approvalMode
+  gigSource
+  requiresLocal
+  localRadiusKm
+  status
+  createdAt
+}
+
+fragment EventGigFull on EventGig {
+  ...EventGigBasic
+  createdBy
+  updatedAt
+  role {
+    ...GigRoleBasic
+  }
+  event {
+    id
+    title
+    start_date_time
+    end_date_time
+    location_name
+    location_city
+  }
+  canApply
+  myApplication {
+    id
+    status
+  }
+}
+
+fragment EventGigWithApplications on EventGig {
+  ...EventGigFull
+  applications {
+    ...GigApplicationBasic
+  }
+  approvedApplications {
+    ...GigApplicationWithUser
+  }
+}
+
+# Gig Application Fragments
+fragment GigApplicationBasic on GigApplication {
+  id
+  gigId
+  userId
+  userRoleId
+  status
+  applicationNote
+  checkInTime
+  checkOutTime
+  organizerRating
+  workerRating
+  danzAwarded
+  createdAt
+}
+
+fragment GigApplicationFull on GigApplication {
+  ...GigApplicationBasic
+  aiReviewScore
+  aiReviewNotes
+  aiReviewedAt
+  reviewedBy
+  reviewedAt
+  rejectionReason
+  completionProof
+  organizerFeedback
+  workerFeedback
+  danzAwardedAt
+  updatedAt
+}
+
+fragment GigApplicationWithUser on GigApplication {
+  ...GigApplicationFull
+  user {
+    privy_id
+    username
+    display_name
+    avatar_url
+  }
+  userRole {
+    ...UserGigRoleBasic
+    role {
+      ...GigRoleBasic
+    }
+  }
+}
+
+fragment GigApplicationWithGig on GigApplication {
+  ...GigApplicationFull
+  gig {
+    ...EventGigFull
+  }
+  userRole {
+    ...UserGigRoleBasic
+    role {
+      ...GigRoleBasic
+    }
+  }
+}
+
+fragment GigApplicationComplete on GigApplication {
+  ...GigApplicationFull
+  gig {
+    ...EventGigFull
+  }
+  user {
+    privy_id
+    username
+    display_name
+    avatar_url
+  }
+  userRole {
+    ...UserGigRoleFull
+  }
+  reviewer {
+    privy_id
+    username
+    display_name
+  }
+  submissions {
+    ...GigSubmissionBasic
+  }
+}
+
+# Gig Submission Fragments
+fragment GigSubmissionBasic on GigSubmission {
+  id
+  applicationId
+  submissionType
+  contentUrl
+  contentText
+  metadata
+  aiReviewStatus
+  aiReviewScore
+  manualReviewStatus
+  createdAt
+}
+
+fragment GigSubmissionFull on GigSubmission {
+  ...GigSubmissionBasic
+  aiReviewNotes
+  reviewedBy
+  reviewedAt
+}
+
+# Gig Reward Rate Fragments
+fragment GigRewardRateBasic on GigRewardRate {
+  id
+  roleId
+  actionType
+  rateName
+  rateType
+  baseAmount
+  multiplier
+  minAmount
+  maxAmount
+  description
+  isActive
+}
+
+# Event Gig Manager Fragments
+fragment EventGigManagerBasic on EventGigManager {
+  id
+  eventId
+  userId
+  assignedBy
+  assignedAt
+}
+
+fragment EventGigManagerFull on EventGigManager {
+  ...EventGigManagerBasic
+  user {
+    privy_id
+    username
+    display_name
+    avatar_url
+  }
+  assigner {
+    privy_id
+    username
+    display_name
+  }
+}
+
+# Stats Fragments
+fragment GigStatsBasic on GigStats {
+  totalGigsCompleted
+  totalDanzEarned
+  activeRoles
+  currentApprovedGigs
+  pendingApplications
+  averageRating
+  lastGigDate
+}
+
+fragment GigManagerStatsBasic on GigManagerStats {
+  totalReviewed
+  approvedCount
+  rejectedCount
+  averageReviewTime
+  todayReviewed
+}

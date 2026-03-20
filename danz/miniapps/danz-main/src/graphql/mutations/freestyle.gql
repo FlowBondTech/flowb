@@ -1,0 +1,30 @@
+mutation StartFreestyleSession($input: StartFreestyleInput!) {
+  startFreestyleSession(input: $input) {
+    id
+    user_id
+    session_type
+    started_at
+    created_at
+  }
+}
+
+mutation EndFreestyleSession($input: EndFreestyleInput!) {
+  endFreestyleSession(input: $input) {
+    id
+    user_id
+    duration_seconds
+    movement_score
+    points_earned
+    session_type
+    started_at
+    ended_at
+  }
+}
+
+mutation UpdateFreestylePreferences($input: FreestylePreferencesInput!) {
+  updateFreestylePreferences(input: $input) {
+    session_duration
+    music_genre
+    difficulty_level
+  }
+}

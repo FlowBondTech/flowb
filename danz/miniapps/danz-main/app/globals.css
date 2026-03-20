@@ -1,0 +1,175 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --danz-primary: #ff6ec7;
+  --danz-secondary: #a855f7;
+  --danz-accent: #06b6d4;
+  --danz-dark: #0a0a0f;
+  --danz-surface: #1a1a24;
+  --danz-gold: #ffd700;
+  --neon-pink: #ff6ec7;
+  --neon-purple: #b967ff;
+}
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-body min-h-screen overflow-x-hidden;
+    background: var(--danz-dark);
+    color: white;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold;
+  }
+}
+
+@layer components {
+  /* Miniapp viewport optimization */
+  .miniapp-container {
+    width: 100%;
+    max-width: 424px;
+    min-height: 100vh;
+    margin: 0 auto;
+    background: linear-gradient(
+      180deg,
+      var(--danz-dark) 0%,
+      #12121a 50%,
+      var(--danz-dark) 100%
+    );
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-neon bg-clip-text text-transparent;
+  }
+
+  /* Button styles */
+  .btn {
+    @apply inline-flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105;
+  }
+
+  .btn-primary {
+    @apply bg-gradient-to-r from-neon-pink to-neon-purple
+           px-6 py-3 rounded-full font-semibold text-white
+           transition-all duration-300
+           hover:scale-105 shadow-glow-pink
+           active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply border border-neon-purple/50
+           px-6 py-3 rounded-full font-semibold text-neon-pink
+           backdrop-blur-sm
+           transition-all duration-300
+           hover:bg-neon-purple/10;
+  }
+
+  /* Card styles */
+  .card {
+    @apply bg-bg-card/80 backdrop-blur-md
+           rounded-2xl border border-white/10
+           p-4 transition-all duration-300
+           hover:border-neon-purple/30;
+  }
+
+  .card-glow {
+    @apply card shadow-glow-sm;
+  }
+
+  /* Stats card */
+  .stat-card {
+    @apply bg-bg-card/60 rounded-xl p-4 border border-white/5
+           transition-all duration-300 hover:border-neon-pink/30
+           hover:bg-bg-hover/60;
+  }
+
+  /* Quick action card */
+  .action-card {
+    @apply relative overflow-hidden rounded-xl p-4
+           border border-white/10 bg-bg-card/80
+           transition-all duration-300
+           hover:scale-[1.02] hover:border-neon-pink/30
+           active:scale-[0.98];
+  }
+
+  /* XP Progress bar */
+  .xp-progress {
+    @apply h-2 bg-bg-card rounded-full overflow-hidden;
+  }
+
+  .xp-progress-fill {
+    @apply h-full bg-gradient-to-r from-neon-pink to-neon-purple
+           transition-all duration-500 ease-out;
+  }
+
+  /* Level ring animation */
+  .level-ring {
+    @apply absolute inset-0 rounded-full;
+    background: conic-gradient(
+      from 0deg,
+      var(--neon-pink),
+      var(--neon-purple),
+      var(--neon-pink)
+    );
+    animation: spin 8s linear infinite;
+  }
+
+  .level-ring-inner {
+    @apply absolute inset-[3px] rounded-full bg-bg-primary;
+  }
+}
+
+/* Glow effects */
+.glow-pink {
+  box-shadow: 0 0 20px rgba(255, 110, 199, 0.4),
+              0 0 40px rgba(255, 110, 199, 0.2);
+}
+
+.glow-purple {
+  box-shadow: 0 0 20px rgba(185, 103, 255, 0.4),
+              0 0 40px rgba(185, 103, 255, 0.2);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--danz-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--danz-primary);
+  border-radius: 2px;
+}
+
+/* Loading animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.loading-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--danz-surface) 25%,
+    var(--danz-primary) 50%,
+    var(--danz-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Safe area for mobile */
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}

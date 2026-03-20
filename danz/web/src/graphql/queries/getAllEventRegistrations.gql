@@ -1,0 +1,29 @@
+query GetAllEventRegistrations {
+  getAllEventRegistrations {
+    id
+    event_id
+    user_id
+    status
+    registration_date
+    payment_status
+    payment_amount
+    payment_date
+    checked_in
+    check_in_time
+    user_notes
+    admin_notes
+    created_at
+    updated_at
+    user {
+      privy_id
+      username
+      display_name
+    }
+    event {
+      id
+      title
+      start_date_time
+      location_name
+    }
+  }
+}

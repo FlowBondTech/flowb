@@ -1,0 +1,524 @@
+        :root {
+            --rasta-red: #e62020;
+            --rasta-gold: #ffd700;
+            --rasta-green: #009b3a;
+            --rasta-black: #1a1a1a;
+            --sand: #f5e6d3;
+            --palm-green: #2d5a27;
+            --ocean-blue: #0077be;
+            --sunset-orange: #ff6b35;
+            --bg-gradient: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Tropical Background */
+        .reggae-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        .palm-silhouette {
+            position: absolute;
+            bottom: 0;
+            width: 200px;
+            height: 300px;
+            background: linear-gradient(to top, var(--palm-green) 0%, transparent 100%);
+            opacity: 0.1;
+            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+        }
+
+        .palm-silhouette:nth-child(1) { left: 5%; transform: rotate(-15deg); }
+        .palm-silhouette:nth-child(2) { left: 15%; height: 350px; transform: rotate(10deg); }
+        .palm-silhouette:nth-child(3) { right: 5%; transform: rotate(15deg); }
+        .palm-silhouette:nth-child(4) { right: 15%; height: 400px; transform: rotate(-5deg); }
+
+        .sun-rays {
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: conic-gradient(from 0deg,
+                transparent 0deg, var(--rasta-gold) 10deg, transparent 20deg,
+                transparent 30deg, var(--rasta-red) 40deg, transparent 50deg,
+                transparent 60deg, var(--rasta-green) 70deg, transparent 80deg,
+                transparent 90deg, var(--rasta-gold) 100deg, transparent 110deg,
+                transparent 120deg, var(--rasta-red) 130deg, transparent 140deg,
+                transparent 150deg, var(--rasta-green) 160deg, transparent 170deg
+            );
+            opacity: 0.05;
+            animation: sun-rotate 60s linear infinite;
+        }
+
+        @keyframes sun-rotate {
+            from { transform: translateX(-50%) rotate(0deg); }
+            to { transform: translateX(-50%) rotate(360deg); }
+        }
+
+        /* Rasta stripe bar */
+        .rasta-stripe {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 8px;
+            background: linear-gradient(90deg,
+                var(--rasta-red) 0%, var(--rasta-red) 33%,
+                var(--rasta-gold) 33%, var(--rasta-gold) 66%,
+                var(--rasta-green) 66%, var(--rasta-green) 100%
+            );
+            z-index: 10001;
+        }
+
+        /* Password Gate */
+        #password-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #password-gate.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .password-box {
+            text-align: center;
+            padding: 60px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 30px;
+            border: 4px solid;
+            border-image: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green)) 1;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+        }
+
+        .password-logo {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 52px;
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .password-subtitle {
+            color: var(--rasta-gold);
+            margin-bottom: 40px;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 18px 25px;
+            border: 3px solid var(--rasta-gold);
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            color: var(--rasta-gold);
+            font-size: 18px;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--rasta-green);
+            box-shadow: 0 0 30px rgba(0, 155, 58, 0.3);
+        }
+
+        .password-input::placeholder {
+            letter-spacing: 0;
+            color: rgba(255, 215, 0, 0.5);
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--rasta-green), var(--palm-green));
+            border: none;
+            border-radius: 15px;
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .password-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 50px rgba(0, 155, 58, 0.4);
+        }
+
+        .password-error {
+            color: var(--rasta-red);
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-error.show {
+            opacity: 1;
+        }
+
+        #main-content {
+            display: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        #main-content.visible {
+            display: block;
+        }
+
+        /* Navigation */
+        nav {
+            background: linear-gradient(180deg, rgba(26, 26, 26, 0.95) 0%, transparent 100%);
+            margin-top: 8px;
+        }
+
+        .logo {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 32px;
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links a {
+            color: var(--sand);
+            letter-spacing: 1px;
+        }
+
+        .nav-links a:hover {
+            color: var(--rasta-gold);
+        }
+
+        .nav-cta {
+            background: linear-gradient(135deg, var(--rasta-green), var(--palm-green));
+            color: white;
+            font-weight: 700;
+        }
+
+        .nav-cta:hover {
+            box-shadow: 0 10px 40px rgba(0, 155, 58, 0.4);
+        }
+
+        /* Hero */
+        .hero {
+            padding-top: 140px;
+        }
+
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 30% 30%, rgba(230, 32, 32, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 70%, rgba(0, 155, 58, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 215, 0, 0.08) 0%, transparent 50%);
+        }
+
+        .hero-text h1 {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 76px;
+        }
+
+        .hero-text h1 span {
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-text p {
+            color: var(--sand);
+            font-size: 24px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--rasta-green), var(--palm-green));
+            color: white;
+            font-weight: 700;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 20px 60px rgba(0, 155, 58, 0.5);
+        }
+
+        .btn-secondary {
+            border-color: var(--rasta-gold);
+            color: var(--rasta-gold);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 215, 0, 0.15);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.2);
+        }
+
+        /* Bracelet */
+        .bracelet-ring {
+            border: 4px solid;
+            border-image: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green)) 1;
+            border-radius: 50%;
+            border-image: none;
+            border-color: var(--rasta-gold);
+            box-shadow:
+                0 0 30px rgba(230, 32, 32, 0.3),
+                0 0 60px rgba(255, 215, 0, 0.2),
+                0 0 90px rgba(0, 155, 58, 0.2);
+        }
+
+        .bead {
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            animation: irie-sway 4s ease-in-out infinite;
+        }
+
+        .bead:nth-child(2) { animation-delay: 0.5s; }
+        .bead:nth-child(3) { animation-delay: 1s; }
+        .bead:nth-child(4) { animation-delay: 1.5s; }
+        .bead:nth-child(5) { animation-delay: 2s; }
+        .bead:nth-child(6) { animation-delay: 2.5s; }
+        .bead:nth-child(7) { animation-delay: 3s; }
+        .bead:nth-child(8) { animation-delay: 3.5s; }
+
+        @keyframes irie-sway {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-5px) scale(1.05); }
+        }
+
+        .bead::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            filter: blur(20px);
+            opacity: 0.5;
+            z-index: -1;
+        }
+
+        .bead-nfc { background: linear-gradient(135deg, var(--rasta-red), #ff4444); }
+        .bead-bt { background: linear-gradient(135deg, var(--ocean-blue), #00a8e8); }
+        .bead-haptic { background: linear-gradient(135deg, var(--rasta-gold), #ffec00); }
+        .bead-led { background: linear-gradient(135deg, var(--rasta-green), #00d449); }
+        .bead-sensor { background: linear-gradient(135deg, var(--palm-green), #3d8b37); }
+        .bead-gps { background: linear-gradient(135deg, var(--sunset-orange), #ff8c42); }
+        .bead-battery { background: linear-gradient(135deg, #8b4513, #a0522d); }
+        .bead-motion { background: linear-gradient(135deg, var(--rasta-gold), var(--rasta-green)); }
+
+        .center-logo {
+            background: var(--rasta-black);
+            border: 4px solid var(--rasta-gold);
+            box-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+        }
+
+        .center-logo span {
+            font-family: 'Permanent Marker', cursive;
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Section Headers */
+        .section-header h2 {
+            font-family: 'Permanent Marker', cursive;
+        }
+
+        .section-header h2 span {
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-header p {
+            color: var(--sand);
+        }
+
+        /* Bead Cards */
+        .bead-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 215, 0, 0.2);
+            border-radius: 24px;
+        }
+
+        .bead-card:hover {
+            border-color: var(--rasta-gold);
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            transform: translateY(-10px);
+        }
+
+        .bead-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .bead-card:hover::before {
+            opacity: 1;
+        }
+
+        .bead-card p {
+            color: var(--sand);
+        }
+
+        .card-nfc .bead-icon { background: linear-gradient(135deg, var(--rasta-red), #ff4444); }
+        .card-bt .bead-icon { background: linear-gradient(135deg, var(--ocean-blue), #00a8e8); }
+        .card-haptic .bead-icon { background: linear-gradient(135deg, var(--rasta-gold), #ffec00); }
+        .card-led .bead-icon { background: linear-gradient(135deg, var(--rasta-green), #00d449); }
+        .card-sensor .bead-icon { background: linear-gradient(135deg, var(--palm-green), #3d8b37); }
+        .card-gps .bead-icon { background: linear-gradient(135deg, var(--sunset-orange), #ff8c42); }
+        .card-battery .bead-icon { background: linear-gradient(135deg, #8b4513, #a0522d); }
+        .card-motion .bead-icon { background: linear-gradient(135deg, var(--rasta-gold), var(--rasta-green)); }
+
+        .specs {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .spec-item span:first-child {
+            color: rgba(245, 230, 211, 0.6);
+        }
+
+        .spec-item span:last-child {
+            color: var(--rasta-gold);
+            font-weight: 600;
+        }
+
+        /* Features Section */
+        .features-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 40px;
+            padding: 100px 80px;
+            margin: 0 60px;
+            border: 2px solid rgba(255, 215, 0, 0.15);
+        }
+
+        .feature-icon {
+            background: rgba(0, 0, 0, 0.4);
+            border: 2px solid var(--rasta-gold);
+        }
+
+        .feature h3 {
+            color: var(--rasta-gold);
+        }
+
+        .feature p {
+            color: var(--sand);
+        }
+
+        /* CTA Section */
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at center, rgba(255, 215, 0, 0.15) 0%, transparent 60%);
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-section h2 {
+            font-family: 'Permanent Marker', cursive;
+        }
+
+        .cta-section h2 span {
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cta-section p {
+            color: var(--sand);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 4px solid;
+            border-image: linear-gradient(90deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green)) 1;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .footer-logo {
+            font-family: 'Permanent Marker', cursive;
+            background: linear-gradient(180deg, var(--rasta-red), var(--rasta-gold), var(--rasta-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        footer p {
+            color: var(--sand);
+        }
+
+        /* Back to themes link */
+        .theme-link {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--rasta-green), var(--palm-green));
+            color: white;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 14px;
+            z-index: 9999;
+            transition: all 0.3s ease;
+        }
+
+        .theme-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(0, 155, 58, 0.5);
+        }

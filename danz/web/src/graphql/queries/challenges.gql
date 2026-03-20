@@ -1,0 +1,100 @@
+query GetDailyChallenges {
+  dailyChallenges {
+    date
+    challenges {
+      id
+      title
+      description
+      challenge_type
+      difficulty
+      category
+      target_value
+      target_unit
+      xp_reward
+      points_reward
+      time_limit_hours
+    }
+    user_progress {
+      id
+      challenge_id
+      status
+      progress
+      started_at
+      completed_at
+      expires_at
+    }
+    total_xp_available
+    total_points_available
+  }
+}
+
+query GetMyChallenges {
+  myActiveChallenges {
+    id
+    challenge_id
+    status
+    progress
+    started_at
+    expires_at
+    challenge {
+      id
+      title
+      description
+      difficulty
+      category
+      target_value
+      target_unit
+      xp_reward
+      points_reward
+    }
+  }
+}
+
+query GetMyChallengeStats {
+  myChallengeStats {
+    total_completed
+    total_xp_earned
+    total_points_earned
+    current_streak
+    longest_streak
+    completion_rate
+    challenges_by_difficulty
+  }
+}
+
+query GetMyChallengeProgress($challengeId: String!) {
+  myChallengeProgress(challengeId: $challengeId) {
+    challenge {
+      id
+      title
+      description
+      target_value
+      target_unit
+      xp_reward
+    }
+    current_progress
+    target_value
+    percentage
+    time_remaining
+    is_claimable
+  }
+}
+
+query GetChallengeLeaderboard($type: ChallengeType!, $period: String!) {
+  challengeLeaderboard(type: $type, period: $period) {
+    period
+    entries {
+      rank
+      challenges_completed
+      xp_earned
+      points_earned
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+        level
+      }
+    }
+  }
+}

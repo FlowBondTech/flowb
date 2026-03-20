@@ -1,0 +1,113 @@
+query GetGlobalLeaderboard($metric: LeaderboardMetric!, $limit: Int) {
+  globalLeaderboard(metric: $metric, limit: $limit) {
+    type
+    metric
+    period
+    updated_at
+    total_participants
+    entries {
+      rank
+      previous_rank
+      rank_change
+      user_id
+      username
+      display_name
+      avatar_url
+      level
+      value
+      is_current_user
+      country
+    }
+    current_user_entry {
+      rank
+      value
+      is_current_user
+    }
+    nearby_entries {
+      rank
+      username
+      avatar_url
+      value
+      is_current_user
+    }
+  }
+}
+
+query GetWeeklyLeaderboard($metric: LeaderboardMetric!, $limit: Int) {
+  weeklyLeaderboard(metric: $metric, limit: $limit) {
+    type
+    metric
+    period
+    total_participants
+    entries {
+      rank
+      user_id
+      username
+      display_name
+      avatar_url
+      level
+      value
+      is_current_user
+    }
+    current_user_entry {
+      rank
+      value
+    }
+  }
+}
+
+query GetFriendsLeaderboard($metric: LeaderboardMetric!, $limit: Int) {
+  friendsLeaderboard(metric: $metric, limit: $limit) {
+    type
+    metric
+    total_participants
+    entries {
+      rank
+      user_id
+      username
+      display_name
+      avatar_url
+      level
+      value
+      is_current_user
+    }
+  }
+}
+
+query GetMyLeaderboardSummary {
+  myLeaderboardSummary {
+    global_rank
+    regional_rank
+    friends_rank
+    weekly_change
+    top_metric
+    top_metric_rank
+    percentile
+  }
+}
+
+query GetTopPerformers($metric: LeaderboardMetric!, $period: String!, $limit: Int) {
+  topPerformers(metric: $metric, period: $period, limit: $limit) {
+    rank
+    user_id
+    username
+    display_name
+    avatar_url
+    level
+    value
+    is_current_user
+  }
+}
+
+query GetNearbyUsers($metric: LeaderboardMetric!, $range: Int) {
+  nearbyUsers(metric: $metric, range: $range) {
+    rank
+    user_id
+    username
+    display_name
+    avatar_url
+    level
+    value
+    is_current_user
+  }
+}

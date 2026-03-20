@@ -1,0 +1,21 @@
+mutation MarkNotificationRead($id: ID!) {
+  markNotificationRead(id: $id) {
+    id
+    read
+    read_at
+  }
+}
+
+mutation MarkAllNotificationsRead {
+  markAllNotificationsRead {
+    success
+    message
+  }
+}
+
+mutation DeleteNotification($id: ID!) {
+  deleteNotification(id: $id) {
+    success
+    message
+  }
+}

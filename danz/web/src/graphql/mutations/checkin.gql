@@ -1,0 +1,27 @@
+# Daily check-in mutations
+
+mutation StartQuickSession($input: MiniappQuickSessionInput!) {
+  miniappStartQuickSession(input: $input) {
+    session_id
+    mode
+    start_time
+    target_duration
+  }
+}
+
+mutation EndQuickSession($sessionId: String!, $stats: JSON!) {
+  miniappEndQuickSession(session_id: $sessionId, stats: $stats) {
+    success
+    message
+  }
+}
+
+mutation CreateFreestyleSession($input: CreateFreestyleSessionInput!) {
+  createFreestyleSession(input: $input) {
+    id
+    duration_seconds
+    movement_score
+    completed
+    created_at
+  }
+}

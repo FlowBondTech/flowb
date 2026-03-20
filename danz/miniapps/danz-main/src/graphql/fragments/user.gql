@@ -1,0 +1,62 @@
+fragment UserBasicInfo on User {
+  privy_id
+  username
+  display_name
+  avatar_url
+  cover_image_url
+  bio
+  role
+}
+
+fragment UserFullInfo on User {
+  privy_id
+  username
+  display_name
+  avatar_url
+  cover_image_url
+  bio
+  role
+  location
+  city
+  latitude
+  longitude
+  website
+  website_url
+  instagram
+  tiktok
+  youtube
+  twitter
+  pronouns
+  dance_styles
+  skill_level
+  favorite_music
+  age
+  is_public
+  allow_messages
+  show_location
+  notification_preferences
+  xp
+  level
+  subscription_tier
+  total_dance_time
+  total_sessions
+  longest_streak
+  is_organizer_approved
+  organizer_approved_by
+  organizer_approved_at
+  company_name
+  organizer_bio
+  event_types
+  invited_by
+  social_media_links
+  organizer_requested_at
+  organizer_rejection_reason
+  total_events_attended
+  total_events_created
+  upcoming_events_count
+  total_achievements
+  dance_bonds_count
+  created_at
+  updated_at
+  last_active_at
+}

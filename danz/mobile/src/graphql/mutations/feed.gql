@@ -1,0 +1,53 @@
+# import "../fragments/post.gql"
+
+mutation CreatePost($input: CreatePostInput!) {
+  createPost(input: $input) {
+    ...PostBasicInfo
+  }
+}
+
+mutation UpdatePost($postId: ID!, $input: UpdatePostInput!) {
+  updatePost(postId: $postId, input: $input) {
+    ...PostBasicInfo
+  }
+}
+
+mutation DeletePost($postId: ID!) {
+  deletePost(postId: $postId) {
+    success
+    message
+  }
+}
+
+mutation LikePost($postId: ID!) {
+  likePost(postId: $postId) {
+    success
+    message
+  }
+}
+
+mutation UnlikePost($postId: ID!) {
+  unlikePost(postId: $postId) {
+    success
+    message
+  }
+}
+
+mutation CreateComment($input: CreateCommentInput!) {
+  createComment(input: $input) {
+    ...PostComment
+  }
+}
+
+mutation UpdateComment($commentId: ID!, $content: String!) {
+  updateComment(commentId: $commentId, content: $content) {
+    ...PostComment
+  }
+}
+
+mutation DeleteComment($commentId: ID!) {
+  deleteComment(commentId: $commentId) {
+    success
+    message
+  }
+}

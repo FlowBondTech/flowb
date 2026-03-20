@@ -1,0 +1,36 @@
+query GetFreestyleStats {
+  myFreestyleStats {
+    total_sessions
+    total_duration_seconds
+    total_points
+    average_movement_score
+    best_movement_score
+    sessions_this_week
+    current_streak
+    longest_streak
+    last_session_date
+  }
+  completedFreestyleToday
+}
+
+query GetFreestyleSessions($limit: Int, $offset: Int) {
+  myFreestyleSessions(limit: $limit, offset: $offset) {
+    id
+    user_id
+    duration_seconds
+    movement_score
+    points_earned
+    session_type
+    started_at
+    ended_at
+    created_at
+  }
+}
+
+query GetFreestylePreferences {
+  myFreestylePreferences {
+    session_duration
+    music_genre
+    difficulty_level
+  }
+}

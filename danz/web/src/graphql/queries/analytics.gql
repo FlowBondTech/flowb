@@ -1,0 +1,110 @@
+query GetAdminDashboardAnalytics {
+  adminDashboardAnalytics
+}
+
+query GetUserAnalytics($period: AnalyticsPeriod) {
+  userAnalytics(options: { period: $period }) {
+    total_users
+    active_users {
+      dau
+      wau
+      mau
+      dau_wau_ratio
+      dau_mau_ratio
+    }
+    new_users {
+      today
+      this_week
+      this_month
+      growth_rate
+      acquisition_channels {
+        channel
+        users
+        percentage
+      }
+    }
+    retention {
+      day_1
+      day_7
+      day_30
+    }
+    engagement {
+      avg_session_duration
+      avg_sessions_per_user
+      avg_dance_time_per_user
+      power_users_count
+    }
+    demographics {
+      by_country {
+        country
+        users
+        percentage
+      }
+      by_skill_level {
+        level
+        users
+        percentage
+      }
+    }
+  }
+}
+
+query GetPlatformAnalytics($period: AnalyticsPeriod) {
+  platformAnalytics(options: { period: $period }) {
+    overview {
+      total_xp_distributed
+      total_points_distributed
+      total_dance_sessions
+      total_dance_minutes
+      total_events_hosted
+      total_dance_bonds
+      health_score
+    }
+    dance_metrics {
+      sessions_today
+      sessions_this_week
+      avg_session_duration
+      avg_movement_score
+      total_calories_burned
+      peak_hours {
+        hour
+        value
+      }
+    }
+    event_metrics {
+      total_events
+      upcoming_events
+      completed_events
+      avg_attendance
+      avg_rating
+    }
+    social_metrics {
+      total_posts
+      total_comments
+      total_likes
+      avg_engagement_rate
+      dance_bonds_created
+    }
+    economy_metrics {
+      total_xp_earned
+      total_points_earned
+      xp_distribution {
+        source
+        amount
+        percentage
+      }
+    }
+  }
+}
+
+query GetRealTimeAnalytics {
+  realTimeAnalytics {
+    current_online_users
+    active_dance_sessions
+    events_in_progress
+    recent_signups
+    recent_sessions
+    system_load
+    api_requests_per_minute
+  }
+}

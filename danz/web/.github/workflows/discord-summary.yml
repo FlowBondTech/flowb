@@ -1,0 +1,62 @@
+name: Discord Commit Summary
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_SUMMARY_WEBHOOK }}
+        run: |
+          # Extract commit info safely using jq
+          COMMIT_MSG=$(cat << 'ENDMSG'
+          ${{ github.event.head_commit.message }}
+          ENDMSG
+          )
+          FIRST_LINE=$(echo "$COMMIT_MSG" | head -1)
+          AUTHOR="${{ github.event.head_commit.author.name }}"
+          COMMIT_URL="${{ github.event.head_commit.url }}"
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+
+          # Check if it's a Claude Code commit
+          if echo "$COMMIT_MSG" | grep -q "Claude Code"; then
+            COLOR=10181046
+            FOOTER="🤖 AI-Assisted Development"
+          else
+            COLOR=3066993
+            FOOTER="👤 Manual Commit"
+          fi
+
+          # Use jq to safely create JSON
+          JSON_PAYLOAD=$(jq -n \
+            --arg title "💃 danz-web - New Commit" \
+            --arg desc "$FIRST_LINE" \
+            --arg author "$AUTHOR" \
+            --arg sha "$SHORT_SHA" \
+            --arg url "$COMMIT_URL" \
+            --arg footer "$FOOTER" \
+            --argjson color "$COLOR" \
+            --arg ts "${{ github.event.head_commit.timestamp }}" \
+            '{
+              embeds: [{
+                title: $title,
+                description: $desc,
+                color: $color,
+                fields: [
+                  {name: "Author", value: $author, inline: true},
+                  {name: "Commit", value: "[\($sha)](\($url))", inline: true}
+                ],
+                footer: {text: $footer},
+                timestamp: $ts
+              }]
+            }')
+
+          # Send to Discord with verbose output
+          curl -s -o /dev/null -w "%{http_code}" \
+               -H "Content-Type: application/json" \
+               -d "$JSON_PAYLOAD" \
+               "$DISCORD_WEBHOOK"

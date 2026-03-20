@@ -1,0 +1,576 @@
+        :root {
+            --wine: #722f37;
+            --wine-dark: #4a1c23;
+            --wine-light: #9b4d56;
+            --midnight: #191970;
+            --deep-purple: #301934;
+            --rose-gold: #b76e79;
+            --champagne: #f7e7ce;
+            --starlight: #faf0e6;
+            --moonlight: #e6e6fa;
+            --bg-dark: #0f0a14;
+            --bg-gradient: linear-gradient(135deg, #0f0a14 0%, #1a1025 50%, #0f0a14 100%);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-gradient);
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* Romantic Night Sky Background */
+        .bachata-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            overflow: hidden;
+        }
+
+        /* Stars */
+        .star {
+            position: absolute;
+            width: 3px;
+            height: 3px;
+            background: var(--starlight);
+            border-radius: 50%;
+            animation: twinkle 3s ease-in-out infinite;
+        }
+
+        .star:nth-child(1) { top: 10%; left: 20%; animation-delay: 0s; }
+        .star:nth-child(2) { top: 15%; left: 45%; animation-delay: 0.5s; width: 2px; height: 2px; }
+        .star:nth-child(3) { top: 8%; left: 70%; animation-delay: 1s; }
+        .star:nth-child(4) { top: 25%; left: 85%; animation-delay: 1.5s; width: 4px; height: 4px; }
+        .star:nth-child(5) { top: 5%; left: 10%; animation-delay: 2s; width: 2px; height: 2px; }
+        .star:nth-child(6) { top: 20%; left: 60%; animation-delay: 0.3s; }
+        .star:nth-child(7) { top: 12%; left: 35%; animation-delay: 1.2s; width: 2px; height: 2px; }
+        .star:nth-child(8) { top: 30%; left: 15%; animation-delay: 0.8s; }
+        .star:nth-child(9) { top: 18%; left: 90%; animation-delay: 1.8s; width: 3px; height: 3px; }
+        .star:nth-child(10) { top: 22%; left: 5%; animation-delay: 2.2s; }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Moon glow */
+        .moon {
+            position: absolute;
+            top: 5%;
+            right: 10%;
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle at 30% 30%, var(--champagne) 0%, var(--moonlight) 50%, transparent 70%);
+            border-radius: 50%;
+            box-shadow: 0 0 60px rgba(250, 240, 230, 0.3), 0 0 120px rgba(230, 230, 250, 0.2);
+            animation: moon-glow 8s ease-in-out infinite;
+        }
+
+        @keyframes moon-glow {
+            0%, 100% { box-shadow: 0 0 60px rgba(250, 240, 230, 0.3), 0 0 120px rgba(230, 230, 250, 0.2); }
+            50% { box-shadow: 0 0 80px rgba(250, 240, 230, 0.4), 0 0 150px rgba(230, 230, 250, 0.3); }
+        }
+
+        /* Floating rose petals */
+        .petal {
+            position: absolute;
+            width: 15px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--wine-light), var(--rose-gold));
+            border-radius: 50% 0 50% 50%;
+            opacity: 0.15;
+            animation: fall 15s linear infinite;
+        }
+
+        .petal:nth-child(11) { left: 10%; animation-delay: 0s; animation-duration: 12s; }
+        .petal:nth-child(12) { left: 30%; animation-delay: -3s; animation-duration: 18s; }
+        .petal:nth-child(13) { left: 50%; animation-delay: -6s; animation-duration: 14s; }
+        .petal:nth-child(14) { left: 70%; animation-delay: -9s; animation-duration: 16s; }
+        .petal:nth-child(15) { left: 90%; animation-delay: -12s; animation-duration: 13s; }
+
+        @keyframes fall {
+            0% { transform: translateY(-20px) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.15; }
+            90% { opacity: 0.15; }
+            100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* Password Gate */
+        #password-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-gradient);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #password-gate.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .password-box {
+            text-align: center;
+            padding: 60px;
+            background: linear-gradient(135deg, rgba(114, 47, 55, 0.2), rgba(48, 25, 52, 0.3));
+            border-radius: 30px;
+            border: 2px solid var(--wine);
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 0 80px rgba(114, 47, 55, 0.2), inset 0 0 60px rgba(183, 110, 121, 0.05);
+            backdrop-filter: blur(10px);
+        }
+
+        .password-logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 56px;
+            font-weight: 600;
+            font-style: italic;
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne), var(--wine-light));
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 4s ease infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes shimmer {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .password-subtitle {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--rose-gold);
+            margin-bottom: 40px;
+            font-size: 18px;
+            letter-spacing: 2px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 18px 25px;
+            border: 2px solid var(--wine);
+            border-radius: 15px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--champagne);
+            font-size: 18px;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--rose-gold);
+            box-shadow: 0 0 30px rgba(183, 110, 121, 0.3);
+        }
+
+        .password-input::placeholder {
+            letter-spacing: 0;
+            color: rgba(247, 231, 206, 0.4);
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            border: none;
+            border-radius: 15px;
+            color: var(--champagne);
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 20px;
+            font-weight: 600;
+            font-style: italic;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            letter-spacing: 2px;
+        }
+
+        .password-btn:hover {
+            background: linear-gradient(135deg, var(--wine-light), var(--wine));
+            transform: translateY(-3px);
+            box-shadow: 0 20px 50px rgba(114, 47, 55, 0.4);
+        }
+
+        .password-error {
+            color: var(--rose-gold);
+            margin-top: 15px;
+            font-size: 14px;
+            font-style: italic;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-error.show {
+            opacity: 1;
+        }
+
+        #main-content {
+            display: none;
+            position: relative;
+            z-index: 1;
+        }
+
+        #main-content.visible {
+            display: block;
+        }
+
+        /* Navigation */
+        nav {
+            background: linear-gradient(180deg, var(--bg-dark) 0%, transparent 100%);
+        }
+
+        .logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 36px;
+            font-weight: 600;
+            font-style: italic;
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links a {
+            color: var(--moonlight);
+            font-style: italic;
+        }
+
+        .nav-links a:hover {
+            color: var(--rose-gold);
+        }
+
+        .nav-cta {
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            color: var(--champagne);
+            font-weight: 600;
+        }
+
+        .nav-cta:hover {
+            box-shadow: 0 10px 40px rgba(114, 47, 55, 0.4);
+        }
+
+        /* Hero */
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 30% 30%, rgba(114, 47, 55, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 70%, rgba(48, 25, 52, 0.2) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(183, 110, 121, 0.08) 0%, transparent 50%);
+        }
+
+        .hero-text h1 {
+            font-family: 'Cormorant Garamond', serif;
+            font-size: 80px;
+            font-weight: 600;
+            font-style: italic;
+            line-height: 1.1;
+        }
+
+        .hero-text h1 span {
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne), var(--wine-light));
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: shimmer 4s ease infinite;
+        }
+
+        .hero-text p {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--moonlight);
+            font-size: 24px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            color: var(--champagne);
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 20px 60px rgba(114, 47, 55, 0.5);
+        }
+
+        .btn-secondary {
+            border-color: var(--wine);
+            color: var(--rose-gold);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(114, 47, 55, 0.2);
+            border-color: var(--rose-gold);
+        }
+
+        /* Bracelet */
+        .bracelet-ring {
+            border: 3px solid var(--wine);
+            box-shadow:
+                0 0 40px rgba(114, 47, 55, 0.3),
+                0 0 80px rgba(183, 110, 121, 0.15);
+            animation: romantic-pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes romantic-pulse {
+            0%, 100% { box-shadow: 0 0 40px rgba(114, 47, 55, 0.3), 0 0 80px rgba(183, 110, 121, 0.15); }
+            50% { box-shadow: 0 0 60px rgba(114, 47, 55, 0.4), 0 0 100px rgba(183, 110, 121, 0.25); }
+        }
+
+        .bead {
+            box-shadow: 0 10px 40px rgba(114, 47, 55, 0.3);
+            animation: sway 6s ease-in-out infinite;
+        }
+
+        .bead:nth-child(2) { animation-delay: 0.75s; }
+        .bead:nth-child(3) { animation-delay: 1.5s; }
+        .bead:nth-child(4) { animation-delay: 2.25s; }
+        .bead:nth-child(5) { animation-delay: 3s; }
+        .bead:nth-child(6) { animation-delay: 3.75s; }
+        .bead:nth-child(7) { animation-delay: 4.5s; }
+        .bead:nth-child(8) { animation-delay: 5.25s; }
+
+        @keyframes sway {
+            0%, 100% { transform: translateX(0) scale(1); }
+            50% { transform: translateX(3px) scale(1.02); }
+        }
+
+        .bead::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            filter: blur(20px);
+            opacity: 0.4;
+            z-index: -1;
+        }
+
+        .bead-nfc { background: linear-gradient(135deg, var(--wine), var(--wine-dark)); }
+        .bead-bt { background: linear-gradient(135deg, var(--midnight), #2a2a8a); }
+        .bead-haptic { background: linear-gradient(135deg, var(--rose-gold), #d4a5a5); }
+        .bead-led { background: linear-gradient(135deg, var(--champagne), #e8d5b7); }
+        .bead-sensor { background: linear-gradient(135deg, var(--deep-purple), #4a2a50); }
+        .bead-gps { background: linear-gradient(135deg, var(--wine-light), var(--wine)); }
+        .bead-battery { background: linear-gradient(135deg, #3d1f25, var(--wine-dark)); }
+        .bead-motion { background: linear-gradient(135deg, var(--rose-gold), var(--wine-light)); }
+
+        .center-logo {
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            border: 3px solid var(--rose-gold);
+            box-shadow: 0 0 50px rgba(183, 110, 121, 0.3);
+        }
+
+        .center-logo span {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--champagne);
+        }
+
+        /* Section Headers */
+        .section-header h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+        }
+
+        .section-header h2 span {
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-header p {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--moonlight);
+        }
+
+        /* Bead Cards */
+        .bead-card {
+            background: linear-gradient(135deg, rgba(114, 47, 55, 0.15), rgba(48, 25, 52, 0.2));
+            border: 1px solid rgba(183, 110, 121, 0.2);
+            border-radius: 24px;
+            backdrop-filter: blur(5px);
+        }
+
+        .bead-card:hover {
+            border-color: var(--rose-gold);
+            box-shadow: 0 30px 60px rgba(114, 47, 55, 0.2);
+            transform: translateY(-10px);
+        }
+
+        .bead-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--wine), var(--rose-gold), var(--champagne));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 24px 24px 0 0;
+        }
+
+        .bead-card:hover::before {
+            opacity: 1;
+        }
+
+        .bead-card h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            font-size: 26px;
+        }
+
+        .bead-card p {
+            color: var(--moonlight);
+        }
+
+        .card-nfc .bead-icon { background: linear-gradient(135deg, var(--wine), var(--wine-dark)); }
+        .card-bt .bead-icon { background: linear-gradient(135deg, var(--midnight), #2a2a8a); }
+        .card-haptic .bead-icon { background: linear-gradient(135deg, var(--rose-gold), #d4a5a5); }
+        .card-led .bead-icon { background: linear-gradient(135deg, var(--champagne), #e8d5b7); }
+        .card-sensor .bead-icon { background: linear-gradient(135deg, var(--deep-purple), #4a2a50); }
+        .card-gps .bead-icon { background: linear-gradient(135deg, var(--wine-light), var(--wine)); }
+        .card-battery .bead-icon { background: linear-gradient(135deg, #3d1f25, var(--wine-dark)); }
+        .card-motion .bead-icon { background: linear-gradient(135deg, var(--rose-gold), var(--wine-light)); }
+
+        .specs {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(183, 110, 121, 0.15);
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .spec-item span:first-child {
+            color: rgba(230, 230, 250, 0.5);
+        }
+
+        .spec-item span:last-child {
+            color: var(--rose-gold);
+            font-weight: 600;
+        }
+
+        /* Features Section */
+        .features-section {
+            background: linear-gradient(135deg, rgba(114, 47, 55, 0.1), rgba(48, 25, 52, 0.15));
+            border-radius: 40px;
+            padding: 100px 80px;
+            margin: 0 60px;
+            border: 1px solid rgba(183, 110, 121, 0.15);
+            backdrop-filter: blur(5px);
+        }
+
+        .feature-icon {
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            border: none;
+            box-shadow: 0 10px 30px rgba(114, 47, 55, 0.2);
+        }
+
+        .feature h3 {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--rose-gold);
+        }
+
+        .feature p {
+            color: var(--moonlight);
+        }
+
+        /* CTA Section */
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(ellipse at center, rgba(114, 47, 55, 0.2) 0%, transparent 70%);
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-section h2 {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+        }
+
+        .cta-section h2 span {
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cta-section p {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            color: var(--moonlight);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 2px solid rgba(183, 110, 121, 0.2);
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .footer-logo {
+            font-family: 'Cormorant Garamond', serif;
+            font-style: italic;
+            background: linear-gradient(135deg, var(--rose-gold), var(--champagne));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        footer p {
+            font-style: italic;
+            color: var(--moonlight);
+        }
+
+        /* Back to themes link */
+        .theme-link {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, var(--wine), var(--wine-dark));
+            color: var(--champagne);
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 9999;
+            transition: all 0.3s ease;
+        }
+
+        .theme-link:hover {
+            background: linear-gradient(135deg, var(--wine-light), var(--wine));
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(114, 47, 55, 0.4);
+        }

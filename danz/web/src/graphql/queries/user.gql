@@ -1,0 +1,23 @@
+# import "../fragments/user.gql"
+
+query GetMyProfile {
+  me {
+    ...UserFullInfo
+  }
+}
+
+query GetUserById($id: String!) {
+  user(id: $id) {
+    ...UserFullInfo
+  }
+}
+
+query GetUserByUsername($username: String!) {
+  getUserByUsername(username: $username) {
+    ...UserFullInfo
+  }
+}
+
+query CheckUsername($username: String!) {
+  checkUsername(username: $username)
+}

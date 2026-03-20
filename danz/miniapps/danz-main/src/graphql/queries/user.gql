@@ -1,0 +1,28 @@
+# import "../fragments/user.gql"
+
+query GetMyProfile {
+  me {
+    ...UserFullInfo
+  }
+}
+
+query GetUserById($id: String!) {
+  user(id: $id) {
+    ...UserFullInfo
+  }
+}
+
+query GetMyDanceBonds {
+  myDanceBonds {
+    id
+    user1_id
+    user2_id
+    bond_level
+    shared_sessions
+    created_at
+    updated_at
+    otherUser {
+      ...UserBasicInfo
+    }
+  }
+}

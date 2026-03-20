@@ -1,0 +1,29 @@
+# import "../fragments/post.gql"
+
+query GetFeed($limit: Int, $cursor: String) {
+  getFeed(limit: $limit, cursor: $cursor) {
+    posts {
+      ...PostWithUser
+    }
+    has_more
+    cursor
+  }
+}
+
+query GetPost($id: ID!) {
+  getPost(id: $id) {
+    ...PostWithDetails
+  }
+}
+
+query GetMyPosts($limit: Int, $offset: Int) {
+  getMyPosts(limit: $limit, offset: $offset) {
+    ...PostWithUser
+  }
+}
+
+query GetUserPosts($userId: String!, $limit: Int, $offset: Int) {
+  getUserPosts(userId: $userId, limit: $limit, offset: $offset) {
+    ...PostWithUser
+  }
+}

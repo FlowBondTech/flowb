@@ -1,0 +1,181 @@
+# import "../fragments/gig.gql"
+
+# ============================================================================
+# USER GIG ROLE MANAGEMENT
+# ============================================================================
+
+mutation ApplyForGigRole($input: ApplyForGigRoleInput!) {
+  applyForGigRole(input: $input) {
+    ...UserGigRoleFull
+  }
+}
+
+mutation UpdateGigRoleApplication($id: ID!, $input: UpdateGigRoleApplicationInput!) {
+  updateGigRoleApplication(id: $id, input: $input) {
+    ...UserGigRoleFull
+  }
+}
+
+mutation WithdrawGigRoleApplication($id: ID!) {
+  withdrawGigRoleApplication(id: $id) {
+    success
+    message
+  }
+}
+
+# ============================================================================
+# GIG MANAGER: ROLE REVIEW
+# ============================================================================
+
+mutation ReviewGigRoleApplication($id: ID!, $approved: Boolean!, $reason: String) {
+  reviewGigRoleApplication(id: $id, approved: $approved, reason: $reason) {
+    ...UserGigRoleWithUser
+  }
+}
+
+# ============================================================================
+# EVENT GIG MANAGEMENT
+# ============================================================================
+
+mutation CreateEventGig($input: CreateEventGigInput!) {
+  createEventGig(input: $input) {
+    ...EventGigFull
+  }
+}
+
+mutation UpdateEventGig($id: ID!, $input: UpdateEventGigInput!) {
+  updateEventGig(id: $id, input: $input) {
+    ...EventGigFull
+  }
+}
+
+mutation DeleteEventGig($id: ID!) {
+  deleteEventGig(id: $id) {
+    success
+    message
+  }
+}
+
+mutation CancelEventGig($id: ID!, $reason: String) {
+  cancelEventGig(id: $id, reason: $reason) {
+    ...EventGigBasic
+  }
+}
+
+# ============================================================================
+# GIG APPLICATIONS
+# ============================================================================
+
+mutation ApplyForGig($gigId: ID!, $note: String) {
+  applyForGig(gigId: $gigId, note: $note) {
+    ...GigApplicationWithGig
+  }
+}
+
+mutation WithdrawGigApplication($applicationId: ID!) {
+  withdrawGigApplication(applicationId: $applicationId) {
+    ...GigApplicationBasic
+  }
+}
+
+# ============================================================================
+# GIG MANAGER: APPLICATION REVIEW
+# ============================================================================
+
+mutation ReviewGigApplication($applicationId: ID!, $input: ReviewGigApplicationInput!) {
+  reviewGigApplication(applicationId: $applicationId, input: $input) {
+    ...GigApplicationWithUser
+  }
+}
+
+# ============================================================================
+# WORK COMPLETION
+# ============================================================================
+
+mutation CheckInToGig($applicationId: ID!) {
+  checkInToGig(applicationId: $applicationId) {
+    ...GigApplicationWithGig
+  }
+}
+
+mutation CheckOutFromGig($applicationId: ID!) {
+  checkOutFromGig(applicationId: $applicationId) {
+    ...GigApplicationWithGig
+  }
+}
+
+mutation SubmitGigProof($applicationId: ID!, $input: GigProofInput!) {
+  submitGigProof(applicationId: $applicationId, input: $input) {
+    ...GigSubmissionFull
+  }
+}
+
+# ============================================================================
+# GIG MANAGER: SUBMISSION REVIEW
+# ============================================================================
+
+mutation ReviewGigSubmission($submissionId: ID!, $input: ReviewGigSubmissionInput!) {
+  reviewGigSubmission(submissionId: $submissionId, input: $input) {
+    ...GigSubmissionFull
+  }
+}
+
+mutation CompleteGigAndAward($applicationId: ID!, $bonusDanz: Float) {
+  completeGigAndAward(applicationId: $applicationId, bonusDanz: $bonusDanz) {
+    ...GigApplicationComplete
+  }
+}
+
+# ============================================================================
+# RATINGS
+# ============================================================================
+
+mutation RateGigWorker($applicationId: ID!, $rating: Int!, $feedback: String) {
+  rateGigWorker(applicationId: $applicationId, rating: $rating, feedback: $feedback) {
+    ...GigApplicationWithUser
+  }
+}
+
+mutation RateGigOrganizer($applicationId: ID!, $rating: Int!, $feedback: String) {
+  rateGigOrganizer(applicationId: $applicationId, rating: $rating, feedback: $feedback) {
+    ...GigApplicationBasic
+  }
+}
+
+# ============================================================================
+# EVENT GIG MANAGERS
+# ============================================================================
+
+mutation AssignEventGigManager($eventId: ID!, $userId: String!) {
+  assignEventGigManager(eventId: $eventId, userId: $userId) {
+    ...EventGigManagerFull
+  }
+}
+
+mutation RemoveEventGigManager($eventId: ID!, $userId: String!) {
+  removeEventGigManager(eventId: $eventId, userId: $userId) {
+    success
+    message
+  }
+}
+
+# ============================================================================
+# ADMIN: GIG MANAGER PROMOTION
+# ============================================================================
+
+mutation PromoteToGigManager($userId: String!) {
+  promoteToGigManager(userId: $userId) {
+    privy_id
+    username
+    is_gig_manager
+    gig_manager_approved_at
+  }
+}
+
+mutation DemoteGigManager($userId: String!) {
+  demoteGigManager(userId: $userId) {
+    privy_id
+    username
+    is_gig_manager
+  }
+}

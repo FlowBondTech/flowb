@@ -1,0 +1,5022 @@
+scalar DateTime
+
+scalar JSON
+
+type Query {
+  _empty: String
+  me: User
+  user(id: String!): User
+  getUserByUsername(username: String!): User
+  users(filter: UserFilterInput, pagination: PaginationInput): UserConnection!
+  myDanceBonds: [DanceBond!]!
+  checkUsername(username: String!): Boolean!
+  getUserStats(userId: String): UserStats!
+  events(
+    filter: EventFilterInput
+    pagination: PaginationInput
+    sortBy: EventSortBy
+  ): EventConnection!
+  event(id: ID!): Event
+  eventRegistrations(eventId: ID!, status: RegistrationStatus): [EventRegistration!]!
+  eventByCheckinCode(code: String!): Event
+  publicEvent(slug: String!): Event
+  publicEvents(
+    filter: EventFilterInput
+    pagination: PaginationInput
+    sortBy: EventSortBy
+  ): EventConnection!
+  eventManagers(event_id: ID!): EventManagerConnection!
+  eventManager(id: ID!): EventManager
+  myEventManagerRole(event_id: ID!): EventManager
+  myManagedEvents: [Event!]!
+  checkEventPermission(event_id: ID!, permission: String!): Boolean!
+  adminStats: AdminStats!
+  getAllUsers: [User!]!
+  getAllEvents(
+    status: EventStatus
+    category: EventCategory
+    facilitator_id: String
+    limit: Int = 50
+    offset: Int = 0
+  ): AdminEventConnection!
+  getAllEventRegistrations: [EventRegistration!]!
+  pendingOrganizers(pagination: PaginationInput): UserConnection!
+  reportedContent(type: String, status: String, pagination: PaginationInput): JSON
+  getAllNotifications(type: String, limit: Int = 50, offset: Int = 0): AdminNotificationConnection!
+  getAdminReferralStats: AdminReferralStats!
+  getAllPointActions(category: PointActionCategory, is_active: Boolean): [PointAction!]!
+  getPointAction(action_key: String!): PointAction
+  getUserTransactions(
+    user_id: String!
+    limit: Int = 50
+    offset: Int = 0
+    status: TransactionStatus
+  ): TransactionHistory!
+  getAllTransactions(
+    limit: Int = 100
+    offset: Int = 0
+    action_key: String
+    status: TransactionStatus
+    start_date: DateTime
+    end_date: DateTime
+  ): TransactionHistory!
+  getUserDailyActivity(user_id: String!, start_date: String!, end_date: String!): [DailyActivity!]!
+  getEventAttendance(event_id: ID!): [EventAttendance!]!
+  getUserEventAttendance(user_id: String!): [EventAttendance!]!
+  getPointsOverview: PointsOverview!
+  getUserPointsSummaries(
+    limit: Int = 50
+    offset: Int = 0
+    sort_by: String = "total_points_earned"
+    sort_order: String = "DESC"
+  ): [UserPointsSummary!]!
+  getEventAttendanceSummaries: [EventAttendanceSummary!]!
+  projects(include_archived: Boolean): [Project!]!
+  project(id: ID!): Project
+  projectBySlug(slug: String!): Project
+  devDashboardStats: DevDashboardStats
+  systemHealth: [SystemHealth!]!
+  featureRequests(
+    filter: FeatureRequestFilter
+    limit: Int
+    offset: Int
+    sort_by: String
+  ): FeatureRequestConnection!
+  featureRequest(id: ID!): FeatureRequest
+  topVotedFeatures(limit: Int): [FeatureRequest!]!
+  devTasks(filter: DevTaskFilter, limit: Int, offset: Int, sort_by: String): DevTaskConnection!
+  devTask(id: ID!): DevTask
+  myDevTasks: [DevTask!]!
+  sprintTasks(sprint: String!): [DevTask!]!
+  changelog(limit: Int, offset: Int, include_private: Boolean): [ChangelogVersion!]!
+  latestChangelog: ChangelogVersion
+  changelogEntry(id: ID!): ChangelogEntry
+  githubCommits(repo: String!, branch: String, limit: Int): [GitHubCommit!]!
+  githubPullRequests(repo: String!, state: String, limit: Int): [GitHubPullRequest!]!
+  githubActions(repo: String!, limit: Int): [GitHubAction!]!
+  githubReleases(repo: String!, limit: Int): [GitHubRelease!]!
+  githubRepos: [GitHubRepo!]!
+  githubRateLimit: GitHubRateLimit
+  featureInventory(
+    filter: FeatureInventoryFilter
+    limit: Int
+    offset: Int
+    sort_by: String
+  ): FeatureInventoryConnection!
+  featureInventoryItem(id: ID!): FeatureInventory
+  featureInventoryBySlug(slug: String!): FeatureInventory
+  featureInventoryStats: FeatureInventoryStats!
+  miniappReadyFeatures: [FeatureInventory!]!
+  devAlerts(filter: DevAlertFilter, limit: Int, offset: Int): DevAlertConnection!
+  devAlert(id: ID!): DevAlert
+  myDevAlerts(limit: Int, include_dismissed: Boolean): DevAlertConnection!
+  getUploadUrl(fileName: String!, mimeType: MimeType!, uploadType: UploadType!): UploadUrl!
+  myDanceSessions(
+    pagination: PaginationInput
+    filter: DanceSessionFilterInput
+  ): DanceSessionConnection!
+  danceSession(id: ID!): DanceSession
+  myDanceSessionStats: DanceSessionStats!
+  friendsDanceSessions(limit: Int, offset: Int): [DanceSession!]!
+  myFreestyleSessions(limit: Int, offset: Int): [FreestyleSession!]!
+  freestyleSession(id: ID!): FreestyleSession
+  myFreestyleStats: FreestyleSessionStats!
+  myFreestylePreferences: UserPreferences!
+  completedFreestyleToday: Boolean!
+  myOrganizerApplication: OrganizerApplication
+  pendingOrganizerApplications(limit: Int, offset: Int): OrganizerApplicationsResponse!
+  organizerApplications(
+    status: ApplicationStatus
+    limit: Int
+    offset: Int
+  ): OrganizerApplicationsResponse!
+  organizerApplication(id: ID!): OrganizerApplication
+  getReferralByCode(code: String!): Referral
+  myReferralCode: ReferralCode
+  myReferralStats: ReferralStats!
+  myReferrals(limit: Int, offset: Int, status: ReferralStatus): [Referral!]!
+  getReferralClickStats(code: String!): [ReferralClickTracking!]!
+  getReferralChain(userId: String): [ReferralChainNode!]!
+  getMyReferrals: [UserReferralInfo!]!
+  getFeed(limit: Int, cursor: String): FeedResponse!
+  getPost(id: ID!): PostWithDetails
+  getMyPosts(limit: Int, offset: Int): [Post!]!
+  getUserPosts(userId: String!, limit: Int, offset: Int): [Post!]!
+  getEventPosts(eventId: ID!, limit: Int, offset: Int): [Post!]!
+  getMyDanceBonds: [DanceBond!]!
+  getDanceBond(userId: String!): DanceBond
+  myConversations(filter: ConversationFilter, limit: Int, offset: Int): ConversationConnection!
+  conversation(id: ID!): Conversation
+  "Get or create a DM conversation with a user"
+  dmConversation(user_id: String!): Conversation
+  messages(conversation_id: ID!, limit: Int, before_id: ID, after_id: ID): MessageConnection!
+  message(id: ID!): Message
+  searchMessages(query: String!, conversation_id: ID, limit: Int): MessageConnection!
+  myBlockedUsers: [UserBlock!]!
+  isUserBlocked(user_id: String!): Boolean!
+  unreadMessageCount: Int!
+  myPrivacySettings: PrivacySettings!
+  privacyPresets: [PrivacyPreset!]!
+  suggestedUsers(limit: Int, offset: Int): UserSuggestionConnection!
+  searchUsers(input: SearchUsersInput!): UserSearchConnection!
+  canViewProfile(user_id: String!): CanViewResult!
+  canMessageUser(user_id: String!): CanViewResult!
+  canSendBondRequest(user_id: String!): CanViewResult!
+  myBonds(limit: Int, offset: Int): [User!]!
+  leaderboardNearMe(range: Int): [User!]!
+  usersAtEvent(event_id: ID!): [User!]!
+  "Get pending bond requests received"
+  myPendingBondRequests(limit: Int, offset: Int): [BondRequest!]!
+  "Get bond requests sent by me"
+  mySentBondRequests(limit: Int, offset: Int): [BondRequest!]!
+  "Get a specific bond request"
+  bondRequest(id: ID!): BondRequest
+  "Check if I can send a bond request to a user"
+  canSendBondRequestTo(user_id: String!): CanSendBondRequestResult!
+  "Get similarity/match data with another user"
+  getSimilarityWith(user_id: String!): MatchReasons!
+  "Get bond request stats"
+  myBondRequestStats: BondRequestStats!
+  """
+  Get the current user's username change eligibility status
+  """
+  myUsernameChangeEligibility: UsernameChangeEligibility!
+  """
+  Get the current user's username change history
+  """
+  myUsernameChangeHistory: [UsernameChangeRequest!]!
+  """
+  Admin: Get all pending username change requests
+  """
+  pendingUsernameChangeRequests(pagination: PaginationInput): UsernameChangeRequestConnection!
+  """
+  Admin: Get all username change requests with optional filters
+  """
+  allUsernameChangeRequests(
+    status: UsernameChangeStatus
+    pagination: PaginationInput
+  ): UsernameChangeRequestConnection!
+  myAchievements: [AchievementProgress!]!
+  myUnlockedAchievements: [AchievementDetails!]!
+  myAchievementStats: AchievementStats!
+  achievementDefinitions: [AchievementDefinition!]!
+  achievementsByCategory(category: AchievementCategory!): [AchievementProgress!]!
+  isAchievementUnlocked(achievementType: String!): Boolean!
+  myWearableDevices: [WearableDevice!]!
+  wearableDevice(deviceId: String!): WearableDevice
+  myWearableHealthData(
+    deviceId: String
+    from: DateTime
+    to: DateTime
+    limit: Int
+  ): [WearableHealthData!]!
+  myWearableMotionData(
+    deviceId: String
+    sessionId: String
+    from: DateTime
+    to: DateTime
+    limit: Int
+  ): [WearableMotionData!]!
+  wearableStats(deviceId: String): WearableStats
+  latestWearableReading(deviceId: String): WearableHealthData
+  dailyChallenges: DailyChallengeset!
+  weeklyChallenges: [Challenge!]!
+  specialChallenges: [Challenge!]!
+  availableChallenges(type: ChallengeType, category: ChallengeCategory): [Challenge!]!
+  myActiveChallenges: [UserChallenge!]!
+  myCompletedChallenges(limit: Int, offset: Int): [UserChallenge!]!
+  myChallengeProgress(challengeId: String!): ChallengeProgress
+  myChallengeStats: ChallengeStats!
+  challengeLeaderboard(type: ChallengeType!, period: String!): ChallengeLeaderboard!
+  allChallenges(type: ChallengeType, isActive: Boolean): [Challenge!]!
+  challengeById(id: String!): Challenge
+  leaderboard(
+    type: LeaderboardType!
+    metric: LeaderboardMetric!
+    limit: Int
+    offset: Int
+  ): Leaderboard!
+  globalLeaderboard(metric: LeaderboardMetric!, limit: Int): Leaderboard!
+  weeklyLeaderboard(metric: LeaderboardMetric!, limit: Int): Leaderboard!
+  monthlyLeaderboard(metric: LeaderboardMetric!, limit: Int): Leaderboard!
+  friendsLeaderboard(metric: LeaderboardMetric!, limit: Int): Leaderboard!
+  regionalLeaderboard(
+    metric: LeaderboardMetric!
+    country: String
+    city: String
+    limit: Int
+  ): RegionalLeaderboard!
+  eventLeaderboard(eventId: String!, limit: Int): EventLeaderboard
+  currentSeasonLeaderboard: SeasonalLeaderboard
+  seasonLeaderboard(seasonId: String!): SeasonalLeaderboard
+  myLeaderboardSummary: LeaderboardSummary!
+  myLeaderboardHistory(metric: LeaderboardMetric!, days: Int): LeaderboardHistory!
+  nearbyUsers(metric: LeaderboardMetric!, range: Int): [LeaderboardEntry!]!
+  topPerformers(metric: LeaderboardMetric!, period: String!, limit: Int): [LeaderboardEntry!]!
+  activityFeed(filter: ActivityFilter, limit: Int, after: String): ActivityFeed!
+  globalActivityFeed(limit: Int, after: String): ActivityFeed!
+  friendsActivityFeed(limit: Int, after: String): ActivityFeed!
+  myActivityFeed(limit: Int, after: String): ActivityFeed!
+  activity(id: String!): Activity
+  userActivities(userId: String!, limit: Int): [Activity!]!
+  activityFeedGrouped(groupBy: String!, limit: Int): [ActivityGroup!]!
+  trendingActivities(limit: Int): [TrendingActivity!]!
+  trendingNow: [Activity!]!
+  activityStats: ActivityStats!
+  myActivityStats: ActivityStats!
+  recentActivities(since: DateTime!, types: [ActivityType!]): [Activity!]!
+  userAnalytics(options: AnalyticsOptions): UserAnalytics!
+  platformAnalytics(options: AnalyticsOptions): PlatformAnalytics!
+  realTimeAnalytics: RealTimeAnalytics!
+  danceAnalytics(options: AnalyticsOptions): DanceMetrics!
+  eventAnalytics(options: AnalyticsOptions): EventMetrics!
+  socialAnalytics(options: AnalyticsOptions): SocialMetrics!
+  economyAnalytics(options: AnalyticsOptions): EconomyMetrics!
+  metricTimeSeries(metric: String!, options: AnalyticsOptions): [TimeSeriesPoint!]!
+  compareMetrics(metrics: [String!]!, options: AnalyticsOptions): [AnalyticsComparison!]!
+  trendAnalysis(metrics: [String!]!, options: AnalyticsOptions): [TrendAnalysis!]!
+  cohortAnalysis(cohort_type: String!, options: AnalyticsOptions): [CohortData!]!
+  analyticsReport(report_type: String!, options: AnalyticsOptions): JSON!
+  adminDashboardAnalytics: JSON!
+  miniappHome: MiniappHomeData!
+  miniappDailyStats: MiniappDailyStats!
+  miniappChallenges: [MiniappChallenge!]!
+  miniappActivities(limit: Int): [MiniappActivity!]!
+  miniappLeaderboard(type: String!, limit: Int): [MiniappLeaderboardEntry!]!
+  miniappFriends: [MiniappFriend!]!
+  miniappOnlineFriends: [MiniappFriend!]!
+  miniappNotifications(limit: Int): [MiniappNotification!]!
+  miniappUnreadCount: Int!
+  miniappSettings: MiniappSettings!
+  miniappShareContent(content_type: String!, content_id: String): MiniappShareContent!
+  miniappReferralLink: String!
+  miniappStreak: MiniappStreakInfo!
+  miniappLevel: Int!
+  miniappXP: Int!
+  miniappPoints: Int!
+  """
+  Get all feedback (admin only)
+  """
+  allFeedback(status: FeedbackStatus, limit: Int, offset: Int): [Feedback!]!
+  """
+  Get feedback stats (admin only)
+  """
+  feedbackStats: FeedbackStats!
+  allGigRoles(category: GigRoleCategory, tier: Int, activeOnly: Boolean): [GigRole!]!
+  gigRole(id: ID, slug: String): GigRole
+  myGigRoles(status: UserGigRoleStatus): [UserGigRole!]!
+  userGigRoles(userId: ID!): [UserGigRole!]!
+  eventGigs(eventId: ID!): [EventGig!]!
+  availableGigsForMe(eventId: ID, limit: Int, offset: Int): [EventGig!]!
+  eventGig(id: ID!): EventGig
+  myGigApplications(status: GigApplicationStatus, limit: Int, offset: Int): [GigApplication!]!
+  gigApplications(gigId: ID!, status: GigApplicationStatus): [GigApplication!]!
+  gigApplication(id: ID!): GigApplication
+  myGigStats: GigStats!
+  myGigDashboard: GigDashboard!
+  gigManagerDashboard: GigManagerDashboard!
+  gigRewardRates(roleId: ID): [GigRewardRate!]!
+  eventGigManagers(eventId: ID!): [EventGigManager!]!
+  myNotifications(
+    limit: Int = 20
+    offset: Int = 0
+    unread_only: Boolean = false
+    type: NotificationType
+  ): NotificationConnection!
+  notification(id: ID!): Notification
+  myNotificationPreferences: NotificationPreferences!
+  unreadNotificationCount: Int!
+  sponsor(id: ID!): Sponsor
+  sponsorByUserId(userId: String!): Sponsor
+  mySponsorProfile: Sponsor
+  sponsorCategories: [SponsorCategory!]!
+  sponsorDashboard: SponsorDashboard
+  eventsForSponsorship(input: EventsForSponsorshipInput): [Event!]!
+  suggestedEventsForSponsor(limit: Int): [SuggestedEvent!]!
+  myFlowBalance: UserFlowBalance
+  myFlowTransactions(limit: Int, offset: Int, type: FlowTransactionType): [FlowTransaction!]!
+  eventFlowPool(eventId: ID!): EventFlowPool
+  eventSponsors(eventId: ID!): [EventSponsorship!]!
+  eventSponsorshipSettings(eventId: ID!): EventSponsorshipSettings
+  pendingSponsorshipApprovals(eventId: ID!): [SponsorshipApproval!]!
+  mySubscriptions: [SponsorSubscription!]!
+  subscription(id: ID!): SponsorSubscription
+  verifiedCreatorStatus(userId: String): VerifiedEventCreator
+  myVerificationStatus: VerifiedEventCreator
+  verificationCriteria(userId: String): VerificationCriteria
+  sponsorAnalytics(periodType: String!, startDate: DateTime!, endDate: DateTime!): SponsorAnalytics
+  eventSponsorshipAnalytics(eventId: ID!): EventSponsorshipAnalytics
+  sponsorNotificationPreferences: SponsorNotificationPreferences
+  creatorSponsorshipNotificationPreferences: CreatorSponsorshipNotificationPreferences
+}
+
+type Mutation {
+  _empty: String
+  updateProfile(input: UpdateProfileInput!): User!
+  createDanceBond(userId: String!, input: CreateDanceBondInput!): DanceBond!
+  updateDanceBond(userId: String!, level: Int!): DanceBond!
+  createEvent(input: CreateEventInput!): Event!
+  updateEvent(id: ID!, input: UpdateEventInput!): Event!
+  deleteEvent(id: ID!): MutationResponse!
+  cancelEvent(id: ID!): Event!
+  registerForEvent(eventId: ID!, notes: String): EventRegistration!
+  cancelEventRegistration(eventId: ID!): MutationResponse!
+  checkInParticipant(eventId: ID!, userId: String!): EventRegistration!
+  updateRegistrationStatus(
+    eventId: ID!
+    userId: String!
+    status: RegistrationStatus!
+    adminNotes: String
+  ): EventRegistration!
+  checkInWithCode(code: String!): CheckInResponse!
+  regenerateCheckinCode(eventId: ID!): Event!
+  inviteEventManager(input: InviteEventManagerInput!): EventManager!
+  acceptManagerInvitation(manager_id: ID!): EventManager!
+  declineManagerInvitation(manager_id: ID!): EventManager!
+  updateEventManager(input: UpdateEventManagerInput!): EventManager!
+  removeEventManager(manager_id: ID!): MutationResponse!
+  leaveEventAsManager(event_id: ID!): MutationResponse!
+  transferEventOwnership(event_id: ID!, new_creator_id: String!): EventManager!
+  updateUserRole(userId: String!, role: UserRole!): User!
+  approveOrganizer(userId: String!, approved: Boolean!, rejection_reason: String): User!
+  featureEvent(eventId: ID!, featured: Boolean!): Event!
+  adminDeleteEvent(eventId: ID!): MutationResponse!
+  createPointAction(input: CreatePointActionInput!): PointAction!
+  updatePointAction(input: UpdatePointActionInput!): PointAction!
+  deletePointAction(action_key: String!): MutationResponse!
+  togglePointAction(action_key: String!): PointAction!
+  awardPoints(input: AwardPointsInput!): PointTransaction!
+  awardManualPoints(input: ManualPointsInput!): PointTransaction!
+  verifyPointTransaction(transaction_id: ID!): PointTransaction!
+  reversePointTransaction(transaction_id: ID!, reason: String!): PointTransaction!
+  checkInEvent(input: CheckInEventInput!): EventAttendance!
+  checkOutEvent(input: CheckOutEventInput!): EventAttendance!
+  verifyEventAttendance(input: VerifyAttendanceInput!): EventAttendance!
+  trackAppOpen(user_id: String!): DailyActivity!
+  createProject(input: CreateProjectInput!): Project!
+  updateProject(id: ID!, input: UpdateProjectInput!): Project!
+  deleteProject(id: ID!): Boolean!
+  createFeatureRequest(input: CreateFeatureRequestInput!): FeatureRequest!
+  updateFeatureRequest(id: ID!, input: UpdateFeatureRequestInput!): FeatureRequest!
+  deleteFeatureRequest(id: ID!): Boolean!
+  voteFeatureRequest(id: ID!, vote: String!): FeatureRequest!
+  removeFeatureRequestVote(id: ID!): FeatureRequest!
+  addFeatureRequestComment(
+    feature_request_id: ID!
+    content: String!
+    is_internal: Boolean
+  ): FeatureRequestComment!
+  deleteFeatureRequestComment(id: ID!): Boolean!
+  createDevTask(input: CreateDevTaskInput!): DevTask!
+  updateDevTask(id: ID!, input: UpdateDevTaskInput!): DevTask!
+  deleteDevTask(id: ID!): Boolean!
+  startTask(id: ID!): DevTask!
+  completeTask(id: ID!, actual_hours: Int): DevTask!
+  blockTask(id: ID!, reason: String): DevTask!
+  createChangelogEntry(input: CreateChangelogEntryInput!): ChangelogEntry!
+  updateChangelogEntry(id: ID!, input: UpdateChangelogEntryInput!): ChangelogEntry!
+  deleteChangelogEntry(id: ID!): Boolean!
+  triggerGitHubAction(repo: String!, workflow_id: String!, ref: String): Boolean!
+  checkSystemHealth: [SystemHealth!]!
+  clearGitHubCache(cache_key: String): Boolean!
+  createFeatureInventory(input: CreateFeatureInventoryInput!): FeatureInventory!
+  updateFeatureInventory(id: ID!, input: UpdateFeatureInventoryInput!): FeatureInventory!
+  deleteFeatureInventory(id: ID!): Boolean!
+  createDevAlert(input: CreateDevAlertInput!): DevAlert!
+  markAlertRead(id: ID!): DevAlert!
+  markAlertDismissed(id: ID!): DevAlert!
+  markAllAlertsRead: Boolean!
+  deleteDevAlert(id: ID!): Boolean!
+  saveDanceSession(input: SaveDanceSessionInput!): DanceSession!
+  shareDanceSession(sessionId: ID!, userIds: [String!]!): DanceSession!
+  deleteDanceSession(sessionId: ID!): MutationResponse!
+  createFreestyleSession(input: CreateFreestyleSessionInput!): FreestyleSession!
+  updateFreestylePreferences(input: UpdateUserPreferencesInput!): UserPreferences!
+  deleteFreestyleSession(sessionId: ID!): MutationResponse!
+  submitOrganizerApplication(input: SubmitOrganizerApplicationInput!): OrganizerApplication!
+  reviewOrganizerApplication(input: ReviewApplicationInput!): OrganizerApplication!
+  trackReferralClick(input: TrackReferralClickInput!): MutationResponse!
+  completeReferral(input: CompleteReferralInput!): Referral!
+  markReferralCompleted(referralId: ID!): Referral!
+  generateShareLinks: ShareLinks!
+  nudgeReferral(referralId: ID!, message: String): MutationResponse!
+  createPost(input: CreatePostInput!): Post!
+  updatePost(postId: ID!, input: UpdatePostInput!): Post!
+  deletePost(postId: ID!): MutationResponse!
+  likePost(postId: ID!): MutationResponse!
+  unlikePost(postId: ID!): MutationResponse!
+  createComment(input: CreateCommentInput!): PostComment!
+  updateComment(commentId: ID!, content: String!): PostComment!
+  deleteComment(commentId: ID!): MutationResponse!
+  deleteDanceBond(bondId: ID!): MutationResponse!
+  startConversation(input: StartConversationInput!): Conversation!
+  updateConversation(id: ID!, input: UpdateConversationInput!): Conversation!
+  leaveConversation(id: ID!): Boolean!
+  deleteConversation(id: ID!): Boolean!
+  addParticipants(input: AddParticipantsInput!): Conversation!
+  removeParticipant(conversation_id: ID!, user_id: String!): Conversation!
+  promoteToAdmin(conversation_id: ID!, user_id: String!): Conversation!
+  sendMessage(input: SendMessageInput!): Message!
+  updateMessage(id: ID!, input: UpdateMessageInput!): Message!
+  deleteMessage(id: ID!): Boolean!
+  markConversationRead(conversation_id: ID!): Conversation!
+  markMessageRead(message_id: ID!): Message!
+  addReaction(message_id: ID!, emoji: String!): Message!
+  removeReaction(message_id: ID!, emoji: String!): Message!
+  blockUser(user_id: String!, reason: String): UserBlock!
+  unblockUser(user_id: String!): Boolean!
+  updatePrivacySettings(input: UpdatePrivacySettingsInput!): PrivacySettings!
+  applyPrivacyPreset(preset: PrivacyPresetType!): PrivacySettings!
+  resetPrivacyToDefaults: PrivacySettings!
+  dismissSuggestion(suggestion_id: ID!): Boolean!
+  dismissAllSuggestions: Boolean!
+  refreshSuggestions: UserSuggestionConnection!
+  "Send a bond request"
+  sendBondRequest(input: SendBondRequestInput!): BondRequest!
+  "Accept or reject a bond request"
+  respondToBondRequest(input: RespondToBondRequestInput!): BondRequest!
+  "Cancel a pending request I sent"
+  cancelBondRequest(request_id: ID!): Boolean!
+  """
+  Request a username change. First change is auto-approved, subsequent changes require admin review.
+  """
+  requestUsernameChange(input: RequestUsernameChangeInput!): UsernameChangeResult!
+  """
+  Cancel a pending username change request
+  """
+  cancelUsernameChangeRequest(request_id: ID!): MutationResponse!
+  """
+  Admin: Review (approve/reject) a username change request
+  """
+  reviewUsernameChangeRequest(input: ReviewUsernameChangeInput!): UsernameChangeRequest!
+  checkAchievements: AchievementCheckResult!
+  claimAchievementReward(achievementType: String!): AchievementDetails!
+  registerWearableDevice(input: RegisterWearableInput!): WearableDevice!
+  updateWearableDevice(deviceId: String!, input: RegisterWearableInput!): WearableDevice!
+  removeWearableDevice(deviceId: String!): MutationResponse!
+  setPrimaryWearable(deviceId: String!): WearableDevice!
+  syncWearableData(input: SyncWearableDataInput!): WearableSyncResult!
+  syncHealthData(data: [WearableHealthDataInput!]!): WearableSyncResult!
+  syncMotionData(data: [WearableMotionDataInput!]!): WearableSyncResult!
+  requestWearableSync(deviceId: String!): WearableDevice!
+  startChallenge(challengeId: String!): UserChallenge!
+  updateChallengeProgress(challengeId: String!, progress: Int!): UserChallenge!
+  claimChallengeReward(challengeId: String!): UserChallenge!
+  abandonChallenge(challengeId: String!): MutationResponse!
+  createChallenge(input: CreateChallengeInput!): Challenge!
+  updateChallenge(id: String!, input: CreateChallengeInput!): Challenge!
+  deleteChallenge(id: String!): MutationResponse!
+  activateChallenge(id: String!): Challenge!
+  deactivateChallenge(id: String!): Challenge!
+  refreshDailyChallenges: DailyChallengeset!
+  processExpiredChallenges: MutationResponse!
+  refreshLeaderboard(type: LeaderboardType!, metric: LeaderboardMetric!): Leaderboard!
+  refreshAllLeaderboards: MutationResponse!
+  createSeason(
+    name: String!
+    startsAt: DateTime!
+    endsAt: DateTime!
+    rewards: JSON!
+  ): SeasonalLeaderboard!
+  endSeason(seasonId: String!): MutationResponse!
+  createEventLeaderboard(eventId: String!, prizes: JSON): EventLeaderboard!
+  finalizeEventLeaderboard(eventId: String!): EventLeaderboard!
+  likeActivity(activityId: String!): Activity!
+  unlikeActivity(activityId: String!): Activity!
+  commentOnActivity(activityId: String!, comment: String!): Activity!
+  hideActivity(activityId: String!): MutationResponse!
+  reportActivity(activityId: String!, reason: String!): MutationResponse!
+  createActivity(
+    type: ActivityType!
+    userId: String!
+    targetUserId: String
+    title: String!
+    description: String
+    metadata: JSON
+    visibility: ActivityVisibility
+  ): Activity!
+  markActivitiesRead(activityIds: [String!]!): MutationResponse!
+  markAllActivitiesRead: MutationResponse!
+  highlightActivity(activityId: String!): Activity!
+  deleteActivity(activityId: String!): MutationResponse!
+  createAnnouncement(title: String!, description: String!, metadata: JSON): Activity!
+  trackEvent(event_type: String!, user_id: String, metadata: JSON): MutationResponse!
+  generateAnalyticsReport(report_type: String!, options: AnalyticsOptions, format: String): String!
+  refreshAnalyticsCache(metrics: [String!]): MutationResponse!
+  telegramAuth(input: TelegramAuthInput!): TelegramAuthResult!
+  linkTelegramAccount(telegram_init_data: String!): TelegramAuthResult!
+  unlinkTelegramAccount: MutationResponse!
+  miniappStartQuickSession(input: MiniappQuickSessionInput!): MiniappQuickSession!
+  miniappEndQuickSession(session_id: String!, stats: JSON!): MutationResponse!
+  miniappClaimDailyReward: MiniappRewardClaim!
+  miniappClaimChallengeReward(challenge_id: String!): MiniappRewardClaim!
+  miniappInviteFriend(telegram_user_id: String!): MutationResponse!
+  miniappSendCheer(user_id: String!): MutationResponse!
+  miniappMarkNotificationRead(notification_id: String!): MutationResponse!
+  miniappMarkAllNotificationsRead: MutationResponse!
+  miniappRegisterPushToken(token: String!): MutationResponse!
+  miniappUpdateSettings(input: MiniappSettingsInput!): MiniappSettings!
+  miniappTrackEvent(event: String!, data: JSON): MutationResponse!
+  """
+  Submit feedback from user
+  """
+  submitFeedback(input: SubmitFeedbackInput!): Feedback!
+  """
+  Update feedback status (admin only)
+  """
+  updateFeedbackStatus(input: UpdateFeedbackStatusInput!): Feedback!
+  applyForGigRole(input: ApplyForGigRoleInput!): UserGigRole!
+  updateGigRoleApplication(id: ID!, input: UpdateGigRoleApplicationInput!): UserGigRole!
+  withdrawGigRoleApplication(id: ID!): MutationResponse!
+  reviewGigRoleApplication(id: ID!, approved: Boolean!, reason: String): UserGigRole!
+  createEventGig(input: CreateEventGigInput!): EventGig!
+  updateEventGig(id: ID!, input: UpdateEventGigInput!): EventGig!
+  deleteEventGig(id: ID!): MutationResponse!
+  cancelEventGig(id: ID!, reason: String): EventGig!
+  applyForGig(gigId: ID!, note: String): GigApplication!
+  withdrawGigApplication(applicationId: ID!): GigApplication!
+  reviewGigApplication(applicationId: ID!, input: ReviewGigApplicationInput!): GigApplication!
+  checkInToGig(applicationId: ID!): GigApplication!
+  checkOutFromGig(applicationId: ID!): GigApplication!
+  submitGigProof(applicationId: ID!, input: GigProofInput!): GigSubmission!
+  reviewGigSubmission(submissionId: ID!, input: ReviewGigSubmissionInput!): GigSubmission!
+  completeGigAndAward(applicationId: ID!, bonusDanz: Float): GigApplication!
+  rateGigWorker(applicationId: ID!, rating: Int!, feedback: String): GigApplication!
+  rateGigOrganizer(applicationId: ID!, rating: Int!, feedback: String): GigApplication!
+  assignEventGigManager(eventId: ID!, userId: String!): EventGigManager!
+  removeEventGigManager(eventId: ID!, userId: String!): MutationResponse!
+  promoteToGigManager(userId: String!): User!
+  demoteGigManager(userId: String!): User!
+  markNotificationRead(id: ID!): Notification!
+  markAllNotificationsRead: MutationResponse!
+  deleteNotification(id: ID!): MutationResponse!
+  updateNotificationPreferences(
+    input: UpdateNotificationPreferencesInput!
+  ): NotificationPreferences!
+  sendAdminBroadcast(input: SendBroadcastInput!): MutationResponse!
+  sendEventBroadcast(input: SendEventBroadcastInput!): MutationResponse!
+  createNotification(input: CreateNotificationInput!): Notification!
+  createSponsorProfile(input: CreateSponsorInput!): Sponsor!
+  updateSponsorProfile(input: UpdateSponsorInput!): Sponsor!
+  deleteSponsorProfile: MutationResponse!
+  createEventSponsorship(input: CreateSponsorshipInput!): EventSponsorship!
+  updateEventSponsorship(id: ID!, input: UpdateSponsorshipInput!): EventSponsorship!
+  cancelEventSponsorship(id: ID!, reason: String): EventSponsorship!
+  reviewSponsorshipApproval(
+    approvalId: ID!
+    decision: ApprovalStatus!
+    reason: String
+  ): SponsorshipApproval!
+  updateEventSponsorshipSettings(
+    eventId: ID!
+    input: EventSponsorshipSettingsInput!
+  ): EventSponsorshipSettings!
+  lockEventPool(eventId: ID!): EventFlowPool!
+  unlockEventPool(eventId: ID!): EventFlowPool!
+  distributeGigPayment(input: GigPaymentInput!): FlowTransaction!
+  distributeVolunteerReward(input: VolunteerRewardInput!): FlowTransaction!
+  completeEventDistribution(eventId: ID!): EventFlowPool!
+  requestFlowToDanzSwap(amount: Float!): FlowDanzSwap!
+  withdrawFlow(amount: Float!, destinationWallet: String!): FlowTransaction!
+  createSponsorSubscription(input: CreateSubscriptionInput!): SponsorSubscription!
+  updateSponsorSubscription(id: ID!, input: UpdateSubscriptionInput!): SponsorSubscription!
+  pauseSponsorSubscription(id: ID!): SponsorSubscription!
+  resumeSponsorSubscription(id: ID!): SponsorSubscription!
+  cancelSponsorSubscription(id: ID!, reason: String): SponsorSubscription!
+  respondToSubscriptionMatch(matchId: ID!, approve: Boolean!): SubscriptionAutoMatch!
+  updateSponsorNotificationPreferences(
+    input: SponsorNotificationPreferencesInput!
+  ): SponsorNotificationPreferences!
+  updateCreatorSponsorshipNotificationPreferences(
+    input: CreatorNotificationPreferencesInput!
+  ): CreatorSponsorshipNotificationPreferences!
+}
+
+type Subscription {
+  _empty: String
+  "New message in any of user's conversations"
+  messageReceived: Message!
+  "Message updated or deleted"
+  messageUpdated(conversation_id: ID!): Message!
+  "Conversation updated (new participant, title change, etc)"
+  conversationUpdated: Conversation!
+  "Typing indicator"
+  userTyping(conversation_id: ID!): TypingIndicator!
+}
+
+enum UserRole {
+  user
+  organizer
+  manager
+  dev
+  admin
+}
+
+enum EventCategory {
+  salsa
+  hip_hop
+  contemporary
+  ballet
+  jazz
+  ballroom
+  street
+  cultural
+  fitness
+  class
+  social
+  battle
+  workshop
+  performance
+  other
+}
+
+enum SkillLevel {
+  all
+  beginner
+  intermediate
+  advanced
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  refunded
+  free
+}
+
+enum RegistrationStatus {
+  registered
+  cancelled
+  attended
+  no_show
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+input PaginationInput {
+  limit: Int
+  offset: Int
+  cursor: String
+}
+
+type MutationResponse {
+  success: Boolean!
+  message: String
+  code: String
+}
+
+type User {
+  privy_id: String!
+  username: String
+  display_name: String
+  bio: String
+  avatar_url: String
+  cover_image_url: String
+  location: String
+  city: String
+  latitude: Float
+  longitude: Float
+  website: String
+  instagram: String
+  tiktok: String
+  youtube: String
+  twitter: String
+  dance_styles: [String!]
+  skill_level: SkillLevel
+  favorite_music: [String!]
+  age: Int
+  pronouns: String
+  is_public: Boolean
+  allow_messages: Boolean
+  show_location: Boolean
+  notification_preferences: JSON
+  xp: Int
+  level: Int
+  subscription_tier: String
+  is_premium: String
+  stripe_customer_id: String
+  stripe_subscription_id: String
+  subscription_status: String
+  subscription_plan: String
+  subscription_start_date: DateTime
+  subscription_end_date: DateTime
+  subscription_cancelled_at: DateTime
+  total_dance_time: Int
+  total_sessions: Int
+  longest_streak: Int
+  created_at: DateTime
+  updated_at: DateTime
+  last_active_at: DateTime
+  role: UserRole
+  is_admin: Boolean
+  is_organizer_approved: Boolean
+  organizer_approved_by: String
+  organizer_approved_at: DateTime
+  company_name: String
+  event_types: [String!]
+  invited_by: String
+  social_media_links: JSON
+  website_url: String
+  organizer_bio: String
+  organizer_requested_at: DateTime
+  organizer_rejection_reason: String
+  is_gig_manager: Boolean
+  gig_manager_approved_at: DateTime
+  gig_manager_approved_by: String
+  referral_count: Int
+  referral_points_earned: Int
+  total_events_attended: Int
+  total_events_created: Int
+  upcoming_events_count: Int
+  total_achievements: Int
+  dance_bonds_count: Int
+  achievements: [Achievement!]
+}
+
+type Achievement {
+  id: ID!
+  user_id: String!
+  achievement_type: String!
+  title: String!
+  description: String
+  icon: String
+  xp_reward: Int
+  danz_reward: Float
+  unlocked_at: DateTime
+}
+
+type DanceBond {
+  id: ID!
+  user1_id: String!
+  user2_id: String!
+  bond_level: Int!
+  shared_sessions: Int
+  created_at: DateTime!
+  updated_at: DateTime!
+  otherUser: User
+  user_id_1: String!
+  user_id_2: String!
+  user1: User!
+  user2: User!
+  shared_events_count: Int!
+  total_dances: Int!
+  last_dance_date: DateTime
+}
+
+type UserStats {
+  total_events_attended: Int!
+  total_events_hosted: Int!
+  total_posts_created: Int!
+  total_comments_made: Int!
+  total_likes_given: Int!
+  total_likes_received: Int!
+  points_earned: Int!
+  current_points_balance: Int!
+  referral_points_earned: Int!
+  total_dance_bonds: Int!
+  current_streak: Int!
+  longest_streak: Int!
+}
+
+input UpdateProfileInput {
+  username: String
+  display_name: String
+  bio: String
+  avatar_url: String
+  cover_image_url: String
+  location: String
+  city: String
+  latitude: Float
+  longitude: Float
+  website: String
+  instagram: String
+  tiktok: String
+  youtube: String
+  twitter: String
+  dance_styles: [String!]
+  skill_level: SkillLevel
+  favorite_music: [String!]
+  age: Int
+  pronouns: String
+  is_public: Boolean
+  allow_messages: Boolean
+  show_location: Boolean
+  notification_preferences: JSON
+  company_name: String
+  event_types: [String!]
+  invited_by: String
+  social_media_links: JSON
+  website_url: String
+  organizer_bio: String
+}
+
+input UserFilterInput {
+  role: UserRole
+  skill_level: SkillLevel
+  city: String
+  dance_style: String
+  is_organizer_approved: Boolean
+}
+
+type UserConnection {
+  users: [User!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type Event {
+  id: ID!
+  title: String!
+  description: String
+  category: EventCategory
+  image_url: String
+  location_name: String!
+  location_address: String
+  location_city: String
+  location_latitude: Float
+  location_longitude: Float
+  facilitator_id: String
+  facilitator: User
+  max_capacity: Int
+  current_capacity: Int
+  price_usd: Float
+  price_danz: Float
+  is_featured: Boolean
+  skill_level: SkillLevel
+  is_virtual: Boolean
+  virtual_link: String
+  requirements: String
+  tags: [String!]
+  dance_styles: [String!]
+  currency: String
+  start_date_time: DateTime!
+  end_date_time: DateTime!
+  created_at: DateTime!
+  updated_at: DateTime!
+  status: EventStatus
+  is_registered: Boolean
+  user_registration_status: RegistrationStatus
+  distance: Float
+  registration_count: Int
+  participants: [EventRegistration!]
+  is_recurring: Boolean
+  recurrence_type: RecurrenceType
+  recurrence_end_date: DateTime
+  recurrence_days: [String!]
+  parent_event_id: ID
+  parent_event: Event
+  recurrence_count: Int
+  recurring_instances: [Event!]
+  checkin_code: String
+  slug: String
+  is_public: Boolean
+  allow_sponsors: Boolean
+  sponsor_benefits: String
+  sponsor_contact_email: String
+  sponsor_tier_config: JSON
+  sponsor_count: Int
+}
+
+enum RecurrenceType {
+  none
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+type EventRegistration {
+  id: ID!
+  event_id: String!
+  user_id: String!
+  user: User
+  event: Event
+  status: RegistrationStatus
+  registration_date: DateTime
+  payment_status: PaymentStatus
+  payment_amount: Float
+  payment_date: DateTime
+  checked_in: Boolean
+  check_in_time: DateTime
+  user_notes: String
+  admin_notes: String
+  created_at: DateTime
+  updated_at: DateTime
+}
+
+enum EventStatus {
+  upcoming
+  ongoing
+  past
+  cancelled
+}
+
+type CheckInResponse {
+  success: Boolean!
+  message: String!
+  event: Event
+  registration: EventRegistration
+}
+
+input CreateEventInput {
+  title: String!
+  description: String
+  category: EventCategory
+  image_url: String
+  location_name: String!
+  location_address: String
+  location_city: String
+  location_latitude: Float
+  location_longitude: Float
+  max_capacity: Int
+  price_usd: Float
+  price_danz: Float
+  skill_level: SkillLevel
+  is_virtual: Boolean
+  virtual_link: String
+  requirements: String
+  tags: [String!]
+  dance_styles: [String!]
+  currency: String
+  start_date_time: DateTime!
+  end_date_time: DateTime!
+  is_featured: Boolean
+  is_recurring: Boolean
+  recurrence_type: RecurrenceType
+  recurrence_end_date: DateTime
+  recurrence_days: [String!]
+  recurrence_count: Int
+  is_public: Boolean
+  allow_sponsors: Boolean
+  sponsor_benefits: String
+  sponsor_contact_email: String
+  sponsor_tier_config: JSON
+}
+
+input UpdateEventInput {
+  title: String
+  description: String
+  category: EventCategory
+  image_url: String
+  location_name: String
+  location_address: String
+  location_city: String
+  location_latitude: Float
+  location_longitude: Float
+  max_capacity: Int
+  price_usd: Float
+  price_danz: Float
+  skill_level: SkillLevel
+  is_virtual: Boolean
+  virtual_link: String
+  requirements: String
+  tags: [String!]
+  dance_styles: [String!]
+  currency: String
+  start_date_time: DateTime
+  end_date_time: DateTime
+  is_featured: Boolean
+  is_recurring: Boolean
+  recurrence_type: RecurrenceType
+  recurrence_end_date: DateTime
+  recurrence_days: [String!]
+  recurrence_count: Int
+  is_public: Boolean
+  allow_sponsors: Boolean
+  sponsor_benefits: String
+  sponsor_contact_email: String
+  sponsor_tier_config: JSON
+}
+
+input EventFilterInput {
+  category: EventCategory
+  skill_level: SkillLevel
+  city: String
+  dance_style: String
+  is_virtual: Boolean
+  is_featured: Boolean
+  facilitator_id: String
+  created_by: String
+  registered_by: String
+  created_by_me: Boolean
+  registered_by_me: Boolean
+  status: EventStatus
+  minPrice: Float
+  maxPrice: Float
+  startDate: DateTime
+  endDate: DateTime
+  nearLocation: LocationInput
+  is_recurring: Boolean
+  exclude_instances: Boolean
+}
+
+input LocationInput {
+  latitude: Float!
+  longitude: Float!
+  radius: Float
+}
+
+enum EventSortBy {
+  date_asc
+  date_desc
+  price_asc
+  price_desc
+  title_asc
+  title_desc
+  created_at_desc
+}
+
+type EventConnection {
+  events: [Event!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type EventManager {
+  id: ID!
+  event_id: ID!
+  user_id: String!
+  role: EventManagerRole!
+  can_edit_details: Boolean!
+  can_manage_registrations: Boolean!
+  can_send_broadcasts: Boolean!
+  can_manage_posts: Boolean!
+  can_invite_managers: Boolean!
+  can_delete_event: Boolean!
+  status: EventManagerStatus!
+  invited_by: String
+  invited_at: DateTime
+  accepted_at: DateTime
+  created_at: DateTime!
+  updated_at: DateTime
+  event: Event
+  user: User
+  inviter: User
+}
+
+type EventManagerConnection {
+  managers: [EventManager!]!
+  total_count: Int!
+}
+
+type EventManagerPermissions {
+  can_edit_details: Boolean!
+  can_manage_registrations: Boolean!
+  can_send_broadcasts: Boolean!
+  can_manage_posts: Boolean!
+  can_invite_managers: Boolean!
+  can_delete_event: Boolean!
+}
+
+enum EventManagerRole {
+  creator
+  manager
+  moderator
+}
+
+enum EventManagerStatus {
+  pending
+  active
+  declined
+  removed
+}
+
+input InviteEventManagerInput {
+  event_id: ID!
+  user_id: String!
+  role: EventManagerRole = manager
+  can_edit_details: Boolean = true
+  can_manage_registrations: Boolean = true
+  can_send_broadcasts: Boolean = true
+  can_manage_posts: Boolean = false
+  can_invite_managers: Boolean = false
+}
+
+input UpdateEventManagerInput {
+  manager_id: ID!
+  role: EventManagerRole
+  can_edit_details: Boolean
+  can_manage_registrations: Boolean
+  can_send_broadcasts: Boolean
+  can_manage_posts: Boolean
+  can_invite_managers: Boolean
+}
+
+type AdminStats {
+  totalUsers: Int!
+  totalEvents: Int!
+  totalRevenue: Float!
+  activeUsers: Int!
+  upcomingEvents: Int!
+  newUsersThisMonth: Int!
+  eventsThisMonth: Int!
+}
+
+type AdminNotificationConnection {
+  notifications: [AdminNotification!]!
+  totalCount: Int!
+  unreadCount: Int!
+}
+
+type AdminNotification {
+  id: ID!
+  type: String!
+  title: String!
+  message: String
+  recipient_id: String!
+  recipient: User
+  sender_id: String
+  sender: User
+  sender_type: String
+  read: Boolean!
+  created_at: DateTime!
+}
+
+type AdminReferralStats {
+  totalReferrals: Int!
+  completedReferrals: Int!
+  pendingReferrals: Int!
+  totalPointsAwarded: Int!
+  topReferrers: [TopReferrer!]!
+  referralsThisMonth: Int!
+  conversionRate: Float!
+}
+
+type TopReferrer {
+  user_id: String!
+  username: String
+  display_name: String
+  referral_count: Int!
+  points_earned: Int!
+}
+
+type AdminEventConnection {
+  events: [Event!]!
+  totalCount: Int!
+  upcomingCount: Int!
+  pastCount: Int!
+  cancelledCount: Int!
+}
+
+type PointAction {
+  id: ID!
+  action_key: String!
+  action_name: String!
+  description: String
+  points_value: Int!
+  category: PointActionCategory!
+  is_active: Boolean!
+  requires_verification: Boolean!
+  max_per_day: Int
+  max_per_week: Int
+  max_per_month: Int
+  created_at: DateTime!
+  updated_at: DateTime!
+  total_transactions: Int
+  unique_users: Int
+  total_points_awarded: Int
+  avg_points_per_transaction: Float
+  last_awarded_at: DateTime
+}
+
+enum PointActionCategory {
+  social
+  activity
+  event
+  referral
+  achievement
+  special
+  admin
+}
+
+input CreatePointActionInput {
+  action_key: String!
+  action_name: String!
+  description: String
+  points_value: Int!
+  category: PointActionCategory!
+  is_active: Boolean
+  requires_verification: Boolean
+  max_per_day: Int
+  max_per_week: Int
+  max_per_month: Int
+}
+
+input UpdatePointActionInput {
+  action_key: String!
+  action_name: String
+  description: String
+  points_value: Int
+  category: PointActionCategory
+  is_active: Boolean
+  requires_verification: Boolean
+  max_per_day: Int
+  max_per_week: Int
+  max_per_month: Int
+}
+
+type PointTransaction {
+  id: ID!
+  user_id: String!
+  action_key: String!
+  points_amount: Int!
+  transaction_type: TransactionType!
+  reference_id: ID
+  reference_type: ReferenceType
+  metadata: JSON
+  admin_user_id: String
+  admin_note: String
+  status: TransactionStatus!
+  created_at: DateTime!
+  user: User
+  action: PointAction
+  admin_user: User
+}
+
+enum TransactionType {
+  earn
+  spend
+  bonus
+  penalty
+  adjustment
+  refund
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+  reversed
+}
+
+enum ReferenceType {
+  dance_session
+  event
+  referral
+  achievement
+  purchase
+  admin
+}
+
+input AwardPointsInput {
+  user_id: String!
+  action_key: String!
+  reference_id: ID
+  reference_type: ReferenceType
+  metadata: JSON
+}
+
+input ManualPointsInput {
+  user_id: String!
+  points_amount: Int!
+  transaction_type: TransactionType!
+  admin_note: String!
+  metadata: JSON
+}
+
+type DailyActivity {
+  id: ID!
+  user_id: String!
+  activity_date: String!
+  app_opened: Boolean!
+  app_opened_at: DateTime
+  first_session_completed: Boolean!
+  sessions_completed: Int!
+  total_dance_time: Int!
+  events_attended: Int!
+  social_interactions: Int!
+  points_earned_today: Int!
+  streak_day: Int!
+  created_at: DateTime!
+  updated_at: DateTime!
+  user: User
+}
+
+type EventAttendance {
+  id: ID!
+  event_id: ID!
+  user_id: String!
+  registration_id: ID
+  checked_in: Boolean!
+  checked_in_at: DateTime
+  checked_out: Boolean!
+  checked_out_at: DateTime
+  duration_minutes: Int!
+  points_earned: Int!
+  attendance_verified: Boolean!
+  verified_by: String
+  verified_at: DateTime
+  created_at: DateTime!
+  updated_at: DateTime!
+  event: Event
+  user: User
+  verifier: User
+}
+
+input CheckInEventInput {
+  event_id: ID!
+  user_id: String!
+}
+
+input CheckOutEventInput {
+  attendance_id: ID!
+}
+
+input VerifyAttendanceInput {
+  attendance_id: ID!
+  points_awarded: Int!
+}
+
+type PointsOverview {
+  total_points_issued: Int!
+  total_points_spent: Int!
+  total_active_users: Int!
+  avg_points_per_user: Float!
+  top_earning_action: PointAction
+  points_issued_today: Int!
+  points_issued_this_week: Int!
+  points_issued_this_month: Int!
+}
+
+type UserPointsSummary {
+  privy_id: String!
+  username: String
+  total_points_earned: Int!
+  total_points_spent: Int!
+  current_points_balance: Int!
+  xp: Int!
+  level: Int!
+  total_transactions: Int!
+  unique_actions: Int!
+  last_transaction_at: DateTime
+  transactions_last_week: Int!
+  points_last_week: Int!
+}
+
+type EventAttendanceSummary {
+  event_id: ID!
+  event_name: String!
+  start_date: DateTime!
+  end_date: DateTime
+  total_attendees: Int!
+  checked_in_count: Int!
+  verified_count: Int!
+  avg_duration_minutes: Float
+  total_points_awarded: Int!
+  avg_points_per_attendee: Float
+}
+
+type TransactionHistory {
+  transactions: [PointTransaction!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+enum FeatureRequestCategory {
+  enhancement
+  bug
+  performance
+  security
+  ux
+  integration
+}
+
+enum FeatureRequestStatus {
+  requested
+  under_review
+  planned
+  in_progress
+  testing
+  completed
+  rejected
+  deferred
+}
+
+enum TaskPriority {
+  critical
+  high
+  medium
+  low
+  nice_to_have
+}
+
+enum DevTaskType {
+  task
+  bug
+  tech_debt
+  hotfix
+  research
+  documentation
+}
+
+enum DevTaskStatus {
+  todo
+  in_progress
+  review
+  testing
+  done
+  blocked
+}
+
+enum ChangelogCategory {
+  feature
+  fix
+  improvement
+  breaking
+  security
+  performance
+  deprecation
+}
+
+enum FeatureInventoryCategory {
+  user_management
+  events
+  social
+  payments
+  referral
+  dance_sessions
+  notifications
+  admin
+  developer
+  miniapps
+  analytics
+  integrations
+}
+
+enum FeatureImplementationStatus {
+  not_started
+  planned
+  in_progress
+  partially_implemented
+  implemented
+  needs_refactor
+}
+
+enum ComponentStatus {
+  not_started
+  partial
+  complete
+}
+
+enum ProjectType {
+  app
+  backend
+  library
+  docs
+}
+
+enum ProjectPlatform {
+  web
+  mobile
+  telegram
+  api
+  admin
+}
+
+enum DevAlertType {
+  info
+  warning
+  error
+  critical
+  success
+  system
+}
+
+enum DevAlertCategory {
+  general
+  deployment
+  security
+  performance
+  database
+  api
+  payment
+  user_report
+  feature_request
+  system
+}
+
+enum DevAlertPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+type Project {
+  id: ID!
+  name: String!
+  slug: String!
+  description: String
+  github_repo: String
+  github_org: String
+  default_branch: String
+  project_type: ProjectType!
+  platform: ProjectPlatform
+  tech_stack: [String!]
+  is_active: Boolean!
+  is_archived: Boolean!
+  color: String
+  icon: String
+  display_order: Int
+  feature_count: Int
+  task_count: Int
+  open_task_count: Int
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type FeatureRequest {
+  id: ID!
+  title: String!
+  description: String
+  category: FeatureRequestCategory!
+  project: Project
+  project_id: ID
+  status: FeatureRequestStatus!
+  priority: TaskPriority
+  votes: Int!
+  requested_by: User
+  requested_at: DateTime!
+  assigned_to: User
+  assigned_at: DateTime
+  estimated_hours: Int
+  actual_hours: Int
+  target_version: String
+  completed_at: DateTime
+  github_issue_url: String
+  github_pr_url: String
+  tags: [String!]
+  comments: [FeatureRequestComment!]
+  user_vote: String
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type FeatureRequestComment {
+  id: ID!
+  content: String!
+  user: User
+  is_internal: Boolean!
+  created_at: DateTime!
+}
+
+type FeatureRequestConnection {
+  requests: [FeatureRequest!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+type DevTask {
+  id: ID!
+  title: String!
+  description: String
+  task_type: DevTaskType!
+  status: DevTaskStatus!
+  priority: TaskPriority!
+  project: Project
+  project_id: ID
+  assigned_to: User
+  created_by: User
+  due_date: String
+  estimated_hours: Int
+  actual_hours: Int
+  started_at: DateTime
+  completed_at: DateTime
+  feature_request: FeatureRequest
+  parent_task: DevTask
+  subtasks: [DevTask!]
+  github_issue_url: String
+  github_pr_url: String
+  tags: [String!]
+  sprint: String
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type DevTaskConnection {
+  tasks: [DevTask!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+type ChangelogEntry {
+  id: ID!
+  version: String!
+  title: String!
+  description: String
+  category: ChangelogCategory!
+  project: Project
+  project_id: ID
+  feature_request: FeatureRequest
+  github_pr_url: String
+  github_commit_sha: String
+  is_public: Boolean!
+  is_highlighted: Boolean!
+  created_by: User
+  created_at: DateTime!
+}
+
+type ChangelogVersion {
+  version: String!
+  release_date: DateTime!
+  entries: [ChangelogEntry!]!
+  is_current: Boolean!
+}
+
+type GitHubCommit {
+  sha: String!
+  message: String!
+  author: String!
+  author_avatar: String
+  date: DateTime!
+  url: String!
+  additions: Int
+  deletions: Int
+}
+
+type GitHubPullRequest {
+  number: Int!
+  title: String!
+  state: String!
+  author: String!
+  author_avatar: String
+  created_at: DateTime!
+  merged_at: DateTime
+  closed_at: DateTime
+  url: String!
+  additions: Int
+  deletions: Int
+  changed_files: Int
+  labels: [String!]
+  draft: Boolean
+}
+
+type GitHubAction {
+  id: ID!
+  name: String!
+  status: String!
+  conclusion: String
+  workflow_name: String!
+  branch: String!
+  commit_sha: String!
+  started_at: DateTime!
+  completed_at: DateTime
+  url: String!
+  duration_seconds: Int
+}
+
+type GitHubRelease {
+  id: ID!
+  tag_name: String!
+  name: String!
+  body: String
+  published_at: DateTime!
+  author: String!
+  author_avatar: String
+  url: String!
+  prerelease: Boolean!
+  draft: Boolean!
+}
+
+type GitHubRepo {
+  name: String!
+  full_name: String!
+  description: String
+  stars: Int!
+  forks: Int!
+  open_issues: Int!
+  open_prs: Int
+  last_push: DateTime!
+  default_branch: String!
+  url: String!
+}
+
+type GitHubRateLimit {
+  limit: Int!
+  remaining: Int!
+  reset_at: DateTime!
+  used: Int!
+}
+
+type SystemHealth {
+  service: String!
+  status: String!
+  response_time_ms: Int
+  last_checked: DateTime!
+  error_message: String
+  details: JSON
+}
+
+type DevDashboardStats {
+  total_feature_requests: Int!
+  pending_requests: Int!
+  in_progress_requests: Int!
+  completed_requests: Int!
+  total_tasks: Int!
+  todo_tasks: Int!
+  in_progress_tasks: Int!
+  blocked_tasks: Int!
+  total_changelog_entries: Int!
+  latest_version: String
+  github_open_prs: Int
+  github_open_issues: Int
+  github_rate_limit: GitHubRateLimit
+  total_features: Int
+  implemented_features: Int
+  in_progress_features: Int
+  planned_features: Int
+  unread_alerts: Int
+  critical_alerts: Int
+}
+
+type FeatureInventory {
+  id: ID!
+  name: String!
+  slug: String!
+  description: String
+  category: FeatureInventoryCategory!
+  status: FeatureImplementationStatus!
+  completion_percentage: Int!
+  priority: TaskPriority
+  project: Project
+  project_id: ID
+  backend_status: ComponentStatus!
+  frontend_status: ComponentStatus!
+  database_status: ComponentStatus!
+  api_docs_url: String
+  related_files: [String!]
+  dependencies: [String!]
+  notes: String
+  is_miniapp_ready: Boolean!
+  miniapp_api_available: Boolean!
+  estimated_hours: Int
+  actual_hours: Int
+  target_version: String
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type FeatureInventoryConnection {
+  features: [FeatureInventory!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+type FeatureInventoryStats {
+  total: Int!
+  by_status: JSON!
+  by_category: JSON!
+  miniapp_ready_count: Int!
+  average_completion: Float!
+}
+
+type DevAlert {
+  id: ID!
+  title: String!
+  message: String!
+  alert_type: DevAlertType!
+  category: DevAlertCategory!
+  priority: DevAlertPriority!
+  project: Project
+  project_id: ID
+  target_roles: [String!]
+  target_users: [String!]
+  is_read: Boolean!
+  is_dismissed: Boolean!
+  is_actionable: Boolean!
+  action_url: String
+  action_label: String
+  expires_at: DateTime
+  source_type: String
+  source_id: String
+  metadata: JSON
+  created_at: DateTime!
+}
+
+type DevAlertConnection {
+  alerts: [DevAlert!]!
+  total_count: Int!
+  unread_count: Int!
+  has_more: Boolean!
+}
+
+input CreateFeatureRequestInput {
+  title: String!
+  description: String
+  category: FeatureRequestCategory!
+  priority: TaskPriority
+  tags: [String!]
+  project_id: ID
+}
+
+input UpdateFeatureRequestInput {
+  title: String
+  description: String
+  category: FeatureRequestCategory
+  status: FeatureRequestStatus
+  priority: TaskPriority
+  assigned_to: String
+  estimated_hours: Int
+  actual_hours: Int
+  target_version: String
+  github_issue_url: String
+  github_pr_url: String
+  tags: [String!]
+  project_id: ID
+}
+
+input CreateDevTaskInput {
+  title: String!
+  description: String
+  task_type: DevTaskType!
+  priority: TaskPriority!
+  assigned_to: String
+  due_date: String
+  estimated_hours: Int
+  feature_request_id: String
+  parent_task_id: String
+  github_issue_url: String
+  tags: [String!]
+  sprint: String
+  project_id: ID
+}
+
+input UpdateDevTaskInput {
+  title: String
+  description: String
+  task_type: DevTaskType
+  status: DevTaskStatus
+  priority: TaskPriority
+  assigned_to: String
+  due_date: String
+  estimated_hours: Int
+  actual_hours: Int
+  github_issue_url: String
+  github_pr_url: String
+  tags: [String!]
+  sprint: String
+  project_id: ID
+}
+
+input CreateChangelogEntryInput {
+  version: String!
+  title: String!
+  description: String
+  category: ChangelogCategory!
+  feature_request_id: String
+  github_pr_url: String
+  github_commit_sha: String
+  is_public: Boolean
+  is_highlighted: Boolean
+  project_id: ID
+}
+
+input UpdateChangelogEntryInput {
+  version: String
+  title: String
+  description: String
+  category: ChangelogCategory
+  feature_request_id: String
+  github_pr_url: String
+  github_commit_sha: String
+  is_public: Boolean
+  is_highlighted: Boolean
+  project_id: ID
+}
+
+input FeatureRequestFilter {
+  status: [FeatureRequestStatus!]
+  category: [FeatureRequestCategory!]
+  priority: [TaskPriority!]
+  assigned_to: String
+  requested_by: String
+  search: String
+  project_id: ID
+}
+
+input DevTaskFilter {
+  status: [DevTaskStatus!]
+  task_type: [DevTaskType!]
+  priority: [TaskPriority!]
+  assigned_to: String
+  sprint: String
+  search: String
+  project_id: ID
+}
+
+input FeatureInventoryFilter {
+  category: [FeatureInventoryCategory!]
+  status: [FeatureImplementationStatus!]
+  priority: [TaskPriority!]
+  is_miniapp_ready: Boolean
+  miniapp_api_available: Boolean
+  search: String
+  project_id: ID
+}
+
+input CreateFeatureInventoryInput {
+  name: String!
+  slug: String!
+  description: String
+  category: FeatureInventoryCategory!
+  status: FeatureImplementationStatus
+  completion_percentage: Int
+  priority: TaskPriority
+  backend_status: ComponentStatus
+  frontend_status: ComponentStatus
+  database_status: ComponentStatus
+  api_docs_url: String
+  related_files: [String!]
+  dependencies: [String!]
+  notes: String
+  is_miniapp_ready: Boolean
+  miniapp_api_available: Boolean
+  estimated_hours: Int
+  target_version: String
+  project_id: ID
+}
+
+input UpdateFeatureInventoryInput {
+  name: String
+  description: String
+  category: FeatureInventoryCategory
+  status: FeatureImplementationStatus
+  completion_percentage: Int
+  priority: TaskPriority
+  backend_status: ComponentStatus
+  frontend_status: ComponentStatus
+  database_status: ComponentStatus
+  api_docs_url: String
+  related_files: [String!]
+  dependencies: [String!]
+  notes: String
+  is_miniapp_ready: Boolean
+  miniapp_api_available: Boolean
+  estimated_hours: Int
+  actual_hours: Int
+  target_version: String
+  project_id: ID
+}
+
+input DevAlertFilter {
+  alert_type: [DevAlertType!]
+  category: [DevAlertCategory!]
+  priority: [DevAlertPriority!]
+  is_read: Boolean
+  is_dismissed: Boolean
+  project_id: ID
+}
+
+input CreateDevAlertInput {
+  title: String!
+  message: String!
+  alert_type: DevAlertType!
+  category: DevAlertCategory
+  priority: DevAlertPriority
+  target_roles: [String!]
+  target_users: [String!]
+  is_actionable: Boolean
+  action_url: String
+  action_label: String
+  expires_at: DateTime
+  source_type: String
+  source_id: String
+  metadata: JSON
+  project_id: ID
+}
+
+input CreateProjectInput {
+  name: String!
+  slug: String!
+  description: String
+  github_repo: String
+  github_org: String
+  default_branch: String
+  project_type: ProjectType!
+  platform: ProjectPlatform
+  tech_stack: [String!]
+  color: String
+  icon: String
+  display_order: Int
+}
+
+input UpdateProjectInput {
+  name: String
+  description: String
+  github_repo: String
+  github_org: String
+  default_branch: String
+  project_type: ProjectType
+  platform: ProjectPlatform
+  tech_stack: [String!]
+  is_active: Boolean
+  is_archived: Boolean
+  color: String
+  icon: String
+  display_order: Int
+}
+
+type UploadUrl {
+  success: Boolean!
+  uploadUrl: String!
+  publicUrl: String!
+  fields: JSON!
+  key: String!
+  expires: Int!
+  maxSize: Int!
+}
+
+type FileUploadResponse {
+  success: Boolean!
+  url: String
+  filename: String
+  size: Int
+  mimetype: String
+  message: String
+}
+
+enum UploadType {
+  avatar
+  cover
+  event
+  post
+  general
+}
+
+enum MimeType {
+  IMAGE_JPEG
+  IMAGE_PNG
+  IMAGE_GIF
+  IMAGE_WEBP
+  VIDEO_MP4
+  VIDEO_QUICKTIME
+  VIDEO_AVI
+  VIDEO_WEBM
+  APPLICATION_PDF
+  APPLICATION_MSWORD
+  APPLICATION_VND_OPENXMLFORMATS_OFFICEDOCUMENT_WORDPROCESSINGML_DOCUMENT
+}
+
+type DanceSession {
+  id: ID!
+  user_id: String!
+  user: User!
+  duration: Int!
+  started_at: DateTime!
+  ended_at: DateTime!
+  created_at: DateTime!
+  updated_at: DateTime!
+  bpm_average: Float
+  bpm_peak: Float
+  motion_intensity_avg: Float
+  movement_score: Int
+  calories_burned: Int
+  xp_earned: Int!
+  level_at_session: Int
+  level_ups: Int
+  achievements_unlocked: [String!]
+  is_shared: Boolean!
+  shared_with_users: [User!]
+  shared_with_user_ids: [String!]
+  dance_bonds_strengthened: [DanceBond!]
+  social_xp_bonus: Int
+  device_type: String
+  app_version: String
+  session_quality: Float
+}
+
+type DanceSessionStats {
+  total_sessions: Int!
+  total_duration: Int!
+  total_xp_earned: Int!
+  total_calories: Int!
+  best_score: Int!
+  best_duration: Int!
+  average_bpm: Float
+  current_streak: Int!
+  longest_streak: Int!
+}
+
+type DanceSessionConnection {
+  sessions: [DanceSession!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+input SaveDanceSessionInput {
+  duration: Int!
+  started_at: DateTime!
+  ended_at: DateTime!
+  bpm_average: Float
+  bpm_peak: Float
+  motion_intensity_avg: Float
+  movement_score: Int
+  calories_burned: Int
+  xp_earned: Int!
+  achievements_unlocked: [String!]
+  is_shared: Boolean
+  shared_with_user_ids: [String!]
+  device_type: String
+  app_version: String
+  session_quality: Float
+}
+
+input DanceSessionFilterInput {
+  user_id: String
+  from_date: DateTime
+  to_date: DateTime
+  min_score: Int
+  min_duration: Int
+  is_shared: Boolean
+}
+
+enum MusicSource {
+  licensed
+  user_library
+  none
+}
+
+type FreestyleSession {
+  id: ID!
+  user_id: String!
+  user: User!
+  duration_seconds: Int!
+  movement_score: Float!
+  points_awarded: Int!
+  session_date: DateTime!
+  completed: Boolean!
+  music_source: MusicSource!
+  motion_data: JSON
+  achievements_unlocked: [String!]
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type FreestyleSessionStats {
+  total_sessions: Int!
+  total_duration_seconds: Int!
+  total_points: Int!
+  average_movement_score: Float!
+  best_movement_score: Float!
+  sessions_this_week: Int!
+  current_streak: Int!
+  longest_streak: Int!
+  last_session_date: DateTime
+}
+
+type UserPreferences {
+  daily_reminder_enabled: Boolean!
+  daily_reminder_time: String!
+  live_sessions_enabled: Boolean!
+}
+
+input CreateFreestyleSessionInput {
+  duration_seconds: Int!
+  movement_score: Float!
+  music_source: MusicSource
+  motion_data: JSON
+  completed: Boolean
+}
+
+input UpdateUserPreferencesInput {
+  daily_reminder_enabled: Boolean
+  daily_reminder_time: String
+  live_sessions_enabled: Boolean
+}
+
+type OrganizerApplication {
+  id: ID!
+  user_id: String!
+  user: User
+  reason: String!
+  experience: String
+  venue_name: String
+  venue_address: String
+  venue_city: String
+  venue_capacity: Int
+  dance_styles: [String!]
+  website_url: String
+  social_media: String
+  additional_info: String
+  status: ApplicationStatus!
+  admin_notes: String
+  reviewed_by: String
+  reviewer: User
+  reviewed_at: String
+  created_at: String!
+  updated_at: String!
+}
+
+enum ApplicationStatus {
+  pending
+  approved
+  rejected
+}
+
+input SubmitOrganizerApplicationInput {
+  reason: String!
+  experience: String
+  venue_name: String
+  venue_address: String
+  venue_city: String
+  venue_capacity: Int
+  dance_styles: [String!]
+  website_url: String
+  social_media: String
+  additional_info: String
+}
+
+input ReviewApplicationInput {
+  application_id: ID!
+  status: ApplicationStatus!
+  admin_notes: String
+}
+
+type OrganizerApplicationsResponse {
+  applications: [OrganizerApplication!]!
+  totalCount: Int!
+}
+
+type ReferralCode {
+  id: ID!
+  user_id: String!
+  referral_code: String!
+  created_at: DateTime!
+  share_url: String!
+  total_clicks: Int!
+  total_signups: Int!
+  total_completed: Int!
+  user: User
+}
+
+type Referral {
+  id: ID!
+  referral_code: String!
+  referrer_user_id: String!
+  referee_user_id: String
+  status: ReferralStatus!
+  clicked_at: DateTime!
+  signed_up_at: DateTime
+  first_session_completed_at: DateTime
+  completed_at: DateTime
+  points_awarded: Int!
+  ip_address: String
+  device_id: String
+  user_agent: String
+  referrer: User
+  referee: User
+}
+
+type ReferralStats {
+  total_clicks: Int!
+  total_signups: Int!
+  total_completed: Int!
+  total_points_earned: Int!
+  conversion_rate: Float!
+  pending_referrals: Int!
+  completed_referrals: Int!
+}
+
+type ReferralClickTracking {
+  id: ID!
+  referral_code: String!
+  clicked_at: DateTime!
+  ip_address: String
+  user_agent: String
+  device_info: JSON
+}
+
+type ShareLinks {
+  referral_code: String!
+  short_url: String!
+  sms_template: String!
+  whatsapp_template: String!
+  social_media_template: String!
+}
+
+type ReferralChainNode {
+  user_id: String!
+  username: String
+  invited_by: String
+  depth: Int!
+}
+
+type UserReferralInfo {
+  privy_id: String!
+  username: String
+  display_name: String
+  avatar_url: String
+  created_at: DateTime!
+  invited_by: String
+}
+
+enum ReferralStatus {
+  clicked
+  signed_up
+  completed
+}
+
+input TrackReferralClickInput {
+  referral_code: String!
+  ip_address: String
+  user_agent: String
+  device_info: JSON
+}
+
+input CompleteReferralInput {
+  referral_code: String!
+  referee_user_id: String!
+}
+
+enum MediaType {
+  image
+  video
+}
+
+type Post {
+  id: ID!
+  user_id: String!
+  user: User!
+  content: String!
+  media_url: String
+  media_type: MediaType
+  event_id: ID
+  event: Event
+  location: String
+  is_public: Boolean!
+  likes_count: Int!
+  comments_count: Int!
+  is_liked_by_me: Boolean!
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type PostWithDetails {
+  id: ID!
+  user_id: String!
+  user: User!
+  content: String!
+  media_url: String
+  media_type: MediaType
+  event_id: ID
+  event: Event
+  location: String
+  is_public: Boolean!
+  likes: [PostLike!]!
+  comments: [PostComment!]!
+  likes_count: Int!
+  comments_count: Int!
+  is_liked_by_me: Boolean!
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type PostLike {
+  id: ID!
+  post_id: ID!
+  user_id: String!
+  user: User!
+  created_at: DateTime!
+}
+
+type PostComment {
+  id: ID!
+  post_id: ID!
+  user_id: String!
+  user: User!
+  content: String!
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type FeedResponse {
+  posts: [Post!]!
+  has_more: Boolean!
+  cursor: String
+}
+
+input CreatePostInput {
+  content: String!
+  media_url: String
+  media_type: MediaType
+  event_id: ID
+  location: String
+  is_public: Boolean
+}
+
+input UpdatePostInput {
+  content: String
+  media_url: String
+  media_type: MediaType
+  location: String
+  is_public: Boolean
+}
+
+input CreateCommentInput {
+  post_id: ID!
+  content: String!
+}
+
+input CreateDanceBondInput {
+  user_id: String!
+}
+
+enum MessageContentType {
+  text
+  image
+  file
+  system
+}
+
+enum ConversationParticipantRole {
+  admin
+  member
+}
+
+type Conversation {
+  id: ID!
+  title: String
+  is_group: Boolean!
+  participants: [ConversationParticipant!]!
+  participant_count: Int!
+  last_message_at: DateTime
+  last_message_preview: String
+  last_message: Message
+  my_unread_count: Int!
+  is_muted: Boolean!
+  is_archived: Boolean!
+  created_at: DateTime!
+  updated_at: DateTime
+  created_by: User
+}
+
+type ConversationParticipant {
+  id: ID!
+  user: User!
+  nickname: String
+  is_muted: Boolean!
+  is_archived: Boolean!
+  role: ConversationParticipantRole!
+  unread_count: Int!
+  last_read_at: DateTime
+  joined_at: DateTime!
+}
+
+type Message {
+  id: ID!
+  conversation_id: ID!
+  sender: User!
+  content: String!
+  content_type: MessageContentType!
+  media_url: String
+  media_type: String
+  media_metadata: JSON
+  reply_to: Message
+  is_edited: Boolean!
+  edited_at: DateTime
+  is_deleted: Boolean!
+  reactions: [MessageReaction!]!
+  reaction_counts: JSON
+  read_by_count: Int!
+  is_read_by_me: Boolean!
+  created_at: DateTime!
+}
+
+type MessageReaction {
+  id: ID!
+  emoji: String!
+  user: User!
+  created_at: DateTime!
+}
+
+type UserBlock {
+  id: ID!
+  blocked_user: User!
+  reason: String
+  created_at: DateTime!
+}
+
+type ConversationConnection {
+  conversations: [Conversation!]!
+  total_count: Int!
+  unread_conversations: Int!
+  has_more: Boolean!
+}
+
+type MessageConnection {
+  messages: [Message!]!
+  total_count: Int!
+  has_more: Boolean!
+  oldest_message_id: ID
+  newest_message_id: ID
+}
+
+input StartConversationInput {
+  "User ID to start conversation with (for DMs)"
+  recipient_id: String
+  "User IDs for group conversations"
+  participant_ids: [String!]
+  "Optional title for group conversations"
+  title: String
+  "Initial message content"
+  initial_message: String
+}
+
+input SendMessageInput {
+  conversation_id: ID!
+  content: String!
+  content_type: MessageContentType
+  media_url: String
+  media_type: String
+  reply_to_id: ID
+  metadata: JSON
+}
+
+input UpdateMessageInput {
+  content: String!
+}
+
+input ConversationFilter {
+  is_archived: Boolean
+  is_muted: Boolean
+  is_group: Boolean
+  has_unread: Boolean
+  search: String
+}
+
+input AddParticipantsInput {
+  conversation_id: ID!
+  user_ids: [String!]!
+}
+
+input UpdateConversationInput {
+  title: String
+  is_muted: Boolean
+  is_archived: Boolean
+  nickname: String
+}
+
+type TypingIndicator {
+  conversation_id: ID!
+  user: User!
+  is_typing: Boolean!
+}
+
+enum ProfileVisibility {
+  public
+  bonds_only
+  private
+}
+
+enum AllowMessagesFrom {
+  everyone
+  bonds_only
+  none
+}
+
+enum AllowBondRequestsFrom {
+  everyone
+  mutual_events
+  none
+}
+
+enum SuggestionSource {
+  mutual_bonds
+  same_events
+  same_city
+  leaderboard_proximity
+  similar_styles
+}
+
+"""
+User privacy settings - controls visibility and discoverability
+Simplified into logical groups for better UX
+"""
+type PrivacySettings {
+  id: ID!
+  user_id: String!
+  "Who can see your profile: public, bonds_only, or private"
+  profile_visibility: ProfileVisibility!
+  show_real_name: Boolean!
+  show_bio: Boolean!
+  show_avatar: Boolean!
+  show_city: Boolean!
+  show_dance_styles: Boolean!
+  show_stats: Boolean!
+  show_badges: Boolean!
+  show_events_attending: Boolean!
+  show_events_attended: Boolean!
+  show_check_ins: Boolean!
+  show_leaderboard_rank: Boolean!
+  show_posts: Boolean!
+  show_likes: Boolean!
+  show_comments: Boolean!
+  searchable_by_username: Boolean!
+  appear_in_suggestions: Boolean!
+  appear_in_event_attendees: Boolean!
+  appear_in_nearby: Boolean!
+  allow_bond_requests: AllowBondRequestsFrom!
+  allow_messages: AllowMessagesFrom!
+  allow_event_invites: Boolean!
+  notify_bonds_on_check_in: Boolean!
+  notify_bonds_on_achievement: Boolean!
+  updated_at: DateTime
+}
+
+"""
+Simplified privacy presets for quick setup
+"""
+type PrivacyPreset {
+  name: String!
+  description: String!
+  profile_visibility: ProfileVisibility!
+  searchable: Boolean!
+  appear_in_suggestions: Boolean!
+  allow_messages: AllowMessagesFrom!
+}
+
+"""
+User suggestion with reason and score
+"""
+type UserSuggestion {
+  id: ID!
+  user: User!
+  source: SuggestionSource!
+  score: Float!
+  reason: String!
+  created_at: DateTime!
+}
+
+type UserSuggestionConnection {
+  suggestions: [UserSuggestion!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+"""
+Search result with privacy-aware user info
+"""
+type UserSearchResult {
+  user: User!
+  "Whether you can see their full profile"
+  can_view_profile: Boolean!
+  "Whether you can message them"
+  can_message: Boolean!
+  "Whether you have a bond"
+  is_bond: Boolean!
+  "Mutual bonds count"
+  mutual_bonds_count: Int!
+}
+
+type UserSearchConnection {
+  results: [UserSearchResult!]!
+  total_count: Int!
+  has_more: Boolean!
+}
+
+"""
+Profile visibility check result
+"""
+type CanViewResult {
+  can_view: Boolean!
+  reason: String
+}
+
+input UpdatePrivacySettingsInput {
+  profile_visibility: ProfileVisibility
+  show_real_name: Boolean
+  show_bio: Boolean
+  show_avatar: Boolean
+  show_city: Boolean
+  show_dance_styles: Boolean
+  show_stats: Boolean
+  show_badges: Boolean
+  show_events_attending: Boolean
+  show_events_attended: Boolean
+  show_check_ins: Boolean
+  show_leaderboard_rank: Boolean
+  show_posts: Boolean
+  show_likes: Boolean
+  show_comments: Boolean
+  searchable_by_username: Boolean
+  appear_in_suggestions: Boolean
+  appear_in_event_attendees: Boolean
+  appear_in_nearby: Boolean
+  allow_bond_requests: AllowBondRequestsFrom
+  allow_messages: AllowMessagesFrom
+  allow_event_invites: Boolean
+  notify_bonds_on_check_in: Boolean
+  notify_bonds_on_achievement: Boolean
+}
+
+"""
+Quick privacy preset - applies multiple settings at once
+"""
+enum PrivacyPresetType {
+  "Open: Public profile, everyone can find and message you"
+  open
+  "Social: Public profile, only bonds can message"
+  social
+  "Selective: Bonds-only profile, appear in suggestions"
+  selective
+  "Private: Hidden profile, no suggestions, bonds-only messages"
+  private_mode
+  "Ghost: Completely hidden, no interactions"
+  ghost
+}
+
+input SearchUsersInput {
+  "Username or display name to search"
+  query: String!
+  "Limit results"
+  limit: Int
+  "Offset for pagination"
+  offset: Int
+  "Only show users you can message"
+  messageable_only: Boolean
+}
+
+enum BondRequestStatus {
+  pending
+  accepted
+  rejected
+  expired
+  cancelled
+}
+
+"""
+Match/similarity reasons between two users
+"""
+type MatchReasons {
+  "Number of mutual bonds"
+  mutual_bonds: Int!
+  "Number of same events attended"
+  same_events: Int!
+  "Overlapping music preferences"
+  music_overlap: [String!]!
+  "Overlapping dance styles"
+  dance_styles: [String!]!
+  "Overall similarity score (0-1)"
+  similarity_score: Float!
+}
+
+"""
+Bond request between two users
+"""
+type BondRequest {
+  id: ID!
+  "User who sent the request"
+  requester: User!
+  "User who received the request"
+  recipient: User!
+  status: BondRequestStatus!
+  "Optional message from requester"
+  message: String
+  "Similarity data between users"
+  match_reasons: MatchReasons
+  created_at: DateTime!
+  updated_at: DateTime!
+  responded_at: DateTime
+  expires_at: DateTime!
+}
+
+"""
+Result of checking if bond request can be sent
+"""
+type CanSendBondRequestResult {
+  can_send: Boolean!
+  reason: String
+  "Similarity data if can_send is true"
+  match_reasons: MatchReasons
+}
+
+"""
+Stats about user's bond requests
+"""
+type BondRequestStats {
+  "Pending requests sent"
+  pending_sent: Int!
+  "Pending requests received"
+  pending_received: Int!
+  "Total bonds formed"
+  total_bonds: Int!
+  "Acceptance rate for sent requests"
+  acceptance_rate: Float
+}
+
+input SendBondRequestInput {
+  "User to send request to"
+  recipient_id: String!
+  "Optional personal message"
+  message: String
+}
+
+input RespondToBondRequestInput {
+  "Request ID"
+  request_id: ID!
+  "Accept or reject"
+  accept: Boolean!
+}
+
+"""
+Status of a username change request
+"""
+enum UsernameChangeStatus {
+  pending
+  approved
+  rejected
+  auto_approved
+}
+
+"""
+A request to change a user's username
+"""
+type UsernameChangeRequest {
+  id: ID!
+  user_id: String!
+  current_username: String!
+  requested_username: String!
+  reason: String
+  status: UsernameChangeStatus!
+  admin_note: String
+  reviewed_by: String
+  reviewed_at: DateTime
+  created_at: DateTime!
+  updated_at: DateTime!
+  user: User
+  reviewer: User
+}
+
+"""
+User's username change eligibility and history
+"""
+type UsernameChangeEligibility {
+  can_request: Boolean!
+  is_first_change: Boolean!
+  will_auto_approve: Boolean!
+  pending_request: UsernameChangeRequest
+  change_count: Int!
+  last_change_at: DateTime
+  cooldown_ends_at: DateTime
+  message: String
+}
+
+"""
+Result of a username change request submission
+"""
+type UsernameChangeResult {
+  success: Boolean!
+  message: String!
+  request: UsernameChangeRequest
+  auto_approved: Boolean!
+}
+
+"""
+Admin view of pending username change requests
+"""
+type UsernameChangeRequestConnection {
+  requests: [UsernameChangeRequest!]!
+  totalCount: Int!
+  pageInfo: PageInfo!
+}
+
+input RequestUsernameChangeInput {
+  """
+  The new username being requested
+  """
+  new_username: String!
+  """
+  Optional reason for the change (helpful for review)
+  """
+  reason: String
+}
+
+input ReviewUsernameChangeInput {
+  """
+  The request ID to review
+  """
+  request_id: ID!
+  """
+  Whether to approve or reject
+  """
+  approved: Boolean!
+  """
+  Admin note explaining the decision
+  """
+  admin_note: String
+}
+
+enum AchievementCategory {
+  SESSIONS
+  DURATION
+  STREAK
+  MOVEMENT
+  MILESTONE
+  SOCIAL
+  SPECIAL
+}
+
+enum AchievementRarity {
+  COMMON
+  UNCOMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+type AchievementDetails {
+  id: ID!
+  user_id: String!
+  achievement_type: String!
+  title: String!
+  description: String
+  icon: String
+  category: AchievementCategory!
+  rarity: AchievementRarity!
+  xp_reward: Int!
+  danz_reward: Float!
+  unlocked_at: DateTime
+  progress: Int
+  target: Int
+  is_unlocked: Boolean!
+}
+
+type AchievementDefinition {
+  type: String!
+  title: String!
+  description: String!
+  icon: String!
+  category: AchievementCategory!
+  rarity: AchievementRarity!
+  xp_reward: Int!
+  danz_reward: Float!
+  target: Int!
+  hidden: Boolean!
+}
+
+type AchievementProgress {
+  achievement_type: String!
+  title: String!
+  description: String!
+  icon: String!
+  category: AchievementCategory!
+  rarity: AchievementRarity!
+  xp_reward: Int!
+  danz_reward: Float!
+  current_progress: Int!
+  target: Int!
+  percentage: Float!
+  is_unlocked: Boolean!
+  unlocked_at: DateTime
+}
+
+type UnlockedAchievement {
+  achievement: AchievementDetails!
+  is_new: Boolean!
+}
+
+type AchievementCheckResult {
+  newly_unlocked: [AchievementDetails!]!
+  total_xp_earned: Int!
+  total_danz_earned: Float!
+}
+
+type AchievementStats {
+  total_unlocked: Int!
+  total_available: Int!
+  total_xp_earned: Int!
+  total_danz_earned: Float!
+  by_category: [CategoryCount!]!
+  by_rarity: [RarityCount!]!
+  recent_unlocks: [AchievementDetails!]!
+}
+
+type CategoryCount {
+  category: AchievementCategory!
+  unlocked: Int!
+  total: Int!
+}
+
+type RarityCount {
+  rarity: AchievementRarity!
+  unlocked: Int!
+  total: Int!
+}
+
+enum WearableDeviceType {
+  APPLE_WATCH
+  GALAXY_WATCH
+  FITBIT
+  GARMIN
+  XIAOMI
+  WHOOP
+  OURA
+  OTHER
+}
+
+enum WearableSyncStatus {
+  PENDING
+  SYNCING
+  COMPLETED
+  FAILED
+}
+
+type WearableDevice {
+  id: ID!
+  user_id: String!
+  device_type: WearableDeviceType!
+  device_name: String
+  device_model: String
+  firmware_version: String
+  last_sync_at: DateTime
+  sync_status: WearableSyncStatus!
+  is_primary: Boolean!
+  capabilities: [String!]!
+  created_at: DateTime!
+  updated_at: DateTime!
+  user: User
+}
+
+type WearableHealthData {
+  id: ID!
+  user_id: String!
+  device_id: String!
+  recorded_at: DateTime!
+  heart_rate: Int
+  heart_rate_variability: Float
+  steps: Int
+  calories_active: Int
+  calories_total: Int
+  distance_meters: Float
+  floors_climbed: Int
+  active_minutes: Int
+  sleep_duration_minutes: Int
+  sleep_quality_score: Float
+  stress_level: Int
+  blood_oxygen: Float
+  body_temperature: Float
+  raw_data: JSON
+  created_at: DateTime!
+  device: WearableDevice
+}
+
+type WearableMotionData {
+  id: ID!
+  user_id: String!
+  device_id: String!
+  dance_session_id: String
+  recorded_at: DateTime!
+  accelerometer_x: Float
+  accelerometer_y: Float
+  accelerometer_z: Float
+  gyroscope_x: Float
+  gyroscope_y: Float
+  gyroscope_z: Float
+  motion_intensity: Float
+  movement_type: String
+  bpm_detected: Int
+  rhythm_accuracy: Float
+  created_at: DateTime!
+  device: WearableDevice
+  dance_session: DanceSession
+}
+
+type WearableSyncResult {
+  success: Boolean!
+  synced_records: Int!
+  failed_records: Int!
+  last_sync_at: DateTime
+  errors: [String!]
+}
+
+type WearableStats {
+  device_id: String!
+  total_syncs: Int!
+  total_health_records: Int!
+  total_motion_records: Int!
+  average_heart_rate: Float
+  average_steps_daily: Float
+  total_active_minutes: Int!
+  last_7_days_activity: [DailyWearableActivity!]!
+}
+
+type DailyWearableActivity {
+  date: String!
+  steps: Int!
+  calories: Int!
+  active_minutes: Int!
+  heart_rate_avg: Int
+  dance_sessions: Int!
+}
+
+input RegisterWearableInput {
+  device_type: WearableDeviceType!
+  device_name: String
+  device_model: String
+  firmware_version: String
+  capabilities: [String!]
+  is_primary: Boolean
+}
+
+input WearableHealthDataInput {
+  device_id: String!
+  recorded_at: DateTime!
+  heart_rate: Int
+  heart_rate_variability: Float
+  steps: Int
+  calories_active: Int
+  calories_total: Int
+  distance_meters: Float
+  floors_climbed: Int
+  active_minutes: Int
+  sleep_duration_minutes: Int
+  sleep_quality_score: Float
+  stress_level: Int
+  blood_oxygen: Float
+  body_temperature: Float
+  raw_data: JSON
+}
+
+input WearableMotionDataInput {
+  device_id: String!
+  dance_session_id: String
+  recorded_at: DateTime!
+  accelerometer_x: Float
+  accelerometer_y: Float
+  accelerometer_z: Float
+  gyroscope_x: Float
+  gyroscope_y: Float
+  gyroscope_z: Float
+  motion_intensity: Float
+  movement_type: String
+  bpm_detected: Int
+  rhythm_accuracy: Float
+}
+
+input SyncWearableDataInput {
+  device_id: String!
+  health_data: [WearableHealthDataInput!]
+  motion_data: [WearableMotionDataInput!]
+}
+
+enum ChallengeType {
+  DAILY
+  WEEKLY
+  SPECIAL
+  EVENT
+  STREAK
+  SOCIAL
+}
+
+enum ChallengeDifficulty {
+  EASY
+  MEDIUM
+  HARD
+  EXTREME
+}
+
+enum ChallengeCategory {
+  DANCE_TIME
+  MOVEMENT_SCORE
+  CALORIES
+  SOCIAL
+  STREAK
+  EXPLORATION
+  MASTERY
+  COMMUNITY
+}
+
+enum ChallengeStatus {
+  AVAILABLE
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+  CLAIMED
+}
+
+type Challenge {
+  id: ID!
+  title: String!
+  description: String!
+  challenge_type: ChallengeType!
+  difficulty: ChallengeDifficulty!
+  category: ChallengeCategory!
+  target_value: Int!
+  target_unit: String!
+  time_limit_hours: Int
+  xp_reward: Int!
+  points_reward: Int!
+  badge_reward: String
+  special_reward: JSON
+  starts_at: DateTime
+  ends_at: DateTime
+  is_active: Boolean!
+  is_repeatable: Boolean!
+  cooldown_hours: Int
+  max_completions: Int
+  min_level: Int
+  required_badges: [String!]
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type UserChallenge {
+  id: ID!
+  user_id: String!
+  challenge_id: String!
+  status: ChallengeStatus!
+  progress: Int!
+  started_at: DateTime!
+  completed_at: DateTime
+  claimed_at: DateTime
+  expires_at: DateTime
+  completion_count: Int!
+  created_at: DateTime!
+  updated_at: DateTime!
+  challenge: Challenge!
+  user: User
+}
+
+type DailyChallengeset {
+  date: String!
+  challenges: [Challenge!]!
+  user_progress: [UserChallenge!]
+  total_xp_available: Int!
+  total_points_available: Int!
+}
+
+type ChallengeProgress {
+  challenge: Challenge!
+  user_challenge: UserChallenge
+  current_progress: Int!
+  target_value: Int!
+  percentage: Float!
+  time_remaining: Int
+  is_claimable: Boolean!
+}
+
+type ChallengeStats {
+  total_completed: Int!
+  total_xp_earned: Int!
+  total_points_earned: Int!
+  current_streak: Int!
+  longest_streak: Int!
+  badges_earned: [String!]!
+  favorite_category: ChallengeCategory
+  completion_rate: Float!
+  challenges_by_difficulty: JSON!
+}
+
+type ChallengeLeaderboard {
+  period: String!
+  entries: [ChallengeLeaderboardEntry!]!
+}
+
+type ChallengeLeaderboardEntry {
+  rank: Int!
+  user: User!
+  challenges_completed: Int!
+  xp_earned: Int!
+  points_earned: Int!
+}
+
+input CreateChallengeInput {
+  title: String!
+  description: String!
+  challenge_type: ChallengeType!
+  difficulty: ChallengeDifficulty!
+  category: ChallengeCategory!
+  target_value: Int!
+  target_unit: String!
+  time_limit_hours: Int
+  xp_reward: Int!
+  points_reward: Int!
+  badge_reward: String
+  special_reward: JSON
+  starts_at: DateTime
+  ends_at: DateTime
+  is_repeatable: Boolean
+  cooldown_hours: Int
+  max_completions: Int
+  min_level: Int
+  required_badges: [String!]
+}
+
+enum LeaderboardType {
+  GLOBAL
+  REGIONAL
+  FRIENDS
+  EVENT
+  WEEKLY
+  MONTHLY
+  ALL_TIME
+}
+
+enum LeaderboardMetric {
+  XP
+  POINTS
+  DANCE_TIME
+  MOVEMENT_SCORE
+  CALORIES
+  STREAK
+  EVENTS_ATTENDED
+  CHALLENGES_COMPLETED
+  REFERRALS
+  SOCIAL_ENGAGEMENT
+}
+
+type LeaderboardEntry {
+  rank: Int!
+  previous_rank: Int
+  rank_change: Int
+  user_id: String!
+  username: String!
+  display_name: String
+  avatar_url: String
+  level: Int!
+  value: Float!
+  is_current_user: Boolean!
+  badges: [String!]
+  country: String
+  city: String
+}
+
+type Leaderboard {
+  type: LeaderboardType!
+  metric: LeaderboardMetric!
+  period: String!
+  updated_at: DateTime!
+  total_participants: Int!
+  entries: [LeaderboardEntry!]!
+  current_user_entry: LeaderboardEntry
+  nearby_entries: [LeaderboardEntry!]
+}
+
+type LeaderboardSummary {
+  global_rank: Int
+  regional_rank: Int
+  friends_rank: Int
+  weekly_change: Int
+  monthly_change: Int
+  top_metric: LeaderboardMetric
+  top_metric_rank: Int
+  percentile: Float
+}
+
+type LeaderboardHistory {
+  dates: [String!]!
+  ranks: [Int!]!
+  values: [Float!]!
+}
+
+type RegionalLeaderboard {
+  region: String!
+  country: String
+  city: String
+  leaderboard: Leaderboard!
+}
+
+type EventLeaderboard {
+  event_id: String!
+  event_name: String!
+  leaderboard: Leaderboard!
+  prizes: [LeaderboardPrize!]
+}
+
+type LeaderboardPrize {
+  rank_from: Int!
+  rank_to: Int!
+  prize_type: String!
+  prize_value: String!
+  prize_description: String
+}
+
+type SeasonalLeaderboard {
+  season_id: String!
+  season_name: String!
+  starts_at: DateTime!
+  ends_at: DateTime!
+  current_rewards: [SeasonReward!]!
+  leaderboard: Leaderboard!
+}
+
+type SeasonReward {
+  tier: String!
+  min_rank: Int!
+  max_rank: Int!
+  rewards: JSON!
+}
+
+enum ActivityType {
+  USER_JOINED
+  USER_LEVEL_UP
+  USER_ACHIEVEMENT
+  USER_STREAK
+  DANCE_SESSION_COMPLETED
+  DANCE_SESSION_SHARED
+  HIGH_SCORE_ACHIEVED
+  DANCE_MILESTONE
+  NEW_DANCE_BOND
+  DANCE_BOND_STRENGTHENED
+  POST_CREATED
+  POST_LIKED
+  POST_COMMENTED
+  EVENT_CREATED
+  EVENT_JOINED
+  EVENT_CHECKIN
+  EVENT_COMPLETED
+  CHALLENGE_STARTED
+  CHALLENGE_COMPLETED
+  CHALLENGE_STREAK
+  REFERRAL_INVITED
+  REFERRAL_JOINED
+  REFERRAL_BONUS
+  LEADERBOARD_RANK_UP
+  SEASON_REWARD
+  SPECIAL_ANNOUNCEMENT
+}
+
+enum ActivityVisibility {
+  PUBLIC
+  FRIENDS
+  PRIVATE
+}
+
+type Activity {
+  id: ID!
+  activity_type: ActivityType!
+  user_id: String!
+  target_user_id: String
+  visibility: ActivityVisibility!
+  title: String!
+  description: String
+  icon: String
+  color: String
+  related_entity_type: String
+  related_entity_id: String
+  metadata: JSON
+  xp_earned: Int
+  points_earned: Int
+  likes_count: Int!
+  comments_count: Int!
+  is_liked_by_me: Boolean
+  is_highlighted: Boolean!
+  created_at: DateTime!
+  user: User!
+  target_user: User
+}
+
+type ActivityFeed {
+  activities: [Activity!]!
+  total_count: Int!
+  has_more: Boolean!
+  last_activity_id: String
+  unread_count: Int!
+}
+
+type ActivityStats {
+  today_activities: Int!
+  this_week_activities: Int!
+  total_activities: Int!
+  most_active_type: ActivityType
+  engagement_rate: Float!
+  trending_now: [Activity!]!
+}
+
+type LiveActivityUpdate {
+  type: String!
+  activity: Activity!
+  timestamp: DateTime!
+}
+
+type ActivityGroup {
+  date: String!
+  activities: [Activity!]!
+  summary: String!
+}
+
+type TrendingActivity {
+  activity: Activity!
+  engagement_score: Float!
+  trending_rank: Int!
+}
+
+input ActivityFilter {
+  types: [ActivityType!]
+  user_id: String
+  visibility: ActivityVisibility
+  from_date: DateTime
+  to_date: DateTime
+  has_rewards: Boolean
+}
+
+enum AnalyticsPeriod {
+  TODAY
+  YESTERDAY
+  LAST_7_DAYS
+  LAST_30_DAYS
+  LAST_90_DAYS
+  THIS_MONTH
+  LAST_MONTH
+  THIS_YEAR
+  ALL_TIME
+  CUSTOM
+}
+
+enum AnalyticsGranularity {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+}
+
+type UserAnalytics {
+  total_users: Int!
+  active_users: ActiveUsersMetrics!
+  new_users: NewUsersMetrics!
+  retention: RetentionMetrics!
+  engagement: EngagementMetrics!
+  demographics: DemographicsMetrics!
+}
+
+type ActiveUsersMetrics {
+  dau: Int!
+  wau: Int!
+  mau: Int!
+  dau_wau_ratio: Float!
+  dau_mau_ratio: Float!
+  trend: [TimeSeriesPoint!]!
+}
+
+type NewUsersMetrics {
+  today: Int!
+  this_week: Int!
+  this_month: Int!
+  growth_rate: Float!
+  trend: [TimeSeriesPoint!]!
+  acquisition_channels: [AcquisitionChannel!]!
+}
+
+type RetentionMetrics {
+  day_1: Float!
+  day_7: Float!
+  day_30: Float!
+  cohort_analysis: [CohortData!]!
+}
+
+type EngagementMetrics {
+  avg_session_duration: Float!
+  avg_sessions_per_user: Float!
+  avg_dance_time_per_user: Float!
+  power_users_count: Int!
+  power_users_percentage: Float!
+}
+
+type DemographicsMetrics {
+  by_country: [CountryMetric!]!
+  by_city: [CityMetric!]!
+  by_skill_level: [SkillLevelMetric!]!
+  by_dance_style: [DanceStyleMetric!]!
+  by_age_group: [AgeGroupMetric!]!
+}
+
+type AcquisitionChannel {
+  channel: String!
+  users: Int!
+  percentage: Float!
+}
+
+type CohortData {
+  cohort_date: String!
+  size: Int!
+  retention_days: [Float!]!
+}
+
+type CountryMetric {
+  country: String!
+  users: Int!
+  percentage: Float!
+}
+
+type CityMetric {
+  city: String!
+  country: String!
+  users: Int!
+  percentage: Float!
+}
+
+type SkillLevelMetric {
+  level: String!
+  users: Int!
+  percentage: Float!
+}
+
+type DanceStyleMetric {
+  style: String!
+  users: Int!
+  percentage: Float!
+}
+
+type AgeGroupMetric {
+  group: String!
+  users: Int!
+  percentage: Float!
+}
+
+type PlatformAnalytics {
+  overview: PlatformOverview!
+  dance_metrics: DanceMetrics!
+  event_metrics: EventMetrics!
+  social_metrics: SocialMetrics!
+  economy_metrics: EconomyMetrics!
+}
+
+type PlatformOverview {
+  total_xp_distributed: Float!
+  total_points_distributed: Float!
+  total_dance_sessions: Int!
+  total_dance_minutes: Int!
+  total_events_hosted: Int!
+  total_dance_bonds: Int!
+  health_score: Float!
+}
+
+type DanceMetrics {
+  sessions_today: Int!
+  sessions_this_week: Int!
+  avg_session_duration: Float!
+  avg_movement_score: Float!
+  total_calories_burned: Int!
+  peak_hours: [HourlyMetric!]!
+  popular_styles: [StyleMetric!]!
+  trend: [TimeSeriesPoint!]!
+}
+
+type EventMetrics {
+  total_events: Int!
+  upcoming_events: Int!
+  completed_events: Int!
+  avg_attendance: Float!
+  avg_rating: Float!
+  total_registrations: Int!
+  popular_categories: [CategoryMetric!]!
+  trend: [TimeSeriesPoint!]!
+}
+
+type SocialMetrics {
+  total_posts: Int!
+  total_comments: Int!
+  total_likes: Int!
+  avg_engagement_rate: Float!
+  viral_posts: Int!
+  dance_bonds_created: Int!
+  referrals_completed: Int!
+  trend: [TimeSeriesPoint!]!
+}
+
+type EconomyMetrics {
+  total_xp_earned: Float!
+  total_points_earned: Float!
+  xp_distribution: [XPDistribution!]!
+  points_sources: [PointsSource!]!
+  top_earners: [TopEarner!]!
+  trend: [TimeSeriesPoint!]!
+}
+
+type TimeSeriesPoint {
+  timestamp: DateTime!
+  value: Float!
+  label: String
+}
+
+type HourlyMetric {
+  hour: Int!
+  value: Int!
+}
+
+type StyleMetric {
+  style: String!
+  sessions: Int!
+  percentage: Float!
+}
+
+type CategoryMetric {
+  category: String!
+  count: Int!
+  percentage: Float!
+}
+
+type XPDistribution {
+  source: String!
+  amount: Float!
+  percentage: Float!
+}
+
+type PointsSource {
+  source: String!
+  amount: Float!
+  percentage: Float!
+}
+
+type TopEarner {
+  user: User!
+  xp_earned: Float!
+  rank: Int!
+}
+
+type RealTimeAnalytics {
+  current_online_users: Int!
+  active_dance_sessions: Int!
+  events_in_progress: Int!
+  recent_signups: Int!
+  recent_sessions: Int!
+  system_load: Float!
+  api_requests_per_minute: Int!
+  live_metrics: LiveMetrics!
+}
+
+type LiveMetrics {
+  users_online: [TimeSeriesPoint!]!
+  sessions_active: [TimeSeriesPoint!]!
+  xp_per_minute: [TimeSeriesPoint!]!
+}
+
+type AnalyticsComparison {
+  metric: String!
+  current_value: Float!
+  previous_value: Float!
+  change_percentage: Float!
+  trend: String!
+}
+
+type TrendAnalysis {
+  metric: String!
+  trend_direction: String!
+  trend_strength: Float!
+  forecast_7_days: Float
+  forecast_30_days: Float
+  seasonality: String
+}
+
+input AnalyticsDateRange {
+  from: DateTime!
+  to: DateTime!
+}
+
+input AnalyticsOptions {
+  period: AnalyticsPeriod
+  custom_range: AnalyticsDateRange
+  granularity: AnalyticsGranularity
+  compare_to_previous: Boolean
+}
+
+type TelegramUser {
+  telegram_id: String!
+  first_name: String!
+  last_name: String
+  username: String
+  photo_url: String
+  language_code: String
+  is_premium: Boolean!
+  danz_user: User
+  is_linked: Boolean!
+}
+
+type TelegramAuthResult {
+  success: Boolean!
+  user: User
+  is_new_user: Boolean!
+  telegram_user: TelegramUser!
+  access_token: String
+  message: String
+}
+
+type MiniappHomeData {
+  user: User!
+  daily_stats: MiniappDailyStats!
+  active_challenges: [MiniappChallenge!]!
+  recent_activities: [MiniappActivity!]!
+  leaderboard_preview: MiniappLeaderboardPreview!
+  notifications_count: Int!
+  streak_info: MiniappStreakInfo!
+}
+
+type MiniappDailyStats {
+  xp_earned: Int!
+  points_earned: Int!
+  dance_minutes: Int!
+  calories_burned: Int!
+  sessions_count: Int!
+  daily_goal_progress: Float!
+}
+
+type MiniappChallenge {
+  id: String!
+  title: String!
+  progress: Int!
+  target: Int!
+  xp_reward: Int!
+  expires_in_hours: Int
+  icon: String!
+}
+
+type MiniappActivity {
+  id: String!
+  type: String!
+  title: String!
+  subtitle: String
+  icon: String!
+  timestamp: DateTime!
+  xp_earned: Int
+}
+
+type MiniappLeaderboardPreview {
+  my_rank: Int!
+  my_xp: Int!
+  top_3: [MiniappLeaderboardEntry!]!
+  nearby: [MiniappLeaderboardEntry!]!
+}
+
+type MiniappLeaderboardEntry {
+  rank: Int!
+  username: String!
+  avatar_url: String
+  xp: Int!
+  is_me: Boolean!
+}
+
+type MiniappStreakInfo {
+  current: Int!
+  longest: Int!
+  streak_maintained_today: Boolean!
+  next_milestone: Int
+  milestone_reward: Int
+}
+
+type MiniappQuickSession {
+  session_id: String!
+  start_time: DateTime!
+  mode: String!
+  target_duration: Int
+}
+
+type MiniappRewardClaim {
+  success: Boolean!
+  reward_type: String!
+  amount: Int!
+  new_balance: Int!
+  message: String!
+}
+
+type MiniappFriend {
+  user_id: String!
+  username: String!
+  display_name: String
+  avatar_url: String
+  level: Int!
+  is_online: Boolean!
+  last_active: DateTime
+  dance_bond_strength: Int!
+}
+
+type MiniappShareContent {
+  share_url: String!
+  share_text: String!
+  share_image_url: String
+  telegram_deep_link: String!
+}
+
+type MiniappNotification {
+  id: String!
+  type: String!
+  title: String!
+  body: String!
+  icon: String
+  action_url: String
+  is_read: Boolean!
+  created_at: DateTime!
+}
+
+type MiniappSettings {
+  notifications_enabled: Boolean!
+  sound_enabled: Boolean!
+  haptic_enabled: Boolean!
+  language: String!
+  theme: String!
+  daily_reminder_time: String
+  share_activity: Boolean!
+}
+
+input TelegramAuthInput {
+  init_data: String!
+  referral_code: String
+}
+
+input MiniappSettingsInput {
+  notifications_enabled: Boolean
+  sound_enabled: Boolean
+  haptic_enabled: Boolean
+  language: String
+  theme: String
+  daily_reminder_time: String
+  share_activity: Boolean
+}
+
+input MiniappQuickSessionInput {
+  mode: String!
+  target_duration: Int
+  challenge_id: String
+}
+
+type Feedback {
+  id: ID!
+  user_id: String!
+  user: User
+  message: String!
+  screenshot_url: String
+  device_info: String
+  app_version: String
+  status: FeedbackStatus!
+  admin_notes: String
+  resolved_at: DateTime
+  resolved_by: String
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+enum FeedbackStatus {
+  pending
+  reviewed
+  in_progress
+  resolved
+  dismissed
+}
+
+input SubmitFeedbackInput {
+  message: String!
+  screenshot_url: String
+  device_info: String
+  app_version: String
+}
+
+input UpdateFeedbackStatusInput {
+  feedback_id: ID!
+  status: FeedbackStatus!
+  admin_notes: String
+}
+
+type FeedbackStats {
+  total: Int!
+  pending: Int!
+  reviewed: Int!
+  in_progress: Int!
+  resolved: Int!
+  dismissed: Int!
+}
+
+enum GigRoleCategory {
+  OPERATIONS
+  CREATIVE
+  TECHNICAL
+  HOSPITALITY
+  SAFETY
+}
+
+enum GigApprovalMode {
+  AI
+  MANUAL
+  AUTO
+}
+
+enum GigSource {
+  PUBLIC
+  SELF
+}
+
+enum GigApplicationStatus {
+  PENDING
+  AI_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+  COMPLETED
+}
+
+enum UserGigRoleStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum EventGigStatus {
+  OPEN
+  FILLED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum GigSubmissionType {
+  PHOTO
+  VIDEO
+  LINK
+  TEXT
+  DOCUMENT
+}
+
+type GigRole {
+  id: ID!
+  name: String!
+  slug: String!
+  description: String
+  category: GigRoleCategory!
+  tier: Int!
+  icon: String
+  baseDanzRate: Float!
+  requiresVerification: Boolean!
+  verificationRequirements: JSON
+  isActive: Boolean!
+  createdAt: DateTime!
+  registeredWorkers: Int
+  approvedWorkers: Int
+}
+
+type UserGigRole {
+  id: ID!
+  userId: String!
+  roleId: ID!
+  status: UserGigRoleStatus!
+  verifiedAt: DateTime
+  verifiedBy: String
+  portfolioUrls: [String!]
+  certifications: [String!]
+  experienceNotes: String
+  rating: Float!
+  totalGigsCompleted: Int!
+  totalDanzEarned: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  user: User
+  role: GigRole!
+}
+
+type EventGig {
+  id: ID!
+  eventId: ID!
+  roleId: ID!
+  title: String!
+  description: String
+  slotsAvailable: Int!
+  slotsFilled: Int!
+  danzReward: Float!
+  bonusDanz: Float
+  timeCommitment: String
+  specificRequirements: String
+  approvalMode: GigApprovalMode!
+  gigSource: GigSource!
+  requiresLocal: Boolean!
+  localRadiusKm: Int
+  status: EventGigStatus!
+  createdBy: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  event: Event
+  role: GigRole!
+  applications: [GigApplication!]
+  approvedApplications: [GigApplication!]
+  myApplication: GigApplication
+  canApply: Boolean!
+}
+
+type GigApplication {
+  id: ID!
+  gigId: ID!
+  userId: String!
+  userRoleId: ID!
+  status: GigApplicationStatus!
+  applicationNote: String
+  aiReviewScore: Float
+  aiReviewNotes: JSON
+  aiReviewedAt: DateTime
+  reviewedBy: String
+  reviewedAt: DateTime
+  rejectionReason: String
+  checkInTime: DateTime
+  checkOutTime: DateTime
+  completionProof: JSON
+  organizerRating: Int
+  organizerFeedback: String
+  workerRating: Int
+  workerFeedback: String
+  danzAwarded: Float
+  danzAwardedAt: DateTime
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  gig: EventGig!
+  user: User!
+  userRole: UserGigRole!
+  reviewer: User
+  submissions: [GigSubmission!]
+}
+
+type GigSubmission {
+  id: ID!
+  applicationId: ID!
+  submissionType: GigSubmissionType!
+  contentUrl: String
+  contentText: String
+  metadata: JSON
+  aiReviewStatus: String
+  aiReviewScore: Float
+  aiReviewNotes: JSON
+  manualReviewStatus: String
+  reviewedBy: String
+  reviewedAt: DateTime
+  createdAt: DateTime!
+  application: GigApplication!
+}
+
+type GigRewardRate {
+  id: ID!
+  roleId: ID
+  actionType: String!
+  rateName: String!
+  rateType: String!
+  baseAmount: Float!
+  multiplier: Float!
+  minAmount: Float
+  maxAmount: Float
+  description: String
+  isActive: Boolean!
+  createdAt: DateTime!
+  role: GigRole
+}
+
+type EventGigManager {
+  id: ID!
+  eventId: ID!
+  userId: String!
+  assignedBy: String!
+  assignedAt: DateTime!
+  event: Event
+  user: User!
+  assigner: User!
+}
+
+type GigStats {
+  totalGigsCompleted: Int!
+  totalDanzEarned: Float!
+  activeRoles: Int!
+  currentApprovedGigs: Int!
+  pendingApplications: Int!
+  averageRating: Float
+  lastGigDate: DateTime
+}
+
+type GigDashboard {
+  stats: GigStats!
+  myRoles: [UserGigRole!]!
+  availableGigs: [EventGig!]!
+  activeGigs: [GigApplication!]!
+  recentHistory: [GigApplication!]!
+}
+
+type GigManagerDashboard {
+  pendingRoleApplications: [UserGigRole!]!
+  pendingGigApplications: [GigApplication!]!
+  pendingSubmissions: [GigSubmission!]!
+  recentlyApproved: [GigApplication!]!
+  stats: GigManagerStats!
+}
+
+type GigManagerStats {
+  totalReviewed: Int!
+  approvedCount: Int!
+  rejectedCount: Int!
+  averageReviewTime: Float
+  todayReviewed: Int!
+}
+
+input ApplyForGigRoleInput {
+  roleId: ID!
+  portfolioUrls: [String!]
+  certifications: [String!]
+  experienceNotes: String
+}
+
+input UpdateGigRoleApplicationInput {
+  portfolioUrls: [String!]
+  certifications: [String!]
+  experienceNotes: String
+}
+
+input CreateEventGigInput {
+  eventId: ID!
+  roleId: ID!
+  title: String
+  description: String
+  slotsAvailable: Int!
+  danzReward: Float!
+  bonusDanz: Float
+  timeCommitment: String
+  specificRequirements: String
+  approvalMode: GigApprovalMode
+  gigSource: GigSource
+  requiresLocal: Boolean
+  localRadiusKm: Int
+}
+
+input UpdateEventGigInput {
+  title: String
+  description: String
+  slotsAvailable: Int
+  danzReward: Float
+  bonusDanz: Float
+  timeCommitment: String
+  specificRequirements: String
+  approvalMode: GigApprovalMode
+  gigSource: GigSource
+  requiresLocal: Boolean
+  localRadiusKm: Int
+  status: EventGigStatus
+}
+
+input GigProofInput {
+  submissionType: GigSubmissionType!
+  contentUrl: String
+  contentText: String
+  metadata: JSON
+}
+
+input ReviewGigApplicationInput {
+  approved: Boolean!
+  reason: String
+  bonusDanz: Float
+}
+
+input ReviewGigSubmissionInput {
+  approved: Boolean!
+  notes: String
+}
+
+type Notification {
+  id: ID!
+  type: NotificationType!
+  title: String!
+  message: String!
+  sender_id: String
+  sender_type: SenderType
+  sender: User
+  recipient_id: String!
+  recipient: User
+  event_id: ID
+  post_id: ID
+  achievement_id: ID
+  bond_id: ID
+  gig_id: ID
+  gig_application_id: ID
+  event: Event
+  gig: EventGig
+  gigApplication: GigApplication
+  read: Boolean!
+  read_at: DateTime
+  is_broadcast: Boolean!
+  broadcast_target: BroadcastTarget
+  action_type: ActionType
+  action_data: JSON
+  push_sent: Boolean!
+  push_sent_at: DateTime
+  created_at: DateTime!
+  expires_at: DateTime
+}
+
+type NotificationPreferences {
+  id: ID!
+  user_id: String!
+  admin_broadcasts: Boolean!
+  event_manager_broadcasts: Boolean!
+  event_updates: Boolean!
+  dance_bonds: Boolean!
+  post_interactions: Boolean!
+  achievements: Boolean!
+  gig_role_updates: Boolean!
+  gig_application_updates: Boolean!
+  gig_opportunities: Boolean!
+  gig_reminders: Boolean!
+  push_notifications: Boolean!
+  email_notifications: Boolean!
+  quiet_hours_enabled: Boolean!
+  quiet_hours_start: String
+  quiet_hours_end: String
+  created_at: DateTime!
+  updated_at: DateTime!
+}
+
+type NotificationConnection {
+  notifications: [Notification!]!
+  total_count: Int!
+  unread_count: Int!
+  has_more: Boolean!
+}
+
+enum NotificationType {
+  admin_broadcast
+  event_manager_broadcast
+  event_update
+  event_reminder
+  dance_bond
+  post_like
+  post_comment
+  achievement
+  referral
+  system
+  social
+  gig_role_approved
+  gig_role_rejected
+  gig_application_received
+  gig_application_approved
+  gig_application_rejected
+  gig_reminder
+  gig_cancelled
+  gig_completed
+  gig_payment
+  gig_rating_received
+  gig_opportunity
+}
+
+enum SenderType {
+  admin
+  event_manager
+  user
+  system
+}
+
+enum BroadcastTarget {
+  all_users
+  event_participants
+  organizers
+  dancers
+}
+
+enum ActionType {
+  onboarding
+  open_event
+  open_post
+  open_profile
+  open_achievement
+  open_settings
+  open_bond
+  open_notifications
+  open_gig
+  open_gig_application
+  open_gig_dashboard
+  open_gig_manager_dashboard
+  open_gig_roles
+}
+
+input CreateNotificationInput {
+  type: NotificationType!
+  title: String!
+  message: String!
+  recipient_id: String!
+  event_id: ID
+  post_id: ID
+  gig_id: ID
+  gig_application_id: ID
+  action_type: ActionType
+  action_data: JSON
+}
+
+input SendBroadcastInput {
+  title: String!
+  message: String!
+  broadcast_target: BroadcastTarget!
+  event_id: ID
+  action_type: ActionType
+  action_data: JSON
+  expires_at: DateTime
+}
+
+input SendEventBroadcastInput {
+  event_id: ID!
+  title: String!
+  message: String!
+  action_type: ActionType
+  action_data: JSON
+}
+
+input UpdateNotificationPreferencesInput {
+  admin_broadcasts: Boolean
+  event_manager_broadcasts: Boolean
+  event_updates: Boolean
+  dance_bonds: Boolean
+  post_interactions: Boolean
+  achievements: Boolean
+  gig_role_updates: Boolean
+  gig_application_updates: Boolean
+  gig_opportunities: Boolean
+  gig_reminders: Boolean
+  push_notifications: Boolean
+  email_notifications: Boolean
+  quiet_hours_enabled: Boolean
+  quiet_hours_start: String
+  quiet_hours_end: String
+}
+
+enum SponsorTier {
+  bronze
+  silver
+  gold
+  platinum
+  diamond
+}
+
+enum SponsorshipStatus {
+  pending
+  active
+  completed
+  cancelled
+  refunded
+}
+
+enum SponsorshipVisibility {
+  visible
+  anonymous
+  featured
+}
+
+enum PoolStatus {
+  open
+  locked
+  distributing
+  completed
+}
+
+enum FlowTransactionType {
+  sponsor_deposit
+  gig_payment
+  volunteer_reward
+  platform_fee
+  swap_to_danz
+  withdrawal
+  refund
+}
+
+enum AcceptanceMode {
+  auto_accept
+  manual
+  category_filter
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+  expired
+}
+
+enum SubscriptionPlanType {
+  monthly
+  yearly
+}
+
+enum SponsorshipMode {
+  single_event
+  category_subscription
+  verified_only
+  hybrid
+}
+
+enum SubscriptionStatus {
+  active
+  paused
+  cancelled
+  expired
+}
+
+type SponsorCategory {
+  id: ID!
+  slug: String!
+  name: String!
+  description: String
+  icon: String
+  displayOrder: Int
+  isActive: Boolean!
+  sponsorCount: Int
+}
+
+type Sponsor {
+  id: ID!
+  userId: String!
+  user: User
+  companyName: String!
+  companyDescription: String
+  logoUrl: String
+  websiteUrl: String
+  contactEmail: String
+  contactPhone: String
+  categories: [String!]!
+  tier: SponsorTier!
+  isVerified: Boolean!
+  verifiedAt: DateTime
+  preferredRegions: [String]
+  preferredEventTypes: [String]
+  preferredDanceStyles: [String]
+  totalEventsSponsored: Int!
+  totalFlowContributed: Float!
+  totalDanzDistributed: Float!
+  sponsorships: [EventSponsorship!]
+  subscriptions: [SponsorSubscription!]
+  impactScore: SponsorImpactScore
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type SponsorImpactScore {
+  totalScore: Int!
+  grade: String!
+  reachScore: Int!
+  supportScore: Int!
+  totalEvents: Int!
+  totalInvested: Float!
+}
+
+type EventSponsorship {
+  id: ID!
+  event: Event!
+  sponsor: Sponsor!
+  flowAmount: Float!
+  flowAllocated: Float!
+  flowDistributed: Float!
+  status: SponsorshipStatus!
+  allocationConfig: AllocationConfig!
+  visibility: SponsorshipVisibility!
+  sponsorMessage: String
+  completedAt: DateTime
+  completionNotes: String
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type AllocationConfig {
+  paidWorkersPercent: Float!
+  volunteerRewardsPercent: Float!
+  platformFeePercent: Float!
+}
+
+type EventFlowPool {
+  id: ID!
+  event: Event!
+  totalFlow: Float!
+  allocatedFlow: Float!
+  distributedFlow: Float!
+  remainingFlow: Float!
+  status: PoolStatus!
+  lockedAt: DateTime
+  distributionStartedAt: DateTime
+  completedAt: DateTime
+  sponsors: [EventSponsorship!]
+}
+
+type UserFlowBalance {
+  userId: String!
+  availableBalance: Float!
+  pendingBalance: Float!
+  totalEarned: Float!
+  totalWithdrawn: Float!
+  totalGigsCompleted: Int!
+  totalEventsWorked: Int!
+}
+
+type FlowTransaction {
+  id: ID!
+  fromUser: User
+  toUser: User
+  sponsor: Sponsor
+  event: Event
+  amount: Float!
+  transactionType: FlowTransactionType!
+  status: TransactionStatus!
+  description: String
+  metadata: JSON
+  txHash: String
+  createdAt: DateTime!
+  completedAt: DateTime
+}
+
+type FlowDanzSwap {
+  id: ID!
+  userId: String!
+  flowAmount: Float!
+  danzAmount: Float
+  exchangeRate: Float
+  status: String!
+  triggerType: String!
+  createdAt: DateTime!
+  processedAt: DateTime
+  completedAt: DateTime
+  errorMessage: String
+}
+
+type EventSponsorshipSettings {
+  id: ID!
+  eventId: ID!
+  acceptanceMode: AcceptanceMode!
+  autoAcceptAll: Boolean!
+  preferredCategories: [String]
+  blockedCategories: [String]
+  minAutoAcceptAmount: Float
+  seekingSponsorship: Boolean!
+  sponsorshipGoal: Float
+  sponsorshipDeadline: DateTime
+  pitchMessage: String
+  notifyOnNewSponsor: Boolean!
+  notifyOnGoalReached: Boolean!
+  currentTotal: Float
+  goalProgress: Float
+}
+
+type SponsorshipApproval {
+  id: ID!
+  eventId: ID!
+  event: Event
+  sponsorId: ID!
+  sponsor: Sponsor
+  sponsorship: EventSponsorship
+  proposedFlowAmount: Float!
+  proposedVisibility: SponsorshipVisibility
+  proposedMessage: String
+  status: ApprovalStatus!
+  reviewedAt: DateTime
+  reviewedBy: String
+  rejectionReason: String
+  expiresAt: DateTime!
+  autoExpired: Boolean!
+  createdAt: DateTime!
+}
+
+type SponsorSubscription {
+  id: ID!
+  sponsor: Sponsor!
+  planType: SubscriptionPlanType!
+  sponsorshipMode: SponsorshipMode!
+  budgetAmount: Float!
+  budgetSpent: Float!
+  budgetRemaining: Float!
+  targetCategories: [String]
+  verifiedEventsOnly: Boolean!
+  autoApprove: Boolean!
+  maxPerEvent: Float
+  defaultAllocationConfig: AllocationConfig
+  defaultVisibility: SponsorshipVisibility!
+  status: SubscriptionStatus!
+  currentPeriodStart: DateTime
+  currentPeriodEnd: DateTime
+  nextBillingDate: DateTime
+  lastBilledAt: DateTime
+  discountPercent: Float!
+  eventsSponsored: [EventSponsorship!]
+  pendingMatches: [SubscriptionAutoMatch!]
+  createdAt: DateTime!
+  cancelledAt: DateTime
+}
+
+type SubscriptionAutoMatch {
+  id: ID!
+  subscriptionId: ID!
+  event: Event!
+  sponsorship: EventSponsorship
+  matchReason: String!
+  matchedCategories: [String]
+  flowAmount: Float!
+  status: ApprovalStatus!
+  notifiedAt: DateTime
+  respondedAt: DateTime
+  expiresAt: DateTime
+  createdAt: DateTime!
+}
+
+type VerifiedEventCreator {
+  id: ID!
+  userId: String!
+  user: User
+  isVerified: Boolean!
+  verifiedAt: DateTime
+  totalEventsHosted: Int!
+  averageEventRating: Float!
+  totalAttendeesServed: Int!
+  autoVerified: Boolean!
+  verificationType: String
+  verificationNotes: String
+}
+
+type VerificationCriteria {
+  totalEvents: Int!
+  averageRating: Float!
+  totalAttendees: Int!
+  meetsCriteria: Boolean!
+  eventsNeeded: Int!
+  ratingNeeded: Float!
+  attendeesNeeded: Int!
+}
+
+type SponsorDashboard {
+  sponsor: Sponsor!
+  activeSponsorships: [EventSponsorship!]!
+  suggestedEvents: [SuggestedEvent!]!
+  recentActivity: [FlowTransaction!]!
+  stats: SponsorStats!
+  subscriptions: [SponsorSubscription!]!
+  pendingMatches: [SubscriptionAutoMatch!]!
+}
+
+type SuggestedEvent {
+  event: Event!
+  matchScore: Float!
+  matchReasons: [String!]!
+  estimatedReach: Int
+  categoryMatches: [String!]!
+  currentSponsorshipTotal: Float
+  sponsorshipGoal: Float
+}
+
+type SponsorStats {
+  totalInvested: Float!
+  totalEventsSponsored: Int!
+  totalWorkersSupported: Int!
+  averageEventRating: Float
+  impactMetrics: ImpactMetrics!
+}
+
+type ImpactMetrics {
+  totalDancersReached: Int!
+  totalHoursSupported: Float!
+  communityEngagement: Float!
+}
+
+type SponsorAnalytics {
+  totalFlowSpent: Float!
+  eventsSponsored: Int!
+  dancersReached: Int!
+  workersSupported: Int!
+  costPerImpression: Float
+  costPerClick: Float
+  brandImpressions: Int!
+  websiteClicks: Int!
+  spendingTrend: [TrendDataPoint!]!
+  spendingByCategory: [CategoryBreakdown!]!
+  eventsByDanceStyle: [StyleBreakdown!]!
+  eventsByRegion: [RegionBreakdown!]!
+}
+
+type TrendDataPoint {
+  period: String!
+  amount: Float!
+}
+
+type CategoryBreakdown {
+  category: String!
+  amount: Float!
+  percentage: Float!
+}
+
+type StyleBreakdown {
+  style: String!
+  count: Int!
+  percentage: Float!
+}
+
+type RegionBreakdown {
+  region: String!
+  count: Int!
+}
+
+type EventSponsorshipAnalytics {
+  totalReceived: Float!
+  numberOfSponsors: Int!
+  goalPercentage: Float
+  distributionBreakdown: DistributionBreakdown!
+  sponsorsByTier: [TierBreakdown!]!
+  sponsorsByCategory: [CategorySponsorBreakdown!]!
+}
+
+type DistributionBreakdown {
+  workers: Float!
+  volunteers: Float!
+  platformFees: Float!
+}
+
+type TierBreakdown {
+  tier: SponsorTier!
+  count: Int!
+}
+
+type CategorySponsorBreakdown {
+  category: String!
+  count: Int!
+  totalAmount: Float!
+}
+
+type SponsorNotificationPreferences {
+  emailNewMatchingEvents: Boolean!
+  emailSponsorshipUpdates: Boolean!
+  emailSubscriptionBilling: Boolean!
+  emailWeeklyDigest: Boolean!
+  pushNewMatchingEvents: Boolean!
+  pushSponsorshipUpdates: Boolean!
+  pushBudgetWarnings: Boolean!
+  matchingEventsFrequency: String!
+  digestDay: String!
+}
+
+type CreatorSponsorshipNotificationPreferences {
+  notifyNewSponsorship: Boolean!
+  notifySponsorshipApproved: Boolean!
+  notifyGoalReached: Boolean!
+  notifyApprovalExpiring: Boolean!
+  emailEnabled: Boolean!
+  pushEnabled: Boolean!
+}
+
+input CreateSponsorInput {
+  companyName: String!
+  companyDescription: String
+  logoUrl: String
+  websiteUrl: String
+  contactEmail: String!
+  contactPhone: String
+  categories: [String!]!
+  preferredRegions: [String]
+  preferredEventTypes: [String]
+  preferredDanceStyles: [String]
+}
+
+input UpdateSponsorInput {
+  companyName: String
+  companyDescription: String
+  logoUrl: String
+  websiteUrl: String
+  contactEmail: String
+  contactPhone: String
+  categories: [String!]
+  preferredRegions: [String]
+  preferredEventTypes: [String]
+  preferredDanceStyles: [String]
+}
+
+input AllocationConfigInput {
+  paidWorkersPercent: Float!
+  volunteerRewardsPercent: Float!
+  platformFeePercent: Float!
+}
+
+input CreateSponsorshipInput {
+  eventId: ID!
+  flowAmount: Float!
+  visibility: SponsorshipVisibility
+  sponsorMessage: String
+  allocationConfig: AllocationConfigInput!
+}
+
+input UpdateSponsorshipInput {
+  visibility: SponsorshipVisibility
+  sponsorMessage: String
+  allocationConfig: AllocationConfigInput
+}
+
+input EventSponsorshipSettingsInput {
+  acceptanceMode: AcceptanceMode
+  autoAcceptAll: Boolean
+  preferredCategories: [String]
+  blockedCategories: [String]
+  minAutoAcceptAmount: Float
+  seekingSponsorship: Boolean
+  sponsorshipGoal: Float
+  sponsorshipDeadline: DateTime
+  pitchMessage: String
+  notifyOnNewSponsor: Boolean
+  notifyOnGoalReached: Boolean
+}
+
+input CreateSubscriptionInput {
+  planType: SubscriptionPlanType!
+  sponsorshipMode: SponsorshipMode!
+  budgetAmount: Float!
+  targetCategories: [String]
+  verifiedEventsOnly: Boolean
+  autoApprove: Boolean
+  maxPerEvent: Float
+  defaultAllocationConfig: AllocationConfigInput
+  defaultVisibility: SponsorshipVisibility
+}
+
+input UpdateSubscriptionInput {
+  budgetAmount: Float
+  targetCategories: [String]
+  verifiedEventsOnly: Boolean
+  autoApprove: Boolean
+  maxPerEvent: Float
+  defaultAllocationConfig: AllocationConfigInput
+  defaultVisibility: SponsorshipVisibility
+}
+
+input GigPaymentInput {
+  eventId: ID!
+  applicationId: ID!
+  amount: Float!
+  bonusDanz: Float
+  note: String
+}
+
+input VolunteerRewardInput {
+  eventId: ID!
+  userId: String!
+  amount: Float!
+  reason: String!
+}
+
+input SponsorNotificationPreferencesInput {
+  emailNewMatchingEvents: Boolean
+  emailSponsorshipUpdates: Boolean
+  emailSubscriptionBilling: Boolean
+  emailWeeklyDigest: Boolean
+  pushNewMatchingEvents: Boolean
+  pushSponsorshipUpdates: Boolean
+  pushBudgetWarnings: Boolean
+  matchingEventsFrequency: String
+  digestDay: String
+}
+
+input CreatorNotificationPreferencesInput {
+  notifyNewSponsorship: Boolean
+  notifySponsorshipApproved: Boolean
+  notifyGoalReached: Boolean
+  notifyApprovalExpiring: Boolean
+  emailEnabled: Boolean
+  pushEnabled: Boolean
+}
+
+input EventsForSponsorshipInput {
+  categories: [String]
+  region: String
+  danceStyles: [String]
+  minCapacity: Int
+  maxBudget: Float
+  dateFrom: DateTime
+  dateTo: DateTime
+  verifiedCreatorsOnly: Boolean
+  limit: Int
+  offset: Int
+}
+
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}

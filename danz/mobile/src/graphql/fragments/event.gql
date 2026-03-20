@@ -1,0 +1,81 @@
+fragment EventBasicInfo on Event {
+  id
+  title
+  description
+  category
+  image_url
+  location_name
+  location_address
+  location_city
+  location_latitude
+  location_longitude
+  start_date_time
+  end_date_time
+  price_usd
+  price_danz
+  skill_level
+  is_virtual
+  is_featured
+  status
+  registration_count
+  is_recurring
+  recurrence_type
+}
+
+fragment EventFullInfo on Event {
+  id
+  title
+  description
+  category
+  image_url
+  location_name
+  location_address
+  location_city
+  location_latitude
+  location_longitude
+  facilitator_id
+  facilitator {
+    ...UserOrganizerInfo
+  }
+  max_capacity
+  current_capacity
+  price_usd
+  price_danz
+  is_featured
+  skill_level
+  is_virtual
+  virtual_link
+  requirements
+  tags
+  dance_styles
+  currency
+  start_date_time
+  end_date_time
+  created_at
+  updated_at
+  status
+  is_registered
+  user_registration_status
+  distance
+  registration_count
+  is_recurring
+  recurrence_type
+  recurrence_end_date
+  recurrence_days
+  recurrence_count
+  parent_event_id
+}
+
+fragment EventWithParticipants on Event {
+  ...EventFullInfo
+  participants {
+    id
+    user_id
+    status
+    registration_date
+    payment_status
+    user {
+      ...UserBasicInfo
+    }
+  }
+}
