@@ -223,6 +223,14 @@ All APIs are served from a single consolidated Fastify server at `flowb.fly.dev`
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `/api/v1/events/:id/rsvp` | Yes | RSVP (requires auth) |
 | `DELETE` | `/api/v1/events/:id/rsvp` | Yes | Cancel RSVP (requires auth) |
+| `POST` | `/api/v1/events/:id/claim` | Yes | Claim event (makes actionable for RSVP) |
+| `POST` | `/api/v1/events/:id/verify/request` | Yes | Request ownership verification token (5/min) |
+| `POST` | `/api/v1/events/:id/verify/check` | Yes | Check verification (fetches event URL for token, 3/min) |
+| `GET` | `/api/v1/events/:id/verify/status` | Yes | Verification status |
+| `PATCH` | `/api/v1/events/:id/organizer/edit` | Yes | Edit event (verified organizer only) |
+| `GET` | `/api/v1/events/:id/organizer/attendees` | Yes | View attendee list (verified organizer only) |
+| `POST` | `/api/v1/events/:id/organizer/announce` | Yes | Post announcement (verified organizer only, 5/min) |
+| `GET` | `/api/v1/events/:id/announcements` | No | List event announcements (public) |
 
 ## TRANSCRIBE
 
@@ -588,4 +596,26 @@ Signal bot integration (registered when `SIGNAL_API_URL` is set).
 
 ---
 
-*Updated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-17*
+## DAO Treasury Address
+
+All sponsorships, event boosts, and party creation fees go to the FlowB DAO treasury:
+
+```
+0xD9Ab3B89cb5E09fbdA46c20D8849fd1E75486002
+```
+
+**Supported networks** (USDC): Base (primary), Ethereum, Polygon, Arbitrum, Optimism.
+
+| Network | USDC Contract |
+|---------|--------------|
+| Base | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
+| Ethereum | `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` |
+| Polygon | `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` |
+| Arbitrum | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| Optimism | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` |
+
+The same address works across all EVM-compatible chains (not all are explicitly supported for payment verification).
+
+---
+
+*Updated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-20*
