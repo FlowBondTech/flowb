@@ -45,6 +45,8 @@ const POINT_VALUES: Record<string, { points: number; dailyCap: number; once?: bo
   crew_created:          { points: 20,  dailyCap: 20, once: true },
   crew_joined:           { points: 10,  dailyCap: 30 },
   crew_invite_sent:      { points: 3,   dailyCap: 15 },
+  event_claimed:         { points: 10,  dailyCap: 30 },
+  event_verified:        { points: 50,  dailyCap: 50, once: true },
   event_rsvp:            { points: 5,   dailyCap: 25 },
   event_link_shared:     { points: 8,   dailyCap: 40 },
   friend_meetup:         { points: 10,  dailyCap: 30 },

@@ -34,6 +34,11 @@ export interface EventResult {
   rsvpCount?: number;
   featured?: boolean;
   qualityScore?: number;
+  isActionable?: boolean;
+  isVerified?: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  isOrganizer?: boolean;
 }
 
 export interface UserProfile {
@@ -278,6 +283,21 @@ export interface AgentsResponse {
 export interface MyAgentResponse {
   agent: AgentDetail | null;
   transactions: AgentTransaction[];
+}
+
+export interface Festival {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  description?: string;
+  imageUrl?: string;
+  url?: string;
+  featured: boolean;
+  status: "upcoming" | "active" | "ended";
 }
 
 export interface Booth {
