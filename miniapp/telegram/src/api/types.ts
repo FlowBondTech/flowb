@@ -34,7 +34,13 @@ export interface EventResult {
   rsvpCount?: number;
   featured?: boolean;
   qualityScore?: number;
+  isActionable?: boolean;
+  createdBy?: string;
   // Boost/sponsorship fields from API
+  isVerified?: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
+  isOrganizer?: boolean;
   isBoosted?: boolean;
   isFeatured?: boolean;
   boost?: {
@@ -354,6 +360,21 @@ export interface AgentsResponse {
 export interface MyAgentResponse {
   agent: AgentDetail | null;
   transactions: AgentTransaction[];
+}
+
+export interface Festival {
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  startsAt: string;
+  endsAt: string;
+  timezone: string;
+  description?: string;
+  imageUrl?: string;
+  url?: string;
+  featured: boolean;
+  status: "upcoming" | "active" | "ended";
 }
 
 export interface Booth {

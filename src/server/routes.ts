@@ -1426,13 +1426,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // Accepts: ?city=&categories=&zone=&type=&date=&from=&to=&featured=&q=&limit=&offset=
   // If no city param but user is authenticated, auto-uses current_city or destination_city
   // ------------------------------------------------------------------
-  app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; free?: string; q?: string; limit?: string; offset?: string } }>(
+  app.get<{ Querystring: { city?: string; categories?: string; zone?: string; type?: string; date?: string; from?: string; to?: string; featured?: string; free?: string; actionable?: string; q?: string; limit?: string; offset?: string } }>(
     "/api/v1/events",
     async (request) => {
       const cfg = getSupabaseConfig();
       if (!cfg) return { events: [], total: 0 };
 
-      let { city, categories, zone, type, date, from, to, featured, free: freeOnly, q, limit, offset } = request.query;
+      let { city, categories, zone, type, date, from, to, featured, free: freeOnly, actionable, q, limit, offset } = request.query;
       const maxResults = Math.min(parseInt(limit || "50", 10), 200);
       const skip = parseInt(offset || "0", 10);
 
@@ -1466,6 +1466,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       if (type) query += `&event_type=eq.${encodeURIComponent(type)}`;
       if (featured === "true") query += `&featured=eq.true`;
       if (freeOnly === "true") query += `&is_free=eq.true`;
+      if (actionable === "true") query += `&is_actionable=eq.true`;
+      else if (actionable === "false") query += `&is_actionable=eq.false`;
       if (date) {
         const dayStart = `${date}T00:00:00`;
         const dayEnd = `${date}T23:59:59`;
@@ -1746,10 +1748,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const eventTitle = title || url || "Community Event";
       const titleSlug = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
 
-      // Check for duplicates
+      // Check for duplicates (across user and community sources)
       const existing = await sbFetch<any[]>(
         cfg,
-        `flowb_events?source=eq.community&title_slug=eq.${encodeURIComponent(titleSlug)}&limit=1`,
+        `flowb_events?source=in.(community,user)&title_slug=eq.${encodeURIComponent(titleSlug)}&limit=1`,
       );
       if (existing?.length) {
         return { ok: true, message: "Event already listed!", eventId: existing[0].id };
@@ -1759,8 +1761,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const jwt = extractJwt(request);
       const submitter = submitterName || (jwt?.sub ? jwt.sub : "anonymous");
 
+      // Authenticated users create actionable events; anonymous get community source
+      const isAuthenticated = !!jwt?.sub;
       const inserted = await sbInsert<any>(cfg, "flowb_events", {
-        source: "community",
+        source: isAuthenticated ? "user" : "community",
         title: eventTitle,
         title_slug: titleSlug,
         description: description || null,
@@ -1771,9 +1775,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         city: city || "Austin",
         is_free: isFree ?? null,
         organizer_name: submitter,
-        quality_score: 0.3,
+        quality_score: isAuthenticated ? 0.5 : 0.3,
         stale: false,
-        tags: ["community-submitted"],
+        is_actionable: true,
+        created_by: jwt?.sub || null,
+        tags: isAuthenticated ? ["user-created"] : ["community-submitted"],
       });
 
       if (!inserted?.id) {
@@ -1802,10 +1808,13 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      // Try by UUID first, then by source_event_id
+      // Try by UUID first, then by source_event_id, then by UUID prefix (legacy 8-char short IDs)
       let rows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${encodeURIComponent(id)}&limit=1`);
       if (!rows?.length) {
         rows = await sbFetch<any[]>(cfg, `flowb_events?source_event_id=eq.${encodeURIComponent(id)}&limit=1`);
+      }
+      if (!rows?.length && id.length < 36 && /^[0-9a-f]+$/i.test(id)) {
+        rows = await sbFetch<any[]>(cfg, `flowb_events?id=like.${encodeURIComponent(id)}*&limit=1`);
       }
       if (!rows?.length) {
         return reply.status(404).send({ error: "Event not found" });
@@ -1824,15 +1833,21 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           .map(m => m.flowb_event_categories.slug);
       }
 
-      // If authed, include flow social proof
+      // If authed, include flow social proof + organizer flag
       let flowAttendance: { going: string[]; maybe: string[] } | undefined;
       const jwt = extractJwt(request);
-      if (jwt && flowPlugin && flowCfg) {
-        flowAttendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, jwt.sub, id);
+      let isOrganizer = false;
+      if (jwt) {
+        if (flowPlugin && flowCfg) {
+          flowAttendance = await flowPlugin.getFlowAttendanceForEvent(flowCfg, jwt.sub, id);
+        }
+        if (rows[0].verified_by && rows[0].verified_by === jwt.sub) {
+          isOrganizer = true;
+        }
       }
 
       return {
-        event,
+        event: { ...event, isOrganizer },
         flow: flowAttendance || { going: [], maybe: [] },
       };
     },
@@ -1891,6 +1906,11 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           eRows = await sbFetch<any[]>(sbCfg, `flowb_events?source_event_id=eq.${encodeURIComponent(id)}&limit=1`);
         }
         dbEvent = eRows?.[0] || null;
+      }
+
+      // Gate: only actionable events can be RSVP'd
+      if (dbEvent && !dbEvent.is_actionable) {
+        return { ok: false, error: "This is an external event. Save it to your bookmarks instead.", code: "NOT_ACTIONABLE" };
       }
 
       // Build event details from DB or client-provided fallback
@@ -1978,9 +1998,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       // Award points
       fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_rsvp"), "award points");
 
-      // Fire notifications in background
+      // Fire notifications in background (only for actionable events to avoid crew spam)
+      const isActionable = dbEvent?.is_actionable !== false;
       const notifyCtx = getNotifyContext();
-      if (notifyCtx && eventTitle !== id) {
+      if (notifyCtx && eventTitle !== id && isActionable) {
         fireAndForget(notifyFriendRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify friend rsvp");
         fireAndForget(notifyCrewMemberRsvp(notifyCtx, jwt.sub, id, eventTitle, undefined, startTime, eventUrl), "notify crew member rsvp");
       }
@@ -2021,6 +2042,469 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       }
 
       return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Bookmark (save non-actionable event) (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/events/:id/bookmark",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      await sbPost(cfg, "flowb_event_bookmarks?on_conflict=user_id,event_id", {
+        user_id: jwt.sub,
+        event_id: id,
+      }, "return=minimal,resolution=merge-duplicates");
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_bookmark"), "award bookmark points");
+
+      return { ok: true };
+    },
+  );
+
+  // EVENTS: Remove bookmark (requires auth)
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/events/:id/bookmark",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false };
+
+      await sbDelete(cfg, "flowb_event_bookmarks", { user_id: `eq.${jwt.sub}`, event_id: `eq.${id}` });
+      return { ok: true };
+    },
+  );
+
+  // EVENTS: My bookmarks (requires auth)
+  app.get(
+    "/api/v1/me/bookmarks",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { bookmarks: [] };
+
+      const rows = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_bookmarks?user_id=eq.${jwt.sub}&select=event_id,created_at,flowb_events(*)&order=created_at.desc&limit=50`,
+      );
+
+      const bookmarks = (rows || [])
+        .filter((r) => r.flowb_events)
+        .map((r) => ({
+          ...dbEventToResult(r.flowb_events),
+          bookmarkedAt: r.created_at,
+        }));
+
+      return { bookmarks };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Claim an aggregated event (requires auth)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/events/:id/claim",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { ok: false, error: "Not configured" };
+
+      // Look up event
+      const rows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${id}&limit=1`);
+      const ev = rows?.[0];
+      if (!ev) return { ok: false, error: "Event not found" };
+      if (ev.is_actionable) return { ok: true, message: "Event is already actionable" };
+      if (ev.claimed_by) return { ok: false, error: "Event already claimed by another user" };
+
+      await sbPatch(cfg, "flowb_events", { id: `eq.${id}` }, {
+        is_actionable: true,
+        claimed_by: jwt.sub,
+        claimed_at: new Date().toISOString(),
+      });
+
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_claimed"), "award claim points");
+
+      return { ok: true, message: "Event claimed! It is now actionable for RSVP." };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Request ownership verification token
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/events/:id/verify/request",
+    {
+      preHandler: authMiddleware,
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${id}&limit=1`);
+      const ev = rows?.[0];
+      if (!ev) return reply.status(404).send({ error: "Event not found" });
+
+      if (ev.verified_by) {
+        return { ok: false, error: "Event is already verified by another user" };
+      }
+
+      // Check for existing verification record (UNIQUE on event_id, user_id)
+      const existing = await sbQuery<any[]>(cfg, "flowb_event_verifications", {
+        select: "id,token,status,expires_at",
+        event_id: `eq.${id}`,
+        user_id: `eq.${jwt.sub}`,
+        limit: "1",
+      });
+
+      if (existing?.length) {
+        const rec = existing[0];
+        if (rec.status === "verified") {
+          return { ok: true, message: "You have already verified this event" };
+        }
+        if (rec.status === "pending" && new Date(rec.expires_at) > new Date()) {
+          return { ok: true, token: rec.token, expiresAt: rec.expires_at };
+        }
+        // Expired, failed, or stale pending — delete so we can re-create
+        await sbDelete(cfg, "flowb_event_verifications", { id: `eq.${rec.id}` });
+      }
+
+      // Generate 16-hex-char token (64-bit entropy)
+      const bytes = new Uint8Array(8);
+      crypto.getRandomValues(bytes);
+      const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
+      const token = `flowb-verify-${hex}`;
+
+      await sbInsert(cfg, "flowb_event_verifications", {
+        event_id: id,
+        user_id: jwt.sub,
+        token,
+        status: "pending",
+      });
+
+      return { ok: true, token, expiresAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString() };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Check ownership verification (fetches event URL for token)
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>(
+    "/api/v1/events/:id/verify/check",
+    {
+      preHandler: authMiddleware,
+      config: { rateLimit: { max: 3, timeWindow: "1 minute" } },
+    },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      // Get the verification record
+      const vRows = await sbQuery<any[]>(cfg, "flowb_event_verifications", {
+        select: "id,token,status,attempts,expires_at",
+        event_id: `eq.${id}`,
+        user_id: `eq.${jwt.sub}`,
+        status: "eq.pending",
+        limit: "1",
+      });
+
+      if (!vRows?.length) {
+        return { ok: false, error: "No pending verification found. Request a token first." };
+      }
+
+      const vr = vRows[0];
+      if (new Date(vr.expires_at) < new Date()) {
+        await sbPatch(cfg, "flowb_event_verifications", { id: `eq.${vr.id}` }, { status: "expired" });
+        return { ok: false, error: "Verification token expired. Request a new one." };
+      }
+
+      // Get the event URL
+      const evRows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${id}&select=url,verified_by,claimed_by,claimed_at&limit=1`);
+      const ev = evRows?.[0];
+      if (!ev?.url) return { ok: false, error: "Event has no external URL to verify against" };
+      if (ev.verified_by) return { ok: false, error: "Event is already verified" };
+
+      // Fetch the event page
+      let found = false;
+      let checkResult = "";
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15_000);
+        const resp = await fetch(ev.url, {
+          signal: controller.signal,
+          headers: { "User-Agent": "FlowB-Verify/1.0" },
+        });
+        clearTimeout(timeout);
+        const html = await resp.text();
+        found = html.includes(vr.token);
+        checkResult = found ? "token_found" : "token_not_found";
+      } catch (err: any) {
+        checkResult = `fetch_error: ${err.message || "unknown"}`;
+      }
+
+      // Update verification record
+      const newAttempts = (vr.attempts || 0) + 1;
+      await sbPatch(cfg, "flowb_event_verifications", { id: `eq.${vr.id}` }, {
+        attempts: newAttempts,
+        last_checked_at: new Date().toISOString(),
+        last_check_result: checkResult,
+        updated_at: new Date().toISOString(),
+        ...(found ? { status: "verified" } : {}),
+      });
+
+      if (found) {
+        // Mark event as verified
+        await sbPatch(cfg, "flowb_events", { id: `eq.${id}` }, {
+          verified_by: jwt.sub,
+          verified_at: new Date().toISOString(),
+          is_actionable: true,
+          claimed_by: ev.claimed_by || jwt.sub,
+          claimed_at: ev.claimed_at || new Date().toISOString(),
+        });
+
+        fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "event_verified"), "award verify points");
+
+        return { ok: true, verified: true, message: "Ownership verified! You now have organizer control." };
+      }
+
+      return {
+        ok: true,
+        verified: false,
+        message: `Token not found on page (attempt ${newAttempts}). Add "${vr.token}" to your event description and try again.`,
+        attempts: newAttempts,
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: Verification status
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/events/:id/verify/status",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbQuery<any[]>(cfg, "flowb_event_verifications", {
+        select: "token,status,attempts,last_checked_at,last_check_result,expires_at,created_at",
+        event_id: `eq.${id}`,
+        user_id: `eq.${jwt.sub}`,
+        order: "created_at.desc",
+        limit: "1",
+      });
+
+      if (!rows?.length) return { verification: null };
+
+      const v = rows[0];
+      return {
+        verification: {
+          token: v.status === "pending" ? v.token : undefined,
+          status: v.status,
+          attempts: v.attempts,
+          lastCheckedAt: v.last_checked_at,
+          lastCheckResult: v.last_check_result,
+          expiresAt: v.expires_at,
+          createdAt: v.created_at,
+        },
+      };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ORGANIZER: Edit event (verified organizer only)
+  // ------------------------------------------------------------------
+  app.patch<{
+    Params: { id: string };
+    Body: {
+      title?: string;
+      description?: string;
+      startsAt?: string;
+      endsAt?: string;
+      venueName?: string;
+      price?: number;
+      imageUrl?: string;
+      tags?: string[];
+    };
+  }>(
+    "/api/v1/events/:id/organizer/edit",
+    {
+      preHandler: authMiddleware,
+      schema: {
+        body: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            description: { type: "string" },
+            startsAt: { type: "string" },
+            endsAt: { type: "string" },
+            venueName: { type: "string" },
+            price: { type: "number" },
+            imageUrl: { type: "string" },
+            tags: { type: "array", items: { type: "string" } },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const authErr = await requireVerifiedOrganizer(cfg, id, jwt.sub);
+      if (authErr) return reply.status(403).send({ error: authErr });
+
+      const b = request.body || {};
+      const updates: Record<string, any> = {};
+      if (b.title !== undefined) updates.title = b.title;
+      if (b.description !== undefined) updates.description = b.description;
+      if (b.startsAt !== undefined) updates.starts_at = b.startsAt;
+      if (b.endsAt !== undefined) updates.ends_at = b.endsAt;
+      if (b.venueName !== undefined) updates.venue_name = b.venueName;
+      if (b.price !== undefined) updates.price = b.price;
+      if (b.imageUrl !== undefined) updates.image_url = b.imageUrl;
+      if (b.tags !== undefined) updates.tags = b.tags;
+
+      if (Object.keys(updates).length === 0) {
+        return { ok: false, error: "No fields to update" };
+      }
+
+      updates.updated_at = new Date().toISOString();
+      await sbPatch(cfg, "flowb_events", { id: `eq.${id}` }, updates);
+
+      return { ok: true, message: "Event updated" };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ORGANIZER: View attendees (verified organizer only)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/events/:id/organizer/attendees",
+    { preHandler: authMiddleware },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const authErr = await requireVerifiedOrganizer(cfg, id, jwt.sub);
+      if (authErr) return reply.status(403).send({ error: authErr });
+
+      // Get RSVPs from event attendance table
+      const rsvps = await sbFetch<any[]>(
+        cfg,
+        `flowb_event_attendance?event_id=eq.${id}&select=user_id,status,created_at&order=created_at.asc`,
+      );
+
+      if (!rsvps?.length) return { attendees: [], total: 0 };
+
+      // Batch resolve display names
+      const userIds = rsvps.map((r: any) => r.user_id);
+      const sessions = await sbQuery<any[]>(cfg, "flowb_sessions", {
+        select: "user_id,display_name",
+        user_id: `in.(${userIds.join(",")})`,
+      });
+      const nameMap = new Map((sessions || []).map((s: any) => [s.user_id, s.display_name]));
+
+      const attendees = rsvps.map((r: any) => ({
+        userId: r.user_id,
+        displayName: nameMap.get(r.user_id) || r.user_id.replace(/^(telegram|farcaster|web)_/, "").slice(0, 8),
+        rsvpStatus: r.status,
+        rsvpAt: r.created_at,
+      }));
+
+      return { attendees, total: attendees.length };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ORGANIZER: Post announcement (verified organizer only)
+  // ------------------------------------------------------------------
+  app.post<{
+    Params: { id: string };
+    Body: { title?: string; body: string };
+  }>(
+    "/api/v1/events/:id/organizer/announce",
+    {
+      preHandler: authMiddleware,
+      config: { rateLimit: { max: 5, timeWindow: "1 minute" } },
+      schema: {
+        body: {
+          type: "object",
+          required: ["body"],
+          properties: {
+            title: { type: "string", maxLength: 200 },
+            body: { type: "string", maxLength: 2000 },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const authErr = await requireVerifiedOrganizer(cfg, id, jwt.sub);
+      if (authErr) return reply.status(403).send({ error: authErr });
+
+      const { title, body } = request.body;
+      await sbInsert(cfg, "flowb_event_announcements", {
+        event_id: id,
+        user_id: jwt.sub,
+        title: title || null,
+        body,
+      });
+
+      return { ok: true, message: "Announcement posted" };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // EVENTS: List announcements (public)
+  // ------------------------------------------------------------------
+  app.get<{ Params: { id: string } }>(
+    "/api/v1/events/:id/announcements",
+    async (request, reply) => {
+      const { id } = request.params;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const rows = await sbQuery<any[]>(cfg, "flowb_event_announcements", {
+        select: "id,title,body,user_id,created_at",
+        event_id: `eq.${id}`,
+        order: "created_at.desc",
+        limit: "50",
+      });
+
+      const announcements = (rows || []).map((r: any) => ({
+        id: r.id,
+        title: r.title || undefined,
+        body: r.body,
+        postedBy: r.user_id,
+        createdAt: r.created_at,
+      }));
+
+      return { announcements };
     },
   );
 
@@ -4409,16 +4893,17 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // Sets the user's current venue so friends/crew can find them.
   // Also broadcasts to all their crews automatically.
   // ------------------------------------------------------------------
-  app.post<{ Body: { venue: string; message?: string; latitude?: number; longitude?: number } }>(
+  app.post<{ Body: { venue: string; message?: string; latitude?: number; longitude?: number; eventId?: string; status?: string } }>(
     "/api/v1/me/location",
     { preHandler: authMiddleware },
     async (request) => {
       const jwt = request.jwtPayload!;
-      const { venue, message, latitude, longitude } = request.body || {};
+      const { venue, message, latitude, longitude, eventId, status: checkinStatus } = request.body || {};
       const cfg = getSupabaseConfig();
 
       if (!cfg || !venue) return { ok: false, error: "Missing venue name" };
 
+      const validStatus = ["here", "heading", "leaving"].includes(checkinStatus || "") ? checkinStatus! : "here";
       const expiresAt = new Date(Date.now() + 4 * 3600_000).toISOString();
 
       // Personal check-in
@@ -4427,7 +4912,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         platform: jwt.platform,
         crew_id: "__personal__",
         venue_name: venue,
-        status: "here",
+        event_id: eventId || null,
+        status: validStatus,
         message: message || null,
         latitude: latitude || null,
         longitude: longitude || null,
@@ -4442,7 +4928,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
           platform: jwt.platform,
           crew_id: m.group_id,
           venue_name: venue,
-          status: "here",
+          event_id: eventId || null,
+          status: validStatus,
           message: message || null,
           latitude: latitude || null,
           longitude: longitude || null,
@@ -4459,7 +4946,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         }
       }
 
-      return { ok: true, venue, expiresAt };
+      // Award points for manual check-in
+      fireAndForget(core.awardPoints(jwt.sub, jwt.platform, "events_viewed"), "checkin points");
+
+      return { ok: true, venue, status: validStatus, eventId: eventId || null, expiresAt };
     },
   );
 
@@ -5809,7 +6299,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
-  // ADMIN: Middleware helper
+  // ADMIN: Middleware helpers
   // ------------------------------------------------------------------
   function requireAdmin(request: any, reply: any): boolean {
     const adminKey = request.headers["x-admin-key"];
@@ -5821,14 +6311,100 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
     return true;
   }
 
+  // Admin-key-only auth (no JWT needed) — for web admin dashboard
+  // Accepts x-admin-key header; sets synthetic JWT payload for compat
+  async function adminKeyAuth(request: any, reply: any): Promise<void> {
+    const adminKey = request.headers["x-admin-key"];
+    const expectedKey = process.env.FLOWB_ADMIN_KEY;
+    if (!expectedKey || !adminKey || adminKey !== expectedKey) {
+      return reply.status(403).send({ error: "Admin access required" });
+    }
+    // Provide synthetic JWT payload so handlers can call request.jwtPayload
+    if (!request.jwtPayload) {
+      request.jwtPayload = { sub: "admin_web", platform: "web" };
+    }
+  }
+
+  // Combined preHandler: accepts JWT (user in flowb_admins) OR x-admin-key
+  async function adminAuth(request: any, reply: any): Promise<void> {
+    // Path 1: x-admin-key header (legacy / bot / CLI callers)
+    const adminKey = request.headers["x-admin-key"];
+    const expectedKey = process.env.FLOWB_ADMIN_KEY;
+    if (expectedKey && adminKey && adminKey === expectedKey) {
+      // Valid admin key — try to also parse JWT if present
+      const authHeader = request.headers.authorization;
+      if (authHeader?.startsWith("Bearer ")) {
+        const payload = verifyJwt(authHeader.slice(7));
+        if (payload) { request.jwtPayload = payload; return; }
+      }
+      request.jwtPayload = { sub: "admin_key", platform: "web" };
+      return;
+    }
+
+    // Path 2: JWT auth — verify user is in flowb_admins table
+    const authHeader = request.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return reply.status(401).send({ error: "Missing authorization" });
+    }
+    const payload = verifyJwt(authHeader.slice(7));
+    if (!payload) {
+      return reply.status(401).send({ error: "Invalid or expired token" });
+    }
+    request.jwtPayload = payload;
+
+    // Check flowb_admins table
+    const cfg = getSupabaseConfig();
+    if (!cfg) {
+      return reply.status(500).send({ error: "Not configured" });
+    }
+    const userIds: string[] = [payload.sub];
+    try {
+      const linked = await getLinkedIds(cfg, payload.sub);
+      if (linked?.length) userIds.push(...linked.filter((id: string) => id !== payload.sub));
+    } catch {}
+
+    const inClause = userIds.map((id: string) => `"${id}"`).join(",");
+    const admins = await sbFetch<any[]>(cfg, `flowb_admins?user_id=in.(${inClause})&select=user_id&limit=1`);
+    if (!admins?.length) {
+      return reply.status(403).send({ error: "Admin access required" });
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // ADMIN: Verify current user is admin (JWT-only, no admin key)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/me",
+    { preHandler: authMiddleware, config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
+    async (request, reply) => {
+      const jwt = request.jwtPayload!;
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      // Check all identity variants for this user (canonical + linked)
+      const userIds: string[] = [jwt.sub];
+      try {
+        const linked = await getLinkedIds(cfg, jwt.sub);
+        if (linked?.length) userIds.push(...linked.filter((id: string) => id !== jwt.sub));
+      } catch {}
+
+      const inClause = userIds.map(id => `"${id}"`).join(",");
+      const admins = await sbFetch<any[]>(cfg, `flowb_admins?user_id=in.(${inClause})&select=user_id,label,permissions&limit=1`);
+      if (!admins?.length) {
+        return reply.status(403).send({ error: "Not an admin" });
+      }
+
+      return { admin: true, user_id: jwt.sub, label: admins[0].label, permissions: admins[0].permissions };
+    },
+  );
+
   // ------------------------------------------------------------------
   // ADMIN: Live dashboard stats
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/admin/stats",
-    { preHandler: authMiddleware, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
+    { preHandler: adminAuth, config: { rateLimit: { max: 30, timeWindow: "1 minute" } } },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return { stats: {} };
 
@@ -5857,9 +6433,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/admin/plugins",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
 
       const plugins = core.getPluginStatus().map((p: any) => ({
         id: p.id,
@@ -5878,9 +6453,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { config: Record<string, any> } }>(
     "/api/v1/admin/plugins/:id/configure",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       return { ok: true, message: `Plugin ${request.params.id} configuration updated` };
     },
   );
@@ -5890,9 +6464,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { enabled: boolean } }>(
     "/api/v1/admin/plugins/:id/toggle",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       return { ok: true, enabled: request.body?.enabled ?? true };
     },
   );
@@ -5902,9 +6475,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { featured: boolean } }>(
     "/api/v1/admin/events/:id/feature",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -5927,13 +6499,209 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // PUBLIC: Active festivals (current + upcoming)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/festivals/active",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { festivals: [] };
+
+      const now = new Date().toISOString();
+      const rows = await sbQuery<any[]>(cfg, "flowb_festivals", {
+        select: "*",
+        enabled: "eq.true",
+        ends_at: `gte.${now}`,
+        order: "starts_at.asc",
+        limit: "10",
+      });
+
+      const festivals = (rows || []).map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        slug: f.slug,
+        city: f.city,
+        startsAt: f.starts_at,
+        endsAt: f.ends_at,
+        timezone: f.timezone,
+        description: f.description,
+        imageUrl: f.image_url,
+        url: f.url,
+        featured: f.featured,
+        status: new Date(f.starts_at) > new Date() ? "upcoming" : "active",
+      }));
+
+      return { festivals };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // PUBLIC: All festivals (including past)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/festivals",
+    async () => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { festivals: [] };
+
+      const rows = await sbQuery<any[]>(cfg, "flowb_festivals", {
+        select: "*",
+        enabled: "eq.true",
+        order: "starts_at.desc",
+        limit: "50",
+      });
+
+      const festivals = (rows || []).map((f: any) => ({
+        id: f.id,
+        name: f.name,
+        slug: f.slug,
+        city: f.city,
+        startsAt: f.starts_at,
+        endsAt: f.ends_at,
+        timezone: f.timezone,
+        description: f.description,
+        imageUrl: f.image_url,
+        url: f.url,
+        featured: f.featured,
+        status: new Date(f.ends_at) < new Date() ? "ended" : new Date(f.starts_at) > new Date() ? "upcoming" : "active",
+      }));
+
+      return { festivals };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: List all festivals (including disabled)
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/festivals",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { festivals: [] };
+
+      const rows = await sbQuery<any[]>(cfg, "flowb_festivals", {
+        select: "*",
+        order: "starts_at.desc",
+        limit: "100",
+      });
+
+      return { festivals: rows || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Create festival
+  // ------------------------------------------------------------------
+  app.post<{
+    Body: {
+      name: string;
+      slug: string;
+      city: string;
+      starts_at: string;
+      ends_at: string;
+      timezone?: string;
+      description?: string;
+      image_url?: string;
+      url?: string;
+      featured?: boolean;
+    };
+  }>(
+    "/api/v1/admin/festivals",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const { name, slug, city, starts_at, ends_at, timezone, description, image_url, url, featured } = request.body;
+      if (!name || !slug || !city || !starts_at || !ends_at) {
+        return reply.status(400).send({ error: "name, slug, city, starts_at, ends_at required" });
+      }
+
+      const created = await sbInsert<any>(cfg, "flowb_festivals", {
+        name,
+        slug,
+        city,
+        starts_at,
+        ends_at,
+        timezone: timezone || "America/Chicago",
+        description: description || null,
+        image_url: image_url || null,
+        url: url || null,
+        featured: featured ?? false,
+        enabled: true,
+        created_by: "admin",
+      });
+
+      return created;
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Update festival
+  // ------------------------------------------------------------------
+  app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
+    "/api/v1/admin/festivals/:id",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      const allowed = ["name", "slug", "city", "starts_at", "ends_at", "timezone", "description", "image_url", "url", "featured", "enabled"];
+      const updates: Record<string, any> = { updated_at: new Date().toISOString() };
+      for (const key of allowed) {
+        if (request.body[key] !== undefined) updates[key] = request.body[key];
+      }
+
+      await sbPatch(cfg, "flowb_festivals", { id: `eq.${request.params.id}` }, updates);
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Delete festival
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { id: string } }>(
+    "/api/v1/admin/festivals/:id",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "DB not configured" });
+
+      await sbDelete(cfg, "flowb_festivals", { id: `eq.${request.params.id}` });
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Toggle event actionability
+  // ------------------------------------------------------------------
+  app.post<{ Params: { id: string }; Body: { is_actionable: boolean } }>(
+    "/api/v1/admin/events/:id/actionable",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+
+      const actionable = request.body?.is_actionable ?? true;
+      const adminId = request.jwtPayload?.sub || "admin";
+
+      await sbPatch(cfg, "flowb_events", { id: `eq.${request.params.id}` }, {
+        is_actionable: actionable,
+        ...(actionable ? { claimed_by: adminId, claimed_at: new Date().toISOString() } : {}),
+      });
+
+      return { ok: true, is_actionable: actionable };
+    },
+  );
+
+  // ------------------------------------------------------------------
   // ADMIN: Hide/show an event
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { hidden: boolean } }>(
     "/api/v1/admin/events/:id/hide",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -5960,9 +6728,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { userId: string; points: number; reason?: string } }>(
     "/api/v1/admin/points",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const { userId, points: bonusPoints, reason } = request.body || {};
       if (!userId || !bonusPoints) {
         return reply.status(400).send({ error: "Missing userId or points" });
@@ -5982,9 +6749,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { role: string } }>(
     "/api/v1/admin/users/:id/role",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       return { ok: true, userId: request.params.id, role: request.body?.role || "user" };
     },
   );
@@ -5994,9 +6760,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { userId: string; title: string; body: string } }>(
     "/api/v1/admin/notifications/test",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const { userId, title, body: notifBody } = request.body || {};
       if (!userId) return reply.status(400).send({ error: "Missing userId" });
 
@@ -6009,9 +6774,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.get(
     "/api/v1/admin/notifications/stats",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return { stats: {} };
 
@@ -6036,9 +6800,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post(
     "/api/v1/admin/email-digest",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Supabase not configured" });
 
@@ -6053,9 +6816,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: { eventUrl: string | null } }>(
     "/api/v1/admin/featured-event",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -6174,9 +6936,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.get<{ Querystring: { limit?: string; offset?: string; search?: string } }>(
     "/api/v1/admin/events",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return { events: [], total: 0 };
 
@@ -6374,9 +7135,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: Record<string, any> }>(
     "/api/v1/admin/booths",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
       const b: Record<string, any> = request.body || {};
@@ -6391,9 +7151,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.patch<{ Params: { id: string }; Body: Record<string, any> }>(
     "/api/v1/admin/booths/:id",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
       const updates: Record<string, any> = { ...(request.body || {}), updated_at: new Date().toISOString() };
@@ -6419,9 +7178,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Params: { id: string }; Body: { categories: string[] } }>(
     "/api/v1/admin/events/:id/categorize",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
@@ -6449,9 +7207,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.post<{ Body: Record<string, any> }>(
     "/api/v1/admin/venues",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
       const v: Record<string, any> = request.body || {};
@@ -6466,9 +7223,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   // ------------------------------------------------------------------
   app.get<{ Querystring: { search?: string; limit?: string } }>(
     "/api/v1/admin/users",
-    { preHandler: authMiddleware },
+    { preHandler: adminAuth },
     async (request, reply) => {
-      if (!requireAdmin(request, reply)) return;
       const cfg = getSupabaseConfig();
       if (!cfg) return { users: [] };
 
@@ -6482,6 +7238,85 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       const users = await sbFetch<any[]>(cfg, query);
       return { users: users || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: List admins
+  // ------------------------------------------------------------------
+  app.get(
+    "/api/v1/admin/admins",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { admins: [] };
+      const admins = await sbFetch<any[]>(cfg, "flowb_admins?select=user_id,label,permissions,created_at&order=created_at.asc");
+      return { admins: admins || [] };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Add admin
+  // ------------------------------------------------------------------
+  app.post<{ Body: { user_id: string; label?: string; permissions?: any } }>(
+    "/api/v1/admin/admins",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      const { user_id, label, permissions } = request.body || {};
+      if (!user_id) return reply.status(400).send({ error: "Missing user_id" });
+      const result = await sbPost(cfg, "flowb_admins?on_conflict=user_id", {
+        user_id,
+        label: label || user_id,
+        permissions: permissions || { "*": true },
+      }, "return=minimal,resolution=merge-duplicates");
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: Remove admin
+  // ------------------------------------------------------------------
+  app.delete<{ Params: { userId: string } }>(
+    "/api/v1/admin/admins/:userId",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return reply.status(500).send({ error: "Not configured" });
+      await sbDelete(cfg, "flowb_admins", { user_id: `eq.${request.params.userId}` });
+      return { ok: true };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // ADMIN: List crews (admin view with member counts)
+  // ------------------------------------------------------------------
+  app.get<{ Querystring: { search?: string; limit?: string } }>(
+    "/api/v1/admin/crews",
+    { preHandler: adminAuth },
+    async (request, reply) => {
+      const cfg = getSupabaseConfig();
+      if (!cfg) return { crews: [] };
+      const { search, limit } = request.query;
+      const maxResults = Math.min(parseInt(limit || "50", 10), 200);
+      let query = `flowb_groups?select=id,name,emoji,description,join_code,created_by,created_at,settings&order=created_at.desc&limit=${maxResults}`;
+      if (search) {
+        query += `&name=ilike.*${search}*`;
+      }
+      const crews = await sbFetch<any[]>(cfg, query);
+      // Fetch member counts
+      const crewIds = (crews || []).map((c: any) => c.id);
+      let memberCounts: Record<string, number> = {};
+      if (crewIds.length) {
+        const members = await sbFetch<any[]>(cfg, `flowb_group_members?select=group_id&group_id=in.(${crewIds.join(",")})`);
+        for (const m of members || []) {
+          memberCounts[m.group_id] = (memberCounts[m.group_id] || 0) + 1;
+        }
+      }
+      return {
+        crews: (crews || []).map((c: any) => ({ ...c, member_count: memberCounts[c.id] || 0 })),
+      };
     },
   );
 
@@ -9961,6 +10796,16 @@ function sanitizeFilename(name: string): string {
   return name.replace(/[^a-zA-Z0-9 _-]/g, "").trim().substring(0, 60) || "event";
 }
 
+/** Check that the user is the verified organizer for an event. Returns error string or null. */
+async function requireVerifiedOrganizer(cfg: SbConfig, eventId: string, userId: string): Promise<string | null> {
+  const rows = await sbFetch<any[]>(cfg, `flowb_events?id=eq.${eventId}&select=verified_by&limit=1`);
+  const ev = rows?.[0];
+  if (!ev) return "Event not found";
+  if (!ev.verified_by) return "Event is not verified";
+  if (ev.verified_by !== userId) return "You are not the verified organizer";
+  return null;
+}
+
 /** Map a DB row from flowb_events to the EventResult-like shape the frontend expects */
 function dbEventToResult(row: any): any {
   return {
@@ -9994,6 +10839,11 @@ function dbEventToResult(row: any): any {
     rsvpCount: row.rsvp_count || 0,
     featured: row.featured || false,
     qualityScore: row.quality_score != null ? Number(row.quality_score) : undefined,
+    isActionable: row.is_actionable || false,
+    createdBy: row.created_by || undefined,
+    isVerified: !!row.verified_by,
+    verifiedBy: row.verified_by || undefined,
+    verifiedAt: row.verified_at || undefined,
     categories: [],
   };
 }
