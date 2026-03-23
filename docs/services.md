@@ -8,13 +8,12 @@ Backend services that power FlowB's cross-platform features.
 
 | Service | File | Exports |
 |---------|------|---------|
-| admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone` |
+| admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone`, `alertSupportChannel` |
 | agent memory | `src/services/agent-memory.ts` | `storeMemory`, `searchMemories`, `extractMemories`, `getMemoryContext`, `processConversationMemories` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
 | biz notifications | `src/services/biz-notifications.ts` | `notifyBizChannel` |
 | cdp | `src/services/cdp.ts` | — |
 | chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createTodo`, `listTodos`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `grantFlowmium`, `requestCityScan`, `fetchUserBizContext`, `manageGroupIntelligence`, `getGroupSignalsTool`, `routeSignalTool` |
-| chat tools cuflow | `src/services/chat-tools-cuflow.ts` | `cuflowBrief`, `cuflowFeature`, `cuflowSearch`, `cuflowHotspots`, `cuflowVelocity`, `cuflowContributors`, `cuflowWhatsNew`, `cuflowReport` |
 | chat tools websites | `src/services/chat-tools-websites.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
@@ -24,34 +23,30 @@ Backend services that power FlowB's cross-platform features.
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
-| group intelligence | `src/services/group-intelligence.ts` | `shouldAnalyzeForSignals`, `extractBusinessSignals`, `routeSignal`, `getGroupIntelConfig`, `enableGroupIntel`, `disableGroupIntel`, `updateGroupIntelSettings`, `storeGroupSignal`, `buildSignalDigest`, `listActiveGroups`, `getGroupSignals`, `manualRouteSignal`, `processGroupMessage` |
 | guest session | `src/services/guest-session.ts` | `createGuestSession`, `createGuestToken`, `getGuestSession`, `joinCrewAsGuest`, `convertGuestToUser`, `getGuestCrews`, `getCrewByJoinCode` |
-| identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds` |
+| identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds`, `ensureIdentityRow` |
 | keyword alerts | `src/services/keyword-alerts.ts` | `processKeywordAlerts` |
-| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendOnboardingReminders` |
-| payments | `src/services/payments/index.ts` | `getPaymentService` |
+| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `getUserNotifyPrefs`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewJoinRequest`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendToUser`, `isAlreadyNotified`, `logNotification`, `hasReachedDailyLimit`, `isUserQuietHours`, `sendOnboardingReminders` |
 | privy | `src/services/privy.ts` | — |
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
 | socialb repost | `src/services/socialb-repost.ts` | `handleNewCast`, `adaptContent` |
-| stripe manager | `src/services/stripe-manager.ts` | `listStripeProducts`, `createStripeCheckout`, `listStripeOrders`, `refundPayment`, `getRevenueSummary`, `createStripeProduct` |
 | supabase auth | `src/services/supabase-auth.ts` | `getOrCreateSupabaseUser`, `verifySupabaseToken`, `linkPlatformIdentity` |
-| support | `src/services/support.ts` | `handleInboundEmail`, `generateDraftReply`, `sendReply`, `updateTicketStatus`, `getTicket`, `listTickets` |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
 
 ### admin alerts
 
-Admin Alert Service — sends notifications to admin Telegram accounts for system events.
+Admin Alert Service
 
 **Source**: `src/services/admin-alerts.ts`
 
-**Exports**: `getAdminIds()`, `alertAdmins()`, `alertNewEvents()`, `alertDaily()`, `checkMilestone()`
+**Exports**: `getAdminIds()`, `alertAdmins()`, `alertNewEvents()`, `alertDaily()`, `checkMilestone()`, `alertSupportChannel()`
 
 ### agent memory
 
-Agent Memory Service — RAG-based persistent memory for FlowB AI chat.
+Agent Memory Service — RAG-based persistent memory for FlowB AI
 
 **Source**: `src/services/agent-memory.ts`
 
@@ -59,7 +54,7 @@ Agent Memory Service — RAG-based persistent memory for FlowB AI chat.
 
 ### ai chat
 
-AI Chat Service — Tool-augmented chat with xAI Grok + FlowB tools.
+AI Chat Service — Tool-augmented chat
 
 **Source**: `src/services/ai-chat.ts`
 
@@ -75,35 +70,27 @@ Business project notification stubs.
 
 ### cdp
 
-Coinbase CDP REST API v2 client for Base network. Used for on-chain USDC sponsorships and wallet operations.
+Coinbase CDP REST API v2 client for Base network
 
 **Source**: `src/services/cdp.ts`
 
 ### chat tools biz
 
-Business Chat Tool Executors — AI chat tool functions for CRM, meetings, automations, and crew management.
+Business Chat Tool Executors
 
 **Source**: `src/services/chat-tools-biz.ts`
 
 **Exports**: `createLead()`, `listLeads()`, `updateLead()`, `getPipeline()`, `getLeadTimeline()`, `createTodo()`, `listTodos()`, `createMeeting()`, `listMeetings()`, `completeMeeting()`, `getMySettings()`, `updateMySettings()`, `getCrewSettings()`, `updateCrewSettings()`, `adminCrewAction()`, `listAutomations()`, `createAutomation()`, `toggleAutomation()`, `getMyPlan()`, `grantFlowmium()`, `requestCityScan()`, `fetchUserBizContext()`, `manageGroupIntelligence()`, `getGroupSignalsTool()`, `routeSignalTool()`
 
-### chat tools cuflow
-
-Cu.Flow Chat Tool Executors — AI chat tool functions for code intelligence, engineering briefs, sprint reports, and velocity tracking.
-
-**Source**: `src/services/chat-tools-cuflow.ts`
-
-**Exports**: `cuflowBrief()`, `cuflowFeature()`, `cuflowSearch()`, `cuflowHotspots()`, `cuflowVelocity()`, `cuflowContributors()`, `cuflowWhatsNew()`, `cuflowReport()`
-
 ### chat tools websites
 
-Website Chat Tool Executors — FlowB EC managed website operations.
+Website Chat Tool Executors — FlowB EC
 
 **Source**: `src/services/chat-tools-websites.ts`
 
 ### context notifications
 
-Contextual Push Notification Engine — smart push notifications based on user location, time, and activity patterns.
+Contextual Push Notification Engine
 
 **Source**: `src/services/context-notifications.ts`
 
@@ -111,7 +98,7 @@ Contextual Push Notification Engine — smart push notifications based on user l
 
 ### email digest
 
-FlowB Email Digest Service — weekly email summaries of events, crew activity, and points.
+FlowB Email Digest Service
 
 **Source**: `src/services/email-digest.ts`
 
@@ -119,7 +106,7 @@ FlowB Email Digest Service — weekly email summaries of events, crew activity, 
 
 ### email
 
-FlowB Email Notification Service — transactional email via Resend.
+FlowB Email Notification Service
 
 **Source**: `src/services/email.ts`
 
@@ -127,7 +114,7 @@ FlowB Email Notification Service — transactional email via Resend.
 
 ### event scanner
 
-Event Scanner Service — discovers events from Luma, Eventbrite, Lemonade, and other sources. Returns `newEventIds` for downstream keyword alert processing.
+Event Scanner Service
 
 **Source**: `src/services/event-scanner.ts`
 
@@ -135,7 +122,7 @@ Event Scanner Service — discovers events from Luma, Eventbrite, Lemonade, and 
 
 ### expo push
 
-Expo Push Notification Sender — sends push notifications to the FlowB mobile app.
+Expo Push Notification Sender
 
 **Source**: `src/services/expo-push.ts`
 
@@ -143,7 +130,7 @@ Expo Push Notification Sender — sends push notifications to the FlowB mobile a
 
 ### farcaster notify
 
-Farcaster Mini App Notification Sender — sends push notifications via the Farcaster notification protocol.
+Farcaster Mini App Notification Sender
 
 **Source**: `src/services/farcaster-notify.ts`
 
@@ -151,7 +138,7 @@ Farcaster Mini App Notification Sender — sends push notifications via the Farc
 
 ### farcaster poster
 
-FlowB Farcaster Poster Service — posts crew casts and processes the event posting queue.
+FlowB Farcaster Poster Service
 
 **Source**: `src/services/farcaster-poster.ts`
 
@@ -159,23 +146,15 @@ FlowB Farcaster Poster Service — posts crew casts and processes the event post
 
 ### farcaster responder
 
-Farcaster Responder Service — handles @flowb mentions on Farcaster via Neynar webhooks.
+Farcaster Responder Service
 
 **Source**: `src/services/farcaster-responder.ts`
 
 **Exports**: `handleMention()`
 
-### group intelligence
-
-Group Intelligence Service — listens to group messages, extracts business signals (leads, todos, meetings, deadlines, decisions, blockers) using LLM, and routes them to appropriate systems (kanban, CRM, activities, automations).
-
-**Source**: `src/services/group-intelligence.ts`
-
-**Exports**: `shouldAnalyzeForSignals()`, `extractBusinessSignals()`, `routeSignal()`, `getGroupIntelConfig()`, `enableGroupIntel()`, `disableGroupIntel()`, `updateGroupIntelSettings()`, `storeGroupSignal()`, `buildSignalDigest()`, `listActiveGroups()`, `getGroupSignals()`, `manualRouteSignal()`, `processGroupMessage()`
-
 ### guest session
 
-Guest Session Service — allows unauthenticated users to join crews before creating an account, then convert to a full user.
+Guest session management — allows unauthenticated users to join crews
 
 **Source**: `src/services/guest-session.ts`
 
@@ -183,15 +162,15 @@ Guest Session Service — allows unauthenticated users to join crews before crea
 
 ### identity
 
-Cross-Platform Identity Resolution Service — resolves canonical user IDs across platforms and manages linked accounts.
+Cross-Platform Identity Resolution Service
 
 **Source**: `src/services/identity.ts`
 
-**Exports**: `resolveCanonicalId()`, `getLinkedIds()`
+**Exports**: `resolveCanonicalId()`, `getLinkedIds()`, `ensureIdentityRow()`
 
 ### keyword alerts
 
-Keyword Alert Service — matches newly discovered events against user-defined keyword alerts and dispatches notifications via personal DM or crew chat.
+Keyword Alert Service
 
 **Source**: `src/services/keyword-alerts.ts`
 
@@ -199,35 +178,21 @@ Keyword Alert Service — matches newly discovered events against user-defined k
 
 ### notifications
 
-FlowB Notification Service — cross-platform notification dispatch with dedup, daily limits, quiet hours, and multi-channel delivery (Telegram DM, Farcaster push, WhatsApp, Signal, email, Expo push).
+FlowB Notification Service
 
 **Source**: `src/services/notifications.ts`
 
-**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`, `sendOnboardingReminders()`
-
-### payments
-
-Unified Payment Facade — multi-method payment support (Stripe, USDC on Base, Telegram Stars).
-
-**Source**: `src/services/payments/index.ts`
-
-**Sub-modules**:
-- `payments/stripe.ts` — Stripe payment processing
-- `payments/crypto.ts` — USDC on Base network via CDP
-- `payments/telegram-stars.ts` — Telegram Stars in-app purchases
-- `payments/types.ts` — Shared payment types
-
-**Exports**: `getPaymentService()`
+**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `getUserNotifyPrefs()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewJoinRequest()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`, `sendToUser()`, `isAlreadyNotified()`, `logNotification()`, `hasReachedDailyLimit()`, `isUserQuietHours()`, `sendOnboardingReminders()`
 
 ### privy
 
-Privy API Client (zero-dep) — verifies Privy access tokens for mobile auth.
+Privy API Client (zero-dep)
 
 **Source**: `src/services/privy.ts`
 
 ### socialb chat
 
-SocialB AI Chat Service — handles AI-powered social media content creation and management.
+SocialB AI Chat Service
 
 **Source**: `src/services/socialb-chat.ts`
 
@@ -235,7 +200,7 @@ SocialB AI Chat Service — handles AI-powered social media content creation and
 
 ### socialb poller
 
-SocialB Poller — background polling fallback for Farcaster mentions when webhooks are unavailable.
+SocialB Poller — Background polling fallback
 
 **Source**: `src/services/socialb-poller.ts`
 
@@ -243,39 +208,23 @@ SocialB Poller — background polling fallback for Farcaster mentions when webho
 
 ### socialb repost
 
-SocialB Repost Engine — automatically reposts Farcaster casts to connected platforms with content adaptation.
+SocialB Repost Engine
 
 **Source**: `src/services/socialb-repost.ts`
 
 **Exports**: `handleNewCast()`, `adaptContent()`
 
-### stripe manager
-
-Stripe Manager — handles Stripe operations for managed biz sites, including products, checkout, orders, refunds, and revenue reporting.
-
-**Source**: `src/services/stripe-manager.ts`
-
-**Exports**: `listStripeProducts()`, `createStripeCheckout()`, `listStripeOrders()`, `refundPayment()`, `getRevenueSummary()`, `createStripeProduct()`
-
 ### supabase auth
 
-Supabase Auth Admin Service — creates and manages Supabase Auth users, verifies tokens, and links platform identities.
+Supabase Auth Admin Service
 
 **Source**: `src/services/supabase-auth.ts`
 
 **Exports**: `getOrCreateSupabaseUser()`, `verifySupabaseToken()`, `linkPlatformIdentity()`
 
-### support
-
-FlowB Support Service — handles inbound support emails (support@flowb.me), stores tickets in Supabase, generates AI draft replies via Claude, sends TG notifications with inline keyboards, and dispatches outbound replies via Resend.
-
-**Source**: `src/services/support.ts`
-
-**Exports**: `handleInboundEmail()`, `generateDraftReply()`, `sendReply()`, `updateTicketStatus()`, `getTicket()`, `listTickets()`
-
 ### telegram auth
 
-Telegram Login Widget — server-side verification of Telegram auth data.
+Telegram Login Widget - Server-side verification
 
 **Source**: `src/services/telegram-auth.ts`
 
@@ -283,4 +232,4 @@ Telegram Login Widget — server-side verification of Telegram auth data.
 
 ---
 
-*Updated 2026-03-17*
+*Auto-generated on 2026-03-23 14:23:06 UTC*

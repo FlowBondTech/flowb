@@ -13,7 +13,7 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/start` | Begin or return to the main menu. Handles deep link invites. |
 | `/menu` | Show the main menu with all action buttons |
 | `/app` | Open the FlowB Telegram mini app |
-| `/events` | Browse events in swipeable card format |
+| `/events` | Browse EthDenver events in swipeable card format |
 | `/search` | Search events by keyword |
 | `/mylist` | View your saved events |
 | `/checkin` | Check in at a current event |
@@ -29,31 +29,30 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/going` | RSVP to an event or view your schedule |
 | `/whosgoing` | See which friends and crew are going to events |
 | `/schedule` | View your upcoming RSVP'd events |
-| `/wheremycrew` | See real-time check-in locations of your crew members |
-| `/onbooths` | Admin: create QR check-in booth. Usage: `/onbooths Name \| floor \| zone` |
-| `/sponsor` | View your USDC sponsorships or get the sponsor wallet address |
-| `/topsponsor` | View public leaderboard of top-sponsored booths by USDC amount |
-| `/leaderboard` | View global crew + individual leaderboards (top 10 each) |
-| `/meet` | Create a meeting from natural language. Usage: `/meet Coffee with Sarah tomorrow` |
-| `/meetings` | View your upcoming and recent meetings |
-| `/lead` | Add or manage leads. Usage: `/lead add Sarah CEO at StartupX` |
-| `/leads` | View your leads list with pipeline stages |
-| `/pipeline` | View your deal pipeline as a funnel |
-| `/biz` | Business dashboard — quick actions, links to kanban and biz dashboard |
-| `/earnings` | View referral commissions, pending payouts, and earning history |
-| `/todo` | View and manage project todos. Usage: `/todo add Fix login bug` |
+| `/wheremycrew` | — |
+| `/onbooths` | — |
+| `/sponsor` | — |
+| `/topsponsor` | — |
+| `/leaderboard` | — |
+| `/meet` | — |
+| `/meetings` | — |
+| `/lead` | — |
+| `/leads` | — |
+| `/pipeline` | — |
+| `/biz` | — |
+| `/earnings` | — |
 | `/help` | Show available commands and help text |
+| `/todo` | — |
 | `/register` | Verify your account or check status |
-| `/whatsup` | Social feed — what's happening now (check-ins, trending events, hot venues) |
-| `/afterparty` | Find after-party events and late-night plans |
-| `/whoshere` | See who from your flow is currently checked in nearby |
-| `/whatsnew` | View recent changelog / what's new (aliases: `/changelog`, `/updates`) |
-| `/addmyevent` | Submit a community event (aliases: `/addevent`, `/submitevent`) |
-| `/suggestfeature` | Submit a feature suggestion (alias: `/addfeature`) |
-| `/automations` | View your trigger-action automations and their run stats |
-| `/reportbug` | Report a bug — describe the issue and it gets sent to the team |
-| `/egator` | Admin: event scanner stats, scan control, city management |
-| `/admin` | Admin: system management commands |
+| `/whatsup` | — |
+| `/afterparty` | — |
+| `/whoshere` | — |
+| `/earnings` | — |
+| `/biz` | — |
+| `/automations` | — |
+| `/reportbug` | — |
+| `/egator` | — |
+| `/admin` | — |
 
 ## Deep Links
 
@@ -64,28 +63,146 @@ These are triggered via `https://t.me/Flow_b_bot?start={prefix}_{code}` or throu
 | `f_` | `flowb.me/f/{code}` | Personal flow invite — connects two users as friends |
 | `g_` | `flowb.me/g/{code}` | Crew join — joins a crew via its public code |
 | `gi_` | `flowb.me/gi/{code}` | Tracked crew invite — joins via personal invite link with attribution |
-| `m_` | `flowb.me/m/{code}` | Meeting — opens meeting detail and RSVP |
-| `checkin_` | `flowb.me/checkin/{code}` | Check-in — triggers check-in at a location |
+| `m_` | `flowb.me/m/{code}` | — |
+| `checkin_` | `flowb.me/checkin/{code}` | — |
 | `ref_` | `flowb.me/ref/{code}` | Referral — tracks referral signup |
-| `crew_` | `flowb.me/crew/{code}` | Crew join (alternate) |
-| `points` | `?start=points` | Jump directly to points view |
+| `link_` | `flowb.me/link/{code}` | — |
+| `crew_` | `flowb.me/crew/{code}` | — |
 
 ## Callback Actions
 
 Inline keyboard callbacks used throughout the bot:
 
-**Navigation**: `back`, `menu`, `next`, `prev`, `noop`
+**a**: `a`
 
-**Events**: `browse`, `fcat`, `fdate`, `setcat`, `setdate`, `going`, `maybe`, `rsvp`, `save`, `share`, `trending`, `whos`, `whos-going`, `schedule`, `view`, `luma`
+**add**: `add`
 
-**Crews**: `crew`, `crew-create`, `crew-invite`, `crew-leave`, `crew-list`, `crew-members`, `join-mode`, `join-request`, `toggle-public`, `promote`, `demote`, `approve`, `deny`
+**advance**: `advance`
 
-**Meetings**: `meet`, `complete`, `history`
+**ai**: `ai`
 
-**Business**: `pipeline`, `stage`, `lead`, `advance`
+**approve**: `approve`
 
-**General**: `a`, `d`, `t`, `add`, `cancel`, `claim`, `copy-link`, `del`, `edit`, `list`, `new`, `profile`, `settings`, `submit`
+**assign**: `assign`
+
+**back**: `back`
+
+**browse**: `browse`
+
+**cancel**: `cancel`
+
+**chat**: `chat`
+
+**claim**: `claim`
+
+**close**: `close`
+
+**complete**: `complete`
+
+**copy-link**: `copy-link`
+
+**crew**: `crew`
+
+**crew-create**: `crew-create`
+
+**crew-invite**: `crew-invite`
+
+**crew-leave**: `crew-leave`
+
+**crew-list**: `crew-list`
+
+**crew-members**: `crew-members`
+
+**d**: `d`
+
+**del**: `del`
+
+**demote**: `demote`
+
+**deny**: `deny`
+
+**edit**: `edit`
+
+**f**: `f`
+
+**fcat**: `fcat`
+
+**fdate**: `fdate`
+
+**going**: `going`
+
+**history**: `history`
+
+**idx**: `idx`
+
+**join-mode**: `join-mode`
+
+**join-request**: `join-request`
+
+**kanban**: `kanban`
+
+**list**: `list`
+
+**luma**: `luma`
+
+**maybe**: `maybe`
+
+**meet**: `meet`
+
+**menu**: `menu`
+
+**new**: `new`
+
+**next**: `next`
+
+**noop**: `noop`
+
+**pipeline**: `pipeline`
+
+**prev**: `prev`
+
+**profile**: `profile`
+
+**promote**: `promote`
+
+**regen**: `regen`
+
+**reply**: `reply`
+
+**rsvp**: `rsvp`
+
+**save**: `save`
+
+**schedule**: `schedule`
+
+**send**: `send`
+
+**setcat**: `setcat`
+
+**setdate**: `setdate`
+
+**settings**: `settings`
+
+**share**: `share`
+
+**stage**: `stage`
+
+**submit**: `submit`
+
+**t**: `t`
+
+**toggle-public**: `toggle-public`
+
+**trending**: `trending`
+
+**v**: `v`
+
+**view**: `view`
+
+**whos**: `whos`
+
+**whos-going**: `whos-going`
 
 ---
 
-*Updated from `src/telegram/bot.ts` on 2026-03-17*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-23 14:23:06 UTC*
