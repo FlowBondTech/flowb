@@ -570,23 +570,11 @@
           <h3>FlowB Passport</h3>\
           <p class="flowb-auth-subtitle">Sign in to get in the Flow</p>\
         </div>\
-        <div class="flowb-auth-tabs">\
-          <button class="flowb-auth-tab" data-tab="farcaster">Farcaster</button>\
-          <button class="flowb-auth-tab active" data-tab="magic">Magic Code</button>\
-          <button class="flowb-auth-tab" data-tab="wallet">Wallet</button>\
-          <button class="flowb-auth-tab" data-tab="password">Password</button>\
-        </div>\
-        <div id="flowbAuthFarcasterForm" class="flowb-auth-form" style="display:none">\
-          <div id="siwfContainer" style="padding:0.5rem 0">\
-            <button type="button" class="flowb-auth-submit" id="flowbSiwfStart" style="display:flex;align-items:center;justify-content:center;gap:8px">\
-              <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>\
-              Sign in with Farcaster\
-            </button>\
-          </div>\
-        </div>\
+        \
         <form id="flowbAuthMagicForm" class="flowb-auth-form">\
+          <label class="flowb-auth-label" for="flowbAuthEmail">Email address</label>\
           <input type="email" id="flowbAuthEmail" placeholder="you@example.com" required autocomplete="email">\
-          <button type="submit" class="flowb-auth-submit" id="flowbAuthMagicBtn">Send Code</button>\
+          <button type="submit" class="flowb-auth-submit" id="flowbAuthMagicBtn">Continue with Email</button>\
           <p class="flowb-auth-hint" id="flowbAuthMagicHint"></p>\
         </form>\
         <form id="flowbAuthOtpForm" class="flowb-auth-form" style="display:none">\
@@ -599,30 +587,47 @@
             <button type="button" class="flowb-auth-link" id="flowbOtpResend">Resend code</button>\
           </div>\
         </form>\
-        <div id="flowbAuthWalletForm" class="flowb-auth-form" style="display:none">\
-          <p class="flowb-auth-hint" style="color:var(--text-dim,#9ca3af);margin-bottom:0.75rem">Connect your wallet to sign in</p>\
-          <button type="button" class="flowb-auth-submit flowb-wallet-btn" id="flowbWalletEth" style="display:flex;align-items:center;justify-content:center;gap:8px">\
-            <svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" fill="#141414"/><path d="M0 212.32l127.96 75.639v-133.8z" fill="#393939"/></svg>\
-            Ethereum\
+        \
+        <div class="flowb-auth-divider">\
+          <button type="button" class="flowb-auth-more-toggle" id="flowbAuthMoreToggle">\
+            <span id="flowbAuthMoreLabel">More sign-in options</span>\
+            <svg class="flowb-auth-more-chevron" id="flowbAuthMoreChevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>\
           </button>\
-          <button type="button" class="flowb-auth-submit flowb-wallet-btn" id="flowbWalletSol" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:0.5rem;background:linear-gradient(135deg,#9945ff,#14f195)">\
-            <svg width="18" height="18" viewBox="0 0 397 311" fill="white"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>\
-            Solana\
-          </button>\
-          <p class="flowb-auth-hint" id="flowbAuthWalletHint"></p>\
-          <p class="flowb-auth-hint" id="flowbWalletDetect" style="color:var(--text-dim,#9ca3af);font-size:0.75rem;margin-top:0.75rem"></p>\
         </div>\
-        <form id="flowbAuthPasswordForm" class="flowb-auth-form" style="display:none">\
-          <input type="email" id="flowbAuthEmailPw" placeholder="you@example.com" required autocomplete="email">\
-          <input type="password" id="flowbAuthPassword" placeholder="Password" required autocomplete="current-password">\
-          <button type="submit" class="flowb-auth-submit" id="flowbAuthPwBtn">Sign In</button>\
-          <div style="display:flex;gap:0.5rem;margin-top:0.25rem">\
-            <button type="button" class="flowb-auth-link" id="flowbAuthSignUpToggle">Create account</button>\
-            <button type="button" class="flowb-auth-link" id="flowbAuthForgotPw">Forgot password?</button>\
-          </div>\
-          <p class="flowb-auth-hint" id="flowbAuthPwHint"></p>\
-        </form>\
-\
+        \
+        <div class="flowb-auth-more-options" id="flowbAuthMoreOptions" style="display:none">\
+          <button type="button" class="flowb-auth-alt-btn" id="flowbSiwfStart">\
+            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>\
+            <span>Farcaster</span>\
+          </button>\
+          <div id="siwfContainer" style="display:none"></div>\
+          \
+          <button type="button" class="flowb-auth-alt-btn" id="flowbWalletEth">\
+            <svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" fill="#141414"/><path d="M0 212.32l127.96 75.639v-133.8z" fill="#393939"/></svg>\
+            <span>Ethereum Wallet</span>\
+          </button>\
+          <button type="button" class="flowb-auth-alt-btn" id="flowbWalletSol" style="background:linear-gradient(135deg,rgba(153,69,255,0.15),rgba(20,241,149,0.1))">\
+            <svg width="18" height="18" viewBox="0 0 397 311" fill="currentColor"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>\
+            <span>Solana Wallet</span>\
+          </button>\
+          \
+          <button type="button" class="flowb-auth-alt-btn" id="flowbAuthPasswordToggle">\
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>\
+            <span>Email &amp; Password</span>\
+          </button>\
+          <form id="flowbAuthPasswordForm" class="flowb-auth-form" style="display:none;margin-top:0.5rem">\
+            <input type="email" id="flowbAuthEmailPw" placeholder="you@example.com" required autocomplete="email">\
+            <input type="password" id="flowbAuthPassword" placeholder="Password" required autocomplete="current-password">\
+            <button type="submit" class="flowb-auth-submit" id="flowbAuthPwBtn">Sign In</button>\
+            <div style="display:flex;gap:0.5rem;margin-top:0.25rem">\
+              <button type="button" class="flowb-auth-link" id="flowbAuthSignUpToggle">Create account</button>\
+              <button type="button" class="flowb-auth-link" id="flowbAuthForgotPw">Forgot password?</button>\
+            </div>\
+            <p class="flowb-auth-hint" id="flowbAuthPwHint"></p>\
+          </form>\
+          \
+          <p class="flowb-auth-hint" id="flowbAuthWalletHint"></p>\
+        </div>\
       </div>\
     ';
     document.body.appendChild(modal);
@@ -640,25 +645,32 @@
       if (e.target === modal) close();
     });
 
-    // Tab switching
+    // "More sign-in options" toggle
     var otpEmail = null;
-    modal.querySelectorAll('.flowb-auth-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        modal.querySelectorAll('.flowb-auth-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        var target = tab.dataset.tab;
-        document.getElementById('flowbAuthFarcasterForm').style.display = target === 'farcaster' ? '' : 'none';
-        document.getElementById('flowbAuthMagicForm').style.display = target === 'magic' && !otpEmail ? '' : 'none';
-        document.getElementById('flowbAuthOtpForm').style.display = target === 'magic' && otpEmail ? '' : 'none';
-        document.getElementById('flowbAuthWalletForm').style.display = target === 'wallet' ? '' : 'none';
-        document.getElementById('flowbAuthPasswordForm').style.display = target === 'password' ? '' : 'none';
-        if (target !== 'farcaster') stopSiwfPolling();
-      });
+    var moreOpen = false;
+    modal.querySelector('#flowbAuthMoreToggle').addEventListener('click', function () {
+      moreOpen = !moreOpen;
+      var opts = document.getElementById('flowbAuthMoreOptions');
+      var chevron = document.getElementById('flowbAuthMoreChevron');
+      var label = document.getElementById('flowbAuthMoreLabel');
+      opts.style.display = moreOpen ? '' : 'none';
+      chevron.style.transform = moreOpen ? 'rotate(180deg)' : '';
+      label.textContent = moreOpen ? 'Fewer options' : 'More sign-in options';
     });
 
     // Farcaster SIWF
     modal.querySelector('#flowbSiwfStart').addEventListener('click', function () {
-      startFarcasterSiwf(document.getElementById('siwfContainer'));
+      var container = document.getElementById('siwfContainer');
+      container.style.display = '';
+      startFarcasterSiwf(container);
+    });
+
+    // Password form toggle
+    modal.querySelector('#flowbAuthPasswordToggle').addEventListener('click', function () {
+      var form = document.getElementById('flowbAuthPasswordForm');
+      var isVisible = form.style.display !== 'none';
+      form.style.display = isVisible ? 'none' : '';
+      if (!isVisible) document.getElementById('flowbAuthEmailPw').focus();
     });
 
     // Magic Code (OTP)
@@ -679,7 +691,7 @@
       }).catch(function (err) {
         document.getElementById('flowbAuthMagicHint').textContent = err.message || 'Failed to send';
         document.getElementById('flowbAuthMagicHint').style.color = '#ef4444';
-        btn.textContent = 'Send Code';
+        btn.textContent = 'Continue with Email';
         btn.disabled = false;
       });
     });
@@ -707,7 +719,7 @@
     modal.querySelector('#flowbOtpBack').addEventListener('click', function () {
       document.getElementById('flowbAuthOtpForm').style.display = 'none';
       document.getElementById('flowbAuthMagicForm').style.display = '';
-      document.getElementById('flowbAuthMagicBtn').textContent = 'Send Code';
+      document.getElementById('flowbAuthMagicBtn').textContent = 'Continue with Email';
       document.getElementById('flowbAuthMagicBtn').disabled = false;
       document.getElementById('flowbAuthMagicHint').textContent = '';
       otpEmail = null;
@@ -729,17 +741,8 @@
     });
 
     // Web3 wallet detection
-    var detectEl = document.getElementById('flowbWalletDetect');
     var hasEth = typeof window.ethereum !== 'undefined';
     var hasSol = typeof window.solana !== 'undefined' || typeof window.phantom !== 'undefined';
-    if (!hasEth && !hasSol) {
-      detectEl.textContent = 'No wallet detected. Install MetaMask or Phantom to use wallet sign-in.';
-    } else {
-      var detected = [];
-      if (hasEth) detected.push('Ethereum');
-      if (hasSol) detected.push('Solana');
-      detectEl.textContent = 'Detected: ' + detected.join(', ');
-    }
 
     // Ethereum wallet sign-in
     modal.querySelector('#flowbWalletEth').addEventListener('click', function () {
@@ -751,7 +754,7 @@
         return;
       }
       btn.disabled = true;
-      btn.textContent = 'Confirm in wallet...';
+      btn.querySelector('span').textContent = 'Confirm in wallet...';
       hint.textContent = '';
       loginWithWeb3('ethereum').then(function () {
         close();
@@ -759,7 +762,7 @@
         hint.textContent = err.message || 'Wallet sign-in failed';
         hint.style.color = '#ef4444';
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/></svg> Ethereum';
+        btn.querySelector('span').textContent = 'Ethereum Wallet';
       });
     });
 
@@ -773,7 +776,7 @@
         return;
       }
       btn.disabled = true;
-      btn.textContent = 'Confirm in wallet...';
+      btn.querySelector('span').textContent = 'Confirm in wallet...';
       hint.textContent = '';
       loginWithWeb3('solana').then(function () {
         close();
@@ -781,7 +784,7 @@
         hint.textContent = err.message || 'Wallet sign-in failed';
         hint.style.color = '#ef4444';
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 397 311" fill="white"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg> Solana';
+        btn.querySelector('span').textContent = 'Solana Wallet';
       });
     });
 
