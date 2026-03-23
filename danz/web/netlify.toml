@@ -1,0 +1,72 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# ═══════════════════════════════════════════════════════════════
+# MINIAPP HEADERS - Allow Farcaster/Warpcast iframe embedding
+# ═══════════════════════════════════════════════════════════════
+[[headers]]
+  for = "/mapp"
+  [headers.values]
+    X-Frame-Options = "ALLOWALL"
+    Content-Security-Policy = "frame-ancestors 'self' https://*.farcaster.xyz https://*.warpcast.com https://warpcast.com https://*.coinbase.com https://coinbase.com"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/mapp/*"
+  [headers.values]
+    X-Frame-Options = "ALLOWALL"
+    Content-Security-Policy = "frame-ancestors 'self' https://*.farcaster.xyz https://*.warpcast.com https://warpcast.com https://*.coinbase.com https://coinbase.com"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# ═══════════════════════════════════════════════════════════════
+# FARCASTER MANIFEST - Must be accessible with CORS
+# ═══════════════════════════════════════════════════════════════
+[[headers]]
+  for = "/.well-known/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "GET, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
+    Cache-Control = "public, max-age=3600"
+    X-Content-Type-Options = "nosniff"
+
+# ═══════════════════════════════════════════════════════════════
+# DEFAULT SECURITY HEADERS - Block iframe for main site
+# ═══════════════════════════════════════════════════════════════
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+# ═══════════════════════════════════════════════════════════════
+# AUTH PAGES - Allow Supabase and Google OAuth
+# ═══════════════════════════════════════════════════════════════
+[[headers]]
+  for = "/login"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    Content-Security-Policy = "frame-src 'self' https://*.supabase.co https://accounts.google.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.farcaster.xyz https://*.danz.now https://danz.now;"
+
+[[headers]]
+  for = "/register"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    Content-Security-Policy = "frame-src 'self' https://*.supabase.co https://accounts.google.com; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.farcaster.xyz https://*.danz.now https://danz.now;"
+
+[[headers]]
+  for = "/dashboard/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    Content-Security-Policy = "frame-src 'self' https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.farcaster.xyz https://*.danz.now https://danz.now;"

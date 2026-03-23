@@ -1,0 +1,435 @@
+        :root {
+            --primary: #18181b;
+            --primary-light: #3f3f46;
+            --accent: #6366f1;
+            --accent-light: #a5b4fc;
+            --bg-primary: #ffffff;
+            --bg-secondary: #fafafa;
+            --bg-tertiary: #f4f4f5;
+            --text-primary: #18181b;
+            --text-secondary: #52525b;
+            --text-muted: #a1a1aa;
+            --border: #e4e4e7;
+            --border-light: #f4f4f5;
+            --shadow: rgba(0, 0, 0, 0.04);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+        }
+
+        /* Password Gate - Minimal */
+        #password-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #password-gate.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .password-box {
+            text-align: center;
+            padding: 60px;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .password-logo {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .password-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 48px;
+            font-size: 15px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 16px 20px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 16px;
+            font-family: 'Inter', sans-serif;
+            text-align: center;
+            letter-spacing: 3px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--text-primary);
+        }
+
+        .password-input::placeholder {
+            letter-spacing: 0;
+            color: var(--text-muted);
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 16px;
+            background: var(--text-primary);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .password-btn:hover {
+            background: var(--primary-light);
+        }
+
+        .password-error {
+            color: #ef4444;
+            margin-top: 16px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-error.show {
+            opacity: 1;
+        }
+
+        #main-content {
+            display: none;
+        }
+
+        #main-content.visible {
+            display: block;
+        }
+
+        /* Navigation */
+        nav {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .logo {
+            color: var(--text-primary);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            background: var(--text-primary);
+            color: white;
+            font-size: 14px;
+            padding: 10px 24px;
+        }
+
+        .nav-cta:hover {
+            background: var(--primary-light);
+            box-shadow: none;
+        }
+
+        /* Hero */
+        .hero {
+            padding-top: 160px;
+        }
+
+        .hero-text h1 {
+            font-size: 64px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+        }
+
+        .hero-text h1 span {
+            color: var(--accent);
+        }
+
+        .hero-text p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            line-height: 1.7;
+        }
+
+        .btn-primary {
+            background: var(--text-primary);
+            color: white;
+            font-size: 15px;
+            font-weight: 500;
+            padding: 16px 32px;
+            border-radius: 12px;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-light);
+            box-shadow: none;
+            transform: none;
+        }
+
+        .btn-secondary {
+            border-color: var(--border);
+            color: var(--text-primary);
+            font-size: 15px;
+            font-weight: 500;
+            padding: 16px 32px;
+            border-radius: 12px;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--text-primary);
+            background: transparent;
+        }
+
+        /* Bracelet */
+        .bracelet-ring {
+            border: 2px solid var(--border);
+        }
+
+        .bead {
+            box-shadow: 0 4px 20px var(--shadow);
+            border: 2px solid var(--bg-primary);
+        }
+
+        /* Monochrome beads with subtle color hints */
+        .bead-nfc { background: #3b82f6; }
+        .bead-bt { background: #06b6d4; }
+        .bead-haptic { background: #8b5cf6; }
+        .bead-led { background: #ec4899; }
+        .bead-sensor { background: #22c55e; }
+        .bead-gps { background: #f59e0b; }
+        .bead-battery { background: #ef4444; }
+        .bead-motion { background: #6366f1; }
+
+        .bead::after {
+            display: none;
+        }
+
+        .center-logo {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .center-logo span {
+            color: var(--text-primary);
+            font-weight: 700;
+        }
+
+        /* Section Headers */
+        .section-header h2 {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .section-header h2 span {
+            color: var(--accent);
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            font-size: 17px;
+        }
+
+        /* Bead Cards - Clean minimal style */
+        .bead-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+        }
+
+        .bead-card:hover {
+            border-color: var(--text-muted);
+            box-shadow: 0 20px 40px var(--shadow);
+        }
+
+        .bead-card::before {
+            display: none;
+        }
+
+        .bead-card h3 {
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .bead-card p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .bead-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            font-size: 26px;
+        }
+
+        .card-nfc .bead-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .card-bt .bead-icon { background: linear-gradient(135deg, #06b6d4, #0891b2); }
+        .card-haptic .bead-icon { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .card-led .bead-icon { background: linear-gradient(135deg, #ec4899, #db2777); }
+        .card-sensor .bead-icon { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .card-gps .bead-icon { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .card-battery .bead-icon { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .card-motion .bead-icon { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+
+        .specs {
+            margin-top: 20px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 13px;
+        }
+
+        .spec-item span:first-child {
+            color: var(--text-muted);
+        }
+
+        .spec-item span:last-child {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        /* Features Section */
+        .features-section {
+            background: var(--bg-secondary);
+            border-radius: 24px;
+            padding: 80px 60px;
+            margin: 0 60px;
+            border: 1px solid var(--border-light);
+        }
+
+        .feature-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            font-size: 28px;
+        }
+
+        .feature h3 {
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .feature p {
+            color: var(--text-secondary);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* CTA Section */
+        .cta-section::before {
+            display: none;
+        }
+
+        .cta-section {
+            background: var(--bg-secondary);
+            margin: 80px 60px;
+            border-radius: 24px;
+            border: 1px solid var(--border-light);
+        }
+
+        .cta-section h2 {
+            font-size: 48px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .cta-section h2 span {
+            color: var(--accent);
+        }
+
+        .cta-section p {
+            color: var(--text-secondary);
+            font-size: 17px;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-light);
+            padding: 48px 60px;
+        }
+
+        .footer-logo {
+            color: var(--text-primary);
+            font-weight: 700;
+            font-size: 24px;
+        }
+
+        footer p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* Back to themes link */
+        .theme-link {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 10px 20px;
+            background: var(--text-primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            font-size: 13px;
+            z-index: 9999;
+            transition: all 0.2s ease;
+        }
+
+        .theme-link:hover {
+            background: var(--primary-light);
+            transform: none;
+        }
+
+        @media (max-width: 768px) {
+            .hero-text h1 {
+                font-size: 40px;
+            }
+            .section-header h2, .cta-section h2 {
+                font-size: 32px;
+            }
+            .features-section, .cta-section {
+                margin: 0 20px;
+            }
+        }

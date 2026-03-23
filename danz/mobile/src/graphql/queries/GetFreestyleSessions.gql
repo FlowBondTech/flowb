@@ -1,0 +1,12 @@
+query GetFreestyleSessions($limit: Int, $offset: Int) {
+  myFreestyleSessions(limit: $limit, offset: $offset) {
+    id
+    duration_seconds
+    movement_score
+    points_awarded
+    music_source
+    session_date
+    completed
+    created_at
+  }
+}

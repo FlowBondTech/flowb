@@ -1,0 +1,14 @@
+# import "../fragments/user.gql"
+
+mutation ReviewGigApplication($applicationId: ID!, $input: ReviewGigApplicationInput!) {
+  reviewGigApplication(applicationId: $applicationId, input: $input) {
+    id
+    status
+    user {
+      privy_id
+      username
+      display_name
+      avatar_url
+    }
+  }
+}

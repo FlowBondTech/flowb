@@ -1,0 +1,14 @@
+mutation CreateFreestyleSession($input: CreateFreestyleSessionInput!) {
+  createFreestyleSession(input: $input) {
+    id
+    user_id
+    duration_seconds
+    movement_score
+    points_awarded
+    music_source
+    completed
+    session_date
+    created_at
+    achievements_unlocked
+  }
+}

@@ -1,0 +1,23 @@
+query GetUserTransactions($user_id: String!, $limit: Int, $offset: Int, $status: TransactionStatus) {
+  getUserTransactions(user_id: $user_id, limit: $limit, offset: $offset, status: $status) {
+    transactions {
+      id
+      action_key
+      points_amount
+      status
+      transaction_type
+      created_at
+      reference_id
+      reference_type
+      metadata
+      action {
+        id
+        action_name
+        description
+        points_value
+      }
+    }
+    has_more
+    total_count
+  }
+}

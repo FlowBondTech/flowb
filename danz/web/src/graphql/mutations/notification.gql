@@ -1,0 +1,55 @@
+# Notification Mutations
+
+mutation MarkNotificationRead($id: ID!) {
+  markNotificationRead(id: $id) {
+    id
+    read
+    read_at
+  }
+}
+
+mutation MarkAllNotificationsRead {
+  markAllNotificationsRead {
+    success
+    message
+  }
+}
+
+mutation DeleteNotification($id: ID!) {
+  deleteNotification(id: $id) {
+    success
+    message
+  }
+}
+
+mutation UpdateNotificationPreferences($input: UpdateNotificationPreferencesInput!) {
+  updateNotificationPreferences(input: $input) {
+    id
+    admin_broadcasts
+    event_manager_broadcasts
+    event_updates
+    dance_bonds
+    post_interactions
+    achievements
+    push_notifications
+    email_notifications
+    quiet_hours_enabled
+    quiet_hours_start
+    quiet_hours_end
+    updated_at
+  }
+}
+
+mutation SendAdminBroadcast($input: SendBroadcastInput!) {
+  sendAdminBroadcast(input: $input) {
+    success
+    message
+  }
+}
+
+mutation SendEventBroadcast($input: SendEventBroadcastInput!) {
+  sendEventBroadcast(input: $input) {
+    success
+    message
+  }
+}

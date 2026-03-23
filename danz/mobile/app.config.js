@@ -1,0 +1,60 @@
+module.exports = {
+  name: 'DANZ',
+  slug: 'flowbond-app',
+  version: '1.0.0',
+  orientation: 'portrait',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'dark',
+  newArchEnabled: true,
+  scheme: 'danz',
+  assetBundlePatterns: ['**/*'],
+  splash: {
+    image: './assets/splash-icon.png',
+    resizeMode: 'contain',
+    backgroundColor: '#1a1a2e',
+  },
+  ios: {
+    supportsTablet: false,
+    bundleIdentifier: 'now.danz',
+    buildNumber: '36',
+    infoPlist: {
+      NSCameraUsageDescription: 'DANZ needs camera access to record your dance videos',
+      NSMotionUsageDescription: 'DANZ needs motion access to track your dance movements',
+      NSLocationWhenInUseUsageDescription: 'DANZ needs location to find events near you',
+      ITSAppUsesNonExemptEncryption: false,
+    },
+  },
+  android: {
+    adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      backgroundColor: '#1a1a2e',
+    },
+    package: 'now.danz',
+    versionCode: 13,
+    permissions: ['CAMERA', 'ACCESS_FINE_LOCATION', 'VIBRATE'],
+    edgeToEdgeEnabled: true,
+  },
+  web: {
+    favicon: './assets/favicon.png',
+    name: 'DANZ - Move. Connect. Earn.',
+    shortName: 'DANZ',
+    description: "The world's first move-to-earn platform for dancers",
+    backgroundColor: '#1a1a2e',
+    themeColor: '#ff6ec7',
+    display: 'standalone',
+    orientation: 'portrait',
+  },
+  plugins: ['expo-font', 'expo-video', 'expo-secure-store', 'expo-audio', 'expo-asset', 'expo-apple-authentication'],
+  extra: {
+    eas: {
+      projectId: '57c0233b-83f9-49c2-80ee-3013384b7b47',
+    },
+    privyAppId: process.env.EXPO_PUBLIC_PRIVY_APP_ID,
+    privyClientId: process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID,
+  },
+  notification: {
+    icon: './assets/icon.png',
+    color: '#ff6ec7',
+  },
+  owner: 'kohx',
+}

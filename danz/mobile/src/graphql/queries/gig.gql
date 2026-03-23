@@ -1,0 +1,22 @@
+query GetMyGigDashboard {
+  myGigDashboard {
+    stats {
+      ...GigStatsBasic
+    }
+    availableGigs {
+      ...EventGigFull
+    }
+    activeGigs {
+      ...GigApplicationWithGig
+    }
+    recentHistory {
+      ...GigApplicationWithGig
+    }
+  }
+}
+
+query GetAvailableGigsForMe($eventId: ID, $limit: Int, $offset: Int) {
+  availableGigsForMe(eventId: $eventId, limit: $limit, offset: $offset) {
+    ...EventGigFull
+  }
+}

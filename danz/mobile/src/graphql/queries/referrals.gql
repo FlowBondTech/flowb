@@ -1,0 +1,47 @@
+# import "../fragments/user.gql"
+
+query GetMyReferralStats {
+  myReferralStats {
+    total_signups
+    total_completed
+    total_clicks
+    total_points_earned
+    pending_referrals
+    completed_referrals
+    conversion_rate
+  }
+  myReferralCode {
+    id
+    referral_code
+    share_url
+    total_clicks
+    total_signups
+    total_completed
+    created_at
+  }
+}
+
+query GetMyReferrals($limit: Int, $offset: Int, $status: ReferralStatus) {
+  myReferrals(limit: $limit, offset: $offset, status: $status) {
+    id
+    referral_code
+    status
+    points_awarded
+    clicked_at
+    completed_at
+    signed_up_at
+    first_session_completed_at
+    referee {
+      ...UserBasicInfo
+    }
+  }
+}
+
+query GetReferralChain($userId: String) {
+  getReferralChain(userId: $userId) {
+    user_id
+    username
+    invited_by
+    depth
+  }
+}

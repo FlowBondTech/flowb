@@ -43,7 +43,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  const { logout, user, email, isAuthenticated, isLoading, onboardingSkipped } = useAuth()
+  const { logout, user, email, isAuthenticated, isLoading } = useAuth()
   const { experimentalEnabled } = useExperimental()
   const { isInstallable, isInstalled, isIOS, promptInstall, isMobile } = useInstallPrompt()
 
@@ -51,11 +51,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     skip: !isAuthenticated || isLoading,
   })
 
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && !profileLoading && !profileData?.me?.username && !onboardingSkipped) {
-      router.push('/register')
-    }
-  }, [isLoading, isAuthenticated, profileData, profileLoading, router, onboardingSkipped])
+  // Note: redirect to /register is handled by AuthContext — not duplicated here
 
   // Close mobile menu on route change
   useEffect(() => {

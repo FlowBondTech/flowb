@@ -1,0 +1,107 @@
+# import "../fragments/user.gql"
+
+query GetMyPendingBondRequests($limit: Int, $offset: Int) {
+  myPendingBondRequests(limit: $limit, offset: $offset) {
+    id
+    requester {
+      ...UserBasicInfo
+    }
+    recipient {
+      ...UserBasicInfo
+    }
+    status
+    message
+    match_reasons {
+      mutual_bonds
+      same_events
+      music_overlap
+      dance_styles
+      similarity_score
+    }
+    created_at
+    expires_at
+  }
+}
+
+query GetMySentBondRequests($limit: Int, $offset: Int) {
+  mySentBondRequests(limit: $limit, offset: $offset) {
+    id
+    requester {
+      ...UserBasicInfo
+    }
+    recipient {
+      ...UserBasicInfo
+    }
+    status
+    message
+    match_reasons {
+      mutual_bonds
+      same_events
+      music_overlap
+      dance_styles
+      similarity_score
+    }
+    created_at
+    updated_at
+    responded_at
+    expires_at
+  }
+}
+
+query GetBondRequest($id: ID!) {
+  bondRequest(id: $id) {
+    id
+    requester {
+      ...UserBasicInfo
+    }
+    recipient {
+      ...UserBasicInfo
+    }
+    status
+    message
+    match_reasons {
+      mutual_bonds
+      same_events
+      music_overlap
+      dance_styles
+      similarity_score
+    }
+    created_at
+    updated_at
+    responded_at
+    expires_at
+  }
+}
+
+query CanSendBondRequestTo($userId: String!) {
+  canSendBondRequestTo(user_id: $userId) {
+    can_send
+    reason
+    match_reasons {
+      mutual_bonds
+      same_events
+      music_overlap
+      dance_styles
+      similarity_score
+    }
+  }
+}
+
+query GetSimilarityWith($userId: String!) {
+  getSimilarityWith(user_id: $userId) {
+    mutual_bonds
+    same_events
+    music_overlap
+    dance_styles
+    similarity_score
+  }
+}
+
+query GetMyBondRequestStats {
+  myBondRequestStats {
+    pending_sent
+    pending_received
+    total_bonds
+    acceptance_rate
+  }
+}

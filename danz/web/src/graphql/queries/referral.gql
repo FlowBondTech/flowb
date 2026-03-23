@@ -1,0 +1,56 @@
+query GetReferralByCode($code: String!) {
+  getReferralByCode(code: $code) {
+    id
+    referral_code
+    referrer_user_id
+    status
+    clicked_at
+    referrer {
+      username
+      display_name
+      avatar_url
+      xp
+      level
+    }
+  }
+}
+
+query GetMyReferralCode {
+  myReferralCode {
+    id
+    user_id
+    referral_code
+    created_at
+    share_url
+  }
+}
+
+query GetMyReferralStats {
+  myReferralStats {
+    total_clicks
+    total_signups
+    total_completed
+    total_points_earned
+    conversion_rate
+    pending_referrals
+    completed_referrals
+  }
+}
+
+query GetMyReferrals($limit: Int, $offset: Int, $status: ReferralStatus) {
+  myReferrals(limit: $limit, offset: $offset, status: $status) {
+    id
+    referral_code
+    referee_user_id
+    status
+    clicked_at
+    signed_up_at
+    first_session_completed_at
+    points_awarded
+    referee {
+      username
+      display_name
+      avatar_url
+    }
+  }
+}

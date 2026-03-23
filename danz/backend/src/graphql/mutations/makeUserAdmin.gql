@@ -1,0 +1,15 @@
+# GraphQL mutation to make a user admin
+# This can be added to your admin panel
+
+mutation MakeUserAdmin($userId: String!) {
+  makeUserAdmin(userId: $userId) {
+    success
+    message
+    user {
+      id
+      username
+      display_name
+      role
+    }
+  }
+}

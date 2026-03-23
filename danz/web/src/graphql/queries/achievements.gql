@@ -1,0 +1,49 @@
+query GetMyAchievements {
+  myAchievements {
+    achievement_type
+    category
+    current_progress
+    danz_reward
+    description
+    icon
+    is_unlocked
+    percentage
+    rarity
+    target
+    title
+    unlocked_at
+    xp_reward
+  }
+}
+
+query GetMyAchievementStats {
+  myAchievementStats {
+    total_unlocked
+    total_available
+    total_xp_earned
+    total_danz_earned
+    by_rarity {
+      rarity
+      total
+      unlocked
+    }
+    by_category {
+      category
+      total
+      unlocked
+    }
+    recent_unlocks {
+      achievement_type
+      category
+      description
+      icon
+      id
+      is_unlocked
+      rarity
+      title
+      unlocked_at
+      xp_reward
+      danz_reward
+    }
+  }
+}

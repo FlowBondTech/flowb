@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowBond - Light Minimalist Theme</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../shared/css/base.css">
+    <link rel="stylesheet" href="../shared/css/variables.css">
+    <link rel="stylesheet" href="theme.css">
+</head>
+<body>
+    <!-- Password Gate -->
+    <div id="password-gate">
+        <div class="password-box">
+            <div class="password-logo">FlowBond</div>
+            <p class="password-subtitle">Enter access code</p>
+            <input type="password" id="password-input" class="password-input" placeholder="Code" autocomplete="off">
+            <button class="password-btn">Continue</button>
+            <p class="password-error" id="password-error">Incorrect code</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div id="main-content">
+        <nav>
+            <div class="logo">FlowBond</div>
+            <div class="nav-links">
+                <a href="#beads">Beads</a>
+                <a href="#features">Features</a>
+                <a href="#cta">Pre-Order</a>
+            </div>
+            <a href="#cta" class="nav-cta">Join Waitlist</a>
+        </nav>
+
+        <section class="hero">
+            <div class="hero-content">
+                <div class="hero-text">
+                    <h1>Your Body.<br><span>Your Tech.</span><br>Your Way.</h1>
+                    <p>The world's first modular smart wearable. Swap beads. Change abilities. Earn while you move.</p>
+                    <div class="hero-cta">
+                        <a href="#cta" class="btn-primary">Pre-Order Now</a>
+                        <a href="#beads" class="btn-secondary">Explore Beads</a>
+                    </div>
+                </div>
+                <div class="hero-visual">
+                    <div class="bracelet-container">
+                        <div class="bracelet-ring">
+                            <div class="bead bead-nfc bead-1">📡</div>
+                            <div class="bead bead-bt bead-2">📶</div>
+                            <div class="bead bead-haptic bead-3">📳</div>
+                            <div class="bead bead-led bead-4">💡</div>
+                            <div class="bead bead-sensor bead-5">💚</div>
+                            <div class="bead bead-gps bead-6">📍</div>
+                            <div class="bead bead-battery bead-7">🔋</div>
+                            <div class="bead bead-motion bead-8">🌀</div>
+                        </div>
+                        <div class="center-logo"><span>FB</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="beads">
+            <div class="section-header">
+                <h2>Meet the <span>Beads</span></h2>
+                <p>Each bead is a self-contained smart module. Mix and match to create your perfect wearable.</p>
+            </div>
+            <div class="beads-grid">
+                <div class="bead-card card-nfc">
+                    <div class="bead-icon">📡</div>
+                    <h3>NFC Bead</h3>
+                    <p>Tap to pay, unlock doors, share contacts instantly.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Range</span><span>4cm</span></div>
+                        <div class="spec-item"><span>Standard</span><span>ISO 14443</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-bt">
+                    <div class="bead-icon">📶</div>
+                    <h3>Bluetooth Bead</h3>
+                    <p>Connect seamlessly to all your devices.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Version</span><span>BLE 5.3</span></div>
+                        <div class="spec-item"><span>Range</span><span>100m</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-haptic">
+                    <div class="bead-icon">📳</div>
+                    <h3>Haptic Bead</h3>
+                    <p>Feel notifications through precise vibrations.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Motor</span><span>Linear</span></div>
+                        <div class="spec-item"><span>Patterns</span><span>100+</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-led">
+                    <div class="bead-icon">💡</div>
+                    <h3>LED Bead</h3>
+                    <p>Express yourself with customizable lights.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Colors</span><span>16M RGB</span></div>
+                        <div class="spec-item"><span>Modes</span><span>50+</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-sensor">
+                    <div class="bead-icon">💚</div>
+                    <h3>Biometric Bead</h3>
+                    <p>Track heart rate and health metrics 24/7.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Sensors</span><span>PPG + Temp</span></div>
+                        <div class="spec-item"><span>Accuracy</span><span>±2 BPM</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-gps">
+                    <div class="bead-icon">📍</div>
+                    <h3>GPS Bead</h3>
+                    <p>Precise location for fitness and navigation.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Systems</span><span>GPS + GLONASS</span></div>
+                        <div class="spec-item"><span>Accuracy</span><span>±2m</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-battery">
+                    <div class="bead-icon">🔋</div>
+                    <h3>Power Bead</h3>
+                    <p>Extended battery with wireless charging.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Capacity</span><span>150mAh</span></div>
+                        <div class="spec-item"><span>Charging</span><span>Qi</span></div>
+                    </div>
+                </div>
+                <div class="bead-card card-motion">
+                    <div class="bead-icon">🌀</div>
+                    <h3>Motion Bead</h3>
+                    <p>9-axis sensing for gestures and tracking.</p>
+                    <div class="specs">
+                        <div class="spec-item"><span>Sensors</span><span>9-Axis</span></div>
+                        <div class="spec-item"><span>AI</span><span>On-device</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="features-section" id="features">
+            <div class="section-header">
+                <h2>Why <span>FlowBond</span>?</h2>
+                <p>Technology that adapts to you.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature">
+                    <div class="feature-icon">🔗</div>
+                    <h3>Truly Modular</h3>
+                    <p>Snap and swap beads instantly. Infinite configurations.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💧</div>
+                    <h3>Water Resistant</h3>
+                    <p>IP68 rated. Goes everywhere you do.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🔐</div>
+                    <h3>Secure</h3>
+                    <p>Bank-grade encryption for all your data.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Long Battery</h3>
+                    <p>Weeks of life with smart power management.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <h3>Personal Style</h3>
+                    <p>Fashion meets function. Express yourself.</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">💰</div>
+                    <h3>Earn Rewards</h3>
+                    <p>Move and earn $DANZ tokens.</p>
+                </div>
+            </div>
+        </div>
+
+        <section class="cta-section" id="cta">
+            <div class="cta-content">
+                <h2>Ready to <span>Flow</span>?</h2>
+                <p>Join for early access and founding member pricing.</p>
+                <a href="#" class="btn-primary" style="font-size: 16px; padding: 18px 48px;">Join the Waitlist</a>
+            </div>
+        </section>
+
+        <footer>
+            <div class="footer-logo">FlowBond</div>
+            <p>© 2025 FlowBond</p>
+        </footer>
+    </div>
+
+    <a href="../index.html" class="theme-link">← All Themes</a>
+    <script src="../shared/js/animations.js"></script>
+</body>
+</html>

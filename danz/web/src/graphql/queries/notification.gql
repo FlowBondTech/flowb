@@ -1,0 +1,90 @@
+# Notification Queries
+
+query GetMyNotifications(
+  $limit: Int
+  $offset: Int
+  $unread_only: Boolean
+  $type: NotificationType
+) {
+  myNotifications(limit: $limit, offset: $offset, unread_only: $unread_only, type: $type) {
+    notifications {
+      id
+      type
+      title
+      message
+      sender_id
+      sender_type
+      sender {
+        username
+        display_name
+        avatar_url
+      }
+      recipient_id
+      event_id
+      post_id
+      read
+      read_at
+      is_broadcast
+      broadcast_target
+      action_type
+      action_data
+      created_at
+      expires_at
+    }
+    total_count
+    unread_count
+    has_more
+  }
+}
+
+query GetNotification($id: ID!) {
+  notification(id: $id) {
+    id
+    type
+    title
+    message
+    sender_id
+    sender_type
+    sender {
+      username
+      display_name
+      avatar_url
+    }
+    event_id
+    event {
+      id
+      title
+      start_date_time
+    }
+    post_id
+    read
+    read_at
+    action_type
+    action_data
+    created_at
+  }
+}
+
+query GetMyNotificationPreferences {
+  myNotificationPreferences {
+    id
+    user_id
+    admin_broadcasts
+    event_manager_broadcasts
+    event_updates
+    dance_bonds
+    post_interactions
+    achievements
+    push_notifications
+    email_notifications
+    quiet_hours_enabled
+    quiet_hours_start
+    quiet_hours_end
+    created_at
+    updated_at
+  }
+}
+
+query GetUnreadNotificationCount {
+  unreadNotificationCount
+}

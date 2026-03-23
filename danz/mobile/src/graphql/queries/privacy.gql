@@ -1,0 +1,107 @@
+query GetMyPrivacySettings {
+  myPrivacySettings {
+    id
+    user_id
+    profile_visibility
+    show_real_name
+    show_bio
+    show_avatar
+    show_city
+    show_dance_styles
+    show_stats
+    show_badges
+    show_events_attending
+    show_events_attended
+    show_check_ins
+    show_leaderboard_rank
+    show_posts
+    show_likes
+    show_comments
+    searchable_by_username
+    appear_in_suggestions
+    appear_in_event_attendees
+    appear_in_nearby
+    allow_bond_requests
+    allow_messages
+    allow_event_invites
+    notify_bonds_on_check_in
+    notify_bonds_on_achievement
+    updated_at
+  }
+}
+
+query GetPrivacyPresets {
+  privacyPresets {
+    name
+    description
+    profile_visibility
+    searchable
+    appear_in_suggestions
+    allow_messages
+  }
+}
+
+query GetSuggestedUsers($limit: Int, $offset: Int) {
+  suggestedUsers(limit: $limit, offset: $offset) {
+    suggestions {
+      id
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+        city
+      }
+      source
+      score
+      reason
+      created_at
+    }
+    total_count
+    has_more
+  }
+}
+
+query SearchUsers($input: SearchUsersInput!) {
+  searchUsers(input: $input) {
+    results {
+      user {
+        privy_id
+        username
+        display_name
+        avatar_url
+        city
+      }
+      can_view_profile
+      can_message
+      is_bond
+      mutual_bonds_count
+    }
+    total_count
+    has_more
+  }
+}
+
+query CanViewProfile($userId: String!) {
+  canViewProfile(user_id: $userId) {
+    can_view
+    reason
+  }
+}
+
+query CanMessageUser($userId: String!) {
+  canMessageUser(user_id: $userId) {
+    can_view
+    reason
+  }
+}
+
+query GetMyBonds($limit: Int, $offset: Int) {
+  myBonds(limit: $limit, offset: $offset) {
+    privy_id
+    username
+    display_name
+    avatar_url
+    city
+  }
+}

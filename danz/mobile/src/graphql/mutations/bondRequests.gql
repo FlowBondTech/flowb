@@ -1,0 +1,43 @@
+# import "../fragments/user.gql"
+
+mutation SendBondRequest($input: SendBondRequestInput!) {
+  sendBondRequest(input: $input) {
+    id
+    requester {
+      ...UserBasicInfo
+    }
+    recipient {
+      ...UserBasicInfo
+    }
+    status
+    message
+    match_reasons {
+      mutual_bonds
+      same_events
+      music_overlap
+      dance_styles
+      similarity_score
+    }
+    created_at
+    expires_at
+  }
+}
+
+mutation RespondToBondRequest($input: RespondToBondRequestInput!) {
+  respondToBondRequest(input: $input) {
+    id
+    requester {
+      ...UserBasicInfo
+    }
+    recipient {
+      ...UserBasicInfo
+    }
+    status
+    message
+    responded_at
+  }
+}
+
+mutation CancelBondRequest($requestId: ID!) {
+  cancelBondRequest(request_id: $requestId)
+}

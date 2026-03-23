@@ -1,0 +1,274 @@
+# Point Actions Queries
+query GetAllPointActions($category: PointActionCategory, $is_active: Boolean) {
+  getAllPointActions(category: $category, is_active: $is_active) {
+    id
+    action_key
+    action_name
+    description
+    points_value
+    category
+    is_active
+    requires_verification
+    max_per_day
+    max_per_week
+    max_per_month
+    created_at
+    updated_at
+    total_transactions
+    unique_users
+    total_points_awarded
+    avg_points_per_transaction
+    last_awarded_at
+  }
+}
+
+query GetPointAction($action_key: String!) {
+  getPointAction(action_key: $action_key) {
+    id
+    action_key
+    action_name
+    description
+    points_value
+    category
+    is_active
+    requires_verification
+    max_per_day
+    max_per_week
+    max_per_month
+    created_at
+    updated_at
+    total_transactions
+    unique_users
+    total_points_awarded
+    avg_points_per_transaction
+    last_awarded_at
+  }
+}
+
+# Transaction Queries
+query GetUserTransactions(
+  $user_id: String!
+  $limit: Int
+  $offset: Int
+  $status: TransactionStatus
+) {
+  getUserTransactions(user_id: $user_id, limit: $limit, offset: $offset, status: $status) {
+    transactions {
+      id
+      user_id
+      action_key
+      points_amount
+      transaction_type
+      reference_id
+      reference_type
+      metadata
+      admin_user_id
+      admin_note
+      status
+      created_at
+      user {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      action {
+        action_name
+        category
+      }
+    }
+    total_count
+    has_more
+  }
+}
+
+query GetAllTransactions(
+  $limit: Int
+  $offset: Int
+  $action_key: String
+  $status: TransactionStatus
+  $start_date: DateTime
+  $end_date: DateTime
+) {
+  getAllTransactions(
+    limit: $limit
+    offset: $offset
+    action_key: $action_key
+    status: $status
+    start_date: $start_date
+    end_date: $end_date
+  ) {
+    transactions {
+      id
+      user_id
+      action_key
+      points_amount
+      transaction_type
+      reference_id
+      reference_type
+      metadata
+      admin_user_id
+      admin_note
+      status
+      created_at
+      user {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      action {
+        action_name
+        category
+      }
+      admin_user {
+        id
+        username
+        display_name
+      }
+    }
+    total_count
+    has_more
+  }
+}
+
+# Daily Activity Queries
+query GetUserDailyActivity($user_id: String!, $start_date: String!, $end_date: String!) {
+  getUserDailyActivity(user_id: $user_id, start_date: $start_date, end_date: $end_date) {
+    id
+    user_id
+    activity_date
+    app_opened
+    app_opened_at
+    first_session_completed
+    sessions_completed
+    total_dance_time
+    events_attended
+    social_interactions
+    points_earned_today
+    streak_day
+    created_at
+    updated_at
+    user {
+      username
+      display_name
+      avatar_url
+    }
+  }
+}
+
+# Event Attendance Queries
+query GetEventAttendance($event_id: ID!) {
+  getEventAttendance(event_id: $event_id) {
+    id
+    event_id
+    user_id
+    registration_id
+    checked_in
+    checked_in_at
+    checked_out
+    checked_out_at
+    duration_minutes
+    points_earned
+    attendance_verified
+    verified_by
+    verified_at
+    created_at
+    updated_at
+    user {
+      id
+      username
+      display_name
+      avatar_url
+    }
+    event {
+      id
+      title
+      start_date_time
+      end_date_time
+    }
+  }
+}
+
+query GetUserEventAttendance($user_id: String!) {
+  getUserEventAttendance(user_id: $user_id) {
+    id
+    event_id
+    user_id
+    registration_id
+    checked_in
+    checked_in_at
+    checked_out
+    checked_out_at
+    duration_minutes
+    points_earned
+    attendance_verified
+    verified_by
+    verified_at
+    created_at
+    updated_at
+    event {
+      id
+      title
+      start_date_time
+      end_date_time
+      location_name
+    }
+  }
+}
+
+# Analytics Queries (Admin Only)
+query GetPointsOverview {
+  getPointsOverview {
+    total_points_issued
+    total_points_spent
+    total_active_users
+    avg_points_per_user
+    top_earning_action {
+      action_key
+      action_name
+      points_value
+      total_points_awarded
+    }
+    points_issued_today
+    points_issued_this_week
+    points_issued_this_month
+  }
+}
+
+query GetUserPointsSummaries($limit: Int, $offset: Int, $sort_by: String, $sort_order: String) {
+  getUserPointsSummaries(
+    limit: $limit
+    offset: $offset
+    sort_by: $sort_by
+    sort_order: $sort_order
+  ) {
+    id
+    username
+    total_points_earned
+    total_points_spent
+    current_points_balance
+    xp
+    level
+    total_transactions
+    unique_actions
+    last_transaction_at
+    transactions_last_week
+    points_last_week
+  }
+}
+
+query GetEventAttendanceSummaries {
+  getEventAttendanceSummaries {
+    event_id
+    event_name
+    start_date
+    end_date
+    total_attendees
+    checked_in_count
+    verified_count
+    avg_duration_minutes
+    total_points_awarded
+    avg_points_per_attendee
+  }
+}

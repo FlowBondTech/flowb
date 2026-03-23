@@ -1,0 +1,471 @@
+# Dev Panel Queries
+
+query GetDevDashboardStats {
+  devDashboardStats {
+    total_feature_requests
+    pending_requests
+    in_progress_requests
+    completed_requests
+    total_tasks
+    todo_tasks
+    in_progress_tasks
+    blocked_tasks
+    total_changelog_entries
+    latest_version
+    github_open_prs
+    github_open_issues
+    github_rate_limit {
+      limit
+      remaining
+      reset_at
+      used
+    }
+  }
+}
+
+query GetSystemHealth {
+  systemHealth {
+    service
+    status
+    response_time_ms
+    last_checked
+    error_message
+    details
+  }
+}
+
+query GetFeatureRequests(
+  $filter: FeatureRequestFilter
+  $limit: Int
+  $offset: Int
+  $sort_by: String
+) {
+  featureRequests(filter: $filter, limit: $limit, offset: $offset, sort_by: $sort_by) {
+    requests {
+      id
+      title
+      description
+      category
+      status
+      priority
+      votes
+      requested_by {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      requested_at
+      assigned_to {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      assigned_at
+      estimated_hours
+      actual_hours
+      target_version
+      completed_at
+      github_issue_url
+      github_pr_url
+      tags
+      user_vote
+      created_at
+      updated_at
+    }
+    total_count
+    has_more
+  }
+}
+
+query GetFeatureRequest($id: ID!) {
+  featureRequest(id: $id) {
+    id
+    title
+    description
+    category
+    status
+    priority
+    votes
+    requested_by {
+      id
+      username
+      display_name
+      avatar_url
+    }
+    requested_at
+    assigned_to {
+      id
+      username
+      display_name
+      avatar_url
+    }
+    assigned_at
+    estimated_hours
+    actual_hours
+    target_version
+    completed_at
+    github_issue_url
+    github_pr_url
+    tags
+    comments {
+      id
+      content
+      user {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      is_internal
+      created_at
+    }
+    user_vote
+    created_at
+    updated_at
+  }
+}
+
+query GetTopVotedFeatures($limit: Int) {
+  topVotedFeatures(limit: $limit) {
+    id
+    title
+    description
+    category
+    status
+    priority
+    votes
+    requested_by {
+      id
+      username
+      avatar_url
+    }
+    user_vote
+    created_at
+  }
+}
+
+query GetDevTasks($filter: DevTaskFilter, $limit: Int, $offset: Int, $sort_by: String) {
+  devTasks(filter: $filter, limit: $limit, offset: $offset, sort_by: $sort_by) {
+    tasks {
+      id
+      title
+      description
+      task_type
+      status
+      priority
+      assigned_to {
+        id
+        username
+        display_name
+        avatar_url
+      }
+      created_by {
+        id
+        username
+        avatar_url
+      }
+      due_date
+      estimated_hours
+      actual_hours
+      started_at
+      completed_at
+      feature_request {
+        id
+        title
+      }
+      parent_task {
+        id
+        title
+      }
+      subtasks {
+        id
+        title
+        status
+      }
+      github_issue_url
+      github_pr_url
+      tags
+      sprint
+      created_at
+      updated_at
+    }
+    total_count
+    has_more
+  }
+}
+
+query GetDevTask($id: ID!) {
+  devTask(id: $id) {
+    id
+    title
+    description
+    task_type
+    status
+    priority
+    assigned_to {
+      id
+      username
+      display_name
+      avatar_url
+    }
+    created_by {
+      id
+      username
+      avatar_url
+    }
+    due_date
+    estimated_hours
+    actual_hours
+    started_at
+    completed_at
+    feature_request {
+      id
+      title
+      status
+    }
+    parent_task {
+      id
+      title
+    }
+    subtasks {
+      id
+      title
+      status
+      priority
+    }
+    github_issue_url
+    github_pr_url
+    tags
+    sprint
+    created_at
+    updated_at
+  }
+}
+
+query GetMyDevTasks {
+  myDevTasks {
+    id
+    title
+    task_type
+    status
+    priority
+    due_date
+    estimated_hours
+    sprint
+  }
+}
+
+query GetSprintTasks($sprint: String!) {
+  sprintTasks(sprint: $sprint) {
+    id
+    title
+    task_type
+    status
+    priority
+    assigned_to {
+      id
+      username
+      avatar_url
+    }
+    estimated_hours
+    actual_hours
+  }
+}
+
+query GetChangelog($limit: Int, $offset: Int, $include_private: Boolean) {
+  changelog(limit: $limit, offset: $offset, include_private: $include_private) {
+    version
+    release_date
+    entries {
+      id
+      title
+      description
+      category
+      github_pr_url
+      is_public
+      is_highlighted
+      created_at
+    }
+    is_current
+  }
+}
+
+query GetLatestChangelog {
+  latestChangelog {
+    version
+    release_date
+    entries {
+      id
+      title
+      description
+      category
+      is_highlighted
+    }
+    is_current
+  }
+}
+
+query GetGitHubCommits($repo: String!, $branch: String, $limit: Int) {
+  githubCommits(repo: $repo, branch: $branch, limit: $limit) {
+    sha
+    message
+    author
+    author_avatar
+    date
+    url
+    additions
+    deletions
+  }
+}
+
+query GetGitHubPullRequests($repo: String!, $state: String, $limit: Int) {
+  githubPullRequests(repo: $repo, state: $state, limit: $limit) {
+    number
+    title
+    state
+    author
+    author_avatar
+    created_at
+    merged_at
+    closed_at
+    url
+    additions
+    deletions
+    changed_files
+    labels
+    draft
+  }
+}
+
+query GetGitHubActions($repo: String!, $limit: Int) {
+  githubActions(repo: $repo, limit: $limit) {
+    id
+    name
+    status
+    conclusion
+    workflow_name
+    branch
+    commit_sha
+    started_at
+    completed_at
+    url
+    duration_seconds
+  }
+}
+
+query GetGitHubReleases($repo: String!, $limit: Int) {
+  githubReleases(repo: $repo, limit: $limit) {
+    id
+    tag_name
+    name
+    body
+    published_at
+    author
+    author_avatar
+    url
+    prerelease
+    draft
+  }
+}
+
+query GetGitHubRepos {
+  githubRepos {
+    name
+    full_name
+    description
+    stars
+    forks
+    open_issues
+    open_prs
+    last_push
+    default_branch
+    url
+  }
+}
+
+query GetGitHubRateLimit {
+  githubRateLimit {
+    limit
+    remaining
+    reset_at
+    used
+  }
+}
+
+# Projects Queries
+query GetProjects($include_archived: Boolean) {
+  projects(include_archived: $include_archived) {
+    id
+    name
+    slug
+    description
+    github_repo
+    github_org
+    default_branch
+    project_type
+    platform
+    tech_stack
+    is_active
+    is_archived
+    color
+    icon
+    display_order
+    feature_count
+    task_count
+    open_task_count
+    created_at
+    updated_at
+  }
+}
+
+query GetProject($id: ID!) {
+  project(id: $id) {
+    id
+    name
+    slug
+    description
+    github_repo
+    github_org
+    default_branch
+    project_type
+    platform
+    tech_stack
+    is_active
+    is_archived
+    color
+    icon
+    display_order
+    feature_count
+    task_count
+    open_task_count
+    created_at
+    updated_at
+  }
+}
+
+query GetProjectBySlug($slug: String!) {
+  projectBySlug(slug: $slug) {
+    id
+    name
+    slug
+    description
+    github_repo
+    github_org
+    default_branch
+    project_type
+    platform
+    tech_stack
+    is_active
+    is_archived
+    color
+    icon
+    display_order
+    feature_count
+    task_count
+    open_task_count
+    created_at
+    updated_at
+  }
+}

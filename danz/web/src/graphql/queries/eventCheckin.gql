@@ -1,0 +1,18 @@
+query GetEventByCheckinCode($code: String!) {
+  eventByCheckinCode(code: $code) {
+    id
+    title
+    description
+    location_name
+    start_date_time
+    end_date_time
+    is_registered
+    checkin_code
+    facilitator {
+      id
+      display_name
+      username
+      avatar_url
+    }
+  }
+}

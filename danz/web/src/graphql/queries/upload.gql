@@ -1,0 +1,11 @@
+query GetUploadUrl($fileName: String!, $mimeType: MimeType!, $uploadType: UploadType!) {
+  getUploadUrl(fileName: $fileName, mimeType: $mimeType, uploadType: $uploadType) {
+    success
+    uploadUrl
+    publicUrl
+    fields
+    key
+    expires
+    maxSize
+  }
+}

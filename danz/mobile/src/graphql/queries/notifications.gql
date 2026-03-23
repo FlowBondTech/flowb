@@ -1,0 +1,35 @@
+query GetMyNotifications($limit: Int, $offset: Int, $type: NotificationType, $unread_only: Boolean) {
+  myNotifications(limit: $limit, offset: $offset, type: $type, unread_only: $unread_only) {
+    notifications {
+      id
+      title
+      message
+      type
+      read
+      created_at
+      action_type
+      action_data
+      event_id
+      post_id
+      achievement_id
+      bond_id
+      sender {
+        privy_id
+        display_name
+        username
+        avatar_url
+      }
+      event {
+        id
+        title
+      }
+    }
+    has_more
+    total_count
+    unread_count
+  }
+}
+
+query GetUnreadNotificationCount {
+  unreadNotificationCount
+}

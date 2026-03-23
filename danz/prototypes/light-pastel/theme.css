@@ -1,0 +1,473 @@
+        :root {
+            --primary: #e879f9;
+            --primary-light: #f0abfc;
+            --secondary: #fb7185;
+            --accent: #67e8f9;
+            --mint: #86efac;
+            --peach: #fed7aa;
+            --lavender: #c4b5fd;
+            --bg-primary: #fefefe;
+            --bg-secondary: #fdf4ff;
+            --bg-tertiary: #fce7f3;
+            --text-primary: #4a4458;
+            --text-secondary: #78716c;
+            --text-muted: #a8a29e;
+            --border: #f5d0fe;
+            --shadow: rgba(232, 121, 249, 0.1);
+            --gradient-1: linear-gradient(135deg, #e879f9 0%, #fb7185 100%);
+            --gradient-2: linear-gradient(135deg, #67e8f9 0%, #c4b5fd 100%);
+            --gradient-3: linear-gradient(135deg, #86efac 0%, #67e8f9 100%);
+        }
+
+        body {
+            background: linear-gradient(135deg, #fefefe 0%, #fdf4ff 50%, #f0fdf4 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        /* Password Gate - Pastel */
+        #password-gate {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #fefefe 0%, #fdf4ff 50%, #fce7f3 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+
+        #password-gate.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .password-box {
+            text-align: center;
+            padding: 60px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 40px;
+            border: 2px solid var(--border);
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 25px 80px var(--shadow), 0 0 0 1px rgba(232, 121, 249, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .password-logo {
+            font-size: 48px;
+            font-weight: 800;
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+
+        .password-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        .password-input {
+            width: 100%;
+            padding: 18px 25px;
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.8);
+            color: var(--text-primary);
+            font-size: 18px;
+            font-family: 'Outfit', sans-serif;
+            text-align: center;
+            letter-spacing: 4px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .password-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(232, 121, 249, 0.2);
+        }
+
+        .password-input::placeholder {
+            letter-spacing: 0;
+            color: var(--text-muted);
+        }
+
+        .password-btn {
+            width: 100%;
+            padding: 18px;
+            background: var(--gradient-1);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .password-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(232, 121, 249, 0.4);
+        }
+
+        .password-error {
+            color: #f472b6;
+            margin-top: 15px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .password-error.show {
+            opacity: 1;
+        }
+
+        #main-content {
+            display: none;
+        }
+
+        #main-content.visible {
+            display: block;
+        }
+
+        /* Navigation */
+        nav {
+            background: linear-gradient(180deg, rgba(254, 254, 254, 0.95) 0%, transparent 100%);
+        }
+
+        .logo {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .nav-cta {
+            background: var(--gradient-1);
+            color: white;
+        }
+
+        .nav-cta:hover {
+            box-shadow: 0 10px 30px rgba(232, 121, 249, 0.4);
+        }
+
+        /* Hero */
+        .hero-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at 20% 30%, rgba(232, 121, 249, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 70%, rgba(103, 232, 249, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 90%, rgba(134, 239, 172, 0.1) 0%, transparent 50%);
+        }
+
+        .hero-text h1 span {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-text p {
+            color: var(--text-secondary);
+        }
+
+        .btn-primary {
+            background: var(--gradient-1);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 20px 50px rgba(232, 121, 249, 0.4);
+        }
+
+        .btn-secondary {
+            border-color: var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--primary);
+            background: rgba(232, 121, 249, 0.1);
+        }
+
+        /* Bracelet */
+        .bracelet-ring {
+            border: 3px solid rgba(232, 121, 249, 0.3);
+        }
+
+        .bead {
+            box-shadow: 0 10px 40px rgba(232, 121, 249, 0.2);
+        }
+
+        .bead::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: inherit;
+            filter: blur(25px);
+            opacity: 0.5;
+            z-index: -1;
+        }
+
+        /* Soft pastel bead colors */
+        .bead-nfc { background: linear-gradient(135deg, #93c5fd, #60a5fa); }
+        .bead-bt { background: linear-gradient(135deg, #67e8f9, #22d3ee); }
+        .bead-haptic { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+        .bead-led { background: linear-gradient(135deg, #f9a8d4, #f472b6); }
+        .bead-sensor { background: linear-gradient(135deg, #86efac, #4ade80); }
+        .bead-gps { background: linear-gradient(135deg, #fcd34d, #fbbf24); }
+        .bead-battery { background: linear-gradient(135deg, #fda4af, #fb7185); }
+        .bead-motion { background: linear-gradient(135deg, #e879f9, #d946ef); }
+
+        .center-logo {
+            background: rgba(255, 255, 255, 0.9);
+            border: 3px solid var(--border);
+            box-shadow: 0 0 60px rgba(232, 121, 249, 0.3);
+        }
+
+        .center-logo span {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Section Headers */
+        .section-header h2 span {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+        }
+
+        /* Bead Cards - Soft Glass Effect */
+        .bead-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(232, 121, 249, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+        }
+
+        .bead-card:hover {
+            border-color: rgba(232, 121, 249, 0.4);
+            box-shadow: 0 30px 60px var(--shadow);
+            transform: translateY(-10px) scale(1.02);
+        }
+
+        .bead-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--card-gradient);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 30px 30px 0 0;
+        }
+
+        .bead-card:hover::before {
+            opacity: 1;
+        }
+
+        .bead-card p {
+            color: var(--text-secondary);
+        }
+
+        .card-nfc { --card-gradient: linear-gradient(135deg, #93c5fd, #60a5fa); }
+        .card-nfc .bead-icon { background: linear-gradient(135deg, #93c5fd, #60a5fa); }
+
+        .card-bt { --card-gradient: linear-gradient(135deg, #67e8f9, #22d3ee); }
+        .card-bt .bead-icon { background: linear-gradient(135deg, #67e8f9, #22d3ee); }
+
+        .card-haptic { --card-gradient: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+        .card-haptic .bead-icon { background: linear-gradient(135deg, #c4b5fd, #a78bfa); }
+
+        .card-led { --card-gradient: linear-gradient(135deg, #f9a8d4, #f472b6); }
+        .card-led .bead-icon { background: linear-gradient(135deg, #f9a8d4, #f472b6); }
+
+        .card-sensor { --card-gradient: linear-gradient(135deg, #86efac, #4ade80); }
+        .card-sensor .bead-icon { background: linear-gradient(135deg, #86efac, #4ade80); }
+
+        .card-gps { --card-gradient: linear-gradient(135deg, #fcd34d, #fbbf24); }
+        .card-gps .bead-icon { background: linear-gradient(135deg, #fcd34d, #fbbf24); }
+
+        .card-battery { --card-gradient: linear-gradient(135deg, #fda4af, #fb7185); }
+        .card-battery .bead-icon { background: linear-gradient(135deg, #fda4af, #fb7185); }
+
+        .card-motion { --card-gradient: linear-gradient(135deg, #e879f9, #d946ef); }
+        .card-motion .bead-icon { background: linear-gradient(135deg, #e879f9, #d946ef); }
+
+        .bead-icon {
+            border-radius: 24px;
+        }
+
+        .specs {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(232, 121, 249, 0.15);
+        }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .spec-item span:first-child {
+            color: var(--text-muted);
+        }
+
+        .spec-item span:last-child {
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        /* Features Section */
+        .features-section {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 50px;
+            padding: 100px 80px;
+            margin: 0 60px;
+            border: 1px solid var(--border);
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-icon {
+            background: rgba(255, 255, 255, 0.8);
+            border: 2px solid var(--border);
+            border-radius: 35px;
+        }
+
+        .feature p {
+            color: var(--text-secondary);
+        }
+
+        /* CTA Section */
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse at center, rgba(232, 121, 249, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 30% 70%, rgba(103, 232, 249, 0.1) 0%, transparent 40%);
+        }
+
+        .cta-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .cta-section h2 span {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .cta-section p {
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .footer-logo {
+            background: var(--gradient-1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        footer p {
+            color: var(--text-muted);
+        }
+
+        /* Floating decorative elements */
+        .pastel-blob {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.4;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .blob-1 {
+            width: 400px;
+            height: 400px;
+            background: var(--primary-light);
+            top: 10%;
+            left: -10%;
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .blob-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--accent);
+            bottom: 20%;
+            right: -5%;
+            animation: float 12s ease-in-out infinite reverse;
+        }
+
+        .blob-3 {
+            width: 250px;
+            height: 250px;
+            background: var(--mint);
+            top: 50%;
+            left: 30%;
+            animation: float 18s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            50% { transform: translate(30px, -30px) scale(1.1); }
+        }
+
+        /* Back to themes link */
+        .theme-link {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 12px 24px;
+            background: var(--gradient-1);
+            color: white;
+            text-decoration: none;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 14px;
+            z-index: 9999;
+            transition: all 0.3s ease;
+        }
+
+        .theme-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(232, 121, 249, 0.5);
+        }

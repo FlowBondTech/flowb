@@ -1,0 +1,19 @@
+# Netlify Configuration for Daily DANZ Miniapp
+
+[build]
+  command = "npm install --legacy-peer-deps && npm run build:daily-danz"
+  publish = "daily-danz/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Security headers for Farcaster frames
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "SAMEORIGIN"
+    X-Content-Type-Options = "nosniff"
+    Content-Security-Policy = "frame-ancestors 'self' https://*.warpcast.com https://*.farcaster.xyz https://warpcast.com"

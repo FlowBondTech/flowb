@@ -1,0 +1,21 @@
+mutation RequestUsernameChange($input: RequestUsernameChangeInput!) {
+  requestUsernameChange(input: $input) {
+    success
+    message
+    auto_approved
+    request {
+      id
+      current_username
+      requested_username
+      status
+      created_at
+    }
+  }
+}
+
+mutation CancelUsernameChangeRequest($requestId: ID!) {
+  cancelUsernameChangeRequest(request_id: $requestId) {
+    success
+    message
+  }
+}

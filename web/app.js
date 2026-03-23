@@ -16,6 +16,23 @@ let activeCityLabel = localStorage.getItem('flowb-city-label') || 'Anywhere';
 let displayCount = 18;
 let chatHistory = [];
 let isStreaming = false;
+let activeKeywords = new Set();
+
+// Adaptive keyword expansion: each chip maps to multiple search terms
+const KEYWORD_EXPAND = {
+  'food': ['food','lunch','dinner','breakfast','taco','pizza','bbq','bites','catering','buffet','appetizer','snack','meal','chef','cuisine','eats','eating'],
+  'drinks': ['drink','beer','wine','cocktail','champagne','seltzer','mimosa','beverage','bar','pour','sip'],
+  'happy hour': ['happy hour','happyhour'],
+  'networking': ['networking','network','mingle','connect','mixer','meetup','meet up'],
+  'music': ['music','live music','dj','concert','band','performance','jam','acoustic'],
+  'hackathon': ['hackathon','hack','hacking','build','buidl','code','coding'],
+  'workshop': ['workshop','hands-on','hands on','tutorial','training','class','bootcamp'],
+  'panel': ['panel','fireside','keynote','speaker','talk','discussion','q&a','qa','ama'],
+  'party': ['party','afterparty','after party','celebration','bash','soirée','gala','rave'],
+  'cocktail': ['cocktail','mixology','bartend','spirit','martini','margarita'],
+  'dinner': ['dinner','supper','dine','dining','restaurant','seated'],
+  'brunch': ['brunch','morning','breakfast','mimosa','bloody mary'],
+};
 
 // Touch scroll guard – prevent click firing when user is scrolling
 let _touchStartY = 0;
@@ -305,7 +322,21 @@ function renderEvents(events) {
   // Apply platform filter client-side
   let filtered = events;
   if (activePlatform !== 'all') {
-    filtered = events.filter(e => e.source === activePlatform);
+    filtered = filtered.filter(e => e.source === activePlatform);
+  }
+
+  // Apply keyword description filters client-side (adaptive expansion, word-boundary)
+  if (activeKeywords.size > 0) {
+    // Build expanded regex from all active keywords (word boundaries prevent partial matches)
+    const expandedTerms = [];
+    for (const kw of activeKeywords) {
+      expandedTerms.push(...(KEYWORD_EXPAND[kw] || [kw]));
+    }
+    const kwRegex = new RegExp('\\b(' + expandedTerms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')\\b', 'i');
+    filtered = filtered.filter(e => {
+      const text = (e.description || '') + ' ' + (e.title || '');
+      return kwRegex.test(text);
+    });
   }
 
   const visible = filtered.slice(0, displayCount);
@@ -320,7 +351,8 @@ function renderEvents(events) {
   grid.innerHTML = visible.map(e => createEventCard(e)).join('');
   loadMoreWrap.style.display = filtered.length > displayCount ? '' : 'none';
   const platformSuffix = activePlatform !== 'all' ? ` from ${getSourceMeta(activePlatform).label}` : '';
-  resultsMeta.textContent = `${filtered.length} events${searchQuery ? ` matching "${searchQuery}"` : ''}${activeCategory !== 'all' ? ` in ${getCatLabel(activeCategory)}` : ''}${platformSuffix}`;
+  const kwSuffix = activeKeywords.size > 0 ? ` matching "${[...activeKeywords].join(', ')}"` : '';
+  resultsMeta.textContent = `${filtered.length} events${searchQuery ? ` matching "${searchQuery}"` : ''}${activeCategory !== 'all' ? ` in ${getCatLabel(activeCategory)}` : ''}${platformSuffix}${kwSuffix}`;
 }
 
 function getCatLabel(catId) {
@@ -400,22 +432,56 @@ function createEventCard(e) {
   const safeImg = e.imageUrl ? e.imageUrl.replace(/'/g, "\\'") : '';
   const safeSource = (e.source || '').replace(/'/g, "\\'");
 
-  // Card action icons
+  // Card action icons — RSVP only for actionable events, bookmark for external
+  const isActionable = e.isActionable || false;
+  const rsvpAction = isActionable
+    ? `<button class="event-card-action" title="RSVP - I'm Going" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>`
+    : `<button class="event-card-action" title="Save to bookmarks" onclick="event.stopPropagation(); handleBookmark('${safeId}', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
+      </button>`;
   const actionsHtml = `<div class="event-card-actions">
     <button class="event-card-action" title="Open event" onclick="event.stopPropagation(); window.open('${safeUrl}', '_blank')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </button>
-    <button class="event-card-action" title="Add to my events" onclick="event.stopPropagation(); handleRsvp('${safeId}', this)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>
-    </button>
+    ${rsvpAction}
   </div>`;
 
   // Truncated description for card preview
   let descSnippet = '';
   if (e.description) {
     let d = e.description.replace(/\s*[·|]\s*Luma$/i, '').replace(/\n/g, ' ').trim();
-    if (d.length > 100) d = d.slice(0, 100) + '...';
-    descSnippet = `<p class="event-card-desc">${escapeHtml(d)}</p>`;
+    // When keyword filters active, show a longer snippet and find the matching area
+    const kwActive = activeKeywords.size > 0;
+    const maxLen = kwActive ? 180 : 100;
+    // Build expanded terms for matching (word-boundary aware)
+    let matchTerms = [];
+    if (kwActive) {
+      for (const kw of activeKeywords) {
+        matchTerms.push(...(KEYWORD_EXPAND[kw] || [kw]));
+      }
+      const lower = d.toLowerCase();
+      let matchIdx = -1;
+      for (const term of matchTerms) {
+        const re = new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
+        const m = lower.match(re);
+        if (m) { matchIdx = m.index; break; }
+      }
+      if (matchIdx > 40) {
+        d = '...' + d.slice(matchIdx - 30);
+      }
+    }
+    if (d.length > maxLen) d = d.slice(0, maxLen) + '...';
+    let escaped = escapeHtml(d);
+    // Highlight matched terms (word-boundary only)
+    if (kwActive) {
+      for (const term of matchTerms) {
+        const regex = new RegExp('\\b(' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')\\b', 'gi');
+        escaped = escaped.replace(regex, '<span class="kw-match">$1</span>');
+      }
+    }
+    descSnippet = `<p class="event-card-desc">${escaped}</p>`;
   }
 
   return `
@@ -438,7 +504,8 @@ function createEventCard(e) {
         ${descSnippet}
         <div class="event-card-badges">
           ${boostBadgeHtml}
-          ${e.isFree ? '<span class="card-badge free">Free</span>' : ''}
+          ${isActionable ? '<span class="card-badge" style="background:var(--accent-dim,#4f46e520);color:var(--accent-light,#6366f1);font-weight:600">FlowB Event</span>' : ''}
+          ${''/* Free shown in footer priceHtml */}
           ${catEmoji ? `<span class="card-badge cat">${catEmoji} ${catLabel}</span>` : ''}
         </div>
         <div class="event-card-footer">
@@ -1097,8 +1164,32 @@ closeEventModal = function() {
   }, 300);
 };
 
-// Make handleRsvp available globally for onclick
+// ===== Bookmark Handler (for external/non-actionable events) =====
+
+async function handleBookmark(eventId, btnEl) {
+  if (!requireAuth('save events')) return;
+
+  const origHtml = btnEl.innerHTML;
+  btnEl.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none" width="14" height="14"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg>';
+  btnEl.disabled = true;
+  btnEl.title = 'Saved!';
+
+  const result = await fetchAuthed(`/api/v1/events/${encodeURIComponent(eventId)}/bookmark`, {
+    method: 'POST',
+  });
+
+  if (result) {
+    awardPoints(1, 'Event bookmarked');
+  } else {
+    btnEl.innerHTML = origHtml;
+    btnEl.disabled = false;
+    btnEl.title = 'Save to bookmarks';
+  }
+}
+
+// Make handleRsvp and handleBookmark available globally for onclick
 window.handleRsvp = handleRsvp;
+window.handleBookmark = handleBookmark;
 
 function escapeHtml(s) {
   if (!s) return '';
@@ -1391,8 +1482,45 @@ if (activeCity && searchInput) {
 }
 
 // ===== Filter pills =====
-document.querySelectorAll('.filter-pill:not(.platform-trigger)').forEach(btn => {
+document.querySelectorAll('.filter-pill:not(.platform-trigger):not(.adv-toggle)').forEach(btn => {
   btn.addEventListener('click', () => applyFilter(btn.dataset.filter));
+});
+
+// ===== Advanced Keyword Filters =====
+const advToggle = document.getElementById('advFilterToggle');
+const advPanel = document.getElementById('advFilters');
+const advActiveCount = document.getElementById('advActiveCount');
+
+advToggle.addEventListener('click', () => {
+  const isHidden = advPanel.classList.toggle('hidden');
+  advToggle.classList.toggle('active', !isHidden);
+});
+
+document.querySelectorAll('.adv-chip').forEach(chip => {
+  const origLabel = chip.textContent;
+  chip.addEventListener('click', () => {
+    const kw = chip.dataset.keyword;
+    if (activeKeywords.has(kw)) {
+      activeKeywords.delete(kw);
+      chip.classList.remove('active');
+      chip.innerHTML = origLabel;
+    } else {
+      activeKeywords.add(kw);
+      chip.classList.add('active');
+      chip.innerHTML = origLabel + '<span class="adv-chip-x">&times;</span>';
+    }
+    // Update count badge
+    if (activeKeywords.size > 0) {
+      advActiveCount.textContent = `${activeKeywords.size} keyword filter${activeKeywords.size > 1 ? 's' : ''} active`;
+      advActiveCount.classList.remove('hidden');
+      advToggle.classList.add('active');
+    } else {
+      advActiveCount.classList.add('hidden');
+      if (advPanel.classList.contains('hidden')) advToggle.classList.remove('active');
+    }
+    displayCount = 18;
+    renderEvents(allEvents);
+  });
 });
 
 // ===== Platform Dropdown =====
@@ -1446,151 +1574,138 @@ loadMoreBtn.addEventListener('click', () => {
 
 let introStarted = false;
 
-// ----- Drag-and-Snap -----
-const SNAP_ZONES = {
-  'bottom-right': { bottom: 24, right: 24 },
-  'bottom-left':  { bottom: 24, left: 24 },
-  'mid-right':    { top: '50%', right: 24 },
-  'mid-left':     { top: '50%', left: 24 },
-};
+// Rotating speech bubble prompts
+const SPEECH_PROMPTS = [
+  "FlowB Here \u{1F44B}",
+  "What's happening tonight?",
+  "Find events near you",
+  "Ask me anything!",
+  "Discover what's next",
+  "Free events this week?",
+  "Who's going out tonight?",
+  "Find your crew",
+];
+let speechIndex = 0;
+let speechInterval = null;
 
-function _isMobile() { return window.innerWidth <= 640; }
+function runTeaserSequence() {
+  const panel = document.getElementById('flowbWidgetPanel');
+  const fab = document.getElementById('flowbWidgetFab');
+  const speech = document.getElementById('flowbFabSpeech');
 
-function _getZoneCoords(zoneId) {
-  const w = window.innerWidth, h = window.innerHeight;
-  const fabSize = _isMobile() ? 44 : 56;
-  const inset = _isMobile() ? 12 : 24;
-  const bottomOffset = _isMobile() ? 56 + 16 : 24;
-  let x, y;
-  if (zoneId.includes('right')) x = w - inset - fabSize / 2;
-  else x = inset + fabSize / 2;
-  if (zoneId.includes('mid')) y = h / 2;
-  else y = h - bottomOffset - fabSize / 2;
-  return { x, y };
+  // FAB wiggle immediately
+  fab.classList.add('wiggle');
+  setTimeout(() => fab.classList.remove('wiggle'), 600);
+
+  // Set first message and show
+  updateSpeechText(speech);
+
+  // T+0.8s: Speech bubble appears
+  setTimeout(() => speech.classList.add('visible'), 800);
+
+  // T+5.6s: Speech bubble fades out
+  setTimeout(() => speech.classList.remove('visible'), 5600);
+
+  // Cycle speech bubble every 25s (fade out, swap text, fade in)
+  clearInterval(speechInterval);
+  speechInterval = setInterval(() => {
+    // Don't show if chat is expanded
+    const widget = document.getElementById('flowbWidget');
+    if (widget && widget.dataset.state === 'expanded') return;
+
+    speechIndex = (speechIndex + 1) % SPEECH_PROMPTS.length;
+    speech.classList.remove('visible');
+    setTimeout(() => {
+      updateSpeechText(speech);
+      speech.classList.add('visible');
+      // Wiggle FAB too
+      fab.classList.add('wiggle');
+      setTimeout(() => fab.classList.remove('wiggle'), 600);
+    }, 500);
+    // Hide after 6s
+    setTimeout(() => speech.classList.remove('visible'), 6500);
+  }, 25000);
 }
 
-function _applyZone(el, zoneId) {
-  const isLeft = zoneId.includes('left');
-  const isMid = zoneId.includes('mid');
-  const inset = _isMobile() ? 12 : 24;
-  const bottomOffset = _isMobile() ? 'calc(56px + env(safe-area-inset-bottom))' : '24px';
-
-  el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
-  el.style.transform = '';
-  el.classList.remove('flowb-fab-left', 'flowb-fab-mid');
-
-  if (isLeft) {
-    el.style.left = inset + 'px';
-    el.style.right = 'auto';
-    el.classList.add('flowb-fab-left');
-  } else {
-    el.style.right = inset + 'px';
-    el.style.left = 'auto';
-  }
-
-  if (isMid) {
-    el.style.top = '50%';
-    el.style.bottom = 'auto';
-    el.style.transform = 'translateY(-50%)';
-    el.classList.add('flowb-fab-mid');
-  } else {
-    el.style.bottom = bottomOffset;
-    el.style.top = 'auto';
-  }
-
-  el.dataset.zone = zoneId;
-  const toasts = document.getElementById('pointsToasts');
-  if (toasts) {
-    if (isLeft) toasts.classList.add('toasts-left');
-    else toasts.classList.remove('toasts-left');
+function updateSpeechText(speechEl) {
+  const text = SPEECH_PROMPTS[speechIndex];
+  // Keep the tail element, just update text
+  const tail = speechEl.querySelector('.flowb-fab-speech-tail');
+  speechEl.textContent = text;
+  if (tail) speechEl.appendChild(tail);
+  else {
+    const t = document.createElement('div');
+    t.className = 'flowb-fab-speech-tail';
+    speechEl.appendChild(t);
   }
 }
 
-function _snapToNearest(el) {
-  const rect = el.getBoundingClientRect();
-  const fabSize = _isMobile() ? 44 : 56;
-  const cx = rect.left + fabSize / 2;
-  const cy = rect.top + fabSize / 2;
-
-  let closest = 'bottom-right', minDist = Infinity;
-  for (const id of Object.keys(SNAP_ZONES)) {
-    const target = _getZoneCoords(id);
-    const d = Math.hypot(cx - target.x, cy - target.y);
-    if (d < minDist) { minDist = d; closest = id; }
-  }
-
-  el.classList.add('snapping');
-  _applyZone(el, closest);
-  localStorage.setItem('flowb-fab-zone', closest);
-
-  const onEnd = () => { el.classList.remove('snapping'); el.removeEventListener('transitionend', onEnd); };
-  el.addEventListener('transitionend', onEnd);
-  setTimeout(() => el.classList.remove('snapping'), 400);
-}
-
-function _initDragSnap(el, fabEl, onTap) {
-  let startX, startY, startLeft, startTop, isDragging = false, isDown = false;
-  const DRAG_THRESHOLD = 8;
-
-  fabEl.addEventListener('pointerdown', (e) => {
-    if (el.dataset.state === 'expanded') return;
-    startX = e.clientX; startY = e.clientY;
-    const rect = el.getBoundingClientRect();
-    startLeft = rect.left; startTop = rect.top;
-    isDragging = false;
-    isDown = true;
-    el.classList.add('dragging');
-    fabEl.setPointerCapture(e.pointerId);
+function typewriteMessage(contentEl, plainText, fullHtml) {
+  return new Promise((resolve) => {
+    contentEl.classList.add('typewriting');
+    contentEl.textContent = '';
+    let i = 0;
+    const interval = setInterval(() => {
+      contentEl.textContent += plainText[i];
+      i++;
+      if (i >= plainText.length) {
+        clearInterval(interval);
+        contentEl.classList.remove('typewriting');
+        contentEl.innerHTML = fullHtml;
+        resolve();
+      }
+    }, 18);
   });
-
-  fabEl.addEventListener('pointermove', (e) => {
-    if (!isDown) return;
-    const dx = e.clientX - startX, dy = e.clientY - startY;
-    if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
-      isDragging = true;
-    }
-    if (isDragging) {
-      el.style.left = (startLeft + dx) + 'px';
-      el.style.top = (startTop + dy) + 'px';
-      el.style.right = 'auto';
-      el.style.bottom = 'auto';
-      el.style.transform = 'none';
-    }
-  });
-
-  fabEl.addEventListener('pointerup', () => {
-    if (!isDown) return;
-    isDown = false;
-    el.classList.remove('dragging');
-    if (isDragging) {
-      _snapToNearest(el);
-      isDragging = false;
-    } else {
-      onTap();
-    }
-  });
-
-  fabEl.addEventListener('contextmenu', (e) => e.preventDefault());
 }
-
-// Restore saved zone on load
-_applyZone(widget, localStorage.getItem('flowb-fab-zone') || 'bottom-right');
 
 function expandChat() {
+  // Dismiss teaser elements
+  const speech = document.getElementById('flowbFabSpeech');
+  if (speech) speech.classList.remove('visible');
+  const panel = document.getElementById('flowbWidgetPanel');
+  if (panel) panel.classList.remove('peeking');
+  // Stop cycling speech when chat is open
+  clearInterval(speechInterval);
+
   widget.dataset.state = 'expanded';
-  // Lock body scroll on mobile only
-  if (window.innerWidth <= 480) document.body.style.overflow = 'hidden';
-  chatInput.focus();
+  // Lock body scroll on mobile
+  if (window.innerWidth <= 640) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    chatInput.focus();
+  }
   awardFirstAction('first_chat_open', 3, 'Chat opened!');
 }
 
 function minimizeChat() {
   widget.dataset.state = 'minimized';
   document.body.style.overflow = '';
+  chatInput.blur(); // dismiss keyboard on mobile
 }
 
-// Drag-and-snap replaces simple click — tap triggers expand, drag repositions
-_initDragSnap(widget, widgetFab, () => {
+// Keep chat panel stable when virtual keyboard opens/closes on mobile
+if (window.visualViewport) {
+  const navH = 50; // bottom nav height approx
+  const adjustPanel = () => {
+    const panel = document.getElementById('flowbWidgetPanel');
+    if (panel && widget.dataset.state === 'expanded' && window.innerWidth <= 640) {
+      const vvh = window.visualViewport.height;
+      const keyboardUp = window.innerHeight - vvh > 100;
+      if (keyboardUp) {
+        // Keyboard open: panel fills from top to above keyboard
+        panel.style.bottom = (window.innerHeight - vvh) + 'px';
+        panel.style.borderRadius = '20px';
+      } else {
+        // Keyboard closed: sit above bottom nav
+        panel.style.bottom = '';
+        panel.style.borderRadius = '';
+      }
+    }
+  };
+  window.visualViewport.addEventListener('resize', adjustPanel);
+}
+
+widgetFab.addEventListener('click', () => {
   expandChat();
   // First expand with no messages: run intro or show greeting
   if (chatMessages.children.length === 0 && !introStarted) {
@@ -1619,6 +1734,13 @@ panelMinimize.addEventListener('click', minimizeChat);
 // Escape key minimizes chat
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && widget.dataset.state === 'expanded') {
+    minimizeChat();
+  }
+});
+
+// Backdrop tap dismisses panel on mobile
+widget.addEventListener('click', (e) => {
+  if (widget.dataset.state === 'expanded' && e.target === widget) {
     minimizeChat();
   }
 });
@@ -1818,7 +1940,7 @@ async function handleLeaderboardAction() {
 
 // ===== Chat Message Rendering =====
 
-function addChatMessage(text, type) {
+function addChatMessage(text, type, options = {}) {
   const div = document.createElement('div');
   div.className = `flowb-msg ${type}`;
 
@@ -1832,6 +1954,17 @@ function addChatMessage(text, type) {
   `;
   chatMessages.appendChild(div);
   scrollChatToBottom();
+
+  // Typewriter effect for bot messages on mobile (unless opted out)
+  const isMobile = window.innerWidth <= 640;
+  if (type === 'bot' && isMobile && options.typewriter !== false) {
+    const contentEl = div.querySelector('.flowb-msg-content');
+    // Strip markdown for plain text approximation
+    const plainText = text.replace(/\*\*(.+?)\*\*/g, '$1').replace(/\*(.+?)\*/g, '$1')
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1').replace(/`([^`]+)`/g, '$1');
+    typewriteMessage(contentEl, plainText, html);
+  }
+
   return div;
 }
 
@@ -2237,7 +2370,7 @@ async function runIntroInChat() {
   removeTypingIndicator();
 
   // Step 2: greeting
-  addChatMessage("Hey! I'm **FlowB**", 'bot');
+  addChatMessage("Hey! I'm **FlowB**", 'bot', { typewriter: false });
   await introWait(600);
 
   // Step 3: typing
@@ -2246,7 +2379,7 @@ async function runIntroInChat() {
   removeTypingIndicator();
 
   // Step 4: description
-  addChatMessage("I help you discover events and find what's happening around you.", 'bot');
+  addChatMessage("I help you discover events and find what's happening around you.", 'bot', { typewriter: false });
   await introWait(500);
 
   // Step 4.5: featured event callout
@@ -2257,7 +2390,7 @@ async function runIntroInChat() {
       addTypingIndicator();
       await introWait(700);
       removeTypingIndicator();
-      addChatMessage(`Check out tonight's [featured event](${data.current.effectiveUrl})!`, 'bot');
+      addChatMessage(`Check out tonight's [featured event](${data.current.effectiveUrl})!`, 'bot', { typewriter: false });
       await introWait(500);
     }
   } catch {}
@@ -2268,7 +2401,7 @@ async function runIntroInChat() {
   removeTypingIndicator();
 
   // Step 6: question
-  addChatMessage("What kind of events are you into?", 'bot');
+  addChatMessage("What kind of events are you into?", 'bot', { typewriter: false });
   await introWait(300);
 
   // Step 7: category chips as interactive message
@@ -2645,13 +2778,11 @@ function renderIntroCityPicker(selectedCats) {
   // Handle event URL parameter from smart short links
   handleEventUrlParam();
 
-  // First-visit: auto-expand chat panel after 1.5s
+  // First-visit: run teaser sequence instead of auto-expanding
   if (!localStorage.getItem('flowb-intro-seen')) {
     setTimeout(() => {
       if (widget.dataset.state === 'minimized') {
-        introStarted = true;
-        expandChat();
-        runIntroInChat();
+        runTeaserSequence();
       }
     }, 1500);
   }

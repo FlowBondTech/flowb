@@ -1,0 +1,33 @@
+mutation CheckInWithCode($code: String!) {
+  checkInWithCode(code: $code) {
+    success
+    message
+    event {
+      id
+      title
+      location_name
+      start_date_time
+      end_date_time
+      checkin_code
+      facilitator {
+        id
+        display_name
+        username
+      }
+    }
+    registration {
+      id
+      checked_in
+      check_in_time
+      status
+    }
+  }
+}
+
+mutation RegenerateCheckinCode($eventId: ID!) {
+  regenerateCheckinCode(eventId: $eventId) {
+    id
+    title
+    checkin_code
+  }
+}

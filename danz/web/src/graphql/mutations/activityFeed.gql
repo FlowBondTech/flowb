@@ -1,0 +1,41 @@
+mutation LikeActivity($activityId: String!) {
+  likeActivity(activityId: $activityId) {
+    id
+    likes_count
+    is_liked_by_me
+  }
+}
+
+mutation UnlikeActivity($activityId: String!) {
+  unlikeActivity(activityId: $activityId) {
+    id
+    likes_count
+    is_liked_by_me
+  }
+}
+
+mutation CommentOnActivity($activityId: String!, $comment: String!) {
+  commentOnActivity(activityId: $activityId, comment: $comment) {
+    id
+    comments_count
+  }
+}
+
+mutation HideActivity($activityId: String!) {
+  hideActivity(activityId: $activityId) {
+    success
+    message
+  }
+}
+
+mutation MarkActivitiesRead($activityIds: [String!]!) {
+  markActivitiesRead(activityIds: $activityIds) {
+    success
+  }
+}
+
+mutation MarkAllActivitiesRead {
+  markAllActivitiesRead {
+    success
+  }
+}

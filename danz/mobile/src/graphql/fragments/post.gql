@@ -1,0 +1,73 @@
+# import "./user.gql"
+
+# Base fragments (no dependencies on other post fragments)
+fragment PostBasicInfo on Post {
+  id
+  user_id
+  content
+  media_url
+  media_type
+  event_id
+  location
+  is_public
+  likes_count
+  comments_count
+  is_liked_by_me
+  created_at
+  updated_at
+}
+
+fragment PostComment on PostComment {
+  id
+  post_id
+  user_id
+  content
+  created_at
+  updated_at
+  user {
+    ...UserBasicInfo
+  }
+}
+
+fragment PostLike on PostLike {
+  id
+  post_id
+  user_id
+  created_at
+  user {
+    ...UserBasicInfo
+  }
+}
+
+# Fragments with dependencies
+fragment PostWithUser on Post {
+  ...PostBasicInfo
+  user {
+    ...UserBasicInfo
+  }
+}
+
+fragment PostWithDetails on PostWithDetails {
+  id
+  user_id
+  content
+  media_url
+  media_type
+  event_id
+  location
+  is_public
+  likes_count
+  comments_count
+  is_liked_by_me
+  created_at
+  updated_at
+  user {
+    ...UserBasicInfo
+  }
+  likes {
+    ...PostLike
+  }
+  comments {
+    ...PostComment
+  }
+}

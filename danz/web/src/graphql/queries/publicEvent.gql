@@ -1,0 +1,44 @@
+query GetPublicEvent($slug: String!) {
+  publicEvent(slug: $slug) {
+    id
+    title
+    description
+    category
+    dance_styles
+    skill_level
+    location_name
+    location_city
+    location_address
+    location_latitude
+    location_longitude
+    is_virtual
+    virtual_link
+    start_date_time
+    end_date_time
+    price_usd
+    max_capacity
+    registration_count
+    status
+    is_featured
+    is_recurring
+    image_url
+    is_registered
+    user_registration_status
+    slug
+    is_public
+    facilitator {
+      id
+      username
+      display_name
+      avatar_url
+      bio
+    }
+    created_at
+    updated_at
+    allow_sponsors
+    sponsor_benefits
+    sponsor_contact_email
+    sponsor_tier_config
+    sponsor_count
+  }
+}

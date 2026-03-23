@@ -1,0 +1,43 @@
+{
+  "name": "danz-main",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "codegen": "graphql-codegen --config codegen.ts",
+    "analyze": "ANALYZE=true next build"
+  },
+  "dependencies": {
+    "@danz/shared": "*",
+    "@apollo/client": "^3.13.8",
+    "@coinbase/onchainkit": "^0.36.7",
+    "@farcaster/frame-sdk": "^0.0.26",
+    "@tanstack/react-query": "^5.60.0",
+    "graphql": "^16.11.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "viem": "^2.21.0",
+    "wagmi": "^2.12.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.2",
+    "@graphql-codegen/cli": "^6.0.0",
+    "@graphql-codegen/fragment-matcher": "^6.0.0",
+    "@graphql-codegen/typescript": "^5.0.0",
+    "@graphql-codegen/typescript-operations": "^5.0.0",
+    "@graphql-codegen/typescript-react-apollo": "^4.3.3",
+    "@next/bundle-analyzer": "^15.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.8.0"
+  }
+}

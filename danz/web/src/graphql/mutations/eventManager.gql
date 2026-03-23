@@ -1,0 +1,81 @@
+# Event Manager Mutations
+
+mutation InviteEventManager($input: InviteEventManagerInput!) {
+  inviteEventManager(input: $input) {
+    id
+    event_id
+    user_id
+    role
+    status
+    can_edit_details
+    can_manage_registrations
+    can_send_broadcasts
+    can_manage_posts
+    can_invite_managers
+    invited_at
+    user {
+      username
+      display_name
+      avatar_url
+    }
+  }
+}
+
+mutation AcceptManagerInvitation($manager_id: ID!) {
+  acceptManagerInvitation(manager_id: $manager_id) {
+    id
+    status
+    accepted_at
+    role
+    event {
+      id
+      title
+    }
+  }
+}
+
+mutation DeclineManagerInvitation($manager_id: ID!) {
+  declineManagerInvitation(manager_id: $manager_id) {
+    id
+    status
+  }
+}
+
+mutation UpdateEventManager($input: UpdateEventManagerInput!) {
+  updateEventManager(input: $input) {
+    id
+    role
+    can_edit_details
+    can_manage_registrations
+    can_send_broadcasts
+    can_manage_posts
+    can_invite_managers
+    updated_at
+  }
+}
+
+mutation RemoveEventManager($manager_id: ID!) {
+  removeEventManager(manager_id: $manager_id) {
+    success
+    message
+  }
+}
+
+mutation LeaveEventAsManager($event_id: ID!) {
+  leaveEventAsManager(event_id: $event_id) {
+    success
+    message
+  }
+}
+
+mutation TransferEventOwnership($event_id: ID!, $new_creator_id: String!) {
+  transferEventOwnership(event_id: $event_id, new_creator_id: $new_creator_id) {
+    id
+    user_id
+    role
+    user {
+      username
+      display_name
+    }
+  }
+}

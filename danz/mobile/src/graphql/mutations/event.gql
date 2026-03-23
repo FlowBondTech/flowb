@@ -1,0 +1,54 @@
+# import "../fragments/event.gql"
+# import "../fragments/user.gql"
+
+mutation CreateEvent($input: CreateEventInput!) {
+  createEvent(input: $input) {
+    ...EventFullInfo
+  }
+}
+
+mutation UpdateEvent($id: ID!, $input: UpdateEventInput!) {
+  updateEvent(id: $id, input: $input) {
+    ...EventFullInfo
+  }
+}
+
+mutation DeleteEvent($id: ID!) {
+  deleteEvent(id: $id) {
+    success
+    message
+  }
+}
+
+mutation RegisterForEvent($eventId: ID!, $notes: String) {
+  registerForEvent(eventId: $eventId, notes: $notes) {
+    id
+    event_id
+    user_id
+    status
+    registration_date
+    payment_status
+    payment_amount
+    event {
+      ...EventBasicInfo
+    }
+    user {
+      ...UserBasicInfo
+    }
+  }
+}
+
+mutation CancelEventRegistration($eventId: ID!) {
+  cancelEventRegistration(eventId: $eventId) {
+    success
+    message
+  }
+}
+
+mutation CheckInParticipant($eventId: ID!, $userId: String!) {
+  checkInParticipant(eventId: $eventId, userId: $userId) {
+    id
+    checked_in
+    check_in_time
+  }
+}
