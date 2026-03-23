@@ -50,14 +50,14 @@ query GetFeatureRequests(
       priority
       votes
       requested_by {
-        privy_id
+        id
         username
         display_name
         avatar_url
       }
       requested_at
       assigned_to {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -89,14 +89,14 @@ query GetFeatureRequest($id: ID!) {
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
       display_name
       avatar_url
     }
     requested_at
     assigned_to {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -113,7 +113,7 @@ query GetFeatureRequest($id: ID!) {
       id
       content
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -137,7 +137,7 @@ query GetTopVotedFeatures($limit: Int) {
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -156,13 +156,13 @@ query GetDevTasks($filter: DevTaskFilter, $limit: Int, $offset: Int, $sort_by: S
       status
       priority
       assigned_to {
-        privy_id
+        id
         username
         display_name
         avatar_url
       }
       created_by {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -205,13 +205,13 @@ query GetDevTask($id: ID!) {
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
       display_name
       avatar_url
     }
     created_by {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -265,7 +265,7 @@ query GetSprintTasks($sprint: String!) {
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
       avatar_url
     }

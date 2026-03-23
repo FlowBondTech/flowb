@@ -7,13 +7,10 @@ type Environment = 'local' | 'development' | 'production'
 interface Config {
   env: Environment
   port: number
-  privy: {
-    appId: string
-    appSecret: string
-  }
   supabase: {
     url: string
     secretKey: string
+    jwtSecret: string
     s3: {
       endpoint: string
       region: string
@@ -45,13 +42,10 @@ const env = (process.env.NODE_ENV || 'development') as Environment
 export const config: Config = {
   env,
   port: parseInt(process.env.PORT || '8080', 10),
-  privy: {
-    appId: process.env.PRIVY_APP_ID || '',
-    appSecret: process.env.PRIVY_APP_SECRET || '',
-  },
   supabase: {
     url: process.env.SUPABASE_URL || '',
     secretKey: process.env.SUPABASE_SECRET_KEY || '',
+    jwtSecret: process.env.SUPABASE_JWT_SECRET || '',
     s3: {
       endpoint: process.env.SUPABASE_S3_ENDPOINT || '',
       region: process.env.SUPABASE_S3_REGION || '',
@@ -79,7 +73,7 @@ export const config: Config = {
 }
 
 export const validateConfig = () => {
-  const requiredVars = ['PRIVY_APP_ID', 'PRIVY_APP_SECRET', 'SUPABASE_URL', 'SUPABASE_SECRET_KEY']
+  const requiredVars = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'SUPABASE_JWT_SECRET']
 
   const missing = requiredVars.filter(varName => !process.env[varName])
 

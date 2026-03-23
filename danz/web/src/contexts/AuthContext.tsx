@@ -174,10 +174,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const data = result.data
 
           // Track daily login for points (if user exists)
-          if (data?.me?.privy_id) {
+          if (data?.me?.id) {
             try {
               await trackAppOpen({
-                variables: { user_id: data.me.privy_id },
+                variables: { user_id: data.me.id },
               })
             } catch (error) {
               // Already handled in mutation error callback

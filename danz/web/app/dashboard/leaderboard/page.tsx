@@ -65,7 +65,7 @@ export default function LeaderboardPage() {
     skip: !isAuthenticated,
   })
 
-  const currentUserId = profileData?.me?.privy_id
+  const currentUserId = profileData?.me?.id
 
   const metric = metricToEnum[metricKey]
 

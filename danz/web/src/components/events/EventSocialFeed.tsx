@@ -13,7 +13,7 @@ const GET_EVENT_ACTIVITY = gql`
       action
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -27,7 +27,7 @@ interface EventActivity {
   action: 'registered' | 'maybe' | 'interested' | 'checked_in' | 'cancelled'
   created_at: string
   user: {
-    privy_id: string
+    id: string
     username?: string | null
     display_name?: string | null
     avatar_url?: string | null
@@ -117,25 +117,25 @@ const MOCK_ACTIVITIES: EventActivity[] = [
     id: '1',
     action: 'registered',
     created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-    user: { privy_id: '1', display_name: 'Sarah M.', username: 'sarahm', avatar_url: null },
+    user: { id: '1', display_name: 'Sarah M.', username: 'sarahm', avatar_url: null },
   },
   {
     id: '2',
     action: 'interested',
     created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-    user: { privy_id: '2', display_name: 'Mike D.', username: 'miked', avatar_url: null },
+    user: { id: '2', display_name: 'Mike D.', username: 'miked', avatar_url: null },
   },
   {
     id: '3',
     action: 'maybe',
     created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    user: { privy_id: '3', display_name: 'Jessica L.', username: 'jessical', avatar_url: null },
+    user: { id: '3', display_name: 'Jessica L.', username: 'jessical', avatar_url: null },
   },
   {
     id: '4',
     action: 'registered',
     created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    user: { privy_id: '4', display_name: 'Chris P.', username: 'chrisp', avatar_url: null },
+    user: { id: '4', display_name: 'Chris P.', username: 'chrisp', avatar_url: null },
   },
 ]
 

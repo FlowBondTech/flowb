@@ -64,7 +64,7 @@ const GET_EVENT_DETAIL = gql`
       is_registered
       user_registration_status
       facilitator {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -145,7 +145,7 @@ export default function EventDetailPage() {
 
   const { data: profileData } = useGetMyProfileQuery()
   const userRole = profileData?.me?.role
-  const userPrivyId = profileData?.me?.privy_id
+  const userId = profileData?.me?.id
 
   const { data, loading, error, refetch } = useQuery(GET_EVENT_DETAIL, {
     variables: { id: eventId },
@@ -178,7 +178,7 @@ export default function EventDetailPage() {
   const checkinCode = checkinData?.event?.checkin_code
 
   // Check if current user can manage this event
-  const isOrganizer = event?.facilitator?.privy_id === userPrivyId
+  const isOrganizer = event?.facilitator?.id === userId
   const isAdmin = userRole === 'admin' || userRole === 'manager'
   const canManageEvent = isOrganizer || isAdmin
 

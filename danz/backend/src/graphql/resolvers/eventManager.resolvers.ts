@@ -243,8 +243,8 @@ export const eventManagerResolvers = {
       // Check if invitee exists
       const { data: invitee } = await supabase
         .from('users')
-        .select('privy_id')
-        .eq('privy_id', inviteeId)
+        .select('id')
+        .eq('id', inviteeId)
         .single()
 
       if (!invitee) {
@@ -637,7 +637,7 @@ export const eventManagerResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -649,7 +649,7 @@ export const eventManagerResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.invited_by)
+        .eq('id', parent.invited_by)
         .single()
 
       return data

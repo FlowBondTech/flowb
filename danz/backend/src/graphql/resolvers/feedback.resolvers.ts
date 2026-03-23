@@ -19,7 +19,7 @@ export const feedbackResolvers = {
       const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('privy_id', context.userId)
+        .eq('id', context.userId)
         .single()
 
       if (userData?.role !== 'admin') {
@@ -65,7 +65,7 @@ export const feedbackResolvers = {
       const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('privy_id', context.userId)
+        .eq('id', context.userId)
         .single()
 
       if (userData?.role !== 'admin') {
@@ -178,7 +178,7 @@ export const feedbackResolvers = {
       const { data: userData } = await supabase
         .from('users')
         .select('role')
-        .eq('privy_id', context.userId)
+        .eq('id', context.userId)
         .single()
 
       if (userData?.role !== 'admin') {
@@ -225,7 +225,7 @@ export const feedbackResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data

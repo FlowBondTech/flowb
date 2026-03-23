@@ -685,7 +685,7 @@ export const eventResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('role, display_name, username, is_organizer_approved')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       // Check permissions: admin, manager, or approved organizer
@@ -785,8 +785,8 @@ export const eventResolvers = {
       try {
         const { data: allUsers } = await supabase
           .from('users')
-          .select('privy_id')
-          .neq('privy_id', userId) // Exclude the event creator
+          .select('id')
+          .neq('id', userId) // Exclude the event creator
 
         if (allUsers && allUsers.length > 0) {
           const notifications = allUsers.map(u => ({
@@ -795,7 +795,7 @@ export const eventResolvers = {
             message: `${user?.display_name || user?.username || 'An organizer'} created a new event: ${data.title}`,
             sender_id: userId,
             sender_type: 'user',
-            recipient_id: u.privy_id,
+            recipient_id: u.id,
             event_id: data.id,
             is_broadcast: true,
             broadcast_target: 'all_users',
@@ -839,7 +839,7 @@ export const eventResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -927,7 +927,7 @@ export const eventResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -972,7 +972,7 @@ export const eventResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -1034,8 +1034,8 @@ export const eventResolvers = {
       // First, check if user exists in the database (required for foreign key constraint)
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('privy_id, username')
-        .eq('privy_id', userId)
+        .select('id, username')
+        .eq('id', userId)
         .single()
 
       if (userError || !user) {
@@ -1188,9 +1188,9 @@ export const eventResolvers = {
 
             const registeredIds = registeredUsers?.map(r => r.user_id) || []
 
-            const { data: allUsers } = await supabase.from('users').select('privy_id')
+            const { data: allUsers } = await supabase.from('users').select('id')
 
-            const usersToNotify = allUsers?.filter(u => !registeredIds.includes(u.privy_id)) || []
+            const usersToNotify = allUsers?.filter(u => !registeredIds.includes(u.id)) || []
 
             if (usersToNotify.length > 0) {
               const spotsLeft = event.max_capacity - newCapacity
@@ -1199,7 +1199,7 @@ export const eventResolvers = {
                 title: '🔥 Event Almost Full!',
                 message: `"${event.title}" is filling up fast! Only ${spotsLeft} spot${spotsLeft === 1 ? '' : 's'} left.`,
                 sender_type: 'system',
-                recipient_id: u.privy_id,
+                recipient_id: u.id,
                 event_id: eventId,
                 action_type: 'open_event',
                 action_data: { event_id: eventId },
@@ -1324,7 +1324,7 @@ export const eventResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -1579,7 +1579,7 @@ export const eventResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role, is_admin')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || (user.role !== 'admin' && !user.is_admin)) {

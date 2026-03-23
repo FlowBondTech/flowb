@@ -1,12 +1,11 @@
 import type { NextFunction, Request, Response } from 'express'
-import { privyClient } from '../config/privy.js'
+import { verifySupabaseToken } from '../config/jwt.js'
 import { logger } from '../utils/logger.js'
 
 export interface AuthRequest extends Request {
   user?: {
-    privyId: string
+    userId: string
     email?: string
-    wallet?: string
   }
 }
 
@@ -24,10 +23,11 @@ export const authenticateUser = async (
 
     const token = authHeader.replace('Bearer ', '')
 
-    const verifiedClaims = await privyClient.verifyAuthToken(token)
+    const decoded = verifySupabaseToken(token)
 
     req.user = {
-      privyId: verifiedClaims.userId,
+      userId: decoded.sub,
+      email: decoded.email,
     }
 
     next()

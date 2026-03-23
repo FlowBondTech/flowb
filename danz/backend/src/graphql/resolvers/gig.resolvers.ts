@@ -32,7 +32,7 @@ const requireGigManager = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin, is_gig_manager')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin && !user?.is_gig_manager) {
@@ -50,7 +50,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin) {
@@ -87,7 +87,7 @@ const canManageEventGigs = async (userId: string, eventId: string): Promise<bool
   const { data: user } = await supabase
     .from('users')
     .select('is_admin, is_gig_manager')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   return user?.is_admin || user?.is_gig_manager
@@ -386,7 +386,7 @@ export const gigResolvers = {
         .from('gig_applications')
         .select(`
           *,
-          user:users(privy_id, username, display_name, avatar_url),
+          user:users(id, username, display_name, avatar_url),
           userRole:user_gig_roles(*, role:gig_roles(*))
         `)
         .eq('gig_id', gigId)
@@ -418,7 +418,7 @@ export const gigResolvers = {
             role:gig_roles(*),
             event:events(id, title, start_date_time, end_date_time, location, facilitator_id)
           ),
-          user:users(privy_id, username, display_name, avatar_url),
+          user:users(id, username, display_name, avatar_url),
           userRole:user_gig_roles(*, role:gig_roles(*)),
           submissions:gig_submissions(*)
         `)
@@ -454,7 +454,7 @@ export const gigResolvers = {
       const { data: userData } = await supabase
         .from('users')
         .select('total_gig_danz_earned')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       // Get active roles count
@@ -549,7 +549,7 @@ export const gigResolvers = {
         .from('user_gig_roles')
         .select(`
           *,
-          user:users(privy_id, username, display_name, avatar_url),
+          user:users(id, username, display_name, avatar_url),
           role:gig_roles(*)
         `)
         .eq('status', 'pending')
@@ -561,7 +561,7 @@ export const gigResolvers = {
         .from('gig_applications')
         .select(`
           *,
-          user:users(privy_id, username, display_name, avatar_url),
+          user:users(id, username, display_name, avatar_url),
           gig:event_gigs(*, role:gig_roles(*), event:events(id, title, start_date_time)),
           userRole:user_gig_roles(*, role:gig_roles(*))
         `)
@@ -576,7 +576,7 @@ export const gigResolvers = {
           *,
           application:gig_applications(
             *,
-            user:users(privy_id, username, display_name, avatar_url),
+            user:users(id, username, display_name, avatar_url),
             gig:event_gigs(*, role:gig_roles(*))
           )
         `)
@@ -589,7 +589,7 @@ export const gigResolvers = {
         .from('gig_applications')
         .select(`
           *,
-          user:users(privy_id, username, display_name, avatar_url),
+          user:users(id, username, display_name, avatar_url),
           gig:event_gigs(*, role:gig_roles(*))
         `)
         .eq('status', 'approved')
@@ -667,8 +667,8 @@ export const gigResolvers = {
         .from('event_gig_managers')
         .select(`
           *,
-          user:users!event_gig_managers_user_id_fkey(privy_id, username, display_name, avatar_url),
-          assigner:users!event_gig_managers_assigned_by_fkey(privy_id, username, display_name)
+          user:users!event_gig_managers_user_id_fkey(id, username, display_name, avatar_url),
+          assigner:users!event_gig_managers_assigned_by_fkey(id, username, display_name)
         `)
         .eq('event_id', eventId)
 
@@ -848,7 +848,7 @@ export const gigResolvers = {
         .select(`
           *,
           role:gig_roles(*),
-          user:users(privy_id, username, display_name)
+          user:users(id, username, display_name)
         `)
         .single()
 
@@ -1208,8 +1208,8 @@ export const gigResolvers = {
         if (event?.facilitator_id) {
           const { data: applicantUser } = await supabase
             .from('users')
-            .select('privy_id, username, display_name')
-            .eq('privy_id', userId)
+            .select('id, username, display_name')
+            .eq('id', userId)
             .single()
 
           if (applicantUser) {
@@ -1318,7 +1318,7 @@ export const gigResolvers = {
         .select(`
           *,
           gig:event_gigs(*, role:gig_roles(*), event:events(id, title)),
-          user:users(privy_id, username, display_name),
+          user:users(id, username, display_name),
           userRole:user_gig_roles(*, role:gig_roles(*))
         `)
         .single()
@@ -1584,7 +1584,7 @@ export const gigResolvers = {
         .select(`
           *,
           gig:event_gigs(*, role:gig_roles(*), event:events(id, title)),
-          user:users(privy_id, username, display_name),
+          user:users(id, username, display_name),
           userRole:user_gig_roles(*, role:gig_roles(*))
         `)
         .single()
@@ -1676,7 +1676,7 @@ export const gigResolvers = {
         .select(`
           *,
           gig:event_gigs(*, role:gig_roles(*)),
-          user:users(privy_id, username, display_name)
+          user:users(id, username, display_name)
         `)
         .single()
 
@@ -1799,7 +1799,7 @@ export const gigResolvers = {
       const { data: currentUser } = await supabase
         .from('users')
         .select('is_admin')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (event.facilitator_id !== userId && !currentUser?.is_admin) {
@@ -1817,8 +1817,8 @@ export const gigResolvers = {
         })
         .select(`
           *,
-          user:users!event_gig_managers_user_id_fkey(privy_id, username, display_name, avatar_url),
-          assigner:users!event_gig_managers_assigned_by_fkey(privy_id, username, display_name)
+          user:users!event_gig_managers_user_id_fkey(id, username, display_name, avatar_url),
+          assigner:users!event_gig_managers_assigned_by_fkey(id, username, display_name)
         `)
         .single()
 
@@ -1858,7 +1858,7 @@ export const gigResolvers = {
       const { data: currentUser } = await supabase
         .from('users')
         .select('is_admin')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (event.facilitator_id !== userId && !currentUser?.is_admin) {
@@ -1898,7 +1898,7 @@ export const gigResolvers = {
           gig_manager_approved_by: adminId,
           updated_at: new Date().toISOString(),
         })
-        .eq('privy_id', targetUserId)
+        .eq('id', targetUserId)
         .select('*')
         .single()
 
@@ -1926,7 +1926,7 @@ export const gigResolvers = {
           gig_manager_approved_by: null,
           updated_at: new Date().toISOString(),
         })
-        .eq('privy_id', targetUserId)
+        .eq('id', targetUserId)
         .select('*')
         .single()
 
@@ -1987,7 +1987,7 @@ export const gigResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -2030,7 +2030,7 @@ export const gigResolvers = {
         .from('gig_applications')
         .select(`
           *,
-          user:users(privy_id, username, display_name, avatar_url)
+          user:users(id, username, display_name, avatar_url)
         `)
         .eq('gig_id', parent.id)
         .eq('status', 'approved')
@@ -2109,7 +2109,7 @@ export const gigResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.reviewed_by)
+        .eq('id', parent.reviewed_by)
         .single()
       return data
     },

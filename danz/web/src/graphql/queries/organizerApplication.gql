@@ -25,7 +25,7 @@ query GetPendingOrganizerApplications($limit: Int, $offset: Int) {
       id
       user_id
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -54,7 +54,7 @@ query GetOrganizerApplications($status: ApplicationStatus, $limit: Int, $offset:
       id
       user_id
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url

@@ -14,7 +14,7 @@ const requireAuth = (context: GraphQLContext) => {
 const requireAdmin = async (context: GraphQLContext) => {
   const userId = requireAuth(context)
 
-  const { data: user } = await supabase.from('users').select('role').eq('privy_id', userId).single()
+  const { data: user } = await supabase.from('users').select('role').eq('id', userId).single()
 
   if (!user || (user.role !== 'admin' && user.role !== 'manager')) {
     throw new GraphQLError('Admin access required', {
@@ -144,7 +144,7 @@ export const organizerResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('role, is_organizer_approved')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (user?.is_organizer_approved) {
@@ -172,7 +172,7 @@ export const organizerResolvers = {
 
       // Update user role to organizer if not already
       if (user?.role !== 'organizer' && user?.role !== 'admin' && user?.role !== 'manager') {
-        await supabase.from('users').update({ role: 'organizer' }).eq('privy_id', userId)
+        await supabase.from('users').update({ role: 'organizer' }).eq('id', userId)
       }
 
       return data
@@ -234,7 +234,7 @@ export const organizerResolvers = {
             role: 'organizer',
             is_organizer_approved: true,
           })
-          .eq('privy_id', application.user_id)
+          .eq('id', application.user_id)
       }
 
       return updatedApplication
@@ -248,7 +248,7 @@ export const organizerResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -260,7 +260,7 @@ export const organizerResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.reviewed_by)
+        .eq('id', parent.reviewed_by)
         .single()
 
       return data

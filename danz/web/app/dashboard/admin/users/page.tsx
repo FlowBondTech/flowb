@@ -289,7 +289,7 @@ export default function AdminUsersPage() {
               </thead>
               <tbody className="divide-y divide-purple-500/10">
                 {filteredUsers.map(user => (
-                  <tr key={user.privy_id} className="hover:bg-white/5 transition-colors">
+                  <tr key={user.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4">
                       <div>
                         <div className="text-text-primary font-medium">
@@ -309,7 +309,7 @@ export default function AdminUsersPage() {
                       <div className="relative inline-block">
                         <button
                           onClick={() =>
-                            setShowRoleMenu(showRoleMenu === user.privy_id ? null : user.privy_id)
+                            setShowRoleMenu(showRoleMenu === user.id ? null : user.id)
                           }
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                             user.role === 'admin'
@@ -325,28 +325,28 @@ export default function AdminUsersPage() {
                           <FiChevronDown className="ml-1" />
                         </button>
 
-                        {showRoleMenu === user.privy_id && (
+                        {showRoleMenu === user.id && (
                           <div className="absolute z-10 mt-1 bg-black/95 border border-purple-500/30 rounded-lg shadow-lg min-w-[120px]">
                             <button
-                              onClick={() => handleRoleChange(user.privy_id, 'user')}
+                              onClick={() => handleRoleChange(user.id, 'user')}
                               className="block w-full px-4 py-2 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                             >
                               User
                             </button>
                             <button
-                              onClick={() => handleRoleChange(user.privy_id, 'organizer')}
+                              onClick={() => handleRoleChange(user.id, 'organizer')}
                               className="block w-full px-4 py-2 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                             >
                               Organizer
                             </button>
                             <button
-                              onClick={() => handleRoleChange(user.privy_id, 'dev')}
+                              onClick={() => handleRoleChange(user.id, 'dev')}
                               className="block w-full px-4 py-2 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                             >
                               Dev
                             </button>
                             <button
-                              onClick={() => handleRoleChange(user.privy_id, 'admin')}
+                              onClick={() => handleRoleChange(user.id, 'admin')}
                               className="block w-full px-4 py-2 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                             >
                               Admin
@@ -391,14 +391,14 @@ export default function AdminUsersPage() {
                       {user.role === 'organizer' && !user.is_organizer_approved && (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleOrganizerApproval(user.privy_id, true)}
+                            onClick={() => handleOrganizerApproval(user.id, true)}
                             className="p-2 bg-green-600/30 text-green-300 rounded-lg hover:bg-green-600/40 transition-colors"
                             title="Approve Organizer"
                           >
                             <FiCheck />
                           </button>
                           <button
-                            onClick={() => handleOrganizerApproval(user.privy_id, false)}
+                            onClick={() => handleOrganizerApproval(user.id, false)}
                             className="p-2 bg-red-600/30 text-red-300 rounded-lg hover:bg-red-600/40 transition-colors"
                             title="Reject Organizer"
                           >
@@ -416,7 +416,7 @@ export default function AdminUsersPage() {
           {/* Mobile Card Layout */}
           <div className="md:hidden divide-y divide-purple-500/10">
             {filteredUsers.map(user => (
-              <div key={user.privy_id} className="p-4 space-y-3">
+              <div key={user.id} className="p-4 space-y-3">
                 {/* User Info Row */}
                 <div className="flex items-start justify-between">
                   <div>
@@ -456,7 +456,7 @@ export default function AdminUsersPage() {
                     <div className="relative">
                       <button
                         onClick={() =>
-                          setShowRoleMenu(showRoleMenu === user.privy_id ? null : user.privy_id)
+                          setShowRoleMenu(showRoleMenu === user.id ? null : user.id)
                         }
                         className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                           user.role === 'admin'
@@ -472,28 +472,28 @@ export default function AdminUsersPage() {
                         <FiChevronDown className="ml-2" />
                       </button>
 
-                      {showRoleMenu === user.privy_id && (
+                      {showRoleMenu === user.id && (
                         <div className="absolute z-10 mt-1 bg-black/95 border border-purple-500/30 rounded-lg shadow-lg min-w-[140px]">
                           <button
-                            onClick={() => handleRoleChange(user.privy_id, 'user')}
+                            onClick={() => handleRoleChange(user.id, 'user')}
                             className="block w-full px-4 py-3 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                           >
                             User
                           </button>
                           <button
-                            onClick={() => handleRoleChange(user.privy_id, 'organizer')}
+                            onClick={() => handleRoleChange(user.id, 'organizer')}
                             className="block w-full px-4 py-3 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                           >
                             Organizer
                           </button>
                           <button
-                            onClick={() => handleRoleChange(user.privy_id, 'dev')}
+                            onClick={() => handleRoleChange(user.id, 'dev')}
                             className="block w-full px-4 py-3 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                           >
                             Dev
                           </button>
                           <button
-                            onClick={() => handleRoleChange(user.privy_id, 'admin')}
+                            onClick={() => handleRoleChange(user.id, 'admin')}
                             className="block w-full px-4 py-3 text-left text-text-primary hover:bg-purple-600/30 text-sm transition-colors"
                           >
                             Admin
@@ -512,14 +512,14 @@ export default function AdminUsersPage() {
                   {user.role === 'organizer' && !user.is_organizer_approved && (
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleOrganizerApproval(user.privy_id, true)}
+                        onClick={() => handleOrganizerApproval(user.id, true)}
                         className="p-3 bg-green-600/30 text-green-300 rounded-lg active:bg-green-600/50 transition-colors"
                         title="Approve Organizer"
                       >
                         <FiCheck size={18} />
                       </button>
                       <button
-                        onClick={() => handleOrganizerApproval(user.privy_id, false)}
+                        onClick={() => handleOrganizerApproval(user.id, false)}
                         className="p-3 bg-red-600/30 text-red-300 rounded-lg active:bg-red-600/50 transition-colors"
                         title="Reject Organizer"
                       >

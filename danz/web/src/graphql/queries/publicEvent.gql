@@ -27,7 +27,7 @@ query GetPublicEvent($slug: String!) {
     slug
     is_public
     facilitator {
-      privy_id
+      id
       username
       display_name
       avatar_url

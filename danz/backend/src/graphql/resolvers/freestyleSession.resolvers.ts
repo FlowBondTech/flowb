@@ -193,7 +193,7 @@ export const freestyleSessionResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('daily_reminder_enabled, daily_reminder_time, live_sessions_enabled')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (error) {
@@ -326,7 +326,7 @@ export const freestyleSessionResolvers = {
       const { data, error } = await supabase
         .from('users')
         .update(updates)
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .select('daily_reminder_enabled, daily_reminder_time, live_sessions_enabled')
         .single()
 
@@ -374,7 +374,7 @@ export const freestyleSessionResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },

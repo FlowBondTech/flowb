@@ -11,7 +11,7 @@ import { supabase } from '../config/supabase.js'
 
 // Types for loaded entities
 interface User {
-  privy_id: string
+  id: string
   username: string | null
   display_name: string | null
   avatar_url: string | null
@@ -44,7 +44,7 @@ interface EventRegistration {
 }
 
 /**
- * Batch load users by privy_id
+ * Batch load users by id
  * Used by: Event.facilitator, EventRegistration.user, DanceBond.otherUser
  */
 async function batchLoadUsers(ids: readonly string[]): Promise<(User | null)[]> {
@@ -53,7 +53,7 @@ async function batchLoadUsers(ids: readonly string[]): Promise<(User | null)[]> 
   const { data, error } = await supabase
     .from('users')
     .select('*')
-    .in('privy_id', [...ids])
+    .in('id', [...ids])
 
   if (error) {
     console.error('[DataLoader] Failed to batch load users:', error)
@@ -63,7 +63,7 @@ async function batchLoadUsers(ids: readonly string[]): Promise<(User | null)[]> 
   // Create a map for O(1) lookup
   const userMap = new Map<string, User>()
   for (const user of data || []) {
-    userMap.set(user.privy_id, user)
+    userMap.set(user.id, user)
   }
 
   // Return in the same order as requested ids
@@ -208,7 +208,7 @@ export interface DataLoaders {
  */
 export function createDataLoaders(): DataLoaders {
   return {
-    // Load single user by privy_id
+    // Load single user by id
     userLoader: new DataLoader<string, User | null>(batchLoadUsers, {
       // Enable caching within the same request
       cache: true,

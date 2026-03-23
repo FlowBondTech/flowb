@@ -1,5 +1,5 @@
 import { GraphQLError } from 'graphql'
-import { privyClient } from '../../config/privy.js'
+// privyClient import removed - user lookup now via supabase
 import { supabase } from '../../config/supabase.js'
 import { discord } from '../../services/discord.js'
 import type { GraphQLContext } from '../context.js'
@@ -22,7 +22,7 @@ export const userResolvers = {
       const { data: existingUser, error: fetchError } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       // PGRST116 means no rows found, which is ok for new users
@@ -39,25 +39,24 @@ export const userResolvers = {
 
       // If user doesn't exist, create them (for onboarding flow)
       try {
-        // Fetch Privy user data to get email/wallet info
-        const privyUser = await privyClient.getUserById(userId)
+        // Look up user info from supabase auth (admin)
+        const { data: authData } = await supabase.auth.admin.getUserById(userId)
 
-        // Extract display name from email or use fallback
+        // Extract display name from auth metadata or use fallback
         let displayName = ''
-        if (privyUser.email?.address) {
-          // Get the part before @ from email
-          displayName = privyUser.email.address.split('@')[0]!
-        } else if (privyUser.wallet?.address) {
-          // Use first 8 characters of wallet address as fallback
-          displayName = privyUser.wallet.address.slice(0, 8)
+        const email = authData?.user?.email
+        const walletAddress = (authData?.user?.user_metadata as any)?.wallet_address
+        if (email) {
+          displayName = email.split('@')[0]!
+        } else if (walletAddress) {
+          displayName = walletAddress.slice(0, 8)
         } else {
-          // Use part of privy ID as last resort
-          displayName = `user_${userId.slice(10, 18)}`
+          displayName = `user_${userId.slice(0, 8)}`
         }
 
         // Create the user with minimal data (for onboarding)
         const newUser = {
-          privy_id: userId,
+          id: userId,
           role: 'user' as const,
           username: null, // Will be set during onboarding
           display_name: displayName,
@@ -82,9 +81,9 @@ export const userResolvers = {
         // Discord webhook: New user signup
         discord
           .notifyUserSignup({
-            privy_id: userId,
-            email: privyUser.email?.address,
-            wallet_address: privyUser.wallet?.address,
+            id: userId,
+            email,
+            wallet_address: walletAddress,
           })
           .catch(err => console.error('[Discord] User signup notification failed:', err))
 
@@ -102,7 +101,7 @@ export const userResolvers = {
     },
 
     user: async (_: any, { id }: { id: string }) => {
-      const { data, error } = await supabase.from('users').select('*').eq('privy_id', id).single()
+      const { data, error } = await supabase.from('users').select('*').eq('id', id).single()
 
       if (error) {
         throw new GraphQLError('User not found', {
@@ -217,7 +216,7 @@ export const userResolvers = {
         .select(
           'total_points_earned, current_points_balance, referral_points_earned, longest_streak',
         )
-        .eq('privy_id', targetUserId)
+        .eq('id', targetUserId)
         .single()
 
       // Get total events attended
@@ -301,12 +300,12 @@ export const userResolvers = {
       if (input.username) {
         const { data: existingUsername, error: usernameError } = await supabase
           .from('users')
-          .select('privy_id')
+          .select('id')
           .eq('username', input.username)
           .single()
 
         // Check if username exists and belongs to different user
-        if (!usernameError && existingUsername && existingUsername.privy_id !== userId) {
+        if (!usernameError && existingUsername && existingUsername.id !== userId) {
           throw new GraphQLError('Username already taken', {
             extensions: { code: 'CONFLICT' },
           })
@@ -322,7 +321,7 @@ export const userResolvers = {
         const { data: currentUser } = await supabase
           .from('users')
           .select('username')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         // If user doesn't have a username yet, this is a new username
@@ -348,7 +347,7 @@ export const userResolvers = {
       const { data, error } = await supabase
         .from('users')
         .update(updateData)
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .select()
         .single()
 
@@ -381,7 +380,7 @@ export const userResolvers = {
         // Discord webhook: User completed registration
         discord
           .notifyUserRegistered({
-            privy_id: userId,
+            id: userId,
             username: data.username,
             display_name: data.display_name,
             avatar_url: data.avatar_url,
@@ -475,7 +474,7 @@ export const userResolvers = {
   User: {
     achievements: async (parent: any, _: any, context: GraphQLContext) => {
       // Use DataLoader to batch load achievements for multiple users
-      return context.loaders.achievementsByUserLoader.load(parent.privy_id)
+      return context.loaders.achievementsByUserLoader.load(parent.id)
     },
   },
 

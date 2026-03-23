@@ -19,7 +19,7 @@ query GetEventManagers($event_id: ID!) {
       accepted_at
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -56,7 +56,7 @@ query GetEventManager($id: ID!) {
       start_date_time
     }
     user {
-      privy_id
+      id
       username
       display_name
       avatar_url

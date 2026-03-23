@@ -1,9 +1,10 @@
 import type { Request } from 'express'
-import { privyClient } from '../config/privy.js'
+import { verifySupabaseToken } from '../config/jwt.js'
 import { createDataLoaders, type DataLoaders } from './dataloaders.js'
 
 export interface GraphQLContext {
   userId?: string
+  userEmail?: string
   req: Request
   loaders: DataLoaders
 }
@@ -12,11 +13,13 @@ export async function createContext({ req }: { req: Request }): Promise<GraphQLC
   const token = req.headers.authorization?.replace('Bearer ', '')
 
   let userId: string | undefined
+  let userEmail: string | undefined
 
   if (token) {
     try {
-      const verifiedClaims = await privyClient.verifyAuthToken(token)
-      userId = verifiedClaims.userId
+      const decoded = verifySupabaseToken(token)
+      userId = decoded.sub
+      userEmail = decoded.email
       console.log('[Auth] Token verified successfully for userId:', userId)
     } catch (error) {
       console.error('[Auth] Token verification failed:', error)
@@ -32,6 +35,7 @@ export async function createContext({ req }: { req: Request }): Promise<GraphQLC
 
   return {
     userId,
+    userEmail,
     req,
     loaders,
   }

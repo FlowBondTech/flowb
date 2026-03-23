@@ -6716,6 +6716,7 @@ export type User = {
   favorite_music?: Maybe<Array<Scalars['String']['output']>>;
   gig_manager_approved_at?: Maybe<Scalars['DateTime']['output']>;
   gig_manager_approved_by?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
   instagram?: Maybe<Scalars['String']['output']>;
   invited_by?: Maybe<Scalars['String']['output']>;
   is_admin?: Maybe<Scalars['Boolean']['output']>;
@@ -6735,7 +6736,6 @@ export type User = {
   organizer_bio?: Maybe<Scalars['String']['output']>;
   organizer_rejection_reason?: Maybe<Scalars['String']['output']>;
   organizer_requested_at?: Maybe<Scalars['DateTime']['output']>;
-  privy_id: Scalars['String']['output'];
   pronouns?: Maybe<Scalars['String']['output']>;
   referral_count?: Maybe<Scalars['Int']['output']>;
   referral_points_earned?: Maybe<Scalars['Int']['output']>;
@@ -6859,10 +6859,10 @@ export enum UserGigRoleStatus {
 export type UserPointsSummary = {
   __typename?: 'UserPointsSummary';
   current_points_balance: Scalars['Int']['output'];
+  id: Scalars['String']['output'];
   last_transaction_at?: Maybe<Scalars['DateTime']['output']>;
   level: Scalars['Int']['output'];
   points_last_week: Scalars['Int']['output'];
-  privy_id: Scalars['String']['output'];
   total_points_earned: Scalars['Int']['output'];
   total_points_spent: Scalars['Int']['output'];
   total_transactions: Scalars['Int']['output'];
@@ -6884,8 +6884,8 @@ export type UserReferralInfo = {
   avatar_url?: Maybe<Scalars['String']['output']>;
   created_at: Scalars['DateTime']['output'];
   display_name?: Maybe<Scalars['String']['output']>;
+  id: Scalars['String']['output'];
   invited_by?: Maybe<Scalars['String']['output']>;
-  privy_id: Scalars['String']['output'];
   username?: Maybe<Scalars['String']['output']>;
 };
 
@@ -7198,23 +7198,23 @@ export type UserGigRoleBasicFragment = { __typename?: 'UserGigRole', id: string,
 
 export type UserGigRoleFullFragment = { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } };
 
-export type UserGigRoleWithUserFragment = { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } };
+export type UserGigRoleWithUserFragment = { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } };
 
 export type EventGigBasicFragment = { __typename?: 'EventGig', id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any };
 
 export type EventGigFullFragment = { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null };
 
-export type EventGigWithApplicationsFragment = { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, applications?: Array<{ __typename?: 'GigApplication', id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any }> | null, approvedApplications?: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null };
+export type EventGigWithApplicationsFragment = { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, applications?: Array<{ __typename?: 'GigApplication', id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any }> | null, approvedApplications?: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null };
 
 export type GigApplicationBasicFragment = { __typename?: 'GigApplication', id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any };
 
 export type GigApplicationFullFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any };
 
-export type GigApplicationWithUserFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } };
+export type GigApplicationWithUserFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } };
 
 export type GigApplicationWithGigFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } };
 
-export type GigApplicationCompleteFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null };
+export type GigApplicationCompleteFragment = { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null };
 
 export type GigSubmissionBasicFragment = { __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any };
 
@@ -7224,7 +7224,7 @@ export type GigRewardRateBasicFragment = { __typename?: 'GigRewardRate', id: str
 
 export type EventGigManagerBasicFragment = { __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any };
 
-export type EventGigManagerFullFragment = { __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } };
+export type EventGigManagerFullFragment = { __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } };
 
 export type GigStatsBasicFragment = { __typename?: 'GigStats', totalGigsCompleted: number, totalDanzEarned: number, activeRoles: number, currentApprovedGigs: number, pendingApplications: number, averageRating?: number | null, lastGigDate?: any | null };
 
@@ -7232,13 +7232,13 @@ export type GigManagerStatsBasicFragment = { __typename?: 'GigManagerStats', tot
 
 export type PostBasicInfoFragment = { __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any };
 
-export type PostCommentFragment = { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
+export type PostCommentFragment = { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
 
-export type PostLikeFragment = { __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
+export type PostLikeFragment = { __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
 
-export type PostWithUserFragment = { __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
+export type PostWithUserFragment = { __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } };
 
-export type PostWithDetailsFragment = { __typename?: 'PostWithDetails', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null }, likes: Array<{ __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }>, comments: Array<{ __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
+export type PostWithDetailsFragment = { __typename?: 'PostWithDetails', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null }, likes: Array<{ __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }>, comments: Array<{ __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
 
 export type SponsorCategoryBasicFragment = { __typename?: 'SponsorCategory', id: string, slug: string, name: string, description?: string | null, icon?: string | null, displayOrder?: number | null, isActive: boolean, sponsorCount?: number | null };
 
@@ -7258,7 +7258,7 @@ export type UserFlowBalanceFullFragment = { __typename?: 'UserFlowBalance', user
 
 export type FlowTransactionBasicFragment = { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, createdAt: any, completedAt?: any | null };
 
-export type FlowTransactionFullFragment = { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null };
+export type FlowTransactionFullFragment = { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null };
 
 export type EventFlowPoolFullFragment = { __typename?: 'EventFlowPool', id: string, totalFlow: number, allocatedFlow: number, distributedFlow: number, remainingFlow: number, status: PoolStatus, lockedAt?: any | null, distributionStartedAt?: any | null, completedAt?: any | null };
 
@@ -7290,9 +7290,9 @@ export type EventSponsorshipAnalyticsFullFragment = { __typename?: 'EventSponsor
 
 export type FlowDanzSwapFullFragment = { __typename?: 'FlowDanzSwap', id: string, userId: string, flowAmount: number, danzAmount?: number | null, exchangeRate?: number | null, status: string, triggerType: string, createdAt: any, processedAt?: any | null, completedAt?: any | null, errorMessage?: string | null };
 
-export type UserBasicInfoFragment = { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null };
+export type UserBasicInfoFragment = { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null };
 
-export type UserFullInfoFragment = { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null };
+export type UserFullInfoFragment = { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null };
 
 export type LikeActivityMutationVariables = Exact<{
   activityId: Scalars['String']['input'];
@@ -7426,7 +7426,7 @@ export type UpdateUserRoleMutationVariables = Exact<{
 }>;
 
 
-export type UpdateUserRoleMutation = { __typename?: 'Mutation', updateUserRole: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, xp?: number | null, level?: number | null, is_organizer_approved?: boolean | null, updated_at?: any | null } };
+export type UpdateUserRoleMutation = { __typename?: 'Mutation', updateUserRole: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, xp?: number | null, level?: number | null, is_organizer_approved?: boolean | null, updated_at?: any | null } };
 
 export type ApproveOrganizerMutationVariables = Exact<{
   userId: Scalars['String']['input'];
@@ -7434,7 +7434,7 @@ export type ApproveOrganizerMutationVariables = Exact<{
 }>;
 
 
-export type ApproveOrganizerMutation = { __typename?: 'Mutation', approveOrganizer: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, is_organizer_approved?: boolean | null, organizer_approved_at?: any | null, organizer_approved_by?: string | null, organizer_rejection_reason?: string | null, updated_at?: any | null } };
+export type ApproveOrganizerMutation = { __typename?: 'Mutation', approveOrganizer: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, is_organizer_approved?: boolean | null, organizer_approved_at?: any | null, organizer_approved_by?: string | null, organizer_rejection_reason?: string | null, updated_at?: any | null } };
 
 export type FeatureEventMutationVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -7532,7 +7532,7 @@ export type CreateFeatureRequestMutationVariables = Exact<{
 }>;
 
 
-export type CreateFeatureRequestMutation = { __typename?: 'Mutation', createFeatureRequest: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, created_at: any, requested_by?: { __typename?: 'User', privy_id: string, username?: string | null } | null } };
+export type CreateFeatureRequestMutation = { __typename?: 'Mutation', createFeatureRequest: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, created_at: any, requested_by?: { __typename?: 'User', id: string, username?: string | null } | null } };
 
 export type UpdateFeatureRequestMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7540,7 +7540,7 @@ export type UpdateFeatureRequestMutationVariables = Exact<{
 }>;
 
 
-export type UpdateFeatureRequestMutation = { __typename?: 'Mutation', updateFeatureRequest: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, updated_at: any, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null } | null } };
+export type UpdateFeatureRequestMutation = { __typename?: 'Mutation', updateFeatureRequest: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, updated_at: any, assigned_to?: { __typename?: 'User', id: string, username?: string | null } | null } };
 
 export type DeleteFeatureRequestMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7571,7 +7571,7 @@ export type AddFeatureRequestCommentMutationVariables = Exact<{
 }>;
 
 
-export type AddFeatureRequestCommentMutation = { __typename?: 'Mutation', addFeatureRequestComment: { __typename?: 'FeatureRequestComment', id: string, content: string, is_internal: boolean, created_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } };
+export type AddFeatureRequestCommentMutation = { __typename?: 'Mutation', addFeatureRequestComment: { __typename?: 'FeatureRequestComment', id: string, content: string, is_internal: boolean, created_at: any, user?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } };
 
 export type DeleteFeatureRequestCommentMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7585,7 +7585,7 @@ export type CreateDevTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateDevTaskMutation = { __typename?: 'Mutation', createDevTask: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, sprint?: string | null, created_at: any, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null } | null } };
+export type CreateDevTaskMutation = { __typename?: 'Mutation', createDevTask: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, sprint?: string | null, created_at: any, assigned_to?: { __typename?: 'User', id: string, username?: string | null } | null } };
 
 export type UpdateDevTaskMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7593,7 +7593,7 @@ export type UpdateDevTaskMutationVariables = Exact<{
 }>;
 
 
-export type UpdateDevTaskMutation = { __typename?: 'Mutation', updateDevTask: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, updated_at: any, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null } | null } };
+export type UpdateDevTaskMutation = { __typename?: 'Mutation', updateDevTask: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, updated_at: any, assigned_to?: { __typename?: 'User', id: string, username?: string | null } | null } };
 
 export type DeleteDevTaskMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -7673,7 +7673,7 @@ export type CheckInWithCodeMutationVariables = Exact<{
 }>;
 
 
-export type CheckInWithCodeMutation = { __typename?: 'Mutation', checkInWithCode: { __typename?: 'CheckInResponse', success: boolean, message: string, event?: { __typename?: 'Event', id: string, title: string, location_name: string, start_date_time: any, end_date_time: any, checkin_code?: string | null, facilitator?: { __typename?: 'User', privy_id: string, display_name?: string | null, username?: string | null } | null } | null, registration?: { __typename?: 'EventRegistration', id: string, checked_in?: boolean | null, check_in_time?: any | null, status?: RegistrationStatus | null } | null } };
+export type CheckInWithCodeMutation = { __typename?: 'Mutation', checkInWithCode: { __typename?: 'CheckInResponse', success: boolean, message: string, event?: { __typename?: 'Event', id: string, title: string, location_name: string, start_date_time: any, end_date_time: any, checkin_code?: string | null, facilitator?: { __typename?: 'User', id: string, display_name?: string | null, username?: string | null } | null } | null, registration?: { __typename?: 'EventRegistration', id: string, checked_in?: boolean | null, check_in_time?: any | null, status?: RegistrationStatus | null } | null } };
 
 export type RegenerateCheckinCodeMutationVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -7773,7 +7773,7 @@ export type CreateCommentMutationVariables = Exact<{
 }>;
 
 
-export type CreateCommentMutation = { __typename?: 'Mutation', createComment: { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } } };
+export type CreateCommentMutation = { __typename?: 'Mutation', createComment: { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } } };
 
 export type UpdateCommentMutationVariables = Exact<{
   commentId: Scalars['ID']['input'];
@@ -7781,7 +7781,7 @@ export type UpdateCommentMutationVariables = Exact<{
 }>;
 
 
-export type UpdateCommentMutation = { __typename?: 'Mutation', updateComment: { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } } };
+export type UpdateCommentMutation = { __typename?: 'Mutation', updateComment: { __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } } };
 
 export type DeleteCommentMutationVariables = Exact<{
   commentId: Scalars['ID']['input'];
@@ -7819,7 +7819,7 @@ export type ReviewGigRoleApplicationMutationVariables = Exact<{
 }>;
 
 
-export type ReviewGigRoleApplicationMutation = { __typename?: 'Mutation', reviewGigRoleApplication: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } };
+export type ReviewGigRoleApplicationMutation = { __typename?: 'Mutation', reviewGigRoleApplication: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } };
 
 export type CreateEventGigMutationVariables = Exact<{
   input: CreateEventGigInput;
@@ -7872,7 +7872,7 @@ export type ReviewGigApplicationMutationVariables = Exact<{
 }>;
 
 
-export type ReviewGigApplicationMutation = { __typename?: 'Mutation', reviewGigApplication: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } };
+export type ReviewGigApplicationMutation = { __typename?: 'Mutation', reviewGigApplication: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } };
 
 export type CheckInToGigMutationVariables = Exact<{
   applicationId: Scalars['ID']['input'];
@@ -7910,7 +7910,7 @@ export type CompleteGigAndAwardMutationVariables = Exact<{
 }>;
 
 
-export type CompleteGigAndAwardMutation = { __typename?: 'Mutation', completeGigAndAward: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null } };
+export type CompleteGigAndAwardMutation = { __typename?: 'Mutation', completeGigAndAward: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null } };
 
 export type RateGigWorkerMutationVariables = Exact<{
   applicationId: Scalars['ID']['input'];
@@ -7919,7 +7919,7 @@ export type RateGigWorkerMutationVariables = Exact<{
 }>;
 
 
-export type RateGigWorkerMutation = { __typename?: 'Mutation', rateGigWorker: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } };
+export type RateGigWorkerMutation = { __typename?: 'Mutation', rateGigWorker: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } };
 
 export type RateGigOrganizerMutationVariables = Exact<{
   applicationId: Scalars['ID']['input'];
@@ -7936,7 +7936,7 @@ export type AssignEventGigManagerMutationVariables = Exact<{
 }>;
 
 
-export type AssignEventGigManagerMutation = { __typename?: 'Mutation', assignEventGigManager: { __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } } };
+export type AssignEventGigManagerMutation = { __typename?: 'Mutation', assignEventGigManager: { __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } } };
 
 export type RemoveEventGigManagerMutationVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -7951,14 +7951,14 @@ export type PromoteToGigManagerMutationVariables = Exact<{
 }>;
 
 
-export type PromoteToGigManagerMutation = { __typename?: 'Mutation', promoteToGigManager: { __typename?: 'User', privy_id: string, username?: string | null, is_gig_manager?: boolean | null, gig_manager_approved_at?: any | null } };
+export type PromoteToGigManagerMutation = { __typename?: 'Mutation', promoteToGigManager: { __typename?: 'User', id: string, username?: string | null, is_gig_manager?: boolean | null, gig_manager_approved_at?: any | null } };
 
 export type DemoteGigManagerMutationVariables = Exact<{
   userId: Scalars['String']['input'];
 }>;
 
 
-export type DemoteGigManagerMutation = { __typename?: 'Mutation', demoteGigManager: { __typename?: 'User', privy_id: string, username?: string | null, is_gig_manager?: boolean | null } };
+export type DemoteGigManagerMutation = { __typename?: 'Mutation', demoteGigManager: { __typename?: 'User', id: string, username?: string | null, is_gig_manager?: boolean | null } };
 
 export type MarkNotificationReadMutationVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -8111,14 +8111,14 @@ export type DistributeGigPaymentMutationVariables = Exact<{
 }>;
 
 
-export type DistributeGigPaymentMutation = { __typename?: 'Mutation', distributeGigPayment: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } };
+export type DistributeGigPaymentMutation = { __typename?: 'Mutation', distributeGigPayment: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } };
 
 export type DistributeVolunteerRewardMutationVariables = Exact<{
   input: VolunteerRewardInput;
 }>;
 
 
-export type DistributeVolunteerRewardMutation = { __typename?: 'Mutation', distributeVolunteerReward: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } };
+export type DistributeVolunteerRewardMutation = { __typename?: 'Mutation', distributeVolunteerReward: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } };
 
 export type CompleteEventDistributionMutationVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -8140,7 +8140,7 @@ export type WithdrawFlowMutationVariables = Exact<{
 }>;
 
 
-export type WithdrawFlowMutation = { __typename?: 'Mutation', withdrawFlow: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } };
+export type WithdrawFlowMutation = { __typename?: 'Mutation', withdrawFlow: { __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } };
 
 export type CreateSponsorSubscriptionMutationVariables = Exact<{
   input: CreateSubscriptionInput;
@@ -8206,7 +8206,7 @@ export type UpdateProfileMutationVariables = Exact<{
 }>;
 
 
-export type UpdateProfileMutation = { __typename?: 'Mutation', updateProfile: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } };
+export type UpdateProfileMutation = { __typename?: 'Mutation', updateProfile: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } };
 
 export type RequestUsernameChangeMutationVariables = Exact<{
   input: RequestUsernameChangeInput;
@@ -8238,7 +8238,7 @@ export type GetActivityFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetActivityFeedQuery = { __typename?: 'Query', activityFeed: { __typename?: 'ActivityFeed', total_count: number, has_more: boolean, last_activity_id?: string | null, unread_count: number, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, user_id: string, visibility: ActivityVisibility, title: string, description?: string | null, icon?: string | null, color?: string | null, xp_earned?: number | null, points_earned?: number | null, likes_count: number, comments_count: number, is_liked_by_me?: boolean | null, is_highlighted: boolean, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } }> } };
+export type GetActivityFeedQuery = { __typename?: 'Query', activityFeed: { __typename?: 'ActivityFeed', total_count: number, has_more: boolean, last_activity_id?: string | null, unread_count: number, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, user_id: string, visibility: ActivityVisibility, title: string, description?: string | null, icon?: string | null, color?: string | null, xp_earned?: number | null, points_earned?: number | null, likes_count: number, comments_count: number, is_liked_by_me?: boolean | null, is_highlighted: boolean, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } }> } };
 
 export type GetGlobalActivityFeedQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8246,7 +8246,7 @@ export type GetGlobalActivityFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetGlobalActivityFeedQuery = { __typename?: 'Query', globalActivityFeed: { __typename?: 'ActivityFeed', has_more: boolean, unread_count: number, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, title: string, description?: string | null, icon?: string | null, color?: string | null, xp_earned?: number | null, likes_count: number, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } }> } };
+export type GetGlobalActivityFeedQuery = { __typename?: 'Query', globalActivityFeed: { __typename?: 'ActivityFeed', has_more: boolean, unread_count: number, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, title: string, description?: string | null, icon?: string | null, color?: string | null, xp_earned?: number | null, likes_count: number, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } }> } };
 
 export type GetFriendsActivityFeedQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8254,7 +8254,7 @@ export type GetFriendsActivityFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetFriendsActivityFeedQuery = { __typename?: 'Query', friendsActivityFeed: { __typename?: 'ActivityFeed', has_more: boolean, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, title: string, description?: string | null, icon?: string | null, color?: string | null, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } }> } };
+export type GetFriendsActivityFeedQuery = { __typename?: 'Query', friendsActivityFeed: { __typename?: 'ActivityFeed', has_more: boolean, activities: Array<{ __typename?: 'Activity', id: string, activity_type: ActivityType, title: string, description?: string | null, icon?: string | null, color?: string | null, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } }> } };
 
 export type GetMyActivityFeedQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8299,7 +8299,7 @@ export type GetUserTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type GetUserTransactionsQuery = { __typename?: 'Query', getUserTransactions: { __typename?: 'TransactionHistory', total_count: number, has_more: boolean, transactions: Array<{ __typename?: 'PointTransaction', id: string, user_id: string, action_key: string, points_amount: number, transaction_type: TransactionType, reference_id?: string | null, reference_type?: ReferenceType | null, metadata?: any | null, admin_user_id?: string | null, admin_note?: string | null, status: TransactionStatus, created_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, action?: { __typename?: 'PointAction', action_name: string, category: PointActionCategory } | null }> } };
+export type GetUserTransactionsQuery = { __typename?: 'Query', getUserTransactions: { __typename?: 'TransactionHistory', total_count: number, has_more: boolean, transactions: Array<{ __typename?: 'PointTransaction', id: string, user_id: string, action_key: string, points_amount: number, transaction_type: TransactionType, reference_id?: string | null, reference_type?: ReferenceType | null, metadata?: any | null, admin_user_id?: string | null, admin_note?: string | null, status: TransactionStatus, created_at: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, action?: { __typename?: 'PointAction', action_name: string, category: PointActionCategory } | null }> } };
 
 export type GetAllTransactionsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8311,7 +8311,7 @@ export type GetAllTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type GetAllTransactionsQuery = { __typename?: 'Query', getAllTransactions: { __typename?: 'TransactionHistory', total_count: number, has_more: boolean, transactions: Array<{ __typename?: 'PointTransaction', id: string, user_id: string, action_key: string, points_amount: number, transaction_type: TransactionType, reference_id?: string | null, reference_type?: ReferenceType | null, metadata?: any | null, admin_user_id?: string | null, admin_note?: string | null, status: TransactionStatus, created_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, action?: { __typename?: 'PointAction', action_name: string, category: PointActionCategory } | null, admin_user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } | null }> } };
+export type GetAllTransactionsQuery = { __typename?: 'Query', getAllTransactions: { __typename?: 'TransactionHistory', total_count: number, has_more: boolean, transactions: Array<{ __typename?: 'PointTransaction', id: string, user_id: string, action_key: string, points_amount: number, transaction_type: TransactionType, reference_id?: string | null, reference_type?: ReferenceType | null, metadata?: any | null, admin_user_id?: string | null, admin_note?: string | null, status: TransactionStatus, created_at: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, action?: { __typename?: 'PointAction', action_name: string, category: PointActionCategory } | null, admin_user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } | null }> } };
 
 export type GetUserDailyActivityQueryVariables = Exact<{
   user_id: Scalars['String']['input'];
@@ -8327,7 +8327,7 @@ export type GetEventAttendanceQueryVariables = Exact<{
 }>;
 
 
-export type GetEventAttendanceQuery = { __typename?: 'Query', getEventAttendance: Array<{ __typename?: 'EventAttendance', id: string, event_id: string, user_id: string, registration_id?: string | null, checked_in: boolean, checked_in_at?: any | null, checked_out: boolean, checked_out_at?: any | null, duration_minutes: number, points_earned: number, attendance_verified: boolean, verified_by?: string | null, verified_at?: any | null, created_at: any, updated_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any } | null }> };
+export type GetEventAttendanceQuery = { __typename?: 'Query', getEventAttendance: Array<{ __typename?: 'EventAttendance', id: string, event_id: string, user_id: string, registration_id?: string | null, checked_in: boolean, checked_in_at?: any | null, checked_out: boolean, checked_out_at?: any | null, duration_minutes: number, points_earned: number, attendance_verified: boolean, verified_by?: string | null, verified_at?: any | null, created_at: any, updated_at: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any } | null }> };
 
 export type GetUserEventAttendanceQueryVariables = Exact<{
   user_id: Scalars['String']['input'];
@@ -8349,7 +8349,7 @@ export type GetUserPointsSummariesQueryVariables = Exact<{
 }>;
 
 
-export type GetUserPointsSummariesQuery = { __typename?: 'Query', getUserPointsSummaries: Array<{ __typename?: 'UserPointsSummary', privy_id: string, username?: string | null, total_points_earned: number, total_points_spent: number, current_points_balance: number, xp: number, level: number, total_transactions: number, unique_actions: number, last_transaction_at?: any | null, transactions_last_week: number, points_last_week: number }> };
+export type GetUserPointsSummariesQuery = { __typename?: 'Query', getUserPointsSummaries: Array<{ __typename?: 'UserPointsSummary', id: string, username?: string | null, total_points_earned: number, total_points_spent: number, current_points_balance: number, xp: number, level: number, total_transactions: number, unique_actions: number, last_transaction_at?: any | null, transactions_last_week: number, points_last_week: number }> };
 
 export type GetEventAttendanceSummariesQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8359,7 +8359,7 @@ export type GetEventAttendanceSummariesQuery = { __typename?: 'Query', getEventA
 export type GetAllUsersQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllUsersQuery = { __typename?: 'Query', getAllUsers: Array<{ __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, xp?: number | null, level?: number | null, referral_count?: number | null, referral_points_earned?: number | null, total_sessions?: number | null, invited_by?: string | null, is_organizer_approved?: boolean | null, created_at?: any | null, updated_at?: any | null }> };
+export type GetAllUsersQuery = { __typename?: 'Query', getAllUsers: Array<{ __typename?: 'User', id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, xp?: number | null, level?: number | null, referral_count?: number | null, referral_points_earned?: number | null, total_sessions?: number | null, invited_by?: string | null, is_organizer_approved?: boolean | null, created_at?: any | null, updated_at?: any | null }> };
 
 export type GetAdminStatsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8371,7 +8371,7 @@ export type GetPendingOrganizersQueryVariables = Exact<{
 }>;
 
 
-export type GetPendingOrganizersQuery = { __typename?: 'Query', pendingOrganizers: { __typename?: 'UserConnection', totalCount: number, users: Array<{ __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, is_organizer_approved?: boolean | null, created_at?: any | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
+export type GetPendingOrganizersQuery = { __typename?: 'Query', pendingOrganizers: { __typename?: 'UserConnection', totalCount: number, users: Array<{ __typename?: 'User', id: string, username?: string | null, display_name?: string | null, role?: UserRole | null, is_organizer_approved?: boolean | null, created_at?: any | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetAdminDashboardAnalyticsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8425,7 +8425,7 @@ export type GetChallengeLeaderboardQueryVariables = Exact<{
 }>;
 
 
-export type GetChallengeLeaderboardQuery = { __typename?: 'Query', challengeLeaderboard: { __typename?: 'ChallengeLeaderboard', period: string, entries: Array<{ __typename?: 'ChallengeLeaderboardEntry', rank: number, challenges_completed: number, xp_earned: number, points_earned: number, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, level?: number | null } }> } };
+export type GetChallengeLeaderboardQuery = { __typename?: 'Query', challengeLeaderboard: { __typename?: 'ChallengeLeaderboard', period: string, entries: Array<{ __typename?: 'ChallengeLeaderboardEntry', rank: number, challenges_completed: number, xp_earned: number, points_earned: number, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, level?: number | null } }> } };
 
 export type GetCheckinStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8460,21 +8460,21 @@ export type GetFeatureRequestsQueryVariables = Exact<{
 }>;
 
 
-export type GetFeatureRequestsQuery = { __typename?: 'Query', featureRequests: { __typename?: 'FeatureRequestConnection', total_count: number, has_more: boolean, requests: Array<{ __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, requested_at: any, assigned_at?: any | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, user_vote?: string | null, created_at: any, updated_at: any, requested_by?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }> } };
+export type GetFeatureRequestsQuery = { __typename?: 'Query', featureRequests: { __typename?: 'FeatureRequestConnection', total_count: number, has_more: boolean, requests: Array<{ __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, requested_at: any, assigned_at?: any | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, user_vote?: string | null, created_at: any, updated_at: any, requested_by?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, assigned_to?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }> } };
 
 export type GetFeatureRequestQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetFeatureRequestQuery = { __typename?: 'Query', featureRequest?: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, requested_at: any, assigned_at?: any | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, user_vote?: string | null, created_at: any, updated_at: any, requested_by?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, comments?: Array<{ __typename?: 'FeatureRequestComment', id: string, content: string, is_internal: boolean, created_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }> | null } | null };
+export type GetFeatureRequestQuery = { __typename?: 'Query', featureRequest?: { __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, requested_at: any, assigned_at?: any | null, estimated_hours?: number | null, actual_hours?: number | null, target_version?: string | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, user_vote?: string | null, created_at: any, updated_at: any, requested_by?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, assigned_to?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, comments?: Array<{ __typename?: 'FeatureRequestComment', id: string, content: string, is_internal: boolean, created_at: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }> | null } | null };
 
 export type GetTopVotedFeaturesQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetTopVotedFeaturesQuery = { __typename?: 'Query', topVotedFeatures: Array<{ __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, user_vote?: string | null, created_at: any, requested_by?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null }> };
+export type GetTopVotedFeaturesQuery = { __typename?: 'Query', topVotedFeatures: Array<{ __typename?: 'FeatureRequest', id: string, title: string, description?: string | null, category: FeatureRequestCategory, status: FeatureRequestStatus, priority?: TaskPriority | null, votes: number, user_vote?: string | null, created_at: any, requested_by?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null }> };
 
 export type GetDevTasksQueryVariables = Exact<{
   filter?: InputMaybe<DevTaskFilter>;
@@ -8484,14 +8484,14 @@ export type GetDevTasksQueryVariables = Exact<{
 }>;
 
 
-export type GetDevTasksQuery = { __typename?: 'Query', devTasks: { __typename?: 'DevTaskConnection', total_count: number, has_more: boolean, tasks: Array<{ __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, started_at?: any | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, created_at: any, updated_at: any, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, created_by?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, feature_request?: { __typename?: 'FeatureRequest', id: string, title: string } | null, parent_task?: { __typename?: 'DevTask', id: string, title: string } | null, subtasks?: Array<{ __typename?: 'DevTask', id: string, title: string, status: DevTaskStatus }> | null }> } };
+export type GetDevTasksQuery = { __typename?: 'Query', devTasks: { __typename?: 'DevTaskConnection', total_count: number, has_more: boolean, tasks: Array<{ __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, started_at?: any | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, created_at: any, updated_at: any, assigned_to?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, created_by?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, feature_request?: { __typename?: 'FeatureRequest', id: string, title: string } | null, parent_task?: { __typename?: 'DevTask', id: string, title: string } | null, subtasks?: Array<{ __typename?: 'DevTask', id: string, title: string, status: DevTaskStatus }> | null }> } };
 
 export type GetDevTaskQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetDevTaskQuery = { __typename?: 'Query', devTask?: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, started_at?: any | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, created_at: any, updated_at: any, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, created_by?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, feature_request?: { __typename?: 'FeatureRequest', id: string, title: string, status: FeatureRequestStatus } | null, parent_task?: { __typename?: 'DevTask', id: string, title: string } | null, subtasks?: Array<{ __typename?: 'DevTask', id: string, title: string, status: DevTaskStatus, priority: TaskPriority }> | null } | null };
+export type GetDevTaskQuery = { __typename?: 'Query', devTask?: { __typename?: 'DevTask', id: string, title: string, description?: string | null, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, due_date?: string | null, estimated_hours?: number | null, actual_hours?: number | null, started_at?: any | null, completed_at?: any | null, github_issue_url?: string | null, github_pr_url?: string | null, tags?: Array<string> | null, sprint?: string | null, created_at: any, updated_at: any, assigned_to?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, created_by?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, feature_request?: { __typename?: 'FeatureRequest', id: string, title: string, status: FeatureRequestStatus } | null, parent_task?: { __typename?: 'DevTask', id: string, title: string } | null, subtasks?: Array<{ __typename?: 'DevTask', id: string, title: string, status: DevTaskStatus, priority: TaskPriority }> | null } | null };
 
 export type GetMyDevTasksQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8503,7 +8503,7 @@ export type GetSprintTasksQueryVariables = Exact<{
 }>;
 
 
-export type GetSprintTasksQuery = { __typename?: 'Query', sprintTasks: Array<{ __typename?: 'DevTask', id: string, title: string, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, estimated_hours?: number | null, actual_hours?: number | null, assigned_to?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null }> };
+export type GetSprintTasksQuery = { __typename?: 'Query', sprintTasks: Array<{ __typename?: 'DevTask', id: string, title: string, task_type: DevTaskType, status: DevTaskStatus, priority: TaskPriority, estimated_hours?: number | null, actual_hours?: number | null, assigned_to?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null }> };
 
 export type GetChangelogQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8589,21 +8589,21 @@ export type GetEventByCheckinCodeQueryVariables = Exact<{
 }>;
 
 
-export type GetEventByCheckinCodeQuery = { __typename?: 'Query', eventByCheckinCode?: { __typename?: 'Event', id: string, title: string, description?: string | null, location_name: string, start_date_time: any, end_date_time: any, is_registered?: boolean | null, checkin_code?: string | null, facilitator?: { __typename?: 'User', privy_id: string, display_name?: string | null, username?: string | null, avatar_url?: string | null } | null } | null };
+export type GetEventByCheckinCodeQuery = { __typename?: 'Query', eventByCheckinCode?: { __typename?: 'Event', id: string, title: string, description?: string | null, location_name: string, start_date_time: any, end_date_time: any, is_registered?: boolean | null, checkin_code?: string | null, facilitator?: { __typename?: 'User', id: string, display_name?: string | null, username?: string | null, avatar_url?: string | null } | null } | null };
 
 export type GetEventManagersQueryVariables = Exact<{
   event_id: Scalars['ID']['input'];
 }>;
 
 
-export type GetEventManagersQuery = { __typename?: 'Query', eventManagers: { __typename?: 'EventManagerConnection', total_count: number, managers: Array<{ __typename?: 'EventManager', id: string, event_id: string, user_id: string, role: EventManagerRole, can_edit_details: boolean, can_manage_registrations: boolean, can_send_broadcasts: boolean, can_manage_posts: boolean, can_invite_managers: boolean, can_delete_event: boolean, status: EventManagerStatus, invited_by?: string | null, invited_at?: any | null, accepted_at?: any | null, created_at: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, inviter?: { __typename?: 'User', username?: string | null, display_name?: string | null } | null }> } };
+export type GetEventManagersQuery = { __typename?: 'Query', eventManagers: { __typename?: 'EventManagerConnection', total_count: number, managers: Array<{ __typename?: 'EventManager', id: string, event_id: string, user_id: string, role: EventManagerRole, can_edit_details: boolean, can_manage_registrations: boolean, can_send_broadcasts: boolean, can_manage_posts: boolean, can_invite_managers: boolean, can_delete_event: boolean, status: EventManagerStatus, invited_by?: string | null, invited_at?: any | null, accepted_at?: any | null, created_at: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, inviter?: { __typename?: 'User', username?: string | null, display_name?: string | null } | null }> } };
 
 export type GetEventManagerQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetEventManagerQuery = { __typename?: 'Query', eventManager?: { __typename?: 'EventManager', id: string, event_id: string, user_id: string, role: EventManagerRole, can_edit_details: boolean, can_manage_registrations: boolean, can_send_broadcasts: boolean, can_manage_posts: boolean, can_invite_managers: boolean, can_delete_event: boolean, status: EventManagerStatus, invited_by?: string | null, invited_at?: any | null, accepted_at?: any | null, created_at: any, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any } | null, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null } | null };
+export type GetEventManagerQuery = { __typename?: 'Query', eventManager?: { __typename?: 'EventManager', id: string, event_id: string, user_id: string, role: EventManagerRole, can_edit_details: boolean, can_manage_registrations: boolean, can_send_broadcasts: boolean, can_manage_posts: boolean, can_invite_managers: boolean, can_delete_event: boolean, status: EventManagerStatus, invited_by?: string | null, invited_at?: any | null, accepted_at?: any | null, created_at: any, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any } | null, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null } | null };
 
 export type GetMyEventManagerRoleQueryVariables = Exact<{
   event_id: Scalars['ID']['input'];
@@ -8631,14 +8631,14 @@ export type GetFeedQueryVariables = Exact<{
 }>;
 
 
-export type GetFeedQuery = { __typename?: 'Query', getFeed: { __typename?: 'FeedResponse', has_more: boolean, cursor?: string | null, posts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> } };
+export type GetFeedQuery = { __typename?: 'Query', getFeed: { __typename?: 'FeedResponse', has_more: boolean, cursor?: string | null, posts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> } };
 
 export type GetPostQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetPostQuery = { __typename?: 'Query', getPost?: { __typename?: 'PostWithDetails', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null }, likes: Array<{ __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }>, comments: Array<{ __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> } | null };
+export type GetPostQuery = { __typename?: 'Query', getPost?: { __typename?: 'PostWithDetails', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null }, likes: Array<{ __typename?: 'PostLike', id: string, post_id: string, user_id: string, created_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }>, comments: Array<{ __typename?: 'PostComment', id: string, post_id: string, user_id: string, content: string, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> } | null };
 
 export type GetMyPostsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -8646,7 +8646,7 @@ export type GetMyPostsQueryVariables = Exact<{
 }>;
 
 
-export type GetMyPostsQuery = { __typename?: 'Query', getMyPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
+export type GetMyPostsQuery = { __typename?: 'Query', getMyPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
 
 export type GetUserPostsQueryVariables = Exact<{
   userId: Scalars['String']['input'];
@@ -8655,7 +8655,7 @@ export type GetUserPostsQueryVariables = Exact<{
 }>;
 
 
-export type GetUserPostsQuery = { __typename?: 'Query', getUserPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
+export type GetUserPostsQuery = { __typename?: 'Query', getUserPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
 
 export type GetEventPostsQueryVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -8664,19 +8664,19 @@ export type GetEventPostsQueryVariables = Exact<{
 }>;
 
 
-export type GetEventPostsQuery = { __typename?: 'Query', getEventPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
+export type GetEventPostsQuery = { __typename?: 'Query', getEventPosts: Array<{ __typename?: 'Post', id: string, user_id: string, content: string, media_url?: string | null, media_type?: MediaType | null, event_id?: string | null, location?: string | null, is_public: boolean, likes_count: number, comments_count: number, is_liked_by_me: boolean, created_at: any, updated_at: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null } }> };
 
 export type GetAllEventRegistrationsQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetAllEventRegistrationsQuery = { __typename?: 'Query', getAllEventRegistrations: Array<{ __typename?: 'EventRegistration', id: string, event_id: string, user_id: string, status?: RegistrationStatus | null, registration_date?: any | null, payment_status?: PaymentStatus | null, payment_amount?: number | null, payment_date?: any | null, checked_in?: boolean | null, check_in_time?: any | null, user_notes?: string | null, admin_notes?: string | null, created_at?: any | null, updated_at?: any | null, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } | null, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, location_name: string } | null }> };
+export type GetAllEventRegistrationsQuery = { __typename?: 'Query', getAllEventRegistrations: Array<{ __typename?: 'EventRegistration', id: string, event_id: string, user_id: string, status?: RegistrationStatus | null, registration_date?: any | null, payment_status?: PaymentStatus | null, payment_amount?: number | null, payment_date?: any | null, checked_in?: boolean | null, check_in_time?: any | null, user_notes?: string | null, admin_notes?: string | null, created_at?: any | null, updated_at?: any | null, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } | null, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, location_name: string } | null }> };
 
 export type GetEventQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetEventQuery = { __typename?: 'Query', event?: { __typename?: 'Event', id: string, title: string, description?: string | null, category?: EventCategory | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, location_name: string, location_city?: string | null, location_address?: string | null, location_latitude?: number | null, location_longitude?: number | null, is_virtual?: boolean | null, virtual_link?: string | null, start_date_time: any, end_date_time: any, price_usd?: number | null, max_capacity?: number | null, registration_count?: number | null, status?: EventStatus | null, is_featured?: boolean | null, is_recurring?: boolean | null, image_url?: string | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, created_at: any, updated_at: any, is_public?: boolean | null, slug?: string | null, allow_sponsors?: boolean | null, sponsor_benefits?: string | null, sponsor_contact_email?: string | null, sponsor_tier_config?: any | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, bio?: string | null } | null } | null };
+export type GetEventQuery = { __typename?: 'Query', event?: { __typename?: 'Event', id: string, title: string, description?: string | null, category?: EventCategory | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, location_name: string, location_city?: string | null, location_address?: string | null, location_latitude?: number | null, location_longitude?: number | null, is_virtual?: boolean | null, virtual_link?: string | null, start_date_time: any, end_date_time: any, price_usd?: number | null, max_capacity?: number | null, registration_count?: number | null, status?: EventStatus | null, is_featured?: boolean | null, is_recurring?: boolean | null, image_url?: string | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, created_at: any, updated_at: any, is_public?: boolean | null, slug?: string | null, allow_sponsors?: boolean | null, sponsor_benefits?: string | null, sponsor_contact_email?: string | null, sponsor_tier_config?: any | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, bio?: string | null } | null } | null };
 
 export type GetEventsQueryVariables = Exact<{
   filter?: InputMaybe<EventFilterInput>;
@@ -8684,7 +8684,7 @@ export type GetEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetEventsQuery = { __typename?: 'Query', events: { __typename?: 'EventConnection', totalCount: number, events: Array<{ __typename?: 'Event', id: string, slug?: string | null, title: string, description?: string | null, category?: EventCategory | null, image_url?: string | null, location_name: string, location_address?: string | null, location_city?: string | null, is_public?: boolean | null, facilitator_id?: string | null, max_capacity?: number | null, current_capacity?: number | null, price_usd?: number | null, price_danz?: number | null, is_featured?: boolean | null, skill_level?: SkillLevel | null, is_virtual?: boolean | null, virtual_link?: string | null, requirements?: string | null, tags?: Array<string> | null, dance_styles?: Array<string> | null, currency?: string | null, start_date_time: any, end_date_time: any, created_at: any, updated_at: any, status?: EventStatus | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, registration_count?: number | null, is_recurring?: boolean | null, recurrence_type?: RecurrenceType | null, recurrence_end_date?: any | null, recurrence_days?: Array<string> | null, recurrence_count?: number | null, parent_event_id?: string | null, allow_sponsors?: boolean | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
+export type GetEventsQuery = { __typename?: 'Query', events: { __typename?: 'EventConnection', totalCount: number, events: Array<{ __typename?: 'Event', id: string, slug?: string | null, title: string, description?: string | null, category?: EventCategory | null, image_url?: string | null, location_name: string, location_address?: string | null, location_city?: string | null, is_public?: boolean | null, facilitator_id?: string | null, max_capacity?: number | null, current_capacity?: number | null, price_usd?: number | null, price_danz?: number | null, is_featured?: boolean | null, skill_level?: SkillLevel | null, is_virtual?: boolean | null, virtual_link?: string | null, requirements?: string | null, tags?: Array<string> | null, dance_styles?: Array<string> | null, currency?: string | null, start_date_time: any, end_date_time: any, created_at: any, updated_at: any, status?: EventStatus | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, registration_count?: number | null, is_recurring?: boolean | null, recurrence_type?: RecurrenceType | null, recurrence_end_date?: any | null, recurrence_days?: Array<string> | null, recurrence_count?: number | null, parent_event_id?: string | null, allow_sponsors?: boolean | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetPublicEventsQueryVariables = Exact<{
   filter?: InputMaybe<EventFilterInput>;
@@ -8693,7 +8693,7 @@ export type GetPublicEventsQueryVariables = Exact<{
 }>;
 
 
-export type GetPublicEventsQuery = { __typename?: 'Query', publicEvents: { __typename?: 'EventConnection', totalCount: number, events: Array<{ __typename?: 'Event', id: string, slug?: string | null, title: string, description?: string | null, category?: EventCategory | null, image_url?: string | null, location_name: string, location_address?: string | null, location_city?: string | null, is_public?: boolean | null, facilitator_id?: string | null, max_capacity?: number | null, current_capacity?: number | null, price_usd?: number | null, price_danz?: number | null, is_featured?: boolean | null, skill_level?: SkillLevel | null, is_virtual?: boolean | null, virtual_link?: string | null, requirements?: string | null, tags?: Array<string> | null, dance_styles?: Array<string> | null, currency?: string | null, start_date_time: any, end_date_time: any, created_at: any, updated_at: any, status?: EventStatus | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, registration_count?: number | null, is_recurring?: boolean | null, recurrence_type?: RecurrenceType | null, recurrence_end_date?: any | null, recurrence_days?: Array<string> | null, recurrence_count?: number | null, parent_event_id?: string | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
+export type GetPublicEventsQuery = { __typename?: 'Query', publicEvents: { __typename?: 'EventConnection', totalCount: number, events: Array<{ __typename?: 'Event', id: string, slug?: string | null, title: string, description?: string | null, category?: EventCategory | null, image_url?: string | null, location_name: string, location_address?: string | null, location_city?: string | null, is_public?: boolean | null, facilitator_id?: string | null, max_capacity?: number | null, current_capacity?: number | null, price_usd?: number | null, price_danz?: number | null, is_featured?: boolean | null, skill_level?: SkillLevel | null, is_virtual?: boolean | null, virtual_link?: string | null, requirements?: string | null, tags?: Array<string> | null, dance_styles?: Array<string> | null, currency?: string | null, start_date_time: any, end_date_time: any, created_at: any, updated_at: any, status?: EventStatus | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, registration_count?: number | null, is_recurring?: boolean | null, recurrence_type?: RecurrenceType | null, recurrence_end_date?: any | null, recurrence_days?: Array<string> | null, recurrence_count?: number | null, parent_event_id?: string | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null }>, pageInfo: { __typename?: 'PageInfo', hasNextPage: boolean, hasPreviousPage: boolean, startCursor?: string | null, endCursor?: string | null } } };
 
 export type GetAllGigRolesQueryVariables = Exact<{
   category?: InputMaybe<GigRoleCategory>;
@@ -8747,7 +8747,7 @@ export type GetEventGigQueryVariables = Exact<{
 }>;
 
 
-export type GetEventGigQuery = { __typename?: 'Query', eventGig?: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, applications?: Array<{ __typename?: 'GigApplication', id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any }> | null, approvedApplications?: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null } | null };
+export type GetEventGigQuery = { __typename?: 'Query', eventGig?: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, applications?: Array<{ __typename?: 'GigApplication', id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any }> | null, approvedApplications?: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null } | null };
 
 export type GetMyGigApplicationsQueryVariables = Exact<{
   status?: InputMaybe<GigApplicationStatus>;
@@ -8764,14 +8764,14 @@ export type GetGigApplicationsQueryVariables = Exact<{
 }>;
 
 
-export type GetGigApplicationsQuery = { __typename?: 'Query', gigApplications: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> };
+export type GetGigApplicationsQuery = { __typename?: 'Query', gigApplications: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }> };
 
 export type GetGigApplicationQueryVariables = Exact<{
   id: Scalars['ID']['input'];
 }>;
 
 
-export type GetGigApplicationQuery = { __typename?: 'Query', gigApplication?: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null } | null };
+export type GetGigApplicationQuery = { __typename?: 'Query', gigApplication?: { __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', createdBy: string, updatedAt: any, canApply: boolean, id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, end_date_time: any, location_name: string, location_city?: string | null } | null, myApplication?: { __typename?: 'GigApplication', id: string, status: GigApplicationStatus } | null }, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, reviewer?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } | null, submissions?: Array<{ __typename?: 'GigSubmission', id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any }> | null } | null };
 
 export type GetMyGigStatsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8786,7 +8786,7 @@ export type GetMyGigDashboardQuery = { __typename?: 'Query', myGigDashboard: { _
 export type GetGigManagerDashboardQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetGigManagerDashboardQuery = { __typename?: 'Query', gigManagerDashboard: { __typename?: 'GigManagerDashboard', pendingRoleApplications: Array<{ __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }>, pendingGigApplications: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, location_name: string } | null }, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }>, pendingSubmissions: Array<{ __typename?: 'GigSubmission', aiReviewNotes?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any, application: { __typename?: 'GigApplication', id: string, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, gig: { __typename?: 'EventGig', id: string, title: string, danzReward: number, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } }>, recentlyApproved: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }>, stats: { __typename?: 'GigManagerStats', totalReviewed: number, approvedCount: number, rejectedCount: number, averageReviewTime?: number | null, todayReviewed: number } } };
+export type GetGigManagerDashboardQuery = { __typename?: 'Query', gigManagerDashboard: { __typename?: 'GigManagerDashboard', pendingRoleApplications: Array<{ __typename?: 'UserGigRole', verifiedAt?: any | null, verifiedBy?: string | null, portfolioUrls?: Array<string> | null, certifications?: Array<string> | null, experienceNotes?: string | null, updatedAt: any, id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }>, pendingGigApplications: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean }, event?: { __typename?: 'Event', id: string, title: string, start_date_time: any, location_name: string } | null }, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }>, pendingSubmissions: Array<{ __typename?: 'GigSubmission', aiReviewNotes?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, id: string, applicationId: string, submissionType: GigSubmissionType, contentUrl?: string | null, contentText?: string | null, metadata?: any | null, aiReviewStatus?: string | null, aiReviewScore?: number | null, manualReviewStatus?: string | null, createdAt: any, application: { __typename?: 'GigApplication', id: string, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, gig: { __typename?: 'EventGig', id: string, title: string, danzReward: number, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } } }>, recentlyApproved: Array<{ __typename?: 'GigApplication', aiReviewScore?: number | null, aiReviewNotes?: any | null, aiReviewedAt?: any | null, reviewedBy?: string | null, reviewedAt?: any | null, rejectionReason?: string | null, completionProof?: any | null, organizerFeedback?: string | null, workerFeedback?: string | null, danzAwardedAt?: any | null, updatedAt: any, id: string, gigId: string, userId: string, userRoleId: string, status: GigApplicationStatus, applicationNote?: string | null, checkInTime?: any | null, checkOutTime?: any | null, organizerRating?: number | null, workerRating?: number | null, danzAwarded?: number | null, createdAt: any, gig: { __typename?: 'EventGig', id: string, eventId: string, roleId: string, title: string, description?: string | null, slotsAvailable: number, slotsFilled: number, danzReward: number, bonusDanz?: number | null, timeCommitment?: string | null, specificRequirements?: string | null, approvalMode: GigApprovalMode, gigSource: GigSource, requiresLocal: boolean, localRadiusKm?: number | null, status: EventGigStatus, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } }, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, userRole: { __typename?: 'UserGigRole', id: string, userId: string, roleId: string, status: UserGigRoleStatus, rating: number, totalGigsCompleted: number, totalDanzEarned: number, createdAt: any, role: { __typename?: 'GigRole', id: string, name: string, slug: string, description?: string | null, category: GigRoleCategory, tier: number, icon?: string | null, baseDanzRate: number, requiresVerification: boolean, isActive: boolean } } }>, stats: { __typename?: 'GigManagerStats', totalReviewed: number, approvedCount: number, rejectedCount: number, averageReviewTime?: number | null, todayReviewed: number } } };
 
 export type GetGigRewardRatesQueryVariables = Exact<{
   roleId?: InputMaybe<Scalars['ID']['input']>;
@@ -8800,7 +8800,7 @@ export type GetEventGigManagersQueryVariables = Exact<{
 }>;
 
 
-export type GetEventGigManagersQuery = { __typename?: 'Query', eventGigManagers: Array<{ __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null } }> };
+export type GetEventGigManagersQuery = { __typename?: 'Query', eventGigManagers: Array<{ __typename?: 'EventGigManager', id: string, eventId: string, userId: string, assignedBy: string, assignedAt: any, user: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null }, assigner: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null } }> };
 
 export type GetGlobalLeaderboardQueryVariables = Exact<{
   metric: LeaderboardMetric;
@@ -8886,7 +8886,7 @@ export type GetPendingOrganizerApplicationsQueryVariables = Exact<{
 }>;
 
 
-export type GetPendingOrganizerApplicationsQuery = { __typename?: 'Query', pendingOrganizerApplications: { __typename?: 'OrganizerApplicationsResponse', totalCount: number, applications: Array<{ __typename?: 'OrganizerApplication', id: string, user_id: string, reason: string, experience?: string | null, venue_name?: string | null, venue_address?: string | null, venue_city?: string | null, venue_capacity?: number | null, dance_styles?: Array<string> | null, website_url?: string | null, social_media?: string | null, additional_info?: string | null, status: ApplicationStatus, created_at: string, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, created_at?: any | null } | null }> } };
+export type GetPendingOrganizerApplicationsQuery = { __typename?: 'Query', pendingOrganizerApplications: { __typename?: 'OrganizerApplicationsResponse', totalCount: number, applications: Array<{ __typename?: 'OrganizerApplication', id: string, user_id: string, reason: string, experience?: string | null, venue_name?: string | null, venue_address?: string | null, venue_city?: string | null, venue_capacity?: number | null, dance_styles?: Array<string> | null, website_url?: string | null, social_media?: string | null, additional_info?: string | null, status: ApplicationStatus, created_at: string, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, created_at?: any | null } | null }> } };
 
 export type GetOrganizerApplicationsQueryVariables = Exact<{
   status?: InputMaybe<ApplicationStatus>;
@@ -8895,14 +8895,14 @@ export type GetOrganizerApplicationsQueryVariables = Exact<{
 }>;
 
 
-export type GetOrganizerApplicationsQuery = { __typename?: 'Query', organizerApplications: { __typename?: 'OrganizerApplicationsResponse', totalCount: number, applications: Array<{ __typename?: 'OrganizerApplication', id: string, user_id: string, reason: string, experience?: string | null, venue_name?: string | null, venue_address?: string | null, venue_city?: string | null, venue_capacity?: number | null, dance_styles?: Array<string> | null, website_url?: string | null, social_media?: string | null, additional_info?: string | null, status: ApplicationStatus, admin_notes?: string | null, reviewed_by?: string | null, reviewed_at?: string | null, created_at: string, user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, reviewer?: { __typename?: 'User', display_name?: string | null, username?: string | null } | null }> } };
+export type GetOrganizerApplicationsQuery = { __typename?: 'Query', organizerApplications: { __typename?: 'OrganizerApplicationsResponse', totalCount: number, applications: Array<{ __typename?: 'OrganizerApplication', id: string, user_id: string, reason: string, experience?: string | null, venue_name?: string | null, venue_address?: string | null, venue_city?: string | null, venue_capacity?: number | null, dance_styles?: Array<string> | null, website_url?: string | null, social_media?: string | null, additional_info?: string | null, status: ApplicationStatus, admin_notes?: string | null, reviewed_by?: string | null, reviewed_at?: string | null, created_at: string, user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null } | null, reviewer?: { __typename?: 'User', display_name?: string | null, username?: string | null } | null }> } };
 
 export type GetPublicEventQueryVariables = Exact<{
   slug: Scalars['String']['input'];
 }>;
 
 
-export type GetPublicEventQuery = { __typename?: 'Query', publicEvent?: { __typename?: 'Event', id: string, title: string, description?: string | null, category?: EventCategory | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, location_name: string, location_city?: string | null, location_address?: string | null, location_latitude?: number | null, location_longitude?: number | null, is_virtual?: boolean | null, virtual_link?: string | null, start_date_time: any, end_date_time: any, price_usd?: number | null, max_capacity?: number | null, registration_count?: number | null, status?: EventStatus | null, is_featured?: boolean | null, is_recurring?: boolean | null, image_url?: string | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, slug?: string | null, is_public?: boolean | null, created_at: any, updated_at: any, allow_sponsors?: boolean | null, sponsor_benefits?: string | null, sponsor_contact_email?: string | null, sponsor_tier_config?: any | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, bio?: string | null } | null } | null };
+export type GetPublicEventQuery = { __typename?: 'Query', publicEvent?: { __typename?: 'Event', id: string, title: string, description?: string | null, category?: EventCategory | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, location_name: string, location_city?: string | null, location_address?: string | null, location_latitude?: number | null, location_longitude?: number | null, is_virtual?: boolean | null, virtual_link?: string | null, start_date_time: any, end_date_time: any, price_usd?: number | null, max_capacity?: number | null, registration_count?: number | null, status?: EventStatus | null, is_featured?: boolean | null, is_recurring?: boolean | null, image_url?: string | null, is_registered?: boolean | null, user_registration_status?: RegistrationStatus | null, slug?: string | null, is_public?: boolean | null, created_at: any, updated_at: any, allow_sponsors?: boolean | null, sponsor_benefits?: string | null, sponsor_contact_email?: string | null, sponsor_tier_config?: any | null, sponsor_count?: number | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, bio?: string | null } | null } | null };
 
 export type GetReferralByCodeQueryVariables = Exact<{
   code: Scalars['String']['input'];
@@ -8957,21 +8957,21 @@ export type GetSponsorCategoriesQuery = { __typename?: 'Query', sponsorCategorie
 export type GetSponsorDashboardQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetSponsorDashboardQuery = { __typename?: 'Query', sponsorDashboard?: { __typename?: 'SponsorDashboard', sponsor: { __typename?: 'Sponsor', id: string, userId: string, companyName: string, companyDescription?: string | null, logoUrl?: string | null, websiteUrl?: string | null, contactEmail?: string | null, contactPhone?: string | null, categories: Array<string>, tier: SponsorTier, isVerified: boolean, verifiedAt?: any | null, preferredRegions?: Array<string | null> | null, preferredEventTypes?: Array<string | null> | null, preferredDanceStyles?: Array<string | null> | null, totalEventsSponsored: number, totalFlowContributed: number, totalDanzDistributed: number, createdAt: any, updatedAt: any, impactScore?: { __typename?: 'SponsorImpactScore', totalScore: number, grade: string, reachScore: number, supportScore: number, totalEvents: number, totalInvested: number } | null }, activeSponsorships: Array<{ __typename?: 'EventSponsorship', id: string, flowAmount: number, flowAllocated: number, flowDistributed: number, status: SponsorshipStatus, visibility: SponsorshipVisibility, sponsorMessage?: string | null, completedAt?: any | null, completionNotes?: string | null, createdAt: any, updatedAt: any, event: { __typename?: 'Event', id: string, title: string, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null }, allocationConfig: { __typename?: 'AllocationConfig', paidWorkersPercent: number, volunteerRewardsPercent: number, platformFeePercent: number }, sponsor: { __typename?: 'Sponsor', id: string, userId: string, companyName: string, companyDescription?: string | null, logoUrl?: string | null, websiteUrl?: string | null, contactEmail?: string | null, categories: Array<string>, tier: SponsorTier, isVerified: boolean, verifiedAt?: any | null, totalEventsSponsored: number, totalFlowContributed: number, createdAt: any } }>, suggestedEvents: Array<{ __typename?: 'SuggestedEvent', matchScore: number, matchReasons: Array<string>, estimatedReach?: number | null, categoryMatches: Array<string>, currentSponsorshipTotal?: number | null, sponsorshipGoal?: number | null, event: { __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } }>, recentActivity: Array<{ __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null }>, stats: { __typename?: 'SponsorStats', totalInvested: number, totalEventsSponsored: number, totalWorkersSupported: number, averageEventRating?: number | null, impactMetrics: { __typename?: 'ImpactMetrics', totalDancersReached: number, totalHoursSupported: number, communityEngagement: number } }, subscriptions: Array<{ __typename?: 'SponsorSubscription', id: string, planType: SubscriptionPlanType, sponsorshipMode: SponsorshipMode, budgetAmount: number, budgetSpent: number, budgetRemaining: number, targetCategories?: Array<string | null> | null, verifiedEventsOnly: boolean, autoApprove: boolean, maxPerEvent?: number | null, defaultVisibility: SponsorshipVisibility, status: SubscriptionStatus, currentPeriodStart?: any | null, currentPeriodEnd?: any | null, nextBillingDate?: any | null, lastBilledAt?: any | null, discountPercent: number, createdAt: any, cancelledAt?: any | null, defaultAllocationConfig?: { __typename?: 'AllocationConfig', paidWorkersPercent: number, volunteerRewardsPercent: number, platformFeePercent: number } | null }>, pendingMatches: Array<{ __typename?: 'SubscriptionAutoMatch', id: string, subscriptionId: string, matchReason: string, matchedCategories?: Array<string | null> | null, flowAmount: number, status: ApprovalStatus, notifiedAt?: any | null, respondedAt?: any | null, expiresAt?: any | null, createdAt: any, event: { __typename?: 'Event', id: string, title: string, image_url?: string | null, start_date_time: any, location_name: string } }> } | null };
+export type GetSponsorDashboardQuery = { __typename?: 'Query', sponsorDashboard?: { __typename?: 'SponsorDashboard', sponsor: { __typename?: 'Sponsor', id: string, userId: string, companyName: string, companyDescription?: string | null, logoUrl?: string | null, websiteUrl?: string | null, contactEmail?: string | null, contactPhone?: string | null, categories: Array<string>, tier: SponsorTier, isVerified: boolean, verifiedAt?: any | null, preferredRegions?: Array<string | null> | null, preferredEventTypes?: Array<string | null> | null, preferredDanceStyles?: Array<string | null> | null, totalEventsSponsored: number, totalFlowContributed: number, totalDanzDistributed: number, createdAt: any, updatedAt: any, impactScore?: { __typename?: 'SponsorImpactScore', totalScore: number, grade: string, reachScore: number, supportScore: number, totalEvents: number, totalInvested: number } | null }, activeSponsorships: Array<{ __typename?: 'EventSponsorship', id: string, flowAmount: number, flowAllocated: number, flowDistributed: number, status: SponsorshipStatus, visibility: SponsorshipVisibility, sponsorMessage?: string | null, completedAt?: any | null, completionNotes?: string | null, createdAt: any, updatedAt: any, event: { __typename?: 'Event', id: string, title: string, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null }, allocationConfig: { __typename?: 'AllocationConfig', paidWorkersPercent: number, volunteerRewardsPercent: number, platformFeePercent: number }, sponsor: { __typename?: 'Sponsor', id: string, userId: string, companyName: string, companyDescription?: string | null, logoUrl?: string | null, websiteUrl?: string | null, contactEmail?: string | null, categories: Array<string>, tier: SponsorTier, isVerified: boolean, verifiedAt?: any | null, totalEventsSponsored: number, totalFlowContributed: number, createdAt: any } }>, suggestedEvents: Array<{ __typename?: 'SuggestedEvent', matchScore: number, matchReasons: Array<string>, estimatedReach?: number | null, categoryMatches: Array<string>, currentSponsorshipTotal?: number | null, sponsorshipGoal?: number | null, event: { __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } }>, recentActivity: Array<{ __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null }>, stats: { __typename?: 'SponsorStats', totalInvested: number, totalEventsSponsored: number, totalWorkersSupported: number, averageEventRating?: number | null, impactMetrics: { __typename?: 'ImpactMetrics', totalDancersReached: number, totalHoursSupported: number, communityEngagement: number } }, subscriptions: Array<{ __typename?: 'SponsorSubscription', id: string, planType: SubscriptionPlanType, sponsorshipMode: SponsorshipMode, budgetAmount: number, budgetSpent: number, budgetRemaining: number, targetCategories?: Array<string | null> | null, verifiedEventsOnly: boolean, autoApprove: boolean, maxPerEvent?: number | null, defaultVisibility: SponsorshipVisibility, status: SubscriptionStatus, currentPeriodStart?: any | null, currentPeriodEnd?: any | null, nextBillingDate?: any | null, lastBilledAt?: any | null, discountPercent: number, createdAt: any, cancelledAt?: any | null, defaultAllocationConfig?: { __typename?: 'AllocationConfig', paidWorkersPercent: number, volunteerRewardsPercent: number, platformFeePercent: number } | null }>, pendingMatches: Array<{ __typename?: 'SubscriptionAutoMatch', id: string, subscriptionId: string, matchReason: string, matchedCategories?: Array<string | null> | null, flowAmount: number, status: ApprovalStatus, notifiedAt?: any | null, respondedAt?: any | null, expiresAt?: any | null, createdAt: any, event: { __typename?: 'Event', id: string, title: string, image_url?: string | null, start_date_time: any, location_name: string } }> } | null };
 
 export type GetEventsForSponsorshipQueryVariables = Exact<{
   input?: InputMaybe<EventsForSponsorshipInput>;
 }>;
 
 
-export type GetEventsForSponsorshipQuery = { __typename?: 'Query', eventsForSponsorship: Array<{ __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null }> };
+export type GetEventsForSponsorshipQuery = { __typename?: 'Query', eventsForSponsorship: Array<{ __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null }> };
 
 export type GetSuggestedEventsForSponsorQueryVariables = Exact<{
   limit?: InputMaybe<Scalars['Int']['input']>;
 }>;
 
 
-export type GetSuggestedEventsForSponsorQuery = { __typename?: 'Query', suggestedEventsForSponsor: Array<{ __typename?: 'SuggestedEvent', matchScore: number, matchReasons: Array<string>, estimatedReach?: number | null, categoryMatches: Array<string>, currentSponsorshipTotal?: number | null, sponsorshipGoal?: number | null, event: { __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } }> };
+export type GetSuggestedEventsForSponsorQuery = { __typename?: 'Query', suggestedEventsForSponsor: Array<{ __typename?: 'SuggestedEvent', matchScore: number, matchReasons: Array<string>, estimatedReach?: number | null, categoryMatches: Array<string>, currentSponsorshipTotal?: number | null, sponsorshipGoal?: number | null, event: { __typename?: 'Event', id: string, title: string, description?: string | null, image_url?: string | null, start_date_time: any, end_date_time: any, location_name: string, max_capacity?: number | null, registration_count?: number | null, dance_styles?: Array<string> | null, category?: EventCategory | null, facilitator?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } }> };
 
 export type GetMyFlowBalanceQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -8985,7 +8985,7 @@ export type GetMyFlowTransactionsQueryVariables = Exact<{
 }>;
 
 
-export type GetMyFlowTransactionsQuery = { __typename?: 'Query', myFlowTransactions: Array<{ __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, event?: { __typename?: 'Event', id: string, title: string } | null, sponsor?: { __typename?: 'Sponsor', id: string, companyName: string, logoUrl?: string | null } | null, fromUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null }> };
+export type GetMyFlowTransactionsQuery = { __typename?: 'Query', myFlowTransactions: Array<{ __typename?: 'FlowTransaction', id: string, amount: number, transactionType: FlowTransactionType, status: TransactionStatus, description?: string | null, metadata?: any | null, txHash?: string | null, createdAt: any, completedAt?: any | null, event?: { __typename?: 'Event', id: string, title: string } | null, sponsor?: { __typename?: 'Sponsor', id: string, companyName: string, logoUrl?: string | null } | null, fromUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null, toUser?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null }> };
 
 export type GetEventFlowPoolQueryVariables = Exact<{
   eventId: Scalars['ID']['input'];
@@ -9037,7 +9037,7 @@ export type GetVerifiedCreatorStatusQuery = { __typename?: 'Query', verifiedCrea
 export type GetMyVerificationStatusQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMyVerificationStatusQuery = { __typename?: 'Query', myVerificationStatus?: { __typename?: 'VerifiedEventCreator', id: string, userId: string, isVerified: boolean, verifiedAt?: any | null, totalEventsHosted: number, averageEventRating: number, totalAttendeesServed: number, autoVerified: boolean, verificationType?: string | null, verificationNotes?: string | null, user?: { __typename?: 'User', privy_id: string, username?: string | null, avatar_url?: string | null } | null } | null };
+export type GetMyVerificationStatusQuery = { __typename?: 'Query', myVerificationStatus?: { __typename?: 'VerifiedEventCreator', id: string, userId: string, isVerified: boolean, verifiedAt?: any | null, totalEventsHosted: number, averageEventRating: number, totalAttendeesServed: number, autoVerified: boolean, verificationType?: string | null, verificationNotes?: string | null, user?: { __typename?: 'User', id: string, username?: string | null, avatar_url?: string | null } | null } | null };
 
 export type GetVerificationCriteriaQueryVariables = Exact<{
   userId?: InputMaybe<Scalars['String']['input']>;
@@ -9084,21 +9084,21 @@ export type GetUploadUrlQuery = { __typename?: 'Query', getUploadUrl: { __typena
 export type GetMyProfileQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type GetMyProfileQuery = { __typename?: 'Query', me?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
+export type GetMyProfileQuery = { __typename?: 'Query', me?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
 
 export type GetUserByIdQueryVariables = Exact<{
   id: Scalars['String']['input'];
 }>;
 
 
-export type GetUserByIdQuery = { __typename?: 'Query', user?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
+export type GetUserByIdQuery = { __typename?: 'Query', user?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
 
 export type GetUserByUsernameQueryVariables = Exact<{
   username: Scalars['String']['input'];
 }>;
 
 
-export type GetUserByUsernameQuery = { __typename?: 'Query', getUserByUsername?: { __typename?: 'User', privy_id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
+export type GetUserByUsernameQuery = { __typename?: 'Query', getUserByUsername?: { __typename?: 'User', id: string, username?: string | null, display_name?: string | null, avatar_url?: string | null, cover_image_url?: string | null, bio?: string | null, role?: UserRole | null, is_admin?: boolean | null, location?: string | null, city?: string | null, latitude?: number | null, longitude?: number | null, website?: string | null, website_url?: string | null, instagram?: string | null, tiktok?: string | null, youtube?: string | null, twitter?: string | null, pronouns?: string | null, dance_styles?: Array<string> | null, skill_level?: SkillLevel | null, favorite_music?: Array<string> | null, age?: number | null, is_public?: boolean | null, allow_messages?: boolean | null, show_location?: boolean | null, notification_preferences?: any | null, xp?: number | null, level?: number | null, subscription_tier?: string | null, is_premium?: string | null, stripe_customer_id?: string | null, stripe_subscription_id?: string | null, subscription_status?: string | null, subscription_plan?: string | null, subscription_start_date?: any | null, subscription_end_date?: any | null, subscription_cancelled_at?: any | null, total_dance_time?: number | null, total_sessions?: number | null, longest_streak?: number | null, is_organizer_approved?: boolean | null, organizer_approved_by?: string | null, organizer_approved_at?: any | null, company_name?: string | null, organizer_bio?: string | null, event_types?: Array<string> | null, invited_by?: string | null, social_media_links?: any | null, organizer_requested_at?: any | null, organizer_rejection_reason?: string | null, total_events_attended?: number | null, total_events_created?: number | null, upcoming_events_count?: number | null, total_achievements?: number | null, dance_bonds_count?: number | null, referral_count?: number | null, referral_points_earned?: number | null, created_at?: any | null, updated_at?: any | null, last_active_at?: any | null } | null };
 
 export type CheckUsernameQueryVariables = Exact<{
   username: Scalars['String']['input'];
@@ -9171,7 +9171,7 @@ export const UserGigRoleWithUserFragmentDoc = gql`
     fragment UserGigRoleWithUser on UserGigRole {
   ...UserGigRoleFull
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -9259,7 +9259,7 @@ export const GigApplicationWithUserFragmentDoc = gql`
     fragment GigApplicationWithUser on GigApplication {
   ...GigApplicationFull
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -9325,7 +9325,7 @@ export const GigApplicationCompleteFragmentDoc = gql`
     ...EventGigFull
   }
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -9334,7 +9334,7 @@ export const GigApplicationCompleteFragmentDoc = gql`
     ...UserGigRoleFull
   }
   reviewer {
-    privy_id
+    id
     username
     display_name
   }
@@ -9382,13 +9382,13 @@ export const EventGigManagerFullFragmentDoc = gql`
     fragment EventGigManagerFull on EventGigManager {
   ...EventGigManagerBasic
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
   }
   assigner {
-    privy_id
+    id
     username
     display_name
   }
@@ -9433,7 +9433,7 @@ export const PostBasicInfoFragmentDoc = gql`
     `;
 export const UserBasicInfoFragmentDoc = gql`
     fragment UserBasicInfo on User {
-  privy_id
+  id
   username
   display_name
   avatar_url
@@ -9645,12 +9645,12 @@ export const FlowTransactionFullFragmentDoc = gql`
   createdAt
   completedAt
   fromUser {
-    privy_id
+    id
     username
     avatar_url
   }
   toUser {
-    privy_id
+    id
     username
     avatar_url
   }
@@ -9901,7 +9901,7 @@ export const FlowDanzSwapFullFragmentDoc = gql`
     `;
 export const UserFullInfoFragmentDoc = gql`
     fragment UserFullInfo on User {
-  privy_id
+  id
   username
   display_name
   avatar_url
@@ -10683,7 +10683,7 @@ export type TrackAppOpenMutationOptions = Apollo.BaseMutationOptions<TrackAppOpe
 export const UpdateUserRoleDocument = gql`
     mutation UpdateUserRole($userId: String!, $role: UserRole!) {
   updateUserRole(userId: $userId, role: $role) {
-    privy_id
+    id
     username
     display_name
     role
@@ -10724,7 +10724,7 @@ export type UpdateUserRoleMutationOptions = Apollo.BaseMutationOptions<UpdateUse
 export const ApproveOrganizerDocument = gql`
     mutation ApproveOrganizer($userId: String!, $approved: Boolean!) {
   approveOrganizer(userId: $userId, approved: $approved) {
-    privy_id
+    id
     username
     display_name
     role
@@ -11256,7 +11256,7 @@ export const CreateFeatureRequestDocument = gql`
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
     }
     created_at
@@ -11299,7 +11299,7 @@ export const UpdateFeatureRequestDocument = gql`
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     estimated_hours
@@ -11451,7 +11451,7 @@ export const AddFeatureRequestCommentDocument = gql`
     id
     content
     user {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -11529,7 +11529,7 @@ export const CreateDevTaskDocument = gql`
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     due_date
@@ -11575,7 +11575,7 @@ export const UpdateDevTaskDocument = gql`
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     due_date
@@ -11981,7 +11981,7 @@ export const CheckInWithCodeDocument = gql`
       end_date_time
       checkin_code
       facilitator {
-        privy_id
+        id
         display_name
         username
       }
@@ -13286,7 +13286,7 @@ export type RemoveEventGigManagerMutationOptions = Apollo.BaseMutationOptions<Re
 export const PromoteToGigManagerDocument = gql`
     mutation PromoteToGigManager($userId: String!) {
   promoteToGigManager(userId: $userId) {
-    privy_id
+    id
     username
     is_gig_manager
     gig_manager_approved_at
@@ -13322,7 +13322,7 @@ export type PromoteToGigManagerMutationOptions = Apollo.BaseMutationOptions<Prom
 export const DemoteGigManagerDocument = gql`
     mutation DemoteGigManager($userId: String!) {
   demoteGigManager(userId: $userId) {
-    privy_id
+    id
     username
     is_gig_manager
   }
@@ -14701,6 +14701,9 @@ export function useGetMyAchievementsLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>(GetMyAchievementsDocument, options);
         }
+// @ts-ignore
+export function useGetMyAchievementsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>;
+export function useGetMyAchievementsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyAchievementsQuery | undefined, GetMyAchievementsQueryVariables>;
 export function useGetMyAchievementsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyAchievementsQuery, GetMyAchievementsQueryVariables>(GetMyAchievementsDocument, options);
@@ -14766,6 +14769,9 @@ export function useGetMyAchievementStatsLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>(GetMyAchievementStatsDocument, options);
         }
+// @ts-ignore
+export function useGetMyAchievementStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>;
+export function useGetMyAchievementStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyAchievementStatsQuery | undefined, GetMyAchievementStatsQueryVariables>;
 export function useGetMyAchievementStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyAchievementStatsQuery, GetMyAchievementStatsQueryVariables>(GetMyAchievementStatsDocument, options);
@@ -14794,7 +14800,7 @@ export const GetActivityFeedDocument = gql`
       is_highlighted
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -14833,6 +14839,9 @@ export function useGetActivityFeedLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetActivityFeedQuery, GetActivityFeedQueryVariables>(GetActivityFeedDocument, options);
         }
+// @ts-ignore
+export function useGetActivityFeedSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetActivityFeedQuery, GetActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetActivityFeedQuery, GetActivityFeedQueryVariables>;
+export function useGetActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetActivityFeedQuery, GetActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetActivityFeedQuery | undefined, GetActivityFeedQueryVariables>;
 export function useGetActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetActivityFeedQuery, GetActivityFeedQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetActivityFeedQuery, GetActivityFeedQueryVariables>(GetActivityFeedDocument, options);
@@ -14855,7 +14864,7 @@ export const GetGlobalActivityFeedDocument = gql`
       likes_count
       created_at
       user {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -14891,6 +14900,9 @@ export function useGetGlobalActivityFeedLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>(GetGlobalActivityFeedDocument, options);
         }
+// @ts-ignore
+export function useGetGlobalActivityFeedSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>;
+export function useGetGlobalActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetGlobalActivityFeedQuery | undefined, GetGlobalActivityFeedQueryVariables>;
 export function useGetGlobalActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGlobalActivityFeedQuery, GetGlobalActivityFeedQueryVariables>(GetGlobalActivityFeedDocument, options);
@@ -14911,7 +14923,7 @@ export const GetFriendsActivityFeedDocument = gql`
       color
       created_at
       user {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -14946,6 +14958,9 @@ export function useGetFriendsActivityFeedLazyQuery(baseOptions?: Apollo.LazyQuer
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>(GetFriendsActivityFeedDocument, options);
         }
+// @ts-ignore
+export function useGetFriendsActivityFeedSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>;
+export function useGetFriendsActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetFriendsActivityFeedQuery | undefined, GetFriendsActivityFeedQueryVariables>;
 export function useGetFriendsActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetFriendsActivityFeedQuery, GetFriendsActivityFeedQueryVariables>(GetFriendsActivityFeedDocument, options);
@@ -14999,6 +15014,9 @@ export function useGetMyActivityFeedLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>(GetMyActivityFeedDocument, options);
         }
+// @ts-ignore
+export function useGetMyActivityFeedSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>;
+export function useGetMyActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyActivityFeedQuery | undefined, GetMyActivityFeedQueryVariables>;
 export function useGetMyActivityFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyActivityFeedQuery, GetMyActivityFeedQueryVariables>(GetMyActivityFeedDocument, options);
@@ -15052,6 +15070,9 @@ export function useGetTrendingActivitiesLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>(GetTrendingActivitiesDocument, options);
         }
+// @ts-ignore
+export function useGetTrendingActivitiesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>): Apollo.UseSuspenseQueryResult<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>;
+export function useGetTrendingActivitiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>): Apollo.UseSuspenseQueryResult<GetTrendingActivitiesQuery | undefined, GetTrendingActivitiesQueryVariables>;
 export function useGetTrendingActivitiesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetTrendingActivitiesQuery, GetTrendingActivitiesQueryVariables>(GetTrendingActivitiesDocument, options);
@@ -15095,6 +15116,9 @@ export function useGetActivityStatsLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetActivityStatsQuery, GetActivityStatsQueryVariables>(GetActivityStatsDocument, options);
         }
+// @ts-ignore
+export function useGetActivityStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetActivityStatsQuery, GetActivityStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetActivityStatsQuery, GetActivityStatsQueryVariables>;
+export function useGetActivityStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetActivityStatsQuery, GetActivityStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetActivityStatsQuery | undefined, GetActivityStatsQueryVariables>;
 export function useGetActivityStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetActivityStatsQuery, GetActivityStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetActivityStatsQuery, GetActivityStatsQueryVariables>(GetActivityStatsDocument, options);
@@ -15153,6 +15177,9 @@ export function useGetAllPointActionsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>(GetAllPointActionsDocument, options);
         }
+// @ts-ignore
+export function useGetAllPointActionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>;
+export function useGetAllPointActionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllPointActionsQuery | undefined, GetAllPointActionsQueryVariables>;
 export function useGetAllPointActionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAllPointActionsQuery, GetAllPointActionsQueryVariables>(GetAllPointActionsDocument, options);
@@ -15210,6 +15237,9 @@ export function useGetPointActionLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPointActionQuery, GetPointActionQueryVariables>(GetPointActionDocument, options);
         }
+// @ts-ignore
+export function useGetPointActionSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPointActionQuery, GetPointActionQueryVariables>): Apollo.UseSuspenseQueryResult<GetPointActionQuery, GetPointActionQueryVariables>;
+export function useGetPointActionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPointActionQuery, GetPointActionQueryVariables>): Apollo.UseSuspenseQueryResult<GetPointActionQuery | undefined, GetPointActionQueryVariables>;
 export function useGetPointActionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPointActionQuery, GetPointActionQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPointActionQuery, GetPointActionQueryVariables>(GetPointActionDocument, options);
@@ -15240,7 +15270,7 @@ export const GetUserTransactionsDocument = gql`
       status
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -15283,6 +15313,9 @@ export function useGetUserTransactionsLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>(GetUserTransactionsDocument, options);
         }
+// @ts-ignore
+export function useGetUserTransactionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>;
+export function useGetUserTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserTransactionsQuery | undefined, GetUserTransactionsQueryVariables>;
 export function useGetUserTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserTransactionsQuery, GetUserTransactionsQueryVariables>(GetUserTransactionsDocument, options);
@@ -15315,7 +15348,7 @@ export const GetAllTransactionsDocument = gql`
       status
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -15325,7 +15358,7 @@ export const GetAllTransactionsDocument = gql`
         category
       }
       admin_user {
-        privy_id
+        id
         username
         display_name
       }
@@ -15365,6 +15398,9 @@ export function useGetAllTransactionsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>(GetAllTransactionsDocument, options);
         }
+// @ts-ignore
+export function useGetAllTransactionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>;
+export function useGetAllTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllTransactionsQuery | undefined, GetAllTransactionsQueryVariables>;
 export function useGetAllTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAllTransactionsQuery, GetAllTransactionsQueryVariables>(GetAllTransactionsDocument, options);
@@ -15429,6 +15465,9 @@ export function useGetUserDailyActivityLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>(GetUserDailyActivityDocument, options);
         }
+// @ts-ignore
+export function useGetUserDailyActivitySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>;
+export function useGetUserDailyActivitySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserDailyActivityQuery | undefined, GetUserDailyActivityQueryVariables>;
 export function useGetUserDailyActivitySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserDailyActivityQuery, GetUserDailyActivityQueryVariables>(GetUserDailyActivityDocument, options);
@@ -15456,7 +15495,7 @@ export const GetEventAttendanceDocument = gql`
     created_at
     updated_at
     user {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -15495,6 +15534,9 @@ export function useGetEventAttendanceLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>(GetEventAttendanceDocument, options);
         }
+// @ts-ignore
+export function useGetEventAttendanceSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>;
+export function useGetEventAttendanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventAttendanceQuery | undefined, GetEventAttendanceQueryVariables>;
 export function useGetEventAttendanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventAttendanceQuery, GetEventAttendanceQueryVariables>(GetEventAttendanceDocument, options);
@@ -15556,6 +15598,9 @@ export function useGetUserEventAttendanceLazyQuery(baseOptions?: Apollo.LazyQuer
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>(GetUserEventAttendanceDocument, options);
         }
+// @ts-ignore
+export function useGetUserEventAttendanceSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>;
+export function useGetUserEventAttendanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserEventAttendanceQuery | undefined, GetUserEventAttendanceQueryVariables>;
 export function useGetUserEventAttendanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserEventAttendanceQuery, GetUserEventAttendanceQueryVariables>(GetUserEventAttendanceDocument, options);
@@ -15607,6 +15652,9 @@ export function useGetPointsOverviewLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>(GetPointsOverviewDocument, options);
         }
+// @ts-ignore
+export function useGetPointsOverviewSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>): Apollo.UseSuspenseQueryResult<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>;
+export function useGetPointsOverviewSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>): Apollo.UseSuspenseQueryResult<GetPointsOverviewQuery | undefined, GetPointsOverviewQueryVariables>;
 export function useGetPointsOverviewSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPointsOverviewQuery, GetPointsOverviewQueryVariables>(GetPointsOverviewDocument, options);
@@ -15623,7 +15671,7 @@ export const GetUserPointsSummariesDocument = gql`
     sort_by: $sort_by
     sort_order: $sort_order
   ) {
-    privy_id
+    id
     username
     total_points_earned
     total_points_spent
@@ -15666,6 +15714,9 @@ export function useGetUserPointsSummariesLazyQuery(baseOptions?: Apollo.LazyQuer
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>(GetUserPointsSummariesDocument, options);
         }
+// @ts-ignore
+export function useGetUserPointsSummariesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>;
+export function useGetUserPointsSummariesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserPointsSummariesQuery | undefined, GetUserPointsSummariesQueryVariables>;
 export function useGetUserPointsSummariesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserPointsSummariesQuery, GetUserPointsSummariesQueryVariables>(GetUserPointsSummariesDocument, options);
@@ -15714,6 +15765,9 @@ export function useGetEventAttendanceSummariesLazyQuery(baseOptions?: Apollo.Laz
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>(GetEventAttendanceSummariesDocument, options);
         }
+// @ts-ignore
+export function useGetEventAttendanceSummariesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>;
+export function useGetEventAttendanceSummariesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventAttendanceSummariesQuery | undefined, GetEventAttendanceSummariesQueryVariables>;
 export function useGetEventAttendanceSummariesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventAttendanceSummariesQuery, GetEventAttendanceSummariesQueryVariables>(GetEventAttendanceSummariesDocument, options);
@@ -15725,7 +15779,7 @@ export type GetEventAttendanceSummariesQueryResult = Apollo.QueryResult<GetEvent
 export const GetAllUsersDocument = gql`
     query GetAllUsers {
   getAllUsers {
-    privy_id
+    id
     username
     display_name
     role
@@ -15765,6 +15819,9 @@ export function useGetAllUsersLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAllUsersQuery, GetAllUsersQueryVariables>(GetAllUsersDocument, options);
         }
+// @ts-ignore
+export function useGetAllUsersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAllUsersQuery, GetAllUsersQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllUsersQuery, GetAllUsersQueryVariables>;
+export function useGetAllUsersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllUsersQuery, GetAllUsersQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllUsersQuery | undefined, GetAllUsersQueryVariables>;
 export function useGetAllUsersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllUsersQuery, GetAllUsersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAllUsersQuery, GetAllUsersQueryVariables>(GetAllUsersDocument, options);
@@ -15810,6 +15867,9 @@ export function useGetAdminStatsLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAdminStatsQuery, GetAdminStatsQueryVariables>(GetAdminStatsDocument, options);
         }
+// @ts-ignore
+export function useGetAdminStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAdminStatsQuery, GetAdminStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAdminStatsQuery, GetAdminStatsQueryVariables>;
+export function useGetAdminStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAdminStatsQuery, GetAdminStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAdminStatsQuery | undefined, GetAdminStatsQueryVariables>;
 export function useGetAdminStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAdminStatsQuery, GetAdminStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAdminStatsQuery, GetAdminStatsQueryVariables>(GetAdminStatsDocument, options);
@@ -15822,7 +15882,7 @@ export const GetPendingOrganizersDocument = gql`
     query GetPendingOrganizers($pagination: PaginationInput) {
   pendingOrganizers(pagination: $pagination) {
     users {
-      privy_id
+      id
       username
       display_name
       role
@@ -15864,6 +15924,9 @@ export function useGetPendingOrganizersLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>(GetPendingOrganizersDocument, options);
         }
+// @ts-ignore
+export function useGetPendingOrganizersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>;
+export function useGetPendingOrganizersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingOrganizersQuery | undefined, GetPendingOrganizersQueryVariables>;
 export function useGetPendingOrganizersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPendingOrganizersQuery, GetPendingOrganizersQueryVariables>(GetPendingOrganizersDocument, options);
@@ -15901,6 +15964,9 @@ export function useGetAdminDashboardAnalyticsLazyQuery(baseOptions?: Apollo.Lazy
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>(GetAdminDashboardAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetAdminDashboardAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>;
+export function useGetAdminDashboardAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAdminDashboardAnalyticsQuery | undefined, GetAdminDashboardAnalyticsQueryVariables>;
 export function useGetAdminDashboardAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAdminDashboardAnalyticsQuery, GetAdminDashboardAnalyticsQueryVariables>(GetAdminDashboardAnalyticsDocument, options);
@@ -15982,6 +16048,9 @@ export function useGetUserAnalyticsLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>(GetUserAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetUserAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>;
+export function useGetUserAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserAnalyticsQuery | undefined, GetUserAnalyticsQueryVariables>;
 export function useGetUserAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserAnalyticsQuery, GetUserAnalyticsQueryVariables>(GetUserAnalyticsDocument, options);
@@ -16064,6 +16133,9 @@ export function useGetPlatformAnalyticsLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>(GetPlatformAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetPlatformAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>;
+export function useGetPlatformAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPlatformAnalyticsQuery | undefined, GetPlatformAnalyticsQueryVariables>;
 export function useGetPlatformAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPlatformAnalyticsQuery, GetPlatformAnalyticsQueryVariables>(GetPlatformAnalyticsDocument, options);
@@ -16109,6 +16181,9 @@ export function useGetRealTimeAnalyticsLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>(GetRealTimeAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetRealTimeAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>;
+export function useGetRealTimeAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetRealTimeAnalyticsQuery | undefined, GetRealTimeAnalyticsQueryVariables>;
 export function useGetRealTimeAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetRealTimeAnalyticsQuery, GetRealTimeAnalyticsQueryVariables>(GetRealTimeAnalyticsDocument, options);
@@ -16172,6 +16247,9 @@ export function useGetDailyChallengesLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>(GetDailyChallengesDocument, options);
         }
+// @ts-ignore
+export function useGetDailyChallengesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>): Apollo.UseSuspenseQueryResult<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>;
+export function useGetDailyChallengesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>): Apollo.UseSuspenseQueryResult<GetDailyChallengesQuery | undefined, GetDailyChallengesQueryVariables>;
 export function useGetDailyChallengesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetDailyChallengesQuery, GetDailyChallengesQueryVariables>(GetDailyChallengesDocument, options);
@@ -16227,6 +16305,9 @@ export function useGetMyChallengesLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyChallengesQuery, GetMyChallengesQueryVariables>(GetMyChallengesDocument, options);
         }
+// @ts-ignore
+export function useGetMyChallengesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyChallengesQuery, GetMyChallengesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengesQuery, GetMyChallengesQueryVariables>;
+export function useGetMyChallengesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengesQuery, GetMyChallengesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengesQuery | undefined, GetMyChallengesQueryVariables>;
 export function useGetMyChallengesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengesQuery, GetMyChallengesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyChallengesQuery, GetMyChallengesQueryVariables>(GetMyChallengesDocument, options);
@@ -16272,6 +16353,9 @@ export function useGetMyChallengeStatsLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>(GetMyChallengeStatsDocument, options);
         }
+// @ts-ignore
+export function useGetMyChallengeStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>;
+export function useGetMyChallengeStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengeStatsQuery | undefined, GetMyChallengeStatsQueryVariables>;
 export function useGetMyChallengeStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyChallengeStatsQuery, GetMyChallengeStatsQueryVariables>(GetMyChallengeStatsDocument, options);
@@ -16324,6 +16408,9 @@ export function useGetMyChallengeProgressLazyQuery(baseOptions?: Apollo.LazyQuer
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>(GetMyChallengeProgressDocument, options);
         }
+// @ts-ignore
+export function useGetMyChallengeProgressSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>;
+export function useGetMyChallengeProgressSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyChallengeProgressQuery | undefined, GetMyChallengeProgressQueryVariables>;
 export function useGetMyChallengeProgressSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyChallengeProgressQuery, GetMyChallengeProgressQueryVariables>(GetMyChallengeProgressDocument, options);
@@ -16342,7 +16429,7 @@ export const GetChallengeLeaderboardDocument = gql`
       xp_earned
       points_earned
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -16378,6 +16465,9 @@ export function useGetChallengeLeaderboardLazyQuery(baseOptions?: Apollo.LazyQue
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>(GetChallengeLeaderboardDocument, options);
         }
+// @ts-ignore
+export function useGetChallengeLeaderboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>;
+export function useGetChallengeLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetChallengeLeaderboardQuery | undefined, GetChallengeLeaderboardQueryVariables>;
 export function useGetChallengeLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetChallengeLeaderboardQuery, GetChallengeLeaderboardQueryVariables>(GetChallengeLeaderboardDocument, options);
@@ -16423,6 +16513,9 @@ export function useGetCheckinStatusLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>(GetCheckinStatusDocument, options);
         }
+// @ts-ignore
+export function useGetCheckinStatusSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>;
+export function useGetCheckinStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetCheckinStatusQuery | undefined, GetCheckinStatusQueryVariables>;
 export function useGetCheckinStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetCheckinStatusQuery, GetCheckinStatusQueryVariables>(GetCheckinStatusDocument, options);
@@ -16466,6 +16559,9 @@ export function useGetMiniappStreakLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>(GetMiniappStreakDocument, options);
         }
+// @ts-ignore
+export function useGetMiniappStreakSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>): Apollo.UseSuspenseQueryResult<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>;
+export function useGetMiniappStreakSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>): Apollo.UseSuspenseQueryResult<GetMiniappStreakQuery | undefined, GetMiniappStreakQueryVariables>;
 export function useGetMiniappStreakSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMiniappStreakQuery, GetMiniappStreakQueryVariables>(GetMiniappStreakDocument, options);
@@ -16510,6 +16606,9 @@ export function useGetMiniappDailyStatsLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>(GetMiniappDailyStatsDocument, options);
         }
+// @ts-ignore
+export function useGetMiniappDailyStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>;
+export function useGetMiniappDailyStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMiniappDailyStatsQuery | undefined, GetMiniappDailyStatsQueryVariables>;
 export function useGetMiniappDailyStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMiniappDailyStatsQuery, GetMiniappDailyStatsQueryVariables>(GetMiniappDailyStatsDocument, options);
@@ -16566,6 +16665,9 @@ export function useGetDevDashboardStatsLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>(GetDevDashboardStatsDocument, options);
         }
+// @ts-ignore
+export function useGetDevDashboardStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>;
+export function useGetDevDashboardStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevDashboardStatsQuery | undefined, GetDevDashboardStatsQueryVariables>;
 export function useGetDevDashboardStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetDevDashboardStatsQuery, GetDevDashboardStatsQueryVariables>(GetDevDashboardStatsDocument, options);
@@ -16610,6 +16712,9 @@ export function useGetSystemHealthLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSystemHealthQuery, GetSystemHealthQueryVariables>(GetSystemHealthDocument, options);
         }
+// @ts-ignore
+export function useGetSystemHealthSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSystemHealthQuery, GetSystemHealthQueryVariables>): Apollo.UseSuspenseQueryResult<GetSystemHealthQuery, GetSystemHealthQueryVariables>;
+export function useGetSystemHealthSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSystemHealthQuery, GetSystemHealthQueryVariables>): Apollo.UseSuspenseQueryResult<GetSystemHealthQuery | undefined, GetSystemHealthQueryVariables>;
 export function useGetSystemHealthSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSystemHealthQuery, GetSystemHealthQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSystemHealthQuery, GetSystemHealthQueryVariables>(GetSystemHealthDocument, options);
@@ -16635,14 +16740,14 @@ export const GetFeatureRequestsDocument = gql`
       priority
       votes
       requested_by {
-        privy_id
+        id
         username
         display_name
         avatar_url
       }
       requested_at
       assigned_to {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -16692,6 +16797,9 @@ export function useGetFeatureRequestsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>(GetFeatureRequestsDocument, options);
         }
+// @ts-ignore
+export function useGetFeatureRequestsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>;
+export function useGetFeatureRequestsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeatureRequestsQuery | undefined, GetFeatureRequestsQueryVariables>;
 export function useGetFeatureRequestsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetFeatureRequestsQuery, GetFeatureRequestsQueryVariables>(GetFeatureRequestsDocument, options);
@@ -16711,14 +16819,14 @@ export const GetFeatureRequestDocument = gql`
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
       display_name
       avatar_url
     }
     requested_at
     assigned_to {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -16735,7 +16843,7 @@ export const GetFeatureRequestDocument = gql`
       id
       content
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -16774,6 +16882,9 @@ export function useGetFeatureRequestLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>(GetFeatureRequestDocument, options);
         }
+// @ts-ignore
+export function useGetFeatureRequestSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>;
+export function useGetFeatureRequestSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeatureRequestQuery | undefined, GetFeatureRequestQueryVariables>;
 export function useGetFeatureRequestSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetFeatureRequestQuery, GetFeatureRequestQueryVariables>(GetFeatureRequestDocument, options);
@@ -16793,7 +16904,7 @@ export const GetTopVotedFeaturesDocument = gql`
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -16827,6 +16938,9 @@ export function useGetTopVotedFeaturesLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>(GetTopVotedFeaturesDocument, options);
         }
+// @ts-ignore
+export function useGetTopVotedFeaturesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>): Apollo.UseSuspenseQueryResult<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>;
+export function useGetTopVotedFeaturesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>): Apollo.UseSuspenseQueryResult<GetTopVotedFeaturesQuery | undefined, GetTopVotedFeaturesQueryVariables>;
 export function useGetTopVotedFeaturesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetTopVotedFeaturesQuery, GetTopVotedFeaturesQueryVariables>(GetTopVotedFeaturesDocument, options);
@@ -16846,13 +16960,13 @@ export const GetDevTasksDocument = gql`
       status
       priority
       assigned_to {
-        privy_id
+        id
         username
         display_name
         avatar_url
       }
       created_by {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -16914,6 +17028,9 @@ export function useGetDevTasksLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetDevTasksQuery, GetDevTasksQueryVariables>(GetDevTasksDocument, options);
         }
+// @ts-ignore
+export function useGetDevTasksSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetDevTasksQuery, GetDevTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevTasksQuery, GetDevTasksQueryVariables>;
+export function useGetDevTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevTasksQuery, GetDevTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevTasksQuery | undefined, GetDevTasksQueryVariables>;
 export function useGetDevTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevTasksQuery, GetDevTasksQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetDevTasksQuery, GetDevTasksQueryVariables>(GetDevTasksDocument, options);
@@ -16932,13 +17049,13 @@ export const GetDevTaskDocument = gql`
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
       display_name
       avatar_url
     }
     created_by {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -16996,6 +17113,9 @@ export function useGetDevTaskLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetDevTaskQuery, GetDevTaskQueryVariables>(GetDevTaskDocument, options);
         }
+// @ts-ignore
+export function useGetDevTaskSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetDevTaskQuery, GetDevTaskQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevTaskQuery, GetDevTaskQueryVariables>;
+export function useGetDevTaskSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevTaskQuery, GetDevTaskQueryVariables>): Apollo.UseSuspenseQueryResult<GetDevTaskQuery | undefined, GetDevTaskQueryVariables>;
 export function useGetDevTaskSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetDevTaskQuery, GetDevTaskQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetDevTaskQuery, GetDevTaskQueryVariables>(GetDevTaskDocument, options);
@@ -17042,6 +17162,9 @@ export function useGetMyDevTasksLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>(GetMyDevTasksDocument, options);
         }
+// @ts-ignore
+export function useGetMyDevTasksSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>;
+export function useGetMyDevTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyDevTasksQuery | undefined, GetMyDevTasksQueryVariables>;
 export function useGetMyDevTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyDevTasksQuery, GetMyDevTasksQueryVariables>(GetMyDevTasksDocument, options);
@@ -17059,7 +17182,7 @@ export const GetSprintTasksDocument = gql`
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -17093,6 +17216,9 @@ export function useGetSprintTasksLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSprintTasksQuery, GetSprintTasksQueryVariables>(GetSprintTasksDocument, options);
         }
+// @ts-ignore
+export function useGetSprintTasksSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSprintTasksQuery, GetSprintTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetSprintTasksQuery, GetSprintTasksQueryVariables>;
+export function useGetSprintTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSprintTasksQuery, GetSprintTasksQueryVariables>): Apollo.UseSuspenseQueryResult<GetSprintTasksQuery | undefined, GetSprintTasksQueryVariables>;
 export function useGetSprintTasksSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSprintTasksQuery, GetSprintTasksQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSprintTasksQuery, GetSprintTasksQueryVariables>(GetSprintTasksDocument, options);
@@ -17147,6 +17273,9 @@ export function useGetChangelogLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetChangelogQuery, GetChangelogQueryVariables>(GetChangelogDocument, options);
         }
+// @ts-ignore
+export function useGetChangelogSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetChangelogQuery, GetChangelogQueryVariables>): Apollo.UseSuspenseQueryResult<GetChangelogQuery, GetChangelogQueryVariables>;
+export function useGetChangelogSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetChangelogQuery, GetChangelogQueryVariables>): Apollo.UseSuspenseQueryResult<GetChangelogQuery | undefined, GetChangelogQueryVariables>;
 export function useGetChangelogSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetChangelogQuery, GetChangelogQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetChangelogQuery, GetChangelogQueryVariables>(GetChangelogDocument, options);
@@ -17195,6 +17324,9 @@ export function useGetLatestChangelogLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>(GetLatestChangelogDocument, options);
         }
+// @ts-ignore
+export function useGetLatestChangelogSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>): Apollo.UseSuspenseQueryResult<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>;
+export function useGetLatestChangelogSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>): Apollo.UseSuspenseQueryResult<GetLatestChangelogQuery | undefined, GetLatestChangelogQueryVariables>;
 export function useGetLatestChangelogSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetLatestChangelogQuery, GetLatestChangelogQueryVariables>(GetLatestChangelogDocument, options);
@@ -17244,6 +17376,9 @@ export function useGetGitHubCommitsLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>(GetGitHubCommitsDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubCommitsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>;
+export function useGetGitHubCommitsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubCommitsQuery | undefined, GetGitHubCommitsQueryVariables>;
 export function useGetGitHubCommitsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubCommitsQuery, GetGitHubCommitsQueryVariables>(GetGitHubCommitsDocument, options);
@@ -17299,6 +17434,9 @@ export function useGetGitHubPullRequestsLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>(GetGitHubPullRequestsDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubPullRequestsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>;
+export function useGetGitHubPullRequestsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubPullRequestsQuery | undefined, GetGitHubPullRequestsQueryVariables>;
 export function useGetGitHubPullRequestsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubPullRequestsQuery, GetGitHubPullRequestsQueryVariables>(GetGitHubPullRequestsDocument, options);
@@ -17350,6 +17488,9 @@ export function useGetGitHubActionsLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>(GetGitHubActionsDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubActionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>;
+export function useGetGitHubActionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubActionsQuery | undefined, GetGitHubActionsQueryVariables>;
 export function useGetGitHubActionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubActionsQuery, GetGitHubActionsQueryVariables>(GetGitHubActionsDocument, options);
@@ -17400,6 +17541,9 @@ export function useGetGitHubReleasesLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>(GetGitHubReleasesDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubReleasesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>;
+export function useGetGitHubReleasesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubReleasesQuery | undefined, GetGitHubReleasesQueryVariables>;
 export function useGetGitHubReleasesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubReleasesQuery, GetGitHubReleasesQueryVariables>(GetGitHubReleasesDocument, options);
@@ -17448,6 +17592,9 @@ export function useGetGitHubReposLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubReposQuery, GetGitHubReposQueryVariables>(GetGitHubReposDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubReposSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubReposQuery, GetGitHubReposQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubReposQuery, GetGitHubReposQueryVariables>;
+export function useGetGitHubReposSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubReposQuery, GetGitHubReposQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubReposQuery | undefined, GetGitHubReposQueryVariables>;
 export function useGetGitHubReposSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubReposQuery, GetGitHubReposQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubReposQuery, GetGitHubReposQueryVariables>(GetGitHubReposDocument, options);
@@ -17490,6 +17637,9 @@ export function useGetGitHubRateLimitLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>(GetGitHubRateLimitDocument, options);
         }
+// @ts-ignore
+export function useGetGitHubRateLimitSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>;
+export function useGetGitHubRateLimitSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>): Apollo.UseSuspenseQueryResult<GetGitHubRateLimitQuery | undefined, GetGitHubRateLimitQueryVariables>;
 export function useGetGitHubRateLimitSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGitHubRateLimitQuery, GetGitHubRateLimitQueryVariables>(GetGitHubRateLimitDocument, options);
@@ -17549,6 +17699,9 @@ export function useGetProjectsLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetProjectsQuery, GetProjectsQueryVariables>(GetProjectsDocument, options);
         }
+// @ts-ignore
+export function useGetProjectsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetProjectsQuery, GetProjectsQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectsQuery, GetProjectsQueryVariables>;
+export function useGetProjectsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectsQuery, GetProjectsQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectsQuery | undefined, GetProjectsQueryVariables>;
 export function useGetProjectsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectsQuery, GetProjectsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetProjectsQuery, GetProjectsQueryVariables>(GetProjectsDocument, options);
@@ -17608,6 +17761,9 @@ export function useGetProjectLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetProjectQuery, GetProjectQueryVariables>(GetProjectDocument, options);
         }
+// @ts-ignore
+export function useGetProjectSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetProjectQuery, GetProjectQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectQuery, GetProjectQueryVariables>;
+export function useGetProjectSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectQuery, GetProjectQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectQuery | undefined, GetProjectQueryVariables>;
 export function useGetProjectSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectQuery, GetProjectQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetProjectQuery, GetProjectQueryVariables>(GetProjectDocument, options);
@@ -17667,6 +17823,9 @@ export function useGetProjectBySlugLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>(GetProjectBySlugDocument, options);
         }
+// @ts-ignore
+export function useGetProjectBySlugSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>;
+export function useGetProjectBySlugSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>): Apollo.UseSuspenseQueryResult<GetProjectBySlugQuery | undefined, GetProjectBySlugQueryVariables>;
 export function useGetProjectBySlugSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetProjectBySlugQuery, GetProjectBySlugQueryVariables>(GetProjectBySlugDocument, options);
@@ -17687,7 +17846,7 @@ export const GetEventByCheckinCodeDocument = gql`
     is_registered
     checkin_code
     facilitator {
-      privy_id
+      id
       display_name
       username
       avatar_url
@@ -17720,6 +17879,9 @@ export function useGetEventByCheckinCodeLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>(GetEventByCheckinCodeDocument, options);
         }
+// @ts-ignore
+export function useGetEventByCheckinCodeSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>;
+export function useGetEventByCheckinCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventByCheckinCodeQuery | undefined, GetEventByCheckinCodeQueryVariables>;
 export function useGetEventByCheckinCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventByCheckinCodeQuery, GetEventByCheckinCodeQueryVariables>(GetEventByCheckinCodeDocument, options);
@@ -17748,7 +17910,7 @@ export const GetEventManagersDocument = gql`
       accepted_at
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -17787,6 +17949,9 @@ export function useGetEventManagersLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventManagersQuery, GetEventManagersQueryVariables>(GetEventManagersDocument, options);
         }
+// @ts-ignore
+export function useGetEventManagersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventManagersQuery, GetEventManagersQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventManagersQuery, GetEventManagersQueryVariables>;
+export function useGetEventManagersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventManagersQuery, GetEventManagersQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventManagersQuery | undefined, GetEventManagersQueryVariables>;
 export function useGetEventManagersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventManagersQuery, GetEventManagersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventManagersQuery, GetEventManagersQueryVariables>(GetEventManagersDocument, options);
@@ -17819,7 +17984,7 @@ export const GetEventManagerDocument = gql`
       start_date_time
     }
     user {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -17852,6 +18017,9 @@ export function useGetEventManagerLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventManagerQuery, GetEventManagerQueryVariables>(GetEventManagerDocument, options);
         }
+// @ts-ignore
+export function useGetEventManagerSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventManagerQuery, GetEventManagerQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventManagerQuery, GetEventManagerQueryVariables>;
+export function useGetEventManagerSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventManagerQuery, GetEventManagerQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventManagerQuery | undefined, GetEventManagerQueryVariables>;
 export function useGetEventManagerSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventManagerQuery, GetEventManagerQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventManagerQuery, GetEventManagerQueryVariables>(GetEventManagerDocument, options);
@@ -17900,6 +18068,9 @@ export function useGetMyEventManagerRoleLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>(GetMyEventManagerRoleDocument, options);
         }
+// @ts-ignore
+export function useGetMyEventManagerRoleSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>;
+export function useGetMyEventManagerRoleSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyEventManagerRoleQuery | undefined, GetMyEventManagerRoleQueryVariables>;
 export function useGetMyEventManagerRoleSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyEventManagerRoleQuery, GetMyEventManagerRoleQueryVariables>(GetMyEventManagerRoleDocument, options);
@@ -17949,6 +18120,9 @@ export function useGetMyManagedEventsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>(GetMyManagedEventsDocument, options);
         }
+// @ts-ignore
+export function useGetMyManagedEventsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>;
+export function useGetMyManagedEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyManagedEventsQuery | undefined, GetMyManagedEventsQueryVariables>;
 export function useGetMyManagedEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyManagedEventsQuery, GetMyManagedEventsQueryVariables>(GetMyManagedEventsDocument, options);
@@ -17988,6 +18162,9 @@ export function useCheckEventPermissionLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>(CheckEventPermissionDocument, options);
         }
+// @ts-ignore
+export function useCheckEventPermissionSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>): Apollo.UseSuspenseQueryResult<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>;
+export function useCheckEventPermissionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>): Apollo.UseSuspenseQueryResult<CheckEventPermissionQuery | undefined, CheckEventPermissionQueryVariables>;
 export function useCheckEventPermissionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<CheckEventPermissionQuery, CheckEventPermissionQueryVariables>(CheckEventPermissionDocument, options);
@@ -18033,6 +18210,9 @@ export function useGetFeedLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<Ge
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetFeedQuery, GetFeedQueryVariables>(GetFeedDocument, options);
         }
+// @ts-ignore
+export function useGetFeedSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetFeedQuery, GetFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeedQuery, GetFeedQueryVariables>;
+export function useGetFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeedQuery, GetFeedQueryVariables>): Apollo.UseSuspenseQueryResult<GetFeedQuery | undefined, GetFeedQueryVariables>;
 export function useGetFeedSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFeedQuery, GetFeedQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetFeedQuery, GetFeedQueryVariables>(GetFeedDocument, options);
@@ -18073,6 +18253,9 @@ export function useGetPostLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<Ge
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPostQuery, GetPostQueryVariables>(GetPostDocument, options);
         }
+// @ts-ignore
+export function useGetPostSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPostQuery, GetPostQueryVariables>): Apollo.UseSuspenseQueryResult<GetPostQuery, GetPostQueryVariables>;
+export function useGetPostSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPostQuery, GetPostQueryVariables>): Apollo.UseSuspenseQueryResult<GetPostQuery | undefined, GetPostQueryVariables>;
 export function useGetPostSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPostQuery, GetPostQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPostQuery, GetPostQueryVariables>(GetPostDocument, options);
@@ -18114,6 +18297,9 @@ export function useGetMyPostsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyPostsQuery, GetMyPostsQueryVariables>(GetMyPostsDocument, options);
         }
+// @ts-ignore
+export function useGetMyPostsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyPostsQuery, GetMyPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyPostsQuery, GetMyPostsQueryVariables>;
+export function useGetMyPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyPostsQuery, GetMyPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyPostsQuery | undefined, GetMyPostsQueryVariables>;
 export function useGetMyPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyPostsQuery, GetMyPostsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyPostsQuery, GetMyPostsQueryVariables>(GetMyPostsDocument, options);
@@ -18156,6 +18342,9 @@ export function useGetUserPostsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserPostsQuery, GetUserPostsQueryVariables>(GetUserPostsDocument, options);
         }
+// @ts-ignore
+export function useGetUserPostsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserPostsQuery, GetUserPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserPostsQuery, GetUserPostsQueryVariables>;
+export function useGetUserPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserPostsQuery, GetUserPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserPostsQuery | undefined, GetUserPostsQueryVariables>;
 export function useGetUserPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserPostsQuery, GetUserPostsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserPostsQuery, GetUserPostsQueryVariables>(GetUserPostsDocument, options);
@@ -18198,6 +18387,9 @@ export function useGetEventPostsLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventPostsQuery, GetEventPostsQueryVariables>(GetEventPostsDocument, options);
         }
+// @ts-ignore
+export function useGetEventPostsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventPostsQuery, GetEventPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventPostsQuery, GetEventPostsQueryVariables>;
+export function useGetEventPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventPostsQuery, GetEventPostsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventPostsQuery | undefined, GetEventPostsQueryVariables>;
 export function useGetEventPostsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventPostsQuery, GetEventPostsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventPostsQuery, GetEventPostsQueryVariables>(GetEventPostsDocument, options);
@@ -18224,7 +18416,7 @@ export const GetAllEventRegistrationsDocument = gql`
     created_at
     updated_at
     user {
-      privy_id
+      id
       username
       display_name
     }
@@ -18261,6 +18453,9 @@ export function useGetAllEventRegistrationsLazyQuery(baseOptions?: Apollo.LazyQu
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>(GetAllEventRegistrationsDocument, options);
         }
+// @ts-ignore
+export function useGetAllEventRegistrationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>;
+export function useGetAllEventRegistrationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllEventRegistrationsQuery | undefined, GetAllEventRegistrationsQueryVariables>;
 export function useGetAllEventRegistrationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAllEventRegistrationsQuery, GetAllEventRegistrationsQueryVariables>(GetAllEventRegistrationsDocument, options);
@@ -18297,7 +18492,7 @@ export const GetEventDocument = gql`
     is_registered
     user_registration_status
     facilitator {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -18340,6 +18535,9 @@ export function useGetEventLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<G
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventQuery, GetEventQueryVariables>(GetEventDocument, options);
         }
+// @ts-ignore
+export function useGetEventSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventQuery, GetEventQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventQuery, GetEventQueryVariables>;
+export function useGetEventSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventQuery, GetEventQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventQuery | undefined, GetEventQueryVariables>;
 export function useGetEventSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventQuery, GetEventQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventQuery, GetEventQueryVariables>(GetEventDocument, options);
@@ -18364,7 +18562,7 @@ export const GetEventsDocument = gql`
       is_public
       facilitator_id
       facilitator {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -18434,6 +18632,9 @@ export function useGetEventsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions<
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventsQuery, GetEventsQueryVariables>(GetEventsDocument, options);
         }
+// @ts-ignore
+export function useGetEventsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventsQuery, GetEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventsQuery, GetEventsQueryVariables>;
+export function useGetEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventsQuery, GetEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventsQuery | undefined, GetEventsQueryVariables>;
 export function useGetEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventsQuery, GetEventsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventsQuery, GetEventsQueryVariables>(GetEventsDocument, options);
@@ -18458,7 +18659,7 @@ export const GetPublicEventsDocument = gql`
       is_public
       facilitator_id
       facilitator {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -18527,6 +18728,9 @@ export function useGetPublicEventsLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPublicEventsQuery, GetPublicEventsQueryVariables>(GetPublicEventsDocument, options);
         }
+// @ts-ignore
+export function useGetPublicEventsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPublicEventsQuery, GetPublicEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPublicEventsQuery, GetPublicEventsQueryVariables>;
+export function useGetPublicEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPublicEventsQuery, GetPublicEventsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPublicEventsQuery | undefined, GetPublicEventsQueryVariables>;
 export function useGetPublicEventsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPublicEventsQuery, GetPublicEventsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPublicEventsQuery, GetPublicEventsQueryVariables>(GetPublicEventsDocument, options);
@@ -18569,6 +18773,9 @@ export function useGetAllGigRolesLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>(GetAllGigRolesDocument, options);
         }
+// @ts-ignore
+export function useGetAllGigRolesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>;
+export function useGetAllGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetAllGigRolesQuery | undefined, GetAllGigRolesQueryVariables>;
 export function useGetAllGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAllGigRolesQuery, GetAllGigRolesQueryVariables>(GetAllGigRolesDocument, options);
@@ -18610,6 +18817,9 @@ export function useGetGigRoleLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGigRoleQuery, GetGigRoleQueryVariables>(GetGigRoleDocument, options);
         }
+// @ts-ignore
+export function useGetGigRoleSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGigRoleQuery, GetGigRoleQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigRoleQuery, GetGigRoleQueryVariables>;
+export function useGetGigRoleSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigRoleQuery, GetGigRoleQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigRoleQuery | undefined, GetGigRoleQueryVariables>;
 export function useGetGigRoleSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigRoleQuery, GetGigRoleQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGigRoleQuery, GetGigRoleQueryVariables>(GetGigRoleDocument, options);
@@ -18650,6 +18860,9 @@ export function useGetMyGigRolesLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>(GetMyGigRolesDocument, options);
         }
+// @ts-ignore
+export function useGetMyGigRolesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>;
+export function useGetMyGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigRolesQuery | undefined, GetMyGigRolesQueryVariables>;
 export function useGetMyGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyGigRolesQuery, GetMyGigRolesQueryVariables>(GetMyGigRolesDocument, options);
@@ -18690,6 +18903,9 @@ export function useGetUserGigRolesLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>(GetUserGigRolesDocument, options);
         }
+// @ts-ignore
+export function useGetUserGigRolesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>;
+export function useGetUserGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserGigRolesQuery | undefined, GetUserGigRolesQueryVariables>;
 export function useGetUserGigRolesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserGigRolesQuery, GetUserGigRolesQueryVariables>(GetUserGigRolesDocument, options);
@@ -18730,6 +18946,9 @@ export function useGetEventGigsLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventGigsQuery, GetEventGigsQueryVariables>(GetEventGigsDocument, options);
         }
+// @ts-ignore
+export function useGetEventGigsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventGigsQuery, GetEventGigsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigsQuery, GetEventGigsQueryVariables>;
+export function useGetEventGigsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigsQuery, GetEventGigsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigsQuery | undefined, GetEventGigsQueryVariables>;
 export function useGetEventGigsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigsQuery, GetEventGigsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventGigsQuery, GetEventGigsQueryVariables>(GetEventGigsDocument, options);
@@ -18772,6 +18991,9 @@ export function useGetAvailableGigsForMeLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>(GetAvailableGigsForMeDocument, options);
         }
+// @ts-ignore
+export function useGetAvailableGigsForMeSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>): Apollo.UseSuspenseQueryResult<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>;
+export function useGetAvailableGigsForMeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>): Apollo.UseSuspenseQueryResult<GetAvailableGigsForMeQuery | undefined, GetAvailableGigsForMeQueryVariables>;
 export function useGetAvailableGigsForMeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetAvailableGigsForMeQuery, GetAvailableGigsForMeQueryVariables>(GetAvailableGigsForMeDocument, options);
@@ -18812,6 +19034,9 @@ export function useGetEventGigLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventGigQuery, GetEventGigQueryVariables>(GetEventGigDocument, options);
         }
+// @ts-ignore
+export function useGetEventGigSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventGigQuery, GetEventGigQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigQuery, GetEventGigQueryVariables>;
+export function useGetEventGigSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigQuery, GetEventGigQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigQuery | undefined, GetEventGigQueryVariables>;
 export function useGetEventGigSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigQuery, GetEventGigQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventGigQuery, GetEventGigQueryVariables>(GetEventGigDocument, options);
@@ -18854,6 +19079,9 @@ export function useGetMyGigApplicationsLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>(GetMyGigApplicationsDocument, options);
         }
+// @ts-ignore
+export function useGetMyGigApplicationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>;
+export function useGetMyGigApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigApplicationsQuery | undefined, GetMyGigApplicationsQueryVariables>;
 export function useGetMyGigApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyGigApplicationsQuery, GetMyGigApplicationsQueryVariables>(GetMyGigApplicationsDocument, options);
@@ -18895,6 +19123,9 @@ export function useGetGigApplicationsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>(GetGigApplicationsDocument, options);
         }
+// @ts-ignore
+export function useGetGigApplicationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>;
+export function useGetGigApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigApplicationsQuery | undefined, GetGigApplicationsQueryVariables>;
 export function useGetGigApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGigApplicationsQuery, GetGigApplicationsQueryVariables>(GetGigApplicationsDocument, options);
@@ -18935,6 +19166,9 @@ export function useGetGigApplicationLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGigApplicationQuery, GetGigApplicationQueryVariables>(GetGigApplicationDocument, options);
         }
+// @ts-ignore
+export function useGetGigApplicationSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGigApplicationQuery, GetGigApplicationQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigApplicationQuery, GetGigApplicationQueryVariables>;
+export function useGetGigApplicationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigApplicationQuery, GetGigApplicationQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigApplicationQuery | undefined, GetGigApplicationQueryVariables>;
 export function useGetGigApplicationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigApplicationQuery, GetGigApplicationQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGigApplicationQuery, GetGigApplicationQueryVariables>(GetGigApplicationDocument, options);
@@ -18974,6 +19208,9 @@ export function useGetMyGigStatsLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>(GetMyGigStatsDocument, options);
         }
+// @ts-ignore
+export function useGetMyGigStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>;
+export function useGetMyGigStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigStatsQuery | undefined, GetMyGigStatsQueryVariables>;
 export function useGetMyGigStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyGigStatsQuery, GetMyGigStatsQueryVariables>(GetMyGigStatsDocument, options);
@@ -19030,6 +19267,9 @@ export function useGetMyGigDashboardLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>(GetMyGigDashboardDocument, options);
         }
+// @ts-ignore
+export function useGetMyGigDashboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>;
+export function useGetMyGigDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyGigDashboardQuery | undefined, GetMyGigDashboardQueryVariables>;
 export function useGetMyGigDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyGigDashboardQuery, GetMyGigDashboardQueryVariables>(GetMyGigDashboardDocument, options);
@@ -19064,7 +19304,7 @@ export const GetGigManagerDashboardDocument = gql`
       application {
         id
         user {
-          privy_id
+          id
           username
           display_name
           avatar_url
@@ -19123,6 +19363,9 @@ export function useGetGigManagerDashboardLazyQuery(baseOptions?: Apollo.LazyQuer
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>(GetGigManagerDashboardDocument, options);
         }
+// @ts-ignore
+export function useGetGigManagerDashboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>;
+export function useGetGigManagerDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigManagerDashboardQuery | undefined, GetGigManagerDashboardQueryVariables>;
 export function useGetGigManagerDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGigManagerDashboardQuery, GetGigManagerDashboardQueryVariables>(GetGigManagerDashboardDocument, options);
@@ -19167,6 +19410,9 @@ export function useGetGigRewardRatesLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>(GetGigRewardRatesDocument, options);
         }
+// @ts-ignore
+export function useGetGigRewardRatesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>;
+export function useGetGigRewardRatesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>): Apollo.UseSuspenseQueryResult<GetGigRewardRatesQuery | undefined, GetGigRewardRatesQueryVariables>;
 export function useGetGigRewardRatesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGigRewardRatesQuery, GetGigRewardRatesQueryVariables>(GetGigRewardRatesDocument, options);
@@ -19207,6 +19453,9 @@ export function useGetEventGigManagersLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>(GetEventGigManagersDocument, options);
         }
+// @ts-ignore
+export function useGetEventGigManagersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>;
+export function useGetEventGigManagersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventGigManagersQuery | undefined, GetEventGigManagersQueryVariables>;
 export function useGetEventGigManagersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventGigManagersQuery, GetEventGigManagersQueryVariables>(GetEventGigManagersDocument, options);
@@ -19277,6 +19526,9 @@ export function useGetGlobalLeaderboardLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>(GetGlobalLeaderboardDocument, options);
         }
+// @ts-ignore
+export function useGetGlobalLeaderboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>;
+export function useGetGlobalLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetGlobalLeaderboardQuery | undefined, GetGlobalLeaderboardQueryVariables>;
 export function useGetGlobalLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetGlobalLeaderboardQuery, GetGlobalLeaderboardQueryVariables>(GetGlobalLeaderboardDocument, options);
@@ -19335,6 +19587,9 @@ export function useGetWeeklyLeaderboardLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>(GetWeeklyLeaderboardDocument, options);
         }
+// @ts-ignore
+export function useGetWeeklyLeaderboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>;
+export function useGetWeeklyLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetWeeklyLeaderboardQuery | undefined, GetWeeklyLeaderboardQueryVariables>;
 export function useGetWeeklyLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetWeeklyLeaderboardQuery, GetWeeklyLeaderboardQueryVariables>(GetWeeklyLeaderboardDocument, options);
@@ -19388,6 +19643,9 @@ export function useGetFriendsLeaderboardLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>(GetFriendsLeaderboardDocument, options);
         }
+// @ts-ignore
+export function useGetFriendsLeaderboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>;
+export function useGetFriendsLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetFriendsLeaderboardQuery | undefined, GetFriendsLeaderboardQueryVariables>;
 export function useGetFriendsLeaderboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetFriendsLeaderboardQuery, GetFriendsLeaderboardQueryVariables>(GetFriendsLeaderboardDocument, options);
@@ -19433,6 +19691,9 @@ export function useGetMyLeaderboardSummaryLazyQuery(baseOptions?: Apollo.LazyQue
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>(GetMyLeaderboardSummaryDocument, options);
         }
+// @ts-ignore
+export function useGetMyLeaderboardSummarySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>;
+export function useGetMyLeaderboardSummarySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyLeaderboardSummaryQuery | undefined, GetMyLeaderboardSummaryQueryVariables>;
 export function useGetMyLeaderboardSummarySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyLeaderboardSummaryQuery, GetMyLeaderboardSummaryQueryVariables>(GetMyLeaderboardSummaryDocument, options);
@@ -19482,6 +19743,9 @@ export function useGetTopPerformersLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetTopPerformersQuery, GetTopPerformersQueryVariables>(GetTopPerformersDocument, options);
         }
+// @ts-ignore
+export function useGetTopPerformersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetTopPerformersQuery, GetTopPerformersQueryVariables>): Apollo.UseSuspenseQueryResult<GetTopPerformersQuery, GetTopPerformersQueryVariables>;
+export function useGetTopPerformersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTopPerformersQuery, GetTopPerformersQueryVariables>): Apollo.UseSuspenseQueryResult<GetTopPerformersQuery | undefined, GetTopPerformersQueryVariables>;
 export function useGetTopPerformersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetTopPerformersQuery, GetTopPerformersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetTopPerformersQuery, GetTopPerformersQueryVariables>(GetTopPerformersDocument, options);
@@ -19530,6 +19794,9 @@ export function useGetNearbyUsersLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>(GetNearbyUsersDocument, options);
         }
+// @ts-ignore
+export function useGetNearbyUsersSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>): Apollo.UseSuspenseQueryResult<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>;
+export function useGetNearbyUsersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>): Apollo.UseSuspenseQueryResult<GetNearbyUsersQuery | undefined, GetNearbyUsersQueryVariables>;
 export function useGetNearbyUsersSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetNearbyUsersQuery, GetNearbyUsersQueryVariables>(GetNearbyUsersDocument, options);
@@ -19604,6 +19871,9 @@ export function useGetMyNotificationsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>(GetMyNotificationsDocument, options);
         }
+// @ts-ignore
+export function useGetMyNotificationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>;
+export function useGetMyNotificationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyNotificationsQuery | undefined, GetMyNotificationsQueryVariables>;
 export function useGetMyNotificationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyNotificationsQuery, GetMyNotificationsQueryVariables>(GetMyNotificationsDocument, options);
@@ -19666,6 +19936,9 @@ export function useGetNotificationLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetNotificationQuery, GetNotificationQueryVariables>(GetNotificationDocument, options);
         }
+// @ts-ignore
+export function useGetNotificationSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetNotificationQuery, GetNotificationQueryVariables>): Apollo.UseSuspenseQueryResult<GetNotificationQuery, GetNotificationQueryVariables>;
+export function useGetNotificationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetNotificationQuery, GetNotificationQueryVariables>): Apollo.UseSuspenseQueryResult<GetNotificationQuery | undefined, GetNotificationQueryVariables>;
 export function useGetNotificationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetNotificationQuery, GetNotificationQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetNotificationQuery, GetNotificationQueryVariables>(GetNotificationDocument, options);
@@ -19719,6 +19992,9 @@ export function useGetMyNotificationPreferencesLazyQuery(baseOptions?: Apollo.La
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>(GetMyNotificationPreferencesDocument, options);
         }
+// @ts-ignore
+export function useGetMyNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>;
+export function useGetMyNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyNotificationPreferencesQuery | undefined, GetMyNotificationPreferencesQueryVariables>;
 export function useGetMyNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyNotificationPreferencesQuery, GetMyNotificationPreferencesQueryVariables>(GetMyNotificationPreferencesDocument, options);
@@ -19756,6 +20032,9 @@ export function useGetUnreadNotificationCountLazyQuery(baseOptions?: Apollo.Lazy
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>(GetUnreadNotificationCountDocument, options);
         }
+// @ts-ignore
+export function useGetUnreadNotificationCountSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>): Apollo.UseSuspenseQueryResult<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>;
+export function useGetUnreadNotificationCountSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>): Apollo.UseSuspenseQueryResult<GetUnreadNotificationCountQuery | undefined, GetUnreadNotificationCountQueryVariables>;
 export function useGetUnreadNotificationCountSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUnreadNotificationCountQuery, GetUnreadNotificationCountQueryVariables>(GetUnreadNotificationCountDocument, options);
@@ -19810,6 +20089,9 @@ export function useGetMyOrganizerApplicationLazyQuery(baseOptions?: Apollo.LazyQ
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>(GetMyOrganizerApplicationDocument, options);
         }
+// @ts-ignore
+export function useGetMyOrganizerApplicationSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>;
+export function useGetMyOrganizerApplicationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyOrganizerApplicationQuery | undefined, GetMyOrganizerApplicationQueryVariables>;
 export function useGetMyOrganizerApplicationSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyOrganizerApplicationQuery, GetMyOrganizerApplicationQueryVariables>(GetMyOrganizerApplicationDocument, options);
@@ -19825,7 +20107,7 @@ export const GetPendingOrganizerApplicationsDocument = gql`
       id
       user_id
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -19874,6 +20156,9 @@ export function useGetPendingOrganizerApplicationsLazyQuery(baseOptions?: Apollo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>(GetPendingOrganizerApplicationsDocument, options);
         }
+// @ts-ignore
+export function useGetPendingOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>;
+export function useGetPendingOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingOrganizerApplicationsQuery | undefined, GetPendingOrganizerApplicationsQueryVariables>;
 export function useGetPendingOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPendingOrganizerApplicationsQuery, GetPendingOrganizerApplicationsQueryVariables>(GetPendingOrganizerApplicationsDocument, options);
@@ -19889,7 +20174,7 @@ export const GetOrganizerApplicationsDocument = gql`
       id
       user_id
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -19945,6 +20230,9 @@ export function useGetOrganizerApplicationsLazyQuery(baseOptions?: Apollo.LazyQu
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>(GetOrganizerApplicationsDocument, options);
         }
+// @ts-ignore
+export function useGetOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>;
+export function useGetOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>): Apollo.UseSuspenseQueryResult<GetOrganizerApplicationsQuery | undefined, GetOrganizerApplicationsQueryVariables>;
 export function useGetOrganizerApplicationsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetOrganizerApplicationsQuery, GetOrganizerApplicationsQueryVariables>(GetOrganizerApplicationsDocument, options);
@@ -19983,7 +20271,7 @@ export const GetPublicEventDocument = gql`
     slug
     is_public
     facilitator {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -20024,6 +20312,9 @@ export function useGetPublicEventLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPublicEventQuery, GetPublicEventQueryVariables>(GetPublicEventDocument, options);
         }
+// @ts-ignore
+export function useGetPublicEventSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPublicEventQuery, GetPublicEventQueryVariables>): Apollo.UseSuspenseQueryResult<GetPublicEventQuery, GetPublicEventQueryVariables>;
+export function useGetPublicEventSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPublicEventQuery, GetPublicEventQueryVariables>): Apollo.UseSuspenseQueryResult<GetPublicEventQuery | undefined, GetPublicEventQueryVariables>;
 export function useGetPublicEventSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPublicEventQuery, GetPublicEventQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPublicEventQuery, GetPublicEventQueryVariables>(GetPublicEventDocument, options);
@@ -20075,6 +20366,9 @@ export function useGetReferralByCodeLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>(GetReferralByCodeDocument, options);
         }
+// @ts-ignore
+export function useGetReferralByCodeSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>;
+export function useGetReferralByCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetReferralByCodeQuery | undefined, GetReferralByCodeQueryVariables>;
 export function useGetReferralByCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetReferralByCodeQuery, GetReferralByCodeQueryVariables>(GetReferralByCodeDocument, options);
@@ -20118,6 +20412,9 @@ export function useGetMyReferralCodeLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>(GetMyReferralCodeDocument, options);
         }
+// @ts-ignore
+export function useGetMyReferralCodeSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>;
+export function useGetMyReferralCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralCodeQuery | undefined, GetMyReferralCodeQueryVariables>;
 export function useGetMyReferralCodeSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyReferralCodeQuery, GetMyReferralCodeQueryVariables>(GetMyReferralCodeDocument, options);
@@ -20163,6 +20460,9 @@ export function useGetMyReferralStatsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>(GetMyReferralStatsDocument, options);
         }
+// @ts-ignore
+export function useGetMyReferralStatsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>;
+export function useGetMyReferralStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralStatsQuery | undefined, GetMyReferralStatsQueryVariables>;
 export function useGetMyReferralStatsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyReferralStatsQuery, GetMyReferralStatsQueryVariables>(GetMyReferralStatsDocument, options);
@@ -20217,6 +20517,9 @@ export function useGetMyReferralsLazyQuery(baseOptions?: Apollo.LazyQueryHookOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyReferralsQuery, GetMyReferralsQueryVariables>(GetMyReferralsDocument, options);
         }
+// @ts-ignore
+export function useGetMyReferralsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyReferralsQuery, GetMyReferralsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralsQuery, GetMyReferralsQueryVariables>;
+export function useGetMyReferralsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralsQuery, GetMyReferralsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyReferralsQuery | undefined, GetMyReferralsQueryVariables>;
 export function useGetMyReferralsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyReferralsQuery, GetMyReferralsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyReferralsQuery, GetMyReferralsQueryVariables>(GetMyReferralsDocument, options);
@@ -20267,6 +20570,9 @@ export function useGetSponsorLazyQuery(baseOptions?: Apollo.LazyQueryHookOptions
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorQuery, GetSponsorQueryVariables>(GetSponsorDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorQuery, GetSponsorQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorQuery, GetSponsorQueryVariables>;
+export function useGetSponsorSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorQuery, GetSponsorQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorQuery | undefined, GetSponsorQueryVariables>;
 export function useGetSponsorSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorQuery, GetSponsorQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorQuery, GetSponsorQueryVariables>(GetSponsorDocument, options);
@@ -20307,6 +20613,9 @@ export function useGetSponsorByUserIdLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>(GetSponsorByUserIdDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorByUserIdSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>;
+export function useGetSponsorByUserIdSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorByUserIdQuery | undefined, GetSponsorByUserIdQueryVariables>;
 export function useGetSponsorByUserIdSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorByUserIdQuery, GetSponsorByUserIdQueryVariables>(GetSponsorByUserIdDocument, options);
@@ -20361,6 +20670,9 @@ export function useGetMySponsorProfileLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>(GetMySponsorProfileDocument, options);
         }
+// @ts-ignore
+export function useGetMySponsorProfileSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>): Apollo.UseSuspenseQueryResult<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>;
+export function useGetMySponsorProfileSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>): Apollo.UseSuspenseQueryResult<GetMySponsorProfileQuery | undefined, GetMySponsorProfileQueryVariables>;
 export function useGetMySponsorProfileSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMySponsorProfileQuery, GetMySponsorProfileQueryVariables>(GetMySponsorProfileDocument, options);
@@ -20400,6 +20712,9 @@ export function useGetSponsorCategoriesLazyQuery(baseOptions?: Apollo.LazyQueryH
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>(GetSponsorCategoriesDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorCategoriesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>;
+export function useGetSponsorCategoriesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorCategoriesQuery | undefined, GetSponsorCategoriesQueryVariables>;
 export function useGetSponsorCategoriesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorCategoriesQuery, GetSponsorCategoriesQueryVariables>(GetSponsorCategoriesDocument, options);
@@ -20442,7 +20757,7 @@ export const GetSponsorDashboardDocument = gql`
         dance_styles
         category
         facilitator {
-          privy_id
+          id
           username
           avatar_url
         }
@@ -20500,6 +20815,9 @@ export function useGetSponsorDashboardLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>(GetSponsorDashboardDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorDashboardSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>;
+export function useGetSponsorDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorDashboardQuery | undefined, GetSponsorDashboardQueryVariables>;
 export function useGetSponsorDashboardSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorDashboardQuery, GetSponsorDashboardQueryVariables>(GetSponsorDashboardDocument, options);
@@ -20523,7 +20841,7 @@ export const GetEventsForSponsorshipDocument = gql`
     dance_styles
     category
     facilitator {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -20555,6 +20873,9 @@ export function useGetEventsForSponsorshipLazyQuery(baseOptions?: Apollo.LazyQue
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>(GetEventsForSponsorshipDocument, options);
         }
+// @ts-ignore
+export function useGetEventsForSponsorshipSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>;
+export function useGetEventsForSponsorshipSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventsForSponsorshipQuery | undefined, GetEventsForSponsorshipQueryVariables>;
 export function useGetEventsForSponsorshipSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventsForSponsorshipQuery, GetEventsForSponsorshipQueryVariables>(GetEventsForSponsorshipDocument, options);
@@ -20580,7 +20901,7 @@ export const GetSuggestedEventsForSponsorDocument = gql`
       dance_styles
       category
       facilitator {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -20613,6 +20934,9 @@ export function useGetSuggestedEventsForSponsorLazyQuery(baseOptions?: Apollo.La
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>(GetSuggestedEventsForSponsorDocument, options);
         }
+// @ts-ignore
+export function useGetSuggestedEventsForSponsorSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>): Apollo.UseSuspenseQueryResult<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>;
+export function useGetSuggestedEventsForSponsorSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>): Apollo.UseSuspenseQueryResult<GetSuggestedEventsForSponsorQuery | undefined, GetSuggestedEventsForSponsorQueryVariables>;
 export function useGetSuggestedEventsForSponsorSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSuggestedEventsForSponsorQuery, GetSuggestedEventsForSponsorQueryVariables>(GetSuggestedEventsForSponsorDocument, options);
@@ -20652,6 +20976,9 @@ export function useGetMyFlowBalanceLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>(GetMyFlowBalanceDocument, options);
         }
+// @ts-ignore
+export function useGetMyFlowBalanceSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>;
+export function useGetMyFlowBalanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyFlowBalanceQuery | undefined, GetMyFlowBalanceQueryVariables>;
 export function useGetMyFlowBalanceSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyFlowBalanceQuery, GetMyFlowBalanceQueryVariables>(GetMyFlowBalanceDocument, options);
@@ -20703,6 +21030,9 @@ export function useGetMyFlowTransactionsLazyQuery(baseOptions?: Apollo.LazyQuery
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>(GetMyFlowTransactionsDocument, options);
         }
+// @ts-ignore
+export function useGetMyFlowTransactionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>;
+export function useGetMyFlowTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyFlowTransactionsQuery | undefined, GetMyFlowTransactionsQueryVariables>;
 export function useGetMyFlowTransactionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyFlowTransactionsQuery, GetMyFlowTransactionsQueryVariables>(GetMyFlowTransactionsDocument, options);
@@ -20755,6 +21085,9 @@ export function useGetEventFlowPoolLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>(GetEventFlowPoolDocument, options);
         }
+// @ts-ignore
+export function useGetEventFlowPoolSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>;
+export function useGetEventFlowPoolSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventFlowPoolQuery | undefined, GetEventFlowPoolQueryVariables>;
 export function useGetEventFlowPoolSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventFlowPoolQuery, GetEventFlowPoolQueryVariables>(GetEventFlowPoolDocument, options);
@@ -20799,6 +21132,9 @@ export function useGetEventSponsorsLazyQuery(baseOptions?: Apollo.LazyQueryHookO
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>(GetEventSponsorsDocument, options);
         }
+// @ts-ignore
+export function useGetEventSponsorsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>;
+export function useGetEventSponsorsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorsQuery | undefined, GetEventSponsorsQueryVariables>;
 export function useGetEventSponsorsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventSponsorsQuery, GetEventSponsorsQueryVariables>(GetEventSponsorsDocument, options);
@@ -20839,6 +21175,9 @@ export function useGetEventSponsorshipSettingsLazyQuery(baseOptions?: Apollo.Laz
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>(GetEventSponsorshipSettingsDocument, options);
         }
+// @ts-ignore
+export function useGetEventSponsorshipSettingsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>;
+export function useGetEventSponsorshipSettingsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorshipSettingsQuery | undefined, GetEventSponsorshipSettingsQueryVariables>;
 export function useGetEventSponsorshipSettingsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventSponsorshipSettingsQuery, GetEventSponsorshipSettingsQueryVariables>(GetEventSponsorshipSettingsDocument, options);
@@ -20887,6 +21226,9 @@ export function useGetPendingSponsorshipApprovalsLazyQuery(baseOptions?: Apollo.
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>(GetPendingSponsorshipApprovalsDocument, options);
         }
+// @ts-ignore
+export function useGetPendingSponsorshipApprovalsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>;
+export function useGetPendingSponsorshipApprovalsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>): Apollo.UseSuspenseQueryResult<GetPendingSponsorshipApprovalsQuery | undefined, GetPendingSponsorshipApprovalsQueryVariables>;
 export function useGetPendingSponsorshipApprovalsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetPendingSponsorshipApprovalsQuery, GetPendingSponsorshipApprovalsQueryVariables>(GetPendingSponsorshipApprovalsDocument, options);
@@ -20946,6 +21288,9 @@ export function useGetMySubscriptionsLazyQuery(baseOptions?: Apollo.LazyQueryHoo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>(GetMySubscriptionsDocument, options);
         }
+// @ts-ignore
+export function useGetMySubscriptionsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>;
+export function useGetMySubscriptionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>): Apollo.UseSuspenseQueryResult<GetMySubscriptionsQuery | undefined, GetMySubscriptionsQueryVariables>;
 export function useGetMySubscriptionsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMySubscriptionsQuery, GetMySubscriptionsQueryVariables>(GetMySubscriptionsDocument, options);
@@ -21012,6 +21357,9 @@ export function useGetSubscriptionLazyQuery(baseOptions?: Apollo.LazyQueryHookOp
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSubscriptionQuery, GetSubscriptionQueryVariables>(GetSubscriptionDocument, options);
         }
+// @ts-ignore
+export function useGetSubscriptionSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSubscriptionQuery, GetSubscriptionQueryVariables>): Apollo.UseSuspenseQueryResult<GetSubscriptionQuery, GetSubscriptionQueryVariables>;
+export function useGetSubscriptionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSubscriptionQuery, GetSubscriptionQueryVariables>): Apollo.UseSuspenseQueryResult<GetSubscriptionQuery | undefined, GetSubscriptionQueryVariables>;
 export function useGetSubscriptionSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSubscriptionQuery, GetSubscriptionQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSubscriptionQuery, GetSubscriptionQueryVariables>(GetSubscriptionDocument, options);
@@ -21052,6 +21400,9 @@ export function useGetVerifiedCreatorStatusLazyQuery(baseOptions?: Apollo.LazyQu
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>(GetVerifiedCreatorStatusDocument, options);
         }
+// @ts-ignore
+export function useGetVerifiedCreatorStatusSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>;
+export function useGetVerifiedCreatorStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetVerifiedCreatorStatusQuery | undefined, GetVerifiedCreatorStatusQueryVariables>;
 export function useGetVerifiedCreatorStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetVerifiedCreatorStatusQuery, GetVerifiedCreatorStatusQueryVariables>(GetVerifiedCreatorStatusDocument, options);
@@ -21065,7 +21416,7 @@ export const GetMyVerificationStatusDocument = gql`
   myVerificationStatus {
     ...VerifiedEventCreatorFull
     user {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -21096,6 +21447,9 @@ export function useGetMyVerificationStatusLazyQuery(baseOptions?: Apollo.LazyQue
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>(GetMyVerificationStatusDocument, options);
         }
+// @ts-ignore
+export function useGetMyVerificationStatusSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>;
+export function useGetMyVerificationStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyVerificationStatusQuery | undefined, GetMyVerificationStatusQueryVariables>;
 export function useGetMyVerificationStatusSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyVerificationStatusQuery, GetMyVerificationStatusQueryVariables>(GetMyVerificationStatusDocument, options);
@@ -21136,6 +21490,9 @@ export function useGetVerificationCriteriaLazyQuery(baseOptions?: Apollo.LazyQue
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>(GetVerificationCriteriaDocument, options);
         }
+// @ts-ignore
+export function useGetVerificationCriteriaSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>): Apollo.UseSuspenseQueryResult<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>;
+export function useGetVerificationCriteriaSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>): Apollo.UseSuspenseQueryResult<GetVerificationCriteriaQuery | undefined, GetVerificationCriteriaQueryVariables>;
 export function useGetVerificationCriteriaSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetVerificationCriteriaQuery, GetVerificationCriteriaQueryVariables>(GetVerificationCriteriaDocument, options);
@@ -21182,6 +21539,9 @@ export function useGetSponsorAnalyticsLazyQuery(baseOptions?: Apollo.LazyQueryHo
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>(GetSponsorAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>;
+export function useGetSponsorAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorAnalyticsQuery | undefined, GetSponsorAnalyticsQueryVariables>;
 export function useGetSponsorAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorAnalyticsQuery, GetSponsorAnalyticsQueryVariables>(GetSponsorAnalyticsDocument, options);
@@ -21222,6 +21582,9 @@ export function useGetEventSponsorshipAnalyticsLazyQuery(baseOptions?: Apollo.La
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>(GetEventSponsorshipAnalyticsDocument, options);
         }
+// @ts-ignore
+export function useGetEventSponsorshipAnalyticsSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>;
+export function useGetEventSponsorshipAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>): Apollo.UseSuspenseQueryResult<GetEventSponsorshipAnalyticsQuery | undefined, GetEventSponsorshipAnalyticsQueryVariables>;
 export function useGetEventSponsorshipAnalyticsSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetEventSponsorshipAnalyticsQuery, GetEventSponsorshipAnalyticsQueryVariables>(GetEventSponsorshipAnalyticsDocument, options);
@@ -21261,6 +21624,9 @@ export function useGetSponsorNotificationPreferencesLazyQuery(baseOptions?: Apol
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>(GetSponsorNotificationPreferencesDocument, options);
         }
+// @ts-ignore
+export function useGetSponsorNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>;
+export function useGetSponsorNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetSponsorNotificationPreferencesQuery | undefined, GetSponsorNotificationPreferencesQueryVariables>;
 export function useGetSponsorNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetSponsorNotificationPreferencesQuery, GetSponsorNotificationPreferencesQueryVariables>(GetSponsorNotificationPreferencesDocument, options);
@@ -21300,6 +21666,9 @@ export function useGetCreatorSponsorshipNotificationPreferencesLazyQuery(baseOpt
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>(GetCreatorSponsorshipNotificationPreferencesDocument, options);
         }
+// @ts-ignore
+export function useGetCreatorSponsorshipNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>;
+export function useGetCreatorSponsorshipNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>): Apollo.UseSuspenseQueryResult<GetCreatorSponsorshipNotificationPreferencesQuery | undefined, GetCreatorSponsorshipNotificationPreferencesQueryVariables>;
 export function useGetCreatorSponsorshipNotificationPreferencesSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetCreatorSponsorshipNotificationPreferencesQuery, GetCreatorSponsorshipNotificationPreferencesQueryVariables>(GetCreatorSponsorshipNotificationPreferencesDocument, options);
@@ -21348,6 +21717,9 @@ export function useGetUploadUrlLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUploadUrlQuery, GetUploadUrlQueryVariables>(GetUploadUrlDocument, options);
         }
+// @ts-ignore
+export function useGetUploadUrlSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUploadUrlQuery, GetUploadUrlQueryVariables>): Apollo.UseSuspenseQueryResult<GetUploadUrlQuery, GetUploadUrlQueryVariables>;
+export function useGetUploadUrlSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUploadUrlQuery, GetUploadUrlQueryVariables>): Apollo.UseSuspenseQueryResult<GetUploadUrlQuery | undefined, GetUploadUrlQueryVariables>;
 export function useGetUploadUrlSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUploadUrlQuery, GetUploadUrlQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUploadUrlQuery, GetUploadUrlQueryVariables>(GetUploadUrlDocument, options);
@@ -21387,6 +21759,9 @@ export function useGetMyProfileLazyQuery(baseOptions?: Apollo.LazyQueryHookOptio
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetMyProfileQuery, GetMyProfileQueryVariables>(GetMyProfileDocument, options);
         }
+// @ts-ignore
+export function useGetMyProfileSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetMyProfileQuery, GetMyProfileQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyProfileQuery, GetMyProfileQueryVariables>;
+export function useGetMyProfileSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyProfileQuery, GetMyProfileQueryVariables>): Apollo.UseSuspenseQueryResult<GetMyProfileQuery | undefined, GetMyProfileQueryVariables>;
 export function useGetMyProfileSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetMyProfileQuery, GetMyProfileQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetMyProfileQuery, GetMyProfileQueryVariables>(GetMyProfileDocument, options);
@@ -21427,6 +21802,9 @@ export function useGetUserByIdLazyQuery(baseOptions?: Apollo.LazyQueryHookOption
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserByIdQuery, GetUserByIdQueryVariables>(GetUserByIdDocument, options);
         }
+// @ts-ignore
+export function useGetUserByIdSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserByIdQuery, GetUserByIdQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserByIdQuery, GetUserByIdQueryVariables>;
+export function useGetUserByIdSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserByIdQuery, GetUserByIdQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserByIdQuery | undefined, GetUserByIdQueryVariables>;
 export function useGetUserByIdSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserByIdQuery, GetUserByIdQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserByIdQuery, GetUserByIdQueryVariables>(GetUserByIdDocument, options);
@@ -21467,6 +21845,9 @@ export function useGetUserByUsernameLazyQuery(baseOptions?: Apollo.LazyQueryHook
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>(GetUserByUsernameDocument, options);
         }
+// @ts-ignore
+export function useGetUserByUsernameSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>;
+export function useGetUserByUsernameSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>): Apollo.UseSuspenseQueryResult<GetUserByUsernameQuery | undefined, GetUserByUsernameQueryVariables>;
 export function useGetUserByUsernameSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUserByUsernameQuery, GetUserByUsernameQueryVariables>(GetUserByUsernameDocument, options);
@@ -21505,6 +21886,9 @@ export function useCheckUsernameLazyQuery(baseOptions?: Apollo.LazyQueryHookOpti
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<CheckUsernameQuery, CheckUsernameQueryVariables>(CheckUsernameDocument, options);
         }
+// @ts-ignore
+export function useCheckUsernameSuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<CheckUsernameQuery, CheckUsernameQueryVariables>): Apollo.UseSuspenseQueryResult<CheckUsernameQuery, CheckUsernameQueryVariables>;
+export function useCheckUsernameSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<CheckUsernameQuery, CheckUsernameQueryVariables>): Apollo.UseSuspenseQueryResult<CheckUsernameQuery | undefined, CheckUsernameQueryVariables>;
 export function useCheckUsernameSuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<CheckUsernameQuery, CheckUsernameQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<CheckUsernameQuery, CheckUsernameQueryVariables>(CheckUsernameDocument, options);
@@ -21559,6 +21943,9 @@ export function useGetUsernameChangeEligibilityLazyQuery(baseOptions?: Apollo.La
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>(GetUsernameChangeEligibilityDocument, options);
         }
+// @ts-ignore
+export function useGetUsernameChangeEligibilitySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>): Apollo.UseSuspenseQueryResult<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>;
+export function useGetUsernameChangeEligibilitySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>): Apollo.UseSuspenseQueryResult<GetUsernameChangeEligibilityQuery | undefined, GetUsernameChangeEligibilityQueryVariables>;
 export function useGetUsernameChangeEligibilitySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUsernameChangeEligibilityQuery, GetUsernameChangeEligibilityQueryVariables>(GetUsernameChangeEligibilityDocument, options);
@@ -21605,6 +21992,9 @@ export function useGetUsernameChangeHistoryLazyQuery(baseOptions?: Apollo.LazyQu
           const options = {...defaultOptions, ...baseOptions}
           return Apollo.useLazyQuery<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>(GetUsernameChangeHistoryDocument, options);
         }
+// @ts-ignore
+export function useGetUsernameChangeHistorySuspenseQuery(baseOptions?: Apollo.SuspenseQueryHookOptions<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>;
+export function useGetUsernameChangeHistorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>): Apollo.UseSuspenseQueryResult<GetUsernameChangeHistoryQuery | undefined, GetUsernameChangeHistoryQueryVariables>;
 export function useGetUsernameChangeHistorySuspenseQuery(baseOptions?: Apollo.SkipToken | Apollo.SuspenseQueryHookOptions<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>) {
           const options = baseOptions === Apollo.skipToken ? baseOptions : {...defaultOptions, ...baseOptions}
           return Apollo.useSuspenseQuery<GetUsernameChangeHistoryQuery, GetUsernameChangeHistoryQueryVariables>(GetUsernameChangeHistoryDocument, options);

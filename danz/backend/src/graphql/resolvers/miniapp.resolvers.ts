@@ -49,7 +49,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (!user) {
@@ -124,16 +124,16 @@ export const miniappResolvers = {
       // Get leaderboard preview
       const { data: topUsers } = await supabase
         .from('users')
-        .select('privy_id, username, avatar_url, xp')
+        .select('id, username, avatar_url, xp')
         .order('xp', { ascending: false })
         .limit(3)
 
       const { data: allUsers } = await supabase
         .from('users')
-        .select('privy_id')
+        .select('id')
         .order('xp', { ascending: false })
 
-      const myRank = (allUsers || []).findIndex(u => u.privy_id === userId) + 1
+      const myRank = (allUsers || []).findIndex(u => u.id === userId) + 1
 
       const leaderboardPreview = {
         my_rank: myRank || 999,
@@ -143,7 +143,7 @@ export const miniappResolvers = {
           username: u.username || 'Anonymous',
           avatar_url: u.avatar_url,
           xp: u.xp || 0,
-          is_me: u.privy_id === userId,
+          is_me: u.id === userId,
         })),
         nearby: [],
       }
@@ -256,7 +256,7 @@ export const miniappResolvers = {
 
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, avatar_url, xp')
+        .select('id, username, avatar_url, xp')
         .order('xp', { ascending: false })
         .limit(limit)
 
@@ -265,7 +265,7 @@ export const miniappResolvers = {
         username: u.username || 'Anonymous',
         avatar_url: u.avatar_url,
         xp: u.xp || 0,
-        is_me: u.privy_id === userId,
+        is_me: u.id === userId,
       }))
     },
 
@@ -283,7 +283,7 @@ export const miniappResolvers = {
         return []
       }
 
-      const { data: friends } = await supabase.from('users').select('*').in('privy_id', friendIds)
+      const { data: friends } = await supabase.from('users').select('*').in('id', friendIds)
 
       const bondMap = new Map(
         (bonds || []).map(b => [b.user1_id === userId ? b.user2_id : b.user1_id, b.bond_strength]),
@@ -292,14 +292,14 @@ export const miniappResolvers = {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
 
       return (friends || []).map(f => ({
-        user_id: f.privy_id,
+        user_id: f.id,
         username: f.username || 'Anonymous',
         display_name: f.display_name,
         avatar_url: f.avatar_url,
         level: f.level || 1,
         is_online: f.last_active_at && f.last_active_at >= fiveMinutesAgo,
         last_active: f.last_active_at,
-        dance_bond_strength: bondMap.get(f.privy_id) || 0,
+        dance_bond_strength: bondMap.get(f.id) || 0,
       }))
     },
 
@@ -352,7 +352,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('settings')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const settings = user?.settings || {}
@@ -378,7 +378,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('username, referral_code')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const baseUrl = 'https://danz.xyz'
@@ -398,7 +398,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('referral_code')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       return `https://t.me/danz_bot?start=${user?.referral_code || userId}`
@@ -410,7 +410,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('current_streak, longest_streak')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const today = new Date().toISOString().split('T')[0]
@@ -433,13 +433,13 @@ export const miniappResolvers = {
 
     miniappLevel: async (_: any, __: any, context: GraphQLContext) => {
       const userId = requireAuth(context)
-      const { data } = await supabase.from('users').select('level').eq('privy_id', userId).single()
+      const { data } = await supabase.from('users').select('level').eq('id', userId).single()
       return data?.level || 1
     },
 
     miniappXP: async (_: any, __: any, context: GraphQLContext) => {
       const userId = requireAuth(context)
-      const { data } = await supabase.from('users').select('xp').eq('privy_id', userId).single()
+      const { data } = await supabase.from('users').select('xp').eq('id', userId).single()
       return data?.xp || 0
     },
 
@@ -448,7 +448,7 @@ export const miniappResolvers = {
       const { data } = await supabase
         .from('users')
         .select('total_points')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
       return data?.total_points || 0
     },
@@ -521,15 +521,15 @@ export const miniappResolvers = {
           // Find referrer and credit them
           const { data: referrer } = await supabase
             .from('users')
-            .select('privy_id')
+            .select('id')
             .eq('referral_code', input.referral_code)
             .single()
 
           if (referrer) {
             await supabase.from('referrals').insert([
               {
-                referrer_id: referrer.privy_id,
-                referred_id: newUser.privy_id,
+                referrer_id: referrer.id,
+                referred_id: newUser.id,
                 status: 'COMPLETED',
               },
             ])
@@ -576,12 +576,12 @@ export const miniappResolvers = {
       await supabase
         .from('users')
         .update({ telegram_id: telegramUser.id.toString() })
-        .eq('privy_id', userId)
+        .eq('id', userId)
 
       const { data: user } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       return {
@@ -606,7 +606,7 @@ export const miniappResolvers = {
     unlinkTelegramAccount: async (_: any, __: any, context: GraphQLContext) => {
       const userId = requireAuth(context)
 
-      await supabase.from('users').update({ telegram_id: null }).eq('privy_id', userId)
+      await supabase.from('users').update({ telegram_id: null }).eq('id', userId)
 
       return { success: true, message: 'Telegram account unlinked', code: 'SUCCESS' }
     },
@@ -693,7 +693,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('xp')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       return {
@@ -745,7 +745,7 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('xp')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       return {
@@ -830,13 +830,13 @@ export const miniappResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('settings')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const currentSettings = user?.settings || {}
       const newSettings = { ...currentSettings, ...input }
 
-      await supabase.from('users').update({ settings: newSettings }).eq('privy_id', userId)
+      await supabase.from('users').update({ settings: newSettings }).eq('id', userId)
 
       return {
         notifications_enabled: newSettings.notifications_enabled ?? true,

@@ -8,11 +8,11 @@ const GITHUB_ORG = process.env.GITHUB_ORG || 'FlowBondTech'
 const GITHUB_REPOS = (process.env.GITHUB_REPOS || 'danz-web,danz-backend').split(',')
 
 // Helper to check dev/admin access
-const requireDevAccess = async (privyId: string) => {
+const requireDevAccess = async (userId: string) => {
   const { data: user, error } = await supabase
     .from('users')
     .select('role')
-    .eq('privy_id', privyId)
+    .eq('id', userId)
     .single()
 
   if (error || !user || (user.role !== 'dev' && user.role !== 'admin')) {
@@ -25,11 +25,11 @@ const requireDevAccess = async (privyId: string) => {
 }
 
 // Helper to check admin-only access
-const requireAdminAccess = async (privyId: string) => {
+const requireAdminAccess = async (userId: string) => {
   const { data: user, error } = await supabase
     .from('users')
     .select('role')
-    .eq('privy_id', privyId)
+    .eq('id', userId)
     .single()
 
   if (error || !user || user.role !== 'admin') {
@@ -1836,8 +1836,8 @@ export const devResolvers = {
       if (!parent.requested_by) return null
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.requested_by)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.requested_by)
         .single()
       return data
     },
@@ -1845,8 +1845,8 @@ export const devResolvers = {
       if (!parent.assigned_to) return null
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.assigned_to)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.assigned_to)
         .single()
       return data
     },
@@ -1898,8 +1898,8 @@ export const devResolvers = {
     user: async (parent: any) => {
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.user_id)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -1910,8 +1910,8 @@ export const devResolvers = {
       if (!parent.assigned_to) return null
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.assigned_to)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.assigned_to)
         .single()
       return data
     },
@@ -1919,8 +1919,8 @@ export const devResolvers = {
       if (!parent.created_by) return null
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.created_by)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.created_by)
         .single()
       return data
     },
@@ -1962,8 +1962,8 @@ export const devResolvers = {
       if (!parent.created_by) return null
       const { data } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url')
-        .eq('privy_id', parent.created_by)
+        .select('id, username, display_name, avatar_url')
+        .eq('id', parent.created_by)
         .single()
       return data
     },

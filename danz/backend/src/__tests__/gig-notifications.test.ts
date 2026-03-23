@@ -56,7 +56,7 @@ const mockGig = {
 }
 
 const mockUser = {
-  privy_id: 'user-1',
+  id: 'user-1',
   username: 'testuser',
   display_name: 'Test User',
   email: 'test@example.com',

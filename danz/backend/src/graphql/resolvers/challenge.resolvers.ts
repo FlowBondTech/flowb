@@ -16,7 +16,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin) {
@@ -263,7 +263,7 @@ export const challengeResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('current_streak, longest_streak')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const total = (userChallenges || []).length
@@ -323,9 +323,9 @@ export const challengeResolvers = {
 
       // Get user details
       const userIds = sorted.map(([id]) => id)
-      const { data: users } = await supabase.from('users').select('*').in('privy_id', userIds)
+      const { data: users } = await supabase.from('users').select('*').in('id', userIds)
 
-      const userMap = new Map((users || []).map(u => [u.privy_id, u]))
+      const userMap = new Map((users || []).map(u => [u.id, u]))
 
       const entries = sorted.map(([userId, stats], index) => ({
         rank: index + 1,
@@ -711,7 +711,7 @@ export const challengeResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },

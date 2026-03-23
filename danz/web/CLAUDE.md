@@ -10,7 +10,7 @@ DANZ Web is the marketing website and web dashboard for the DANZ platform, built
 - **Language**: TypeScript
 - **Styling**: Tailwind CSS + Framer Motion
 - **API**: Apollo Client (GraphQL)
-- **Authentication**: Privy (Web3 auth)
+- **Authentication**: Supabase Auth (email/password, magic link, wallet)
 - **Package Manager**: Bun (IMPORTANT: Never use npm)
 - **Code Quality**: Biome
 
@@ -71,7 +71,7 @@ danz-web/
 ### Data & State
 - `@apollo/client`: GraphQL client
 - `graphql`: GraphQL implementation
-- `@privy-io/react-auth`: Authentication
+- `@supabase/supabase-js`: Authentication & database client
 
 ### Development
 - `@biomejs/biome`: Code quality
@@ -186,7 +186,8 @@ export default function RootLayout({
 Required in `.env.local`:
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8080/graphql
-NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
 ## Component Best Practices

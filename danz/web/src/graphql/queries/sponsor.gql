@@ -87,7 +87,7 @@ query GetSponsorDashboard {
         dance_styles
         category
         facilitator {
-          privy_id
+          id
           username
           avatar_url
         }
@@ -133,7 +133,7 @@ query GetEventsForSponsorship($input: EventsForSponsorshipInput) {
     dance_styles
     category
     facilitator {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -156,7 +156,7 @@ query GetSuggestedEventsForSponsor($limit: Int) {
       dance_styles
       category
       facilitator {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -313,7 +313,7 @@ query GetMyVerificationStatus {
   myVerificationStatus {
     ...VerifiedEventCreatorFull
     user {
-      privy_id
+      id
       username
       avatar_url
     }

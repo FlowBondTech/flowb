@@ -28,7 +28,8 @@
     "nodemon": "^3.1.10",
     "tsx": "^4.7.0",
     "typescript": "^5.3.3",
-    "vitest": "^4.0.17"
+    "vitest": "^4.0.17",
+    "@types/jsonwebtoken": "^9.0.9"
   },
   "dependencies": {
     "@apollo/server": "4",
@@ -38,7 +39,6 @@
     "@aws-sdk/s3-request-presigner": "^3.888.0",
     "@graphql-tools/merge": "^9.1.1",
     "@graphql-tools/schema": "^10.0.25",
-    "@privy-io/server-auth": "^1.32.2",
     "@supabase/supabase-js": "^2.57.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
@@ -49,6 +49,7 @@
     "graphql-scalars": "^1.24.2",
     "graphql-tag": "^2.12.6",
     "resend": "^6.7.0",
-    "stripe": "^18.5.0"
+    "stripe": "^18.5.0",
+    "jsonwebtoken": "^9.0.2"
   }
 }

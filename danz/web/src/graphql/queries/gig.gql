@@ -131,7 +131,7 @@ query GetGigManagerDashboard {
       application {
         id
         user {
-          privy_id
+          id
           username
           display_name
           avatar_url

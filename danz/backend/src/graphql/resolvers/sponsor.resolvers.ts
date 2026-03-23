@@ -1904,7 +1904,7 @@ export const sponsorResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -2016,7 +2016,7 @@ export const sponsorResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.from_user_id)
+        .eq('id', parent.from_user_id)
         .single()
       return data
     },
@@ -2025,7 +2025,7 @@ export const sponsorResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.to_user_id)
+        .eq('id', parent.to_user_id)
         .single()
       return data
     },
@@ -2133,7 +2133,7 @@ export const sponsorResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -2219,7 +2219,7 @@ async function getSuggestedEventsForSponsor(sponsor: any, limit: number = 10): P
     .select(`
       *,
       sponsorship_settings:event_sponsorship_settings(*),
-      creator:users!events_creator_id_fkey(privy_id, username, display_name)
+      creator:users!events_creator_id_fkey(id, username, display_name)
     `)
     .gte('start_date_time', new Date().toISOString())
     .order('start_date_time', { ascending: true })

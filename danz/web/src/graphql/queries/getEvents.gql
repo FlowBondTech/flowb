@@ -13,7 +13,7 @@ query GetEvents($filter: EventFilterInput, $pagination: PaginationInput) {
       is_public
       facilitator_id
       facilitator {
-        privy_id
+        id
         username
         display_name
         avatar_url

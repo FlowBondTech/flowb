@@ -69,7 +69,7 @@ const cache = new InMemoryCache({
       },
     },
     User: {
-      keyFields: ['privy_id'],
+      keyFields: ['id'],
     },
     Event: {
       keyFields: ['id'],

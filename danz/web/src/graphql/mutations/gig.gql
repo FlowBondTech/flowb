@@ -165,7 +165,7 @@ mutation RemoveEventGigManager($eventId: ID!, $userId: String!) {
 
 mutation PromoteToGigManager($userId: String!) {
   promoteToGigManager(userId: $userId) {
-    privy_id
+    id
     username
     is_gig_manager
     gig_manager_approved_at
@@ -174,7 +174,7 @@ mutation PromoteToGigManager($userId: String!) {
 
 mutation DemoteGigManager($userId: String!) {
   demoteGigManager(userId: $userId) {
-    privy_id
+    id
     username
     is_gig_manager
   }

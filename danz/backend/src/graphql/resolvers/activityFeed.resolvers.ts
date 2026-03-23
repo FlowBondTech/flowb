@@ -16,7 +16,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin) {
@@ -756,7 +756,7 @@ export const activityFeedResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -765,7 +765,7 @@ export const activityFeedResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.target_user_id)
+        .eq('id', parent.target_user_id)
         .single()
       return data
     },

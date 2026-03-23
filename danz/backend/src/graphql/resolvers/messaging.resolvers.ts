@@ -42,7 +42,7 @@ async function canMessage(
   const { data: recipient } = await supabase
     .from('users')
     .select('allow_messages')
-    .eq('privy_id', recipientId)
+    .eq('id', recipientId)
     .single()
 
   if (recipient && !recipient.allow_messages) {
@@ -1255,7 +1255,7 @@ export const messagingResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.created_by)
+        .eq('id', parent.created_by)
         .single()
 
       return data
@@ -1267,7 +1267,7 @@ export const messagingResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -1279,7 +1279,7 @@ export const messagingResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.sender_id)
+        .eq('id', parent.sender_id)
         .single()
 
       return data
@@ -1353,7 +1353,7 @@ export const messagingResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -1365,7 +1365,7 @@ export const messagingResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.blocked_id)
+        .eq('id', parent.blocked_id)
         .single()
 
       return data

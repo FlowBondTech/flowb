@@ -19,7 +19,7 @@ async function generateUniqueReferralCode(userId: string): Promise<string> {
   const { data: user, error } = await supabase
     .from('users')
     .select('username')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (error) {
@@ -174,7 +174,7 @@ export const referralResolvers = {
       const { data: userData } = await supabase
         .from('users')
         .select('username, referral_count, referral_points_earned')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (!userData || !userData.username) {
@@ -195,7 +195,7 @@ export const referralResolvers = {
       // Get users who were invited by this user (using invited_by field)
       const { data: invitedUsers, count: totalSignups } = await supabase
         .from('users')
-        .select('privy_id, created_at, total_sessions', { count: 'exact' })
+        .select('id, created_at, total_sessions', { count: 'exact' })
         .eq('invited_by', username)
 
       // Get click tracking data for this user's referral code
@@ -327,14 +327,14 @@ export const referralResolvers = {
       while (currentUserId && depth < maxDepth) {
         const { data: user } = await supabase
           .from('users')
-          .select('privy_id, username, invited_by')
-          .eq('privy_id', currentUserId)
+          .select('id, username, invited_by')
+          .eq('id', currentUserId)
           .single()
 
         if (!user) break
 
         chain.push({
-          user_id: user.privy_id,
+          user_id: user.id,
           username: user.username,
           invited_by: user.invited_by,
           depth,
@@ -346,13 +346,13 @@ export const referralResolvers = {
         // Find the user who invited this person (by referral code/username)
         const { data: inviter } = await supabase
           .from('users')
-          .select('privy_id, username, invited_by')
+          .select('id, username, invited_by')
           .eq('username', user.invited_by)
           .single()
 
         if (!inviter) break
 
-        currentUserId = inviter.privy_id
+        currentUserId = inviter.id
         depth++
       }
 
@@ -367,7 +367,7 @@ export const referralResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (!user?.username) {
@@ -377,7 +377,7 @@ export const referralResolvers = {
       // Find all users who were invited by this user
       const { data: referrals } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, avatar_url, created_at, invited_by')
+        .select('id, username, display_name, avatar_url, created_at, invited_by')
         .eq('invited_by', user.username)
         .order('created_at', { ascending: false })
 
@@ -395,7 +395,7 @@ export const referralResolvers = {
       // First, check if the referral code is a valid username
       const { data: user } = await supabase
         .from('users')
-        .select('privy_id, username')
+        .select('id, username')
         .eq('username', referral_code)
         .single()
 
@@ -418,7 +418,7 @@ export const referralResolvers = {
           .from('referral_codes')
           .insert([
             {
-              user_id: user.privy_id,
+              user_id: user.id,
               code: referral_code,
             },
           ])
@@ -540,7 +540,7 @@ export const referralResolvers = {
       const { data: referrerData } = await supabase
         .from('users')
         .select('referral_count')
-        .eq('privy_id', referrerUserId)
+        .eq('id', referrerUserId)
         .single()
 
       const newCount = (referrerData?.referral_count || 0) + 1
@@ -550,7 +550,7 @@ export const referralResolvers = {
         .update({
           referral_count: newCount,
         })
-        .eq('privy_id', referrerUserId)
+        .eq('id', referrerUserId)
 
       if (statsError) {
         console.error('Failed to update referrer stats:', statsError)
@@ -579,7 +579,7 @@ export const referralResolvers = {
       const { data: currentUser } = await supabase
         .from('users')
         .select('xp, referral_points_earned, current_points_balance, total_points_earned')
-        .eq('privy_id', referrerUserId)
+        .eq('id', referrerUserId)
         .single()
 
       const newXp = (currentUser?.xp || 0) + signupPoints
@@ -595,7 +595,7 @@ export const referralResolvers = {
           current_points_balance: newBalance,
           total_points_earned: newTotalEarned,
         })
-        .eq('privy_id', referrerUserId)
+        .eq('id', referrerUserId)
 
       if (pointsError) {
         console.error('Failed to award signup points:', pointsError)
@@ -612,7 +612,7 @@ export const referralResolvers = {
       const { error: updateError } = await supabase
         .from('users')
         .update({ invited_by: referral_code })
-        .eq('privy_id', referee_user_id)
+        .eq('id', referee_user_id)
 
       if (updateError) {
         console.error('Failed to update invited_by field:', updateError)
@@ -625,13 +625,13 @@ export const referralResolvers = {
       const { data: referrer } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', referrerUserId)
+        .eq('id', referrerUserId)
         .single()
 
       const { data: referee } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', referee_user_id)
+        .eq('id', referee_user_id)
         .single()
 
       // Discord webhook: Referral completed
@@ -717,7 +717,7 @@ export const referralResolvers = {
       const { data: currentUser } = await supabase
         .from('users')
         .select('xp, referral_points_earned, current_points_balance, total_points_earned')
-        .eq('privy_id', referral.referrer_id)
+        .eq('id', referral.referrer_id)
         .single()
 
       const newXp = (currentUser?.xp || 0) + completionPoints
@@ -733,7 +733,7 @@ export const referralResolvers = {
           current_points_balance: newBalance,
           total_points_earned: newTotalEarned,
         })
-        .eq('privy_id', referral.referrer_id)
+        .eq('id', referral.referrer_id)
 
       if (pointsError) {
         console.error('Failed to award completion points to referrer:', pointsError)
@@ -748,7 +748,7 @@ export const referralResolvers = {
       const { data: referee } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', referral.referee_id)
+        .eq('id', referral.referee_id)
         .single()
 
       // Create notification for referrer about completion points
@@ -836,7 +836,7 @@ export const referralResolvers = {
         .from('referrals')
         .select(`
           *,
-          referee:users!referrals_referee_id_fkey(privy_id, username, email, display_name)
+          referee:users!referrals_referee_id_fkey(id, username, email, display_name)
         `)
         .eq('id', referralId)
         .single()
@@ -879,7 +879,7 @@ export const referralResolvers = {
       const { data: referrer } = await supabase
         .from('users')
         .select('username, display_name')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       const referrerName = referrer?.display_name || referrer?.username || 'Your friend'
@@ -938,7 +938,7 @@ export const referralResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -961,7 +961,7 @@ export const referralResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.referrer_id)
+        .eq('id', parent.referrer_id)
         .single()
 
       return data
@@ -982,7 +982,7 @@ export const referralResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.referee_id)
+        .eq('id', parent.referee_id)
         .single()
 
       return data

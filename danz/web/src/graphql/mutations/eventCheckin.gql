@@ -10,7 +10,7 @@ mutation CheckInWithCode($code: String!) {
       end_date_time
       checkin_code
       facilitator {
-        privy_id
+        id
         display_name
         username
       }

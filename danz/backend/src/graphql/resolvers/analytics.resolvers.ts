@@ -16,7 +16,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin) {

@@ -67,7 +67,7 @@ interface GigInfo {
 }
 
 interface UserInfo {
-  privy_id: string
+  id: string
   username?: string
   display_name?: string
 }
@@ -83,7 +83,7 @@ async function getUserEmailInfo(userId: string): Promise<{ email: string | null;
   const { data } = await supabase
     .from('users')
     .select('email, display_name, username')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!data) return { email: null, name: 'there' }
@@ -286,7 +286,7 @@ export async function notifyGigApplicationReceived(
 
   await createNotification('gig_application_received', {
     recipientId: organizerId,
-    senderId: applicant.privy_id,
+    senderId: applicant.id,
     eventId: gig.event_id,
     gigId: gig.id,
     title: 'New Gig Application',

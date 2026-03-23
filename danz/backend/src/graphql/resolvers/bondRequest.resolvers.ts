@@ -4,7 +4,7 @@ import type { GraphQLContext } from '../context.js'
 
 // Helper to get user info
 async function getUser(userId: string) {
-  const { data } = await supabase.from('users').select('*').eq('privy_id', userId).single()
+  const { data } = await supabase.from('users').select('*').eq('id', userId).single()
   return data
 }
 
@@ -56,13 +56,13 @@ async function calculateSimilarity(user1: string, user2: string) {
   const { data: userInfo1 } = await supabase
     .from('users')
     .select('interests, dance_styles')
-    .eq('privy_id', user1)
+    .eq('id', user1)
     .single()
 
   const { data: userInfo2 } = await supabase
     .from('users')
     .select('interests, dance_styles')
-    .eq('privy_id', user2)
+    .eq('id', user2)
     .single()
 
   // Music overlap

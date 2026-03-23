@@ -1,6 +1,6 @@
 mutation UpdateUserRole($userId: String!, $role: UserRole!) {
   updateUserRole(userId: $userId, role: $role) {
-    privy_id
+    id
     username
     display_name
     role
@@ -13,7 +13,7 @@ mutation UpdateUserRole($userId: String!, $role: UserRole!) {
 
 mutation ApproveOrganizer($userId: String!, $approved: Boolean!) {
   approveOrganizer(userId: $userId, approved: $approved) {
-    privy_id
+    id
     username
     display_name
     role

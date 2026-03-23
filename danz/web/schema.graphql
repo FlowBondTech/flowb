@@ -711,7 +711,7 @@ type MutationResponse {
 }
 
 type User {
-  privy_id: String!
+  id: String!
   username: String
   display_name: String
   bio: String
@@ -1384,7 +1384,7 @@ type PointsOverview {
 }
 
 type UserPointsSummary {
-  privy_id: String!
+  id: String!
   username: String
   total_points_earned: Int!
   total_points_spent: Int!
@@ -2347,7 +2347,7 @@ type ReferralChainNode {
 }
 
 type UserReferralInfo {
-  privy_id: String!
+  id: String!
   username: String
   display_name: String
   avatar_url: String

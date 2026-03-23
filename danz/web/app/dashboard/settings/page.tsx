@@ -462,7 +462,7 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between py-2">
                 <div>
                   <p className="text-text-secondary text-xs">Account ID</p>
-                  <p className="text-text-primary text-sm font-mono">{user?.privy_id?.slice(0, 16) || ''}...</p>
+                  <p className="text-text-primary text-sm font-mono">{user?.id?.slice(0, 16) || ''}...</p>
                 </div>
               </div>
               <button

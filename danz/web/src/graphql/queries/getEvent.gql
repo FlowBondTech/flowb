@@ -25,7 +25,7 @@ query GetEvent($id: ID!) {
     is_registered
     user_registration_status
     facilitator {
-      privy_id
+      id
       username
       display_name
       avatar_url

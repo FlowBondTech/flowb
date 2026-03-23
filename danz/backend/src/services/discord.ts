@@ -99,12 +99,12 @@ async function sendToDiscord(
  * New user signed up (first time login via Privy)
  */
 export async function notifyUserSignup(user: {
-  privy_id: string
+  id: string
   email?: string
   wallet_address?: string
 }): Promise<void> {
   const identifier =
-    user.email || user.wallet_address?.slice(0, 10) + '...' || user.privy_id.slice(0, 10)
+    user.email || user.wallet_address?.slice(0, 10) + '...' || user.id.slice(0, 10)
 
   await sendToDiscord(
     {
@@ -130,7 +130,7 @@ export async function notifyUserSignup(user: {
  * User completed registration (set username)
  */
 export async function notifyUserRegistered(user: {
-  privy_id: string
+  id: string
   username: string
   display_name?: string
   avatar_url?: string

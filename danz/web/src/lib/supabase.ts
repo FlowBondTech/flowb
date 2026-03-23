@@ -53,7 +53,7 @@ async function supabaseQuery<T>(table: string, options: SupabaseQueryOptions = {
 
 // Types for referral data
 export interface ReferredUser {
-  privy_id: string
+  id: string
   username: string
   display_name: string
   avatar_url: string | null
@@ -79,7 +79,7 @@ export interface ReferrerStats {
 export async function getReferredUsers(referrerUsername: string): Promise<ReferredUser[]> {
   return supabaseQuery<ReferredUser>('users', {
     select:
-      'privy_id,username,display_name,avatar_url,created_at,xp,level,total_sessions,total_dance_time',
+      'id,username,display_name,avatar_url,created_at,xp,level,total_sessions,total_dance_time',
     filter: {
       invited_by: `eq.${referrerUsername}`,
     },

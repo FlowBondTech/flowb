@@ -314,7 +314,7 @@ export const adminTypeDefs = gql`
   }
 
   type UserPointsSummary {
-    privy_id: String!
+    id: String!
     username: String
     total_points_earned: Int!
     total_points_spent: Int!

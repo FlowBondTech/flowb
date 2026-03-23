@@ -13,7 +13,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('role')
-    .eq('privy_id', context.userId)
+    .eq('id', context.userId)
     .single()
 
   if (!user || user.role !== 'admin') {
@@ -53,7 +53,7 @@ export const adminResolvers = {
         .select(`
           *,
           user:users!event_registrations_user_id_fkey(
-            privy_id,
+            id,
             username,
             display_name
           ),
@@ -273,8 +273,8 @@ export const adminResolvers = {
         pageInfo: {
           hasNextPage,
           hasPreviousPage,
-          startCursor: users?.[0]?.privy_id || null,
-          endCursor: users?.[users.length - 1]?.privy_id || null,
+          startCursor: users?.[0]?.id || null,
+          endCursor: users?.[users.length - 1]?.id || null,
         },
         totalCount,
       }
@@ -299,8 +299,8 @@ export const adminResolvers = {
         .select(
           `
           *,
-          recipient:users!notifications_recipient_id_fkey(privy_id, username, display_name),
-          sender:users!notifications_sender_id_fkey(privy_id, username, display_name)
+          recipient:users!notifications_recipient_id_fkey(id, username, display_name),
+          sender:users!notifications_sender_id_fkey(id, username, display_name)
         `,
           { count: 'exact' },
         )
@@ -363,13 +363,13 @@ export const adminResolvers = {
       // Get top referrers
       const { data: topReferrersData } = await supabase
         .from('users')
-        .select('privy_id, username, display_name, referral_count, referral_points_earned')
+        .select('id, username, display_name, referral_count, referral_points_earned')
         .gt('referral_count', 0)
         .order('referral_count', { ascending: false })
         .limit(10)
 
       const topReferrers = (topReferrersData || []).map(u => ({
-        user_id: u.privy_id,
+        user_id: u.id,
         username: u.username,
         display_name: u.display_name,
         referral_count: u.referral_count || 0,
@@ -418,7 +418,7 @@ export const adminResolvers = {
           role,
           updated_at: new Date().toISOString(),
         })
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .select()
         .single()
 
@@ -472,7 +472,7 @@ export const adminResolvers = {
       const { data, error } = await supabase
         .from('users')
         .update(updateData)
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .select()
         .single()
 
@@ -487,8 +487,8 @@ export const adminResolvers = {
         try {
           const { data: allUsers } = await supabase
             .from('users')
-            .select('privy_id')
-            .neq('privy_id', userId) // Exclude the new organizer
+            .select('id')
+            .neq('id', userId) // Exclude the new organizer
 
           if (allUsers && allUsers.length > 0) {
             const notifications = allUsers.map(u => ({
@@ -496,7 +496,7 @@ export const adminResolvers = {
               title: 'New Event Organizer!',
               message: `${data.display_name || data.username || 'A new organizer'} just joined DANZ! Check out their upcoming events.`,
               sender_type: 'system',
-              recipient_id: u.privy_id,
+              recipient_id: u.id,
               action_type: 'open_profile',
               action_data: { user_id: userId },
               is_broadcast: true,
@@ -542,7 +542,7 @@ export const adminResolvers = {
       // Notify all users about featured event
       if (featured && data) {
         try {
-          const { data: allUsers } = await supabase.from('users').select('privy_id')
+          const { data: allUsers } = await supabase.from('users').select('id')
 
           if (allUsers && allUsers.length > 0) {
             const notifications = allUsers.map(u => ({
@@ -550,7 +550,7 @@ export const adminResolvers = {
               title: '⭐ Featured Event!',
               message: `Don't miss "${data.title}" - now featured on DANZ!`,
               sender_type: 'admin',
-              recipient_id: u.privy_id,
+              recipient_id: u.id,
               event_id: eventId,
               action_type: 'open_event',
               action_data: { event_id: eventId },

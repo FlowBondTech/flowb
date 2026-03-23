@@ -29,7 +29,7 @@ import { useAuth } from '../../contexts/AuthContext'
 const ME_QUERY = gql`
   query Me {
     me {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -64,7 +64,7 @@ const GET_UPLOAD_URL = gql`
 const UPDATE_PROFILE = gql`
   mutation UpdateProfile($input: UpdateProfileInput!) {
     updateProfile(input: $input) {
-      privy_id
+      id
       username
       display_name
       avatar_url
@@ -302,13 +302,13 @@ export const OnboardingFlow = ({ initialStep = 'username' }: OnboardingFlowProps
 
       // Complete referral if applicable
       const referralCode = localStorage.getItem('referral_code')
-      if (referralCode && result.data?.updateProfile?.privy_id) {
+      if (referralCode && result.data?.updateProfile?.id) {
         try {
           await completeReferral({
             variables: {
               input: {
                 referral_code: referralCode,
-                referee_user_id: result.data.updateProfile.privy_id,
+                referee_user_id: result.data.updateProfile.id,
               },
             },
           })

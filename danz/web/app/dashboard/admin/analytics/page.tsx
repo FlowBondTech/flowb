@@ -203,7 +203,7 @@ export default function AnalyticsPage() {
             ) : (
               users.map(user => (
                 <article
-                  key={user.privy_id}
+                  key={user.id}
                   className="p-4 space-y-3"
                   role="listitem"
                   aria-label={`User ${user.username || 'Unknown'}`}
@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
                         {user.username || 'Unknown'}
                       </div>
                       <div className="text-xs text-text-secondary">
-                        {user.privy_id.slice(0, 12)}...
+                        {user.id.slice(0, 12)}...
                       </div>
                     </div>
                     <span
@@ -329,13 +329,13 @@ export default function AnalyticsPage() {
                   </tr>
                 ) : (
                   users.map(user => (
-                    <tr key={user.privy_id} className="hover:bg-white/5 transition-colors">
+                    <tr key={user.id} className="hover:bg-white/5 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-text-primary">
                           {user.username || 'Unknown'}
                         </div>
                         <div className="text-xs text-text-secondary">
-                          {user.privy_id.slice(0, 8)}...
+                          {user.id.slice(0, 8)}...
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-text-primary">

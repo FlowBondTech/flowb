@@ -270,7 +270,7 @@ export const privacyResolvers = {
           { count: 'exact' },
         )
         .eq('user_privacy_settings.searchable_by_username', true)
-        .neq('privy_id', context.userId)
+        .neq('id', context.userId)
         .or(`username.ilike.%${query}%,display_name.ilike.%${query}%`)
         .order('total_points', { ascending: false })
         .range(offset, offset + searchLimit - 1)
@@ -293,8 +293,8 @@ export const privacyResolvers = {
       const results = await Promise.all(
         (data || []).map(async user => {
           const settings = user.user_privacy_settings
-          const isBond = await areBonds(context.userId!, user.privy_id)
-          const mutualCount = await getMutualBondsCount(context.userId!, user.privy_id)
+          const isBond = await areBonds(context.userId!, user.id)
+          const mutualCount = await getMutualBondsCount(context.userId!, user.id)
 
           // Determine if can view profile
           let canViewProfile = true
@@ -528,7 +528,7 @@ export const privacyResolvers = {
         b.requester_id === context.userId ? b.recipient_id : b.requester_id,
       )
 
-      const { data: users } = await supabase.from('users').select('*').in('privy_id', bondUserIds)
+      const { data: users } = await supabase.from('users').select('*').in('id', bondUserIds)
 
       return users || []
     },
@@ -547,7 +547,7 @@ export const privacyResolvers = {
       const { data: me } = await supabase
         .from('users')
         .select('total_points')
-        .eq('privy_id', context.userId)
+        .eq('id', context.userId)
         .single()
 
       if (!me) {
@@ -564,7 +564,7 @@ export const privacyResolvers = {
         .eq('user_privacy_settings.show_leaderboard_rank', true)
         .gte('total_points', Math.max(0, me.total_points - 500))
         .lte('total_points', me.total_points + 500)
-        .neq('privy_id', context.userId)
+        .neq('id', context.userId)
         .order('total_points', { ascending: false })
         .limit(range * 2)
 
@@ -801,7 +801,7 @@ export const privacyResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.suggested_user_id)
+        .eq('id', parent.suggested_user_id)
         .single()
 
       return data

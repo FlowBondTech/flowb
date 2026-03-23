@@ -6,7 +6,7 @@ mutation MakeUserAdmin($userId: String!) {
     success
     message
     user {
-      privy_id
+      id
       username
       display_name
       role

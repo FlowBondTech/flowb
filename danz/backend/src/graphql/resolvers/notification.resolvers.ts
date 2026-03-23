@@ -16,7 +16,7 @@ const requireAuth = (context: GraphQLContext) => {
 const requireAdmin = async (context: GraphQLContext) => {
   const userId = requireAuth(context)
 
-  const { data: user } = await supabase.from('users').select('role').eq('privy_id', userId).single()
+  const { data: user } = await supabase.from('users').select('role').eq('id', userId).single()
 
   if (!user || user.role !== 'admin') {
     throw new GraphQLError('Admin access required', {
@@ -275,8 +275,8 @@ export const notificationResolvers = {
 
       switch (broadcast_target) {
         case 'all_users': {
-          const { data: allUsers } = await supabase.from('users').select('privy_id')
-          recipientIds = allUsers?.map(u => u.privy_id) || []
+          const { data: allUsers } = await supabase.from('users').select('id')
+          recipientIds = allUsers?.map(u => u.id) || []
           break
         }
 
@@ -297,18 +297,18 @@ export const notificationResolvers = {
         case 'organizers': {
           const { data: organizers } = await supabase
             .from('users')
-            .select('privy_id')
+            .select('id')
             .eq('role', 'organizer')
-          recipientIds = organizers?.map(u => u.privy_id) || []
+          recipientIds = organizers?.map(u => u.id) || []
           break
         }
 
         case 'dancers': {
           const { data: dancers } = await supabase
             .from('users')
-            .select('privy_id')
+            .select('id')
             .eq('role', 'dancer')
-          recipientIds = dancers?.map(u => u.privy_id) || []
+          recipientIds = dancers?.map(u => u.id) || []
           break
         }
       }
@@ -437,7 +437,7 @@ export const notificationResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.sender_id)
+        .eq('id', parent.sender_id)
         .single()
 
       return data
@@ -447,7 +447,7 @@ export const notificationResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.recipient_id)
+        .eq('id', parent.recipient_id)
         .single()
 
       return data
@@ -485,7 +485,7 @@ export const notificationResolvers = {
         .select(`
           *,
           gig:event_gigs(*, role:gig_roles(*)),
-          user:users(privy_id, username, display_name, avatar_url)
+          user:users(id, username, display_name, avatar_url)
         `)
         .eq('id', parent.gig_application_id)
         .single()

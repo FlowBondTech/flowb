@@ -48,7 +48,7 @@ fragment UserGigRoleFull on UserGigRole {
 fragment UserGigRoleWithUser on UserGigRole {
   ...UserGigRoleFull
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -142,7 +142,7 @@ fragment GigApplicationFull on GigApplication {
 fragment GigApplicationWithUser on GigApplication {
   ...GigApplicationFull
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -174,7 +174,7 @@ fragment GigApplicationComplete on GigApplication {
     ...EventGigFull
   }
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
@@ -183,7 +183,7 @@ fragment GigApplicationComplete on GigApplication {
     ...UserGigRoleFull
   }
   reviewer {
-    privy_id
+    id
     username
     display_name
   }
@@ -240,13 +240,13 @@ fragment EventGigManagerBasic on EventGigManager {
 fragment EventGigManagerFull on EventGigManager {
   ...EventGigManagerBasic
   user {
-    privy_id
+    id
     username
     display_name
     avatar_url
   }
   assigner {
-    privy_id
+    id
     username
     display_name
   }

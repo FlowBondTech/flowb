@@ -635,7 +635,7 @@ export async function checkAndUnlockAchievements(userId: string): Promise<{
           const { data: userData } = await supabase
             .from('users')
             .select('xp, level, total_achievements')
-            .eq('privy_id', userId)
+            .eq('id', userId)
             .single()
 
           if (userData) {
@@ -650,7 +650,7 @@ export async function checkAndUnlockAchievements(userId: string): Promise<{
                 level: newLevel,
                 total_achievements: newAchievements,
               })
-              .eq('privy_id', userId)
+              .eq('id', userId)
           }
         } else {
           // RPC succeeded, also update achievements count

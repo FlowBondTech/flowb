@@ -54,7 +54,7 @@ const GET_PUBLIC_EVENT = gql`
       slug
       is_public
       facilitator {
-        privy_id
+        id
         username
         display_name
         avatar_url

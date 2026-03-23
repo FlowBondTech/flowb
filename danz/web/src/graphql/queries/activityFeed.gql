@@ -17,7 +17,7 @@ query GetActivityFeed($limit: Int, $after: String) {
       is_highlighted
       created_at
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url
@@ -43,7 +43,7 @@ query GetGlobalActivityFeed($limit: Int, $after: String) {
       likes_count
       created_at
       user {
-        privy_id
+        id
         username
         avatar_url
       }
@@ -64,7 +64,7 @@ query GetFriendsActivityFeed($limit: Int, $after: String) {
       color
       created_at
       user {
-        privy_id
+        id
         username
         avatar_url
       }

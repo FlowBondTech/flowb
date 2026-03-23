@@ -239,7 +239,7 @@ export const socialFeedResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -294,7 +294,7 @@ export const socialFeedResolvers = {
         const { data: liker } = await supabase
           .from('users')
           .select('username')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         await supabase.from('notifications').insert({
@@ -363,7 +363,7 @@ export const socialFeedResolvers = {
         const { data: commenter } = await supabase
           .from('users')
           .select('username')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         await supabase.from('notifications').insert({
@@ -442,7 +442,7 @@ export const socialFeedResolvers = {
         const { data: user } = await supabase
           .from('users')
           .select('role')
-          .eq('privy_id', userId)
+          .eq('id', userId)
           .single()
 
         if (!user || user.role !== 'admin') {
@@ -502,7 +502,7 @@ export const socialFeedResolvers = {
       const { data: initiator } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', myUserId)
+        .eq('id', myUserId)
         .single()
 
       // Create notification for the other user about new dance bond
@@ -557,7 +557,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user: ${error.message}`)
@@ -621,7 +621,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user: ${error.message}`)
@@ -707,7 +707,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user: ${error.message}`)
@@ -720,7 +720,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user: ${error.message}`)
@@ -733,7 +733,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id_1)
+        .eq('id', parent.user_id_1)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user1: ${error.message}`)
@@ -744,7 +744,7 @@ export const socialFeedResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id_2)
+        .eq('id', parent.user_id_2)
         .single()
 
       if (error) throw new GraphQLError(`Failed to fetch user2: ${error.message}`)

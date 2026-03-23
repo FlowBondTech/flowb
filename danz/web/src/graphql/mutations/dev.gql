@@ -11,7 +11,7 @@ mutation CreateFeatureRequest($input: CreateFeatureRequestInput!) {
     priority
     votes
     requested_by {
-      privy_id
+      id
       username
     }
     created_at
@@ -27,7 +27,7 @@ mutation UpdateFeatureRequest($id: ID!, $input: UpdateFeatureRequestInput!) {
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     estimated_hours
@@ -73,7 +73,7 @@ mutation AddFeatureRequestComment(
     id
     content
     user {
-      privy_id
+      id
       username
       avatar_url
     }
@@ -96,7 +96,7 @@ mutation CreateDevTask($input: CreateDevTaskInput!) {
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     due_date
@@ -115,7 +115,7 @@ mutation UpdateDevTask($id: ID!, $input: UpdateDevTaskInput!) {
     status
     priority
     assigned_to {
-      privy_id
+      id
       username
     }
     due_date

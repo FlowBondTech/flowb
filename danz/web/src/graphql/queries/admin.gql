@@ -1,6 +1,6 @@
 query GetAllUsers {
   getAllUsers {
-    privy_id
+    id
     username
     display_name
     role
@@ -31,7 +31,7 @@ query GetAdminStats {
 query GetPendingOrganizers($pagination: PaginationInput) {
   pendingOrganizers(pagination: $pagination) {
     users {
-      privy_id
+      id
       username
       display_name
       role

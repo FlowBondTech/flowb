@@ -19,7 +19,7 @@ const checkAdminRole = async (userId: string) => {
   const { data: user } = await supabase
     .from('users')
     .select('is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin) {
@@ -913,7 +913,7 @@ export const adminPointsResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -932,7 +932,7 @@ export const adminPointsResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.admin_user_id)
+        .eq('id', parent.admin_user_id)
         .single()
       return data
     },
@@ -943,7 +943,7 @@ export const adminPointsResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -959,7 +959,7 @@ export const adminPointsResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
       return data
     },
@@ -969,7 +969,7 @@ export const adminPointsResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.verified_by)
+        .eq('id', parent.verified_by)
         .single()
       return data
     },

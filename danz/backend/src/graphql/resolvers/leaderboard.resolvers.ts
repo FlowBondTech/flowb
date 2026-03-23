@@ -68,7 +68,7 @@ const buildLeaderboard = async (
   let query = supabase
     .from('users')
     .select(
-      'privy_id, username, display_name, avatar_url, level, xp, total_points, total_dance_minutes, best_score, longest_streak, events_attended, country, city',
+      'id, username, display_name, avatar_url, level, xp, total_points, total_dance_minutes, best_score, longest_streak, events_attended, country, city',
       { count: 'exact' },
     )
     .order(orderBy, { ascending: false })
@@ -80,7 +80,7 @@ const buildLeaderboard = async (
     query = query.eq('city', filters.city)
   }
   if (filters?.friendIds && filters.friendIds.length > 0) {
-    query = query.in('privy_id', filters.friendIds)
+    query = query.in('id', filters.friendIds)
   }
 
   const { data, count, error } = await query.range(offset, offset + limit - 1)
@@ -99,16 +99,16 @@ const buildLeaderboard = async (
     // Get all users sorted for ranking
     const { data: allUsers } = await supabase
       .from('users')
-      .select('privy_id')
+      .select('id')
       .order(orderBy, { ascending: false })
 
-    const userRank = (allUsers || []).findIndex(u => u.privy_id === userId) + 1
+    const userRank = (allUsers || []).findIndex(u => u.id === userId) + 1
 
     if (userRank > 0) {
       const { data: currentUser } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (currentUser) {
@@ -116,7 +116,7 @@ const buildLeaderboard = async (
           rank: userRank,
           previous_rank: null,
           rank_change: null,
-          user_id: currentUser.privy_id,
+          user_id: currentUser.id,
           username: currentUser.username || 'Anonymous',
           display_name: currentUser.display_name,
           avatar_url: currentUser.avatar_url,
@@ -135,18 +135,18 @@ const buildLeaderboard = async (
       )
 
       for (const rank of nearbyRanks) {
-        const nearbyUserId = allUsers?.[rank - 1]?.privy_id
+        const nearbyUserId = allUsers?.[rank - 1]?.id
         if (nearbyUserId) {
           const { data: nearbyUser } = await supabase
             .from('users')
             .select('*')
-            .eq('privy_id', nearbyUserId)
+            .eq('id', nearbyUserId)
             .single()
 
           if (nearbyUser) {
             nearbyEntries.push({
               rank,
-              user_id: nearbyUser.privy_id,
+              user_id: nearbyUser.id,
               username: nearbyUser.username || 'Anonymous',
               display_name: nearbyUser.display_name,
               avatar_url: nearbyUser.avatar_url,
@@ -164,13 +164,13 @@ const buildLeaderboard = async (
     rank: offset + index + 1,
     previous_rank: null,
     rank_change: null,
-    user_id: user.privy_id,
+    user_id: user.id,
     username: user.username || 'Anonymous',
     display_name: user.display_name,
     avatar_url: user.avatar_url,
     level: user.level || 1,
     value: (user as any)[orderBy] || 0,
-    is_current_user: user.privy_id === userId,
+    is_current_user: user.id === userId,
     badges: [],
     country: user.country,
     city: user.city,
@@ -300,9 +300,9 @@ export const leaderboardResolvers = {
         .limit(limit)
 
       const userIds = (registrations || []).map(r => r.user_id)
-      const { data: users } = await supabase.from('users').select('*').in('privy_id', userIds)
+      const { data: users } = await supabase.from('users').select('*').in('id', userIds)
 
-      const userMap = new Map((users || []).map(u => [u.privy_id, u]))
+      const userMap = new Map((users || []).map(u => [u.id, u]))
 
       const entries = (registrations || []).map((reg, index) => {
         const user = userMap.get(reg.user_id)
@@ -392,10 +392,10 @@ export const leaderboardResolvers = {
       // Get user's ranks
       const { data: allUsers } = await supabase
         .from('users')
-        .select('privy_id, xp')
+        .select('id, xp')
         .order('xp', { ascending: false })
 
-      const globalRank = (allUsers || []).findIndex(u => u.privy_id === userId) + 1
+      const globalRank = (allUsers || []).findIndex(u => u.id === userId) + 1
       const totalUsers = (allUsers || []).length
 
       const percentile = totalUsers > 0 ? ((totalUsers - globalRank) / totalUsers) * 100 : 0
@@ -450,7 +450,7 @@ export const leaderboardResolvers = {
         .select('*')
         .order(orderBy, { ascending: false })
 
-      const userIndex = (allUsers || []).findIndex(u => u.privy_id === userId)
+      const userIndex = (allUsers || []).findIndex(u => u.id === userId)
       if (userIndex === -1) return []
 
       const start = Math.max(0, userIndex - range)
@@ -458,13 +458,13 @@ export const leaderboardResolvers = {
 
       return (allUsers || []).slice(start, end).map((user, index) => ({
         rank: start + index + 1,
-        user_id: user.privy_id,
+        user_id: user.id,
         username: user.username || 'Anonymous',
         display_name: user.display_name,
         avatar_url: user.avatar_url,
         level: user.level || 1,
         value: (user as any)[orderBy] || 0,
-        is_current_user: user.privy_id === userId,
+        is_current_user: user.id === userId,
       }))
     },
 
@@ -485,7 +485,7 @@ export const leaderboardResolvers = {
 
       return (data || []).map((user, index) => ({
         rank: index + 1,
-        user_id: user.privy_id,
+        user_id: user.id,
         username: user.username || 'Anonymous',
         display_name: user.display_name,
         avatar_url: user.avatar_url,

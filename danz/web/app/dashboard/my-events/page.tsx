@@ -598,7 +598,7 @@ export default function EventsPage() {
                 <div className="overflow-y-auto max-h-[calc(85vh-80px)]">
                   <Leaderboard
                     users={MOCK_LEADERBOARD}
-                    currentUserId={profileData?.me?.privy_id}
+                    currentUserId={profileData?.me?.id}
                     variant="full"
                   />
                 </div>

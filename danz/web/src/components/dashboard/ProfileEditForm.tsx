@@ -40,7 +40,7 @@ export interface ProfileEditFormRef {
 const UPDATE_PROFILE = gql`
   mutation UpdateProfile($input: UpdateProfileInput!) {
     updateProfile(input: $input) {
-      privy_id
+      id
       username
       display_name
       bio

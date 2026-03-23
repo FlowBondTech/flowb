@@ -89,7 +89,7 @@ query GetChallengeLeaderboard($type: ChallengeType!, $period: String!) {
       xp_earned
       points_earned
       user {
-        privy_id
+        id
         username
         display_name
         avatar_url

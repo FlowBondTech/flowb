@@ -1,5 +1,5 @@
 fragment UserBasicInfo on User {
-  privy_id
+  id
   username
   display_name
   avatar_url
@@ -9,7 +9,7 @@ fragment UserBasicInfo on User {
 }
 
 fragment UserFullInfo on User {
-  privy_id
+  id
   username
   display_name
   avatar_url

@@ -79,7 +79,7 @@ const GET_DEV_TASKS = gql`
         status
         priority
         assigned_to {
-          privy_id
+          id
           username
           display_name
           avatar_url
@@ -164,7 +164,7 @@ interface DevTask {
   status: 'todo' | 'in_progress' | 'blocked' | 'done'
   priority: 'low' | 'medium' | 'high' | 'urgent'
   assigned_to: {
-    privy_id: string
+    id: string
     username: string | null
     display_name: string | null
     avatar_url: string | null

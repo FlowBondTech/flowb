@@ -66,7 +66,7 @@ export const referralTypeDefs = gql`
   }
 
   type UserReferralInfo {
-    privy_id: String!
+    id: String!
     username: String
     display_name: String
     avatar_url: String

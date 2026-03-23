@@ -16,7 +16,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { priceId, plan } = req.body
-      const { privyId } = req.user!
+      const { userId } = req.user!
 
       if (!plan) {
         return res.status(400).json({ error: 'Plan is required' })
@@ -48,8 +48,8 @@ router.post(
 
       const { data: user } = await supabase
         .from('users')
-        .select('privy_id, stripe_customer_id, username, display_name')
-        .eq('privy_id', privyId)
+        .select('id, stripe_customer_id, username, display_name')
+        .eq('id', userId)
         .single()
 
       if (!user) {
@@ -61,7 +61,7 @@ router.post(
       if (!customerId) {
         const customer = await stripe.customers.create({
           metadata: {
-            privy_id: privyId,
+            user_id: userId,
             username: user.username || '',
             display_name: user.display_name || '',
           },
@@ -72,7 +72,7 @@ router.post(
         await supabase
           .from('users')
           .update({ stripe_customer_id: customerId })
-          .eq('privy_id', privyId)
+          .eq('id', userId)
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -88,12 +88,12 @@ router.post(
         success_url: STRIPE_CONFIG.SUCCESS_URL,
         cancel_url: STRIPE_CONFIG.CANCEL_URL,
         metadata: {
-          privy_id: privyId,
+          user_id: userId,
           plan: plan,
         },
         subscription_data: {
           metadata: {
-            privy_id: privyId,
+            user_id: userId,
             plan: plan,
           },
         },
@@ -101,7 +101,7 @@ router.post(
         billing_address_collection: 'auto',
       })
 
-      logger.info('Checkout session created', { sessionId: session.id, privyId, plan })
+      logger.info('Checkout session created', { sessionId: session.id, userId, plan })
 
       return res.json({ url: session.url, sessionId: session.id })
     } catch (error) {
@@ -113,12 +113,12 @@ router.post(
 
 router.post('/create-portal-session', authenticateUser, async (req: AuthRequest, res: Response) => {
   try {
-    const { privyId } = req.user!
+    const { userId } = req.user!
 
     const { data: user } = await supabase
       .from('users')
       .select('stripe_customer_id')
-      .eq('privy_id', privyId)
+      .eq('id', userId)
       .single()
 
     if (!user?.stripe_customer_id) {
@@ -130,7 +130,7 @@ router.post('/create-portal-session', authenticateUser, async (req: AuthRequest,
       return_url: `${STRIPE_CONFIG.SUCCESS_URL.split('?')[0]}`,
     })
 
-    logger.info('Portal session created', { customerId: user.stripe_customer_id, privyId })
+    logger.info('Portal session created', { customerId: user.stripe_customer_id, userId })
 
     return res.json({ url: session.url })
   } catch (error) {
@@ -145,7 +145,7 @@ router.post(
   async (req: AuthRequest, res: Response) => {
     try {
       const { tierId } = req.body
-      const { privyId } = req.user!
+      const { userId } = req.user!
 
       const validTiers = ['starter', 'growth', 'headliner', 'ecosystem']
       if (!tierId || !validTiers.includes(tierId)) {
@@ -159,8 +159,8 @@ router.post(
 
       const { data: user } = await supabase
         .from('users')
-        .select('privy_id, stripe_customer_id, username, display_name')
-        .eq('privy_id', privyId)
+        .select('id, stripe_customer_id, username, display_name')
+        .eq('id', userId)
         .single()
 
       if (!user) {
@@ -172,7 +172,7 @@ router.post(
       if (!customerId) {
         const customer = await stripe.customers.create({
           metadata: {
-            privy_id: privyId,
+            user_id: userId,
             username: user.username || '',
             display_name: user.display_name || '',
           },
@@ -183,7 +183,7 @@ router.post(
         await supabase
           .from('users')
           .update({ stripe_customer_id: customerId })
-          .eq('privy_id', privyId)
+          .eq('id', userId)
       }
 
       const session = await stripe.checkout.sessions.create({
@@ -199,7 +199,7 @@ router.post(
         success_url: STRIPE_CONFIG.ETHDENVER_SUCCESS_URL,
         cancel_url: STRIPE_CONFIG.ETHDENVER_CANCEL_URL,
         metadata: {
-          privy_id: privyId,
+          user_id: userId,
           type: 'ethdenver_sponsor',
           tier_id: tierId,
         },
@@ -207,7 +207,7 @@ router.post(
         billing_address_collection: 'auto',
       })
 
-      logger.info('Sponsor checkout session created', { sessionId: session.id, privyId, tierId })
+      logger.info('Sponsor checkout session created', { sessionId: session.id, userId, tierId })
 
       return res.json({ url: session.url, sessionId: session.id })
     } catch (error) {
@@ -307,7 +307,7 @@ router.get('/verify-claim-token/:token', async (req: Request, res: Response) => 
 router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest, res: Response) => {
   try {
     const { claimToken } = req.body
-    const { privyId } = req.user!
+    const { userId } = req.user!
 
     if (!claimToken || claimToken.length !== 64) {
       return res.status(400).json({ error: 'Invalid claim token' })
@@ -331,7 +331,7 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
       .from('pending_sponsor_purchases')
       .update({
         status: 'claimed',
-        claimed_by: privyId,
+        claimed_by: userId,
         claimed_at: new Date().toISOString(),
       })
       .eq('id', pending.id)
@@ -349,14 +349,14 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
     const { data: user } = await supabase
       .from('users')
       .select('username, display_name, stripe_customer_id')
-      .eq('privy_id', privyId)
+      .eq('id', userId)
       .single()
 
     // Create or update sponsor profile (same logic as handleSponsorPurchase)
     const { data: existingSponsor } = await supabase
       .from('sponsors')
       .select('id, total_flow_contributed')
-      .eq('user_id', privyId)
+      .eq('user_id', userId)
       .single()
 
     if (existingSponsor) {
@@ -367,7 +367,7 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
         .eq('id', existingSponsor.id)
     } else {
       await supabase.from('sponsors').insert({
-        user_id: privyId,
+        user_id: userId,
         company_name: user?.display_name || user?.username || 'Sponsor',
         total_flow_contributed: tierInfo.flowAmount,
       })
@@ -375,7 +375,7 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
 
     // Record in sponsor_purchases
     await supabase.from('sponsor_purchases').insert({
-      user_id: privyId,
+      user_id: userId,
       stripe_session_id: pending.stripe_session_id,
       stripe_payment_intent_id: pending.stripe_payment_intent_id,
       tier_id: pending.tier_id,
@@ -389,7 +389,7 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
       await supabase
         .from('users')
         .update({ stripe_customer_id: pending.stripe_customer_id })
-        .eq('privy_id', privyId)
+        .eq('id', userId)
     }
 
     // Discord notification
@@ -402,7 +402,7 @@ router.post('/claim-sponsor-purchase', authenticateUser, async (req: AuthRequest
       .catch(err => console.error('[Discord] Sponsor claim notification failed:', err))
 
     logger.info('Guest sponsor purchase claimed', {
-      privyId,
+      userId,
       tierId: pending.tier_id,
       amountUsd: pending.amount_usd,
     })
@@ -443,22 +443,22 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
 
-        // Handle guest sponsor purchases (no privy_id expected)
+        // Handle guest sponsor purchases (no id expected)
         if (session.metadata?.type === 'ethdenver_sponsor_guest') {
           await handleGuestSponsorPurchase(session)
           break
         }
 
-        const privyId = session.metadata?.privy_id
+        const userId = session.metadata?.user_id || session.metadata?.privy_id
 
-        if (!privyId) {
-          logger.error('No privy_id in checkout session metadata')
+        if (!userId) {
+          logger.error('No user_id in checkout session metadata')
           break
         }
 
         // Route based on checkout type
         if (session.metadata?.type === 'ethdenver_sponsor') {
-          await handleSponsorPurchase(session, privyId)
+          await handleSponsorPurchase(session, userId)
           break
         }
 
@@ -482,10 +482,10 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
               ? new Date(currentPeriodEnd * 1000).toISOString()
               : null,
           })
-          .eq('privy_id', privyId)
+          .eq('id', userId)
 
         await supabase.from('subscription_history').insert({
-          user_id: privyId,
+          user_id: userId,
           stripe_subscription_id: subscription.id,
           status: subscription.status,
           plan: subscription.metadata.plan || 'monthly',
@@ -500,7 +500,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
         const { data: subUser } = await supabase
           .from('users')
           .select('username')
-          .eq('privy_id', privyId)
+          .eq('id', userId)
           .single()
 
         // Calculate amount from invoice
@@ -515,16 +515,16 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
           })
           .catch(err => console.error('[Discord] Subscription started notification failed:', err))
 
-        logger.info('Subscription activated', { privyId, subscriptionId: subscription.id })
+        logger.info('Subscription activated', { userId, subscriptionId: subscription.id })
         break
       }
 
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription
-        const privyId = subscription.metadata?.privy_id
+        const userId = subscription.metadata?.user_id || subscription.metadata?.privy_id
 
-        if (!privyId) {
-          logger.error('No privy_id in subscription metadata')
+        if (!userId) {
+          logger.error('No user_id in subscription metadata')
           break
         }
 
@@ -552,10 +552,10 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
               ? new Date(subscription.canceled_at * 1000).toISOString()
               : null,
           })
-          .eq('privy_id', privyId)
+          .eq('id', userId)
 
         await supabase.from('subscription_history').insert({
-          user_id: privyId,
+          user_id: userId,
           stripe_subscription_id: subscription.id,
           status: subscription.status,
           plan: subscription.metadata.plan || 'monthly',
@@ -565,23 +565,23 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
           },
         })
 
-        logger.info('Subscription updated', { privyId, status: subscription.status })
+        logger.info('Subscription updated', { userId, status: subscription.status })
         break
       }
 
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription
-        const privyId = subscription.metadata?.privy_id
+        const userId = subscription.metadata?.user_id || subscription.metadata?.privy_id
 
-        if (!privyId) {
+        if (!userId) {
           const customer = await stripe.customers.retrieve(subscription.customer as string)
-          const privyIdFromCustomer = (customer as any).metadata?.privy_id
+          const userIdFromCustomer = (customer as any).metadata?.user_id || (customer as any).metadata?.privy_id
 
-          if (privyIdFromCustomer) {
-            await handleSubscriptionCancellation(privyIdFromCustomer, subscription)
+          if (userIdFromCustomer) {
+            await handleSubscriptionCancellation(userIdFromCustomer, subscription)
           }
         } else {
-          await handleSubscriptionCancellation(privyId, subscription)
+          await handleSubscriptionCancellation(userId, subscription)
         }
         break
       }
@@ -597,19 +597,19 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
         const subscription = await stripe.subscriptions.retrieve(
           (invoice as any).subscription as string,
         )
-        const privyId = subscription.metadata?.privy_id
+        const userId = subscription.metadata?.user_id || subscription.metadata?.privy_id
 
-        if (privyId) {
+        if (userId) {
           await supabase
             .from('users')
             .update({
               is_premium: 'past_due',
               subscription_status: 'past_due',
             })
-            .eq('privy_id', privyId)
+            .eq('id', userId)
 
           await supabase.from('subscription_history').insert({
-            user_id: privyId,
+            user_id: userId,
             stripe_subscription_id: subscription.id,
             status: 'past_due',
             plan: subscription.metadata.plan || 'monthly',
@@ -620,7 +620,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
             },
           })
 
-          logger.warn('Payment failed', { privyId, invoiceId: invoice.id })
+          logger.warn('Payment failed', { userId, invoiceId: invoice.id })
         }
         break
       }
@@ -636,9 +636,9 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
         const subscription = await stripe.subscriptions.retrieve(
           (invoice as any).subscription as string,
         )
-        const privyId = subscription.metadata?.privy_id
+        const userId = subscription.metadata?.user_id || subscription.metadata?.privy_id
 
-        if (privyId && subscription.status === 'active') {
+        if (userId && subscription.status === 'active') {
           await supabase
             .from('users')
             .update({
@@ -651,10 +651,10 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
                 ? new Date((subscription as any).current_period_end * 1000).toISOString()
                 : null,
             })
-            .eq('privy_id', privyId)
+            .eq('id', userId)
 
           await supabase.from('subscription_history').insert({
-            user_id: privyId,
+            user_id: userId,
             stripe_subscription_id: subscription.id,
             status: 'active',
             plan: subscription.metadata.plan || 'monthly',
@@ -665,7 +665,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
             },
           })
 
-          logger.info('Payment succeeded', { privyId, invoiceId: invoice.id })
+          logger.info('Payment succeeded', { userId, invoiceId: invoice.id })
         }
         break
       }
@@ -681,7 +681,7 @@ router.post('/webhook', async (req: Request, res: Response): Promise<Response> =
   }
 })
 
-async function handleSponsorPurchase(session: Stripe.Checkout.Session, privyId: string) {
+async function handleSponsorPurchase(session: Stripe.Checkout.Session, userId: string) {
   const tierId = session.metadata?.tier_id || 'starter'
   const tierInfo = SPONSOR_TIER_MAP[tierId] || SPONSOR_TIER_MAP.starter
   const amountUsd = session.amount_total ? session.amount_total / 100 : 0
@@ -690,14 +690,14 @@ async function handleSponsorPurchase(session: Stripe.Checkout.Session, privyId: 
   const { data: user } = await supabase
     .from('users')
     .select('username, display_name')
-    .eq('privy_id', privyId)
+    .eq('id', userId)
     .single()
 
   // Look up existing sponsor profile
   const { data: existingSponsor } = await supabase
     .from('sponsors')
     .select('id, total_flow_contributed')
-    .eq('user_id', privyId)
+    .eq('user_id', userId)
     .single()
 
   if (existingSponsor) {
@@ -710,7 +710,7 @@ async function handleSponsorPurchase(session: Stripe.Checkout.Session, privyId: 
   } else {
     // Create new sponsor profile
     await supabase.from('sponsors').insert({
-      user_id: privyId,
+      user_id: userId,
       company_name: user?.display_name || user?.username || 'Sponsor',
       total_flow_contributed: tierInfo.flowAmount,
     })
@@ -718,7 +718,7 @@ async function handleSponsorPurchase(session: Stripe.Checkout.Session, privyId: 
 
   // Record purchase
   await supabase.from('sponsor_purchases').insert({
-    user_id: privyId,
+    user_id: userId,
     stripe_session_id: session.id,
     stripe_payment_intent_id: session.payment_intent as string,
     tier_id: tierId,
@@ -736,7 +736,7 @@ async function handleSponsorPurchase(session: Stripe.Checkout.Session, privyId: 
     })
     .catch(err => console.error('[Discord] Sponsor purchase notification failed:', err))
 
-  logger.info('Sponsor purchase processed', { privyId, tierId, amountUsd })
+  logger.info('Sponsor purchase processed', { userId, tierId, amountUsd })
 }
 
 async function handleGuestSponsorPurchase(session: Stripe.Checkout.Session) {
@@ -784,12 +784,12 @@ async function handleGuestSponsorPurchase(session: Stripe.Checkout.Session) {
   })
 }
 
-async function handleSubscriptionCancellation(privyId: string, subscription: Stripe.Subscription) {
+async function handleSubscriptionCancellation(userId: string, subscription: Stripe.Subscription) {
   // Get username before update for Discord notification
   const { data: cancelledUser } = await supabase
     .from('users')
     .select('username')
-    .eq('privy_id', privyId)
+    .eq('id', userId)
     .single()
 
   await supabase
@@ -801,10 +801,10 @@ async function handleSubscriptionCancellation(privyId: string, subscription: Str
       subscription_plan: null,
       subscription_cancelled_at: new Date().toISOString(),
     })
-    .eq('privy_id', privyId)
+    .eq('id', userId)
 
   await supabase.from('subscription_history').insert({
-    user_id: privyId,
+    user_id: userId,
     stripe_subscription_id: subscription.id,
     status: 'cancelled',
     plan: subscription.metadata.plan || 'monthly',
@@ -822,7 +822,7 @@ async function handleSubscriptionCancellation(privyId: string, subscription: Str
     })
     .catch(err => console.error('[Discord] Subscription cancelled notification failed:', err))
 
-  logger.info('Subscription cancelled', { privyId, subscriptionId: subscription.id })
+  logger.info('Subscription cancelled', { userId, subscriptionId: subscription.id })
 }
 
 export default router

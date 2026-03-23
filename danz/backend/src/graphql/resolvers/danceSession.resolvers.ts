@@ -160,7 +160,7 @@ export const danceSessionResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('current_streak, longest_streak')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       return {
@@ -235,7 +235,7 @@ export const danceSessionResolvers = {
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('xp, level')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (userError) {
@@ -290,7 +290,7 @@ export const danceSessionResolvers = {
 
       // Update user level if leveled up
       if (levelUps > 0) {
-        await supabase.from('users').update({ level: newLevel }).eq('privy_id', userId)
+        await supabase.from('users').update({ level: newLevel }).eq('id', userId)
       }
 
       return data
@@ -380,7 +380,7 @@ export const danceSessionResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       if (error) {
@@ -400,7 +400,7 @@ export const danceSessionResolvers = {
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .in('privy_id', parent.shared_with_user_ids)
+        .in('id', parent.shared_with_user_ids)
 
       if (error) {
         throw new GraphQLError('Failed to fetch shared users', {

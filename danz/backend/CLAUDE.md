@@ -22,7 +22,7 @@ danz-backend/
 │   ├── app.ts            # Express app setup
 │   ├── config/           # Configuration files
 │   │   ├── env.ts        # Environment variables
-│   │   ├── privy.ts      # Privy auth config
+│   │   ├── jwt.ts        # Supabase JWT verification
 │   │   └── supabase.ts   # Supabase client
 │   ├── graphql/          # GraphQL implementation
 │   │   ├── schema/       # Type definitions
@@ -59,7 +59,7 @@ danz-backend/
 - `aws-sdk`: S3 file storage
 
 ### Authentication & Security
-- `@privy-io/server-auth`: Privy authentication
+- `jsonwebtoken`: Supabase JWT verification
 - `helmet`: Security headers
 - `cors`: CORS handling
 - `compression`: Response compression
@@ -113,7 +113,7 @@ export const userResolvers = {
 ## Database Schema
 
 ### Key Tables
-- `users` - User profiles (privy_id as primary key)
+- `users` - User profiles (id as primary key)
 - `events` - Dance events
 - `event_registrations` - Event participants
 - `feed_posts` - Social feed
@@ -157,14 +157,13 @@ pnpm run build          # TypeScript build
 ```
 
 ## Authentication Flow
-1. Client sends Privy JWT in Authorization header
-2. Middleware verifies token with Privy
+1. Client sends Supabase JWT in Authorization header
+2. Middleware verifies token with jsonwebtoken (HS256 + SUPABASE_JWT_SECRET)
 3. User context available in resolvers:
    ```typescript
    context.user = {
-     privyId: string,
+     userId: string,    // Supabase auth user ID (from JWT sub claim)
      email?: string,
-     wallet?: string
    }
    ```
 
@@ -174,8 +173,7 @@ Required in `.env`:
 PORT=8080
 SUPABASE_URL=your_supabase_url
 SUPABASE_SERVICE_KEY=your_service_key
-PRIVY_APP_ID=your_privy_app_id
-PRIVY_APP_SECRET=your_privy_secret
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret
 AWS_ACCESS_KEY_ID=your_aws_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret
 AWS_REGION=us-east-1
@@ -195,9 +193,8 @@ DISCORD_WEBHOOK_PAYMENTS=your_payments_channel_webhook
 ```typescript
 interface Context {
   user?: {
-    privyId: string
+    userId: string
     email?: string
-    wallet?: string
   }
 }
 ```

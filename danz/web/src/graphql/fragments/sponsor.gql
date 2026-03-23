@@ -141,12 +141,12 @@ fragment FlowTransactionFull on FlowTransaction {
   createdAt
   completedAt
   fromUser {
-    privy_id
+    id
     username
     avatar_url
   }
   toUser {
-    privy_id
+    id
     username
     avatar_url
   }

@@ -247,18 +247,18 @@ function LinkPageContent() {
   }, [code])
 
   const doVerification = useCallback(async () => {
-    if (!code || !user?.privy_id) return
+    if (!code || !user?.id) return
     setStatus('verifying')
     setHasStartedVerification(true)
 
     // Minimum display time so the animation is visible
     const minDelay = new Promise(resolve => setTimeout(resolve, 2500))
-    const verifyPromise = completeVerification(code, user.privy_id)
+    const verifyPromise = completeVerification(code, user.id)
 
     const [verifyResult] = await Promise.all([verifyPromise, minDelay])
     setResult(verifyResult)
     setStatus(verifyResult.success ? 'success' : 'error')
-  }, [code, user?.privy_id])
+  }, [code, user?.id])
 
   useEffect(() => {
     if (!code) {

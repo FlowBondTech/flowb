@@ -18,7 +18,7 @@ const requireAdmin = async (context: GraphQLContext) => {
   const { data: user } = await supabase
     .from('users')
     .select('role, is_admin')
-    .eq('privy_id', userId)
+    .eq('id', userId)
     .single()
 
   if (!user?.is_admin && user?.role !== 'admin') {
@@ -42,7 +42,7 @@ export const usernameChangeResolvers = {
       const { data: user } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       // Get pending request if any
@@ -223,11 +223,11 @@ export const usernameChangeResolvers = {
       // Check if username is available
       const { data: existingUser } = await supabase
         .from('users')
-        .select('privy_id')
+        .select('id')
         .eq('username', new_username)
         .single()
 
-      if (existingUser && existingUser.privy_id !== userId) {
+      if (existingUser && existingUser.id !== userId) {
         throw new GraphQLError('Username is already taken', {
           extensions: { code: 'CONFLICT' },
         })
@@ -237,7 +237,7 @@ export const usernameChangeResolvers = {
       const { data: currentUser } = await supabase
         .from('users')
         .select('username')
-        .eq('privy_id', userId)
+        .eq('id', userId)
         .single()
 
       if (!currentUser) {
@@ -333,7 +333,7 @@ export const usernameChangeResolvers = {
             username: new_username,
             updated_at: now,
           })
-          .eq('privy_id', userId)
+          .eq('id', userId)
 
         if (updateError) {
           // Rollback the request
@@ -450,11 +450,11 @@ export const usernameChangeResolvers = {
       if (approved) {
         const { data: existingUser } = await supabase
           .from('users')
-          .select('privy_id')
+          .select('id')
           .eq('username', request.requested_username)
           .single()
 
-        if (existingUser && existingUser.privy_id !== request.user_id) {
+        if (existingUser && existingUser.id !== request.user_id) {
           throw new GraphQLError('Requested username is no longer available', {
             extensions: { code: 'CONFLICT' },
           })
@@ -491,7 +491,7 @@ export const usernameChangeResolvers = {
             username: request.requested_username,
             updated_at: now,
           })
-          .eq('privy_id', request.user_id)
+          .eq('id', request.user_id)
 
         if (userUpdateError) {
           // Rollback the request status
@@ -541,7 +541,7 @@ export const usernameChangeResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.user_id)
+        .eq('id', parent.user_id)
         .single()
 
       return data
@@ -553,7 +553,7 @@ export const usernameChangeResolvers = {
       const { data } = await supabase
         .from('users')
         .select('*')
-        .eq('privy_id', parent.reviewed_by)
+        .eq('id', parent.reviewed_by)
         .single()
 
       return data

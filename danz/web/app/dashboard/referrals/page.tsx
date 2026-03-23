@@ -64,15 +64,15 @@ function ReferralsContent() {
     window.location.href = `sms:?&body=${message}`
   }
 
-  const handleNudge = async (referralPrivyId: string) => {
-    setNudgingId(referralPrivyId)
+  const handleNudge = async (referralId: string) => {
+    setNudgingId(referralId)
     setNudgeSuccess(null)
 
     // For now, show a success message (actual nudge will be via GraphQL when backend is ready)
     // TODO: Integrate with GraphQL mutation when email service is configured
     setTimeout(() => {
       setNudgingId(null)
-      setNudgeSuccess(referralPrivyId)
+      setNudgeSuccess(referralId)
       setTimeout(() => setNudgeSuccess(null), 3000)
     }, 1000)
   }
@@ -326,7 +326,7 @@ function ReferralsContent() {
             <div className="space-y-3">
               {referrals.map(referral => (
                 <div
-                  key={referral.privy_id}
+                  key={referral.id}
                   className="bg-bg-primary rounded-lg p-3 sm:p-4 border border-white/10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
                 >
                   <div className="flex items-center gap-3 min-w-0">
@@ -380,20 +380,20 @@ function ReferralsContent() {
                     {/* Nudge button for pending referrals */}
                     {referral.status !== 'completed' && (
                       <button
-                        onClick={() => handleNudge(referral.privy_id)}
-                        disabled={nudgingId === referral.privy_id}
+                        onClick={() => handleNudge(referral.id)}
+                        disabled={nudgingId === referral.id}
                         className={`flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                          nudgeSuccess === referral.privy_id
+                          nudgeSuccess === referral.id
                             ? 'bg-green-500/20 text-green-400'
-                            : nudgingId === referral.privy_id
+                            : nudgingId === referral.id
                               ? 'bg-neon-purple/10 text-neon-purple/50 cursor-wait'
                               : 'bg-neon-purple/20 text-neon-purple hover:bg-neon-purple/30'
                         }`}
                         title="Send a friendly reminder"
                       >
-                        {nudgingId === referral.privy_id ? (
+                        {nudgingId === referral.id ? (
                           <FiLoader size={14} className="animate-spin" />
-                        ) : nudgeSuccess === referral.privy_id ? (
+                        ) : nudgeSuccess === referral.id ? (
                           <>
                             <FiCheck size={14} />
                             <span className="hidden sm:inline">Sent!</span>
