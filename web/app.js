@@ -1446,6 +1446,136 @@ loadMoreBtn.addEventListener('click', () => {
 
 let introStarted = false;
 
+// ----- Drag-and-Snap -----
+const SNAP_ZONES = {
+  'bottom-right': { bottom: 24, right: 24 },
+  'bottom-left':  { bottom: 24, left: 24 },
+  'mid-right':    { top: '50%', right: 24 },
+  'mid-left':     { top: '50%', left: 24 },
+};
+
+function _isMobile() { return window.innerWidth <= 640; }
+
+function _getZoneCoords(zoneId) {
+  const w = window.innerWidth, h = window.innerHeight;
+  const fabSize = _isMobile() ? 44 : 56;
+  const inset = _isMobile() ? 12 : 24;
+  const bottomOffset = _isMobile() ? 56 + 16 : 24;
+  let x, y;
+  if (zoneId.includes('right')) x = w - inset - fabSize / 2;
+  else x = inset + fabSize / 2;
+  if (zoneId.includes('mid')) y = h / 2;
+  else y = h - bottomOffset - fabSize / 2;
+  return { x, y };
+}
+
+function _applyZone(el, zoneId) {
+  const isLeft = zoneId.includes('left');
+  const isMid = zoneId.includes('mid');
+  const inset = _isMobile() ? 12 : 24;
+  const bottomOffset = _isMobile() ? 'calc(56px + env(safe-area-inset-bottom))' : '24px';
+
+  el.style.left = ''; el.style.top = ''; el.style.right = ''; el.style.bottom = '';
+  el.style.transform = '';
+  el.classList.remove('flowb-fab-left', 'flowb-fab-mid');
+
+  if (isLeft) {
+    el.style.left = inset + 'px';
+    el.style.right = 'auto';
+    el.classList.add('flowb-fab-left');
+  } else {
+    el.style.right = inset + 'px';
+    el.style.left = 'auto';
+  }
+
+  if (isMid) {
+    el.style.top = '50%';
+    el.style.bottom = 'auto';
+    el.style.transform = 'translateY(-50%)';
+    el.classList.add('flowb-fab-mid');
+  } else {
+    el.style.bottom = bottomOffset;
+    el.style.top = 'auto';
+  }
+
+  el.dataset.zone = zoneId;
+  const toasts = document.getElementById('pointsToasts');
+  if (toasts) {
+    if (isLeft) toasts.classList.add('toasts-left');
+    else toasts.classList.remove('toasts-left');
+  }
+}
+
+function _snapToNearest(el) {
+  const rect = el.getBoundingClientRect();
+  const fabSize = _isMobile() ? 44 : 56;
+  const cx = rect.left + fabSize / 2;
+  const cy = rect.top + fabSize / 2;
+
+  let closest = 'bottom-right', minDist = Infinity;
+  for (const id of Object.keys(SNAP_ZONES)) {
+    const target = _getZoneCoords(id);
+    const d = Math.hypot(cx - target.x, cy - target.y);
+    if (d < minDist) { minDist = d; closest = id; }
+  }
+
+  el.classList.add('snapping');
+  _applyZone(el, closest);
+  localStorage.setItem('flowb-fab-zone', closest);
+
+  const onEnd = () => { el.classList.remove('snapping'); el.removeEventListener('transitionend', onEnd); };
+  el.addEventListener('transitionend', onEnd);
+  setTimeout(() => el.classList.remove('snapping'), 400);
+}
+
+function _initDragSnap(el, fabEl, onTap) {
+  let startX, startY, startLeft, startTop, isDragging = false, isDown = false;
+  const DRAG_THRESHOLD = 8;
+
+  fabEl.addEventListener('pointerdown', (e) => {
+    if (el.dataset.state === 'expanded') return;
+    startX = e.clientX; startY = e.clientY;
+    const rect = el.getBoundingClientRect();
+    startLeft = rect.left; startTop = rect.top;
+    isDragging = false;
+    isDown = true;
+    el.classList.add('dragging');
+    fabEl.setPointerCapture(e.pointerId);
+  });
+
+  fabEl.addEventListener('pointermove', (e) => {
+    if (!isDown) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!isDragging && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+      isDragging = true;
+    }
+    if (isDragging) {
+      el.style.left = (startLeft + dx) + 'px';
+      el.style.top = (startTop + dy) + 'px';
+      el.style.right = 'auto';
+      el.style.bottom = 'auto';
+      el.style.transform = 'none';
+    }
+  });
+
+  fabEl.addEventListener('pointerup', () => {
+    if (!isDown) return;
+    isDown = false;
+    el.classList.remove('dragging');
+    if (isDragging) {
+      _snapToNearest(el);
+      isDragging = false;
+    } else {
+      onTap();
+    }
+  });
+
+  fabEl.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+// Restore saved zone on load
+_applyZone(widget, localStorage.getItem('flowb-fab-zone') || 'bottom-right');
+
 function expandChat() {
   widget.dataset.state = 'expanded';
   // Lock body scroll on mobile only
@@ -1459,7 +1589,8 @@ function minimizeChat() {
   document.body.style.overflow = '';
 }
 
-widgetFab.addEventListener('click', () => {
+// Drag-and-snap replaces simple click — tap triggers expand, drag repositions
+_initDragSnap(widget, widgetFab, () => {
   expandChat();
   // First expand with no messages: run intro or show greeting
   if (chatMessages.children.length === 0 && !introStarted) {

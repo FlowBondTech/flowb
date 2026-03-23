@@ -232,6 +232,11 @@ function showPointsToast(amount, label, variant = 'default') {
   const container = document.getElementById('pointsToasts');
   if (!container) return;
 
+  // Position toasts near FAB zone
+  const zone = localStorage.getItem('flowb-fab-zone') || 'bottom-right';
+  if (zone.includes('left')) container.classList.add('toasts-left');
+  else container.classList.remove('toasts-left');
+
   const colors = {
     default: { border: 'rgba(99,102,241,0.3)', color: 'var(--accent-light)' },
     bonus:   { border: 'rgba(251,191,36,0.4)', color: '#fbbf24' },
