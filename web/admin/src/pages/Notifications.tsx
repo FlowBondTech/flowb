@@ -56,7 +56,7 @@ export default function Notifications() {
   const [searchResults, setSearchResults] = useState<RecipientResult[]>([])
   const [searching, setSearching] = useState(false)
   const [showDropdown, setShowDropdown] = useState(false)
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const searchTimeout = useRef<ReturnType<typeof setTimeout>>(undefined)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   const fetchStats = useCallback(async () => {
