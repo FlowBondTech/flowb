@@ -3055,6 +3055,55 @@ a:hover { text-decoration: underline; }
   animation: typeCursor 0.6s step-end infinite;
 }
 
+/* Drag-and-snap states */
+.flowb-widget.dragging {
+  transition: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.flowb-widget.dragging .flowb-widget-fab {
+  cursor: grabbing;
+}
+.flowb-widget.snapping {
+  transition: left 0.3s ease, top 0.3s ease, bottom 0.3s ease, right 0.3s ease;
+}
+
+/* Left-side FAB: speech bubble to the right */
+.flowb-widget.flowb-fab-left .flowb-fab-speech {
+  right: auto;
+  left: 68px;
+  transform: translateX(-8px);
+}
+.flowb-widget.flowb-fab-left .flowb-fab-speech.visible {
+  transform: translateX(0);
+}
+.flowb-widget.flowb-fab-left .flowb-fab-speech-tail {
+  right: auto;
+  left: -6px;
+  border-left: none;
+  border-right: 6px solid var(--accent);
+}
+
+/* Left-side FAB: panel opens to the right */
+.flowb-widget.flowb-fab-left .flowb-widget-panel {
+  right: auto;
+  left: 0;
+  transform-origin: bottom left;
+}
+.flowb-widget.flowb-fab-left[data-state="expanded"] .flowb-widget-panel {
+  transform: scale(1) translateY(0);
+}
+
+/* Mid-height zones: vertically centered */
+.flowb-widget.flowb-fab-mid {
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.flowb-widget.flowb-fab-mid[data-state="expanded"] {
+  transform: translateY(-50%);
+}
+
 /* Hide FAB when expanded */
 .flowb-widget[data-state="expanded"] .flowb-widget-fab {
   display: none;
@@ -5431,84 +5480,149 @@ a:hover { text-decoration: underline; }
 
 .flowb-auth-backdrop {
   position: fixed; inset: 0; z-index: 10000;
-  background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.75); backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   padding: 1rem;
+  animation: flowb-auth-fadein 0.2s ease-out;
+}
+@keyframes flowb-auth-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes flowb-auth-slidein {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .flowb-auth-card {
-  background: var(--card-bg, #111318); border: 1px solid var(--border, #1f2937);
-  border-radius: 16px; padding: 2rem; width: 100%; max-width: 400px;
-  position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  background: var(--bg-surface, #111111);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 20px; padding: 2rem 1.75rem 1.5rem;
+  width: 100%; max-width: 380px;
+  position: relative;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  animation: flowb-auth-slidein 0.25s ease-out;
 }
 
 .flowb-auth-close {
-  position: absolute; top: 0.75rem; right: 0.75rem;
-  background: none; border: none; color: var(--text-dim, #6b7280);
-  font-size: 1.5rem; cursor: pointer; padding: 0.25rem; line-height: 1;
+  position: absolute; top: 0.875rem; right: 0.875rem;
+  background: none; border: none; color: var(--text-dim, #555568);
+  font-size: 1.25rem; cursor: pointer; padding: 0.375rem; line-height: 1;
+  border-radius: 8px; transition: all 0.15s;
 }
-.flowb-auth-close:hover { color: var(--text, #e5e7eb); }
+.flowb-auth-close:hover { color: var(--text, #e4e4ec); background: rgba(255,255,255,0.06); }
 
 .flowb-auth-header {
-  text-align: center; margin-bottom: 1.5rem;
+  text-align: center; margin-bottom: 1.75rem;
 }
 .flowb-auth-header h3 {
-  font-size: 1.25rem; font-weight: 700; margin: 0.75rem 0 0.25rem;
-  color: var(--text, #e5e7eb);
+  font-size: 1.2rem; font-weight: 700; margin: 0.625rem 0 0.25rem;
+  color: var(--text, #e4e4ec); letter-spacing: -0.01em;
 }
 .flowb-auth-subtitle {
-  font-size: 0.85rem; color: var(--text-dim, #6b7280); margin: 0;
+  font-size: 0.825rem; color: var(--text-muted, #8888a0); margin: 0;
 }
 
-.flowb-auth-tabs {
-  display: flex; gap: 0; margin-bottom: 1rem;
-  border-radius: 8px; overflow: hidden;
-  border: 1px solid var(--border, #1f2937);
-}
-.flowb-auth-tab {
-  flex: 1; padding: 0.5rem; font-size: 0.8rem; font-weight: 500;
-  background: transparent; border: none; cursor: pointer;
-  color: var(--text-dim, #6b7280); transition: all 0.2s;
-}
-.flowb-auth-tab.active {
-  background: var(--accent, #6366f1); color: white;
-}
-
+/* Email-first form */
 .flowb-auth-form {
-  display: flex; flex-direction: column; gap: 0.75rem;
+  display: flex; flex-direction: column; gap: 0.625rem;
 }
 .flowb-auth-form input {
-  padding: 0.65rem 0.75rem; border-radius: 8px;
-  border: 1px solid var(--border, #1f2937);
-  background: var(--bg, #0a0b0e); color: var(--text, #e5e7eb);
-  font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+  padding: 0.75rem 0.875rem; border-radius: 10px;
+  border: 1px solid var(--border, #2a2a2a);
+  background: var(--bg, #0a0a0a); color: var(--text, #e4e4ec);
+  font-size: 0.9rem; font-family: var(--font); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.flowb-auth-form input::placeholder {
+  color: var(--text-dim, #555568);
 }
 .flowb-auth-form input:focus {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(37,99,235,0.15));
 }
 
 .flowb-auth-submit {
-  padding: 0.65rem; border-radius: 8px; border: none;
-  background: var(--accent, #6366f1); color: white;
-  font-weight: 600; font-size: 0.9rem; cursor: pointer;
-  transition: opacity 0.2s;
+  padding: 0.75rem; border-radius: 10px; border: none;
+  background: var(--accent, #2563eb); color: white;
+  font-weight: 600; font-size: 0.9rem; font-family: var(--font);
+  cursor: pointer; transition: all 0.15s;
 }
-.flowb-auth-submit:hover { opacity: 0.9; }
-.flowb-auth-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+.flowb-auth-submit:hover { background: var(--accent-light, #3b82f6); }
+.flowb-auth-submit:active { transform: scale(0.98); }
+.flowb-auth-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Divider */
+.flowb-auth-divider {
+  display: flex; align-items: center; gap: 0.75rem;
+  margin: 0.375rem 0;
+}
+.flowb-auth-divider::before,
+.flowb-auth-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border, #2a2a2a);
+}
+.flowb-auth-divider span {
+  font-size: 0.75rem; color: var(--text-dim, #555568);
+  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;
+}
+
+/* Provider buttons row */
+.flowb-auth-providers {
+  display: flex; gap: 0.5rem;
+}
+.flowb-auth-provider-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 0.625rem 0.5rem; border-radius: 10px;
+  border: 1px solid var(--border, #2a2a2a);
+  background: transparent; color: var(--text-muted, #8888a0);
+  font-size: 0.78rem; font-weight: 500; font-family: var(--font);
+  cursor: pointer; transition: all 0.15s;
+}
+.flowb-auth-provider-btn:hover {
+  border-color: var(--border-hover, #3a3a3a);
+  background: rgba(255,255,255,0.03);
+  color: var(--text, #e4e4ec);
+}
+.flowb-auth-provider-btn:active { transform: scale(0.97); }
+.flowb-auth-provider-btn svg { flex-shrink: 0; }
+
+/* Expanded provider section (wallet sub-buttons, password form) */
+.flowb-auth-expanded {
+  display: flex; flex-direction: column; gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+.flowb-auth-back-btn {
+  background: none; border: none; color: var(--accent, #2563eb);
+  font-size: 0.8rem; font-family: var(--font); cursor: pointer;
+  padding: 0.25rem 0; display: flex; align-items: center; gap: 4px;
+  transition: opacity 0.15s;
+}
+.flowb-auth-back-btn:hover { opacity: 0.8; }
 
 .flowb-auth-hint {
-  font-size: 0.8rem; color: var(--text-dim, #6b7280);
-  margin: 0; text-align: center; min-height: 1.2em;
+  font-size: 0.78rem; color: var(--text-dim, #555568);
+  margin: 0; text-align: center; min-height: 1.1em;
 }
 
 .flowb-auth-link {
-  background: none; border: none; color: var(--accent, #6366f1);
-  font-size: 0.8rem; cursor: pointer; padding: 0;
+  background: none; border: none; color: var(--accent, #2563eb);
+  font-size: 0.8rem; font-family: var(--font); cursor: pointer; padding: 0;
 }
 .flowb-auth-link:hover { text-decoration: underline; }
 
+/* Footer / terms */
+.flowb-auth-footer {
+  text-align: center; margin-top: 1.25rem; padding-top: 1rem;
+  border-top: 1px solid var(--border, #2a2a2a);
+}
+.flowb-auth-footer p {
+  font-size: 0.7rem; color: var(--text-dim, #555568); margin: 0; line-height: 1.5;
+}
+
 @media (max-width: 480px) {
-  .flowb-auth-card { padding: 1.5rem; }
+  .flowb-auth-card { padding: 1.5rem 1.25rem 1.25rem; border-radius: 16px; }
+  .flowb-auth-provider-btn { padding: 0.575rem 0.375rem; font-size: 0.72rem; }
 }
 
 /* ===== Mobile Bottom Navigation ===== */

@@ -553,8 +553,10 @@
 
   // ===== Auth Methods =====
 
+  // ===== View State Management =====
+  var authViewState = 'main'; // main | otp | wallet | password | farcaster
+
   function showAuthModal() {
-    // Remove existing modal if any
     var existing = document.getElementById('flowb-auth-modal');
     if (existing) existing.remove();
     stopSiwfPolling();
@@ -564,19 +566,60 @@
     modal.className = 'flowb-auth-backdrop';
     modal.innerHTML = '\
       <div class="flowb-auth-card">\
-        <button class="flowb-auth-close" id="flowbAuthClose">&times;</button>\
+        <button class="flowb-auth-close" id="flowbAuthClose">\
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>\
+        </button>\
         <div class="flowb-auth-header">\
-          <img src="flowb.png" alt="FlowB" style="width:40px;height:40px;border-radius:8px">\
-          <h3>FlowB Passport</h3>\
-          <p class="flowb-auth-subtitle">Sign in to get in the Flow</p>\
+          <img src="flowb.png" alt="FlowB" style="width:44px;height:44px;border-radius:10px">\
+          <h3>Sign in to FlowB</h3>\
+          <p class="flowb-auth-subtitle">Your events, your flow, your crew</p>\
         </div>\
-        <div class="flowb-auth-tabs">\
-          <button class="flowb-auth-tab" data-tab="farcaster">Farcaster</button>\
-          <button class="flowb-auth-tab active" data-tab="magic">Magic Code</button>\
-          <button class="flowb-auth-tab" data-tab="wallet">Wallet</button>\
-          <button class="flowb-auth-tab" data-tab="password">Password</button>\
+        \
+        <!-- Main view: email + providers -->\
+        <div id="flowbViewMain">\
+          <form id="flowbAuthMagicForm" class="flowb-auth-form">\
+            <input type="email" id="flowbAuthEmail" placeholder="Enter your email" required autocomplete="email">\
+            <button type="submit" class="flowb-auth-submit" id="flowbAuthMagicBtn">Continue with email</button>\
+            <p class="flowb-auth-hint" id="flowbAuthMagicHint"></p>\
+          </form>\
+          <div class="flowb-auth-divider"><span>or</span></div>\
+          <div class="flowb-auth-providers">\
+            <button type="button" class="flowb-auth-provider-btn" id="flowbProvFarcaster">\
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>\
+              Farcaster\
+            </button>\
+            <button type="button" class="flowb-auth-provider-btn" id="flowbProvWallet">\
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M16 12h.01"/><path d="M2 10h20"/></svg>\
+              Wallet\
+            </button>\
+            <button type="button" class="flowb-auth-provider-btn" id="flowbProvPassword">\
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>\
+              Password\
+            </button>\
+          </div>\
         </div>\
-        <div id="flowbAuthFarcasterForm" class="flowb-auth-form" style="display:none">\
+        \
+        <!-- OTP verification view -->\
+        <div id="flowbViewOtp" style="display:none">\
+          <form id="flowbAuthOtpForm" class="flowb-auth-form">\
+            <button type="button" class="flowb-auth-back-btn" id="flowbOtpBack">\
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>\
+              Back\
+            </button>\
+            <p class="flowb-auth-hint" style="color:var(--accent,#2563eb);margin-bottom:0.25rem">We sent a code to <strong id="flowbOtpEmailDisplay"></strong></p>\
+            <input type="text" id="flowbAuthOtpCode" placeholder="000000" required autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem;font-family:monospace">\
+            <button type="submit" class="flowb-auth-submit" id="flowbAuthOtpBtn">Verify code</button>\
+            <p class="flowb-auth-hint" id="flowbAuthOtpHint"></p>\
+            <button type="button" class="flowb-auth-link" id="flowbOtpResend" style="align-self:center">Resend code</button>\
+          </form>\
+        </div>\
+        \
+        <!-- Farcaster view -->\
+        <div id="flowbViewFarcaster" style="display:none">\
+          <button type="button" class="flowb-auth-back-btn" id="flowbFcBack">\
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>\
+            Back\
+          </button>\
           <div id="siwfContainer" style="padding:0.5rem 0">\
             <button type="button" class="flowb-auth-submit" id="flowbSiwfStart" style="display:flex;align-items:center;justify-content:center;gap:8px">\
               <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M4 3h16v1.5l-1.5 1.5v12l1.5 1.5V21H4v-1.5L5.5 18V6L4 4.5V3zm4 5v8h2v-3h4v3h2V8h-2v3h-4V8H8z"/></svg>\
@@ -584,51 +627,70 @@
             </button>\
           </div>\
         </div>\
-        <form id="flowbAuthMagicForm" class="flowb-auth-form">\
-          <input type="email" id="flowbAuthEmail" placeholder="you@example.com" required autocomplete="email">\
-          <button type="submit" class="flowb-auth-submit" id="flowbAuthMagicBtn">Send Code</button>\
-          <p class="flowb-auth-hint" id="flowbAuthMagicHint"></p>\
-        </form>\
-        <form id="flowbAuthOtpForm" class="flowb-auth-form" style="display:none">\
-          <p class="flowb-auth-hint" style="color:var(--accent,#6366f1);margin-bottom:0.75rem">Enter the 6-digit code sent to <strong id="flowbOtpEmailDisplay"></strong></p>\
-          <input type="text" id="flowbAuthOtpCode" placeholder="000000" required autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" style="text-align:center;font-size:1.5rem;letter-spacing:0.5rem;font-family:monospace">\
-          <button type="submit" class="flowb-auth-submit" id="flowbAuthOtpBtn">Verify</button>\
-          <p class="flowb-auth-hint" id="flowbAuthOtpHint"></p>\
-          <div style="display:flex;gap:0.5rem;margin-top:0.25rem">\
-            <button type="button" class="flowb-auth-link" id="flowbOtpBack">Use different email</button>\
-            <button type="button" class="flowb-auth-link" id="flowbOtpResend">Resend code</button>\
+        \
+        <!-- Wallet view -->\
+        <div id="flowbViewWallet" style="display:none">\
+          <div class="flowb-auth-expanded">\
+            <button type="button" class="flowb-auth-back-btn" id="flowbWalletBack">\
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>\
+              Back\
+            </button>\
+            <button type="button" class="flowb-auth-provider-btn" id="flowbWalletEth" style="flex:none;padding:0.75rem">\
+              <svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" fill="#141414"/><path d="M0 212.32l127.96 75.639v-133.8z" fill="#393939"/></svg>\
+              Continue with Ethereum\
+            </button>\
+            <button type="button" class="flowb-auth-provider-btn" id="flowbWalletSol" style="flex:none;padding:0.75rem">\
+              <svg width="18" height="18" viewBox="0 0 397 311"><defs><linearGradient id="solGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#9945ff"/><stop offset="100%" stop-color="#14f195"/></linearGradient></defs><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" fill="url(#solGrad)"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" fill="url(#solGrad)"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" fill="url(#solGrad)"/></svg>\
+              Continue with Solana\
+            </button>\
+            <p class="flowb-auth-hint" id="flowbAuthWalletHint"></p>\
           </div>\
-        </form>\
-        <div id="flowbAuthWalletForm" class="flowb-auth-form" style="display:none">\
-          <p class="flowb-auth-hint" style="color:var(--text-dim,#9ca3af);margin-bottom:0.75rem">Connect your wallet to sign in</p>\
-          <button type="button" class="flowb-auth-submit flowb-wallet-btn" id="flowbWalletEth" style="display:flex;align-items:center;justify-content:center;gap:8px">\
-            <svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/><path d="M127.961 287.958l127.96-75.637-127.96-58.162z" fill="#141414"/><path d="M0 212.32l127.96 75.639v-133.8z" fill="#393939"/></svg>\
-            Ethereum\
-          </button>\
-          <button type="button" class="flowb-auth-submit flowb-wallet-btn" id="flowbWalletSol" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:0.5rem;background:linear-gradient(135deg,#9945ff,#14f195)">\
-            <svg width="18" height="18" viewBox="0 0 397 311" fill="white"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg>\
-            Solana\
-          </button>\
-          <p class="flowb-auth-hint" id="flowbAuthWalletHint"></p>\
-          <p class="flowb-auth-hint" id="flowbWalletDetect" style="color:var(--text-dim,#9ca3af);font-size:0.75rem;margin-top:0.75rem"></p>\
         </div>\
-        <form id="flowbAuthPasswordForm" class="flowb-auth-form" style="display:none">\
-          <input type="email" id="flowbAuthEmailPw" placeholder="you@example.com" required autocomplete="email">\
-          <input type="password" id="flowbAuthPassword" placeholder="Password" required autocomplete="current-password">\
-          <button type="submit" class="flowb-auth-submit" id="flowbAuthPwBtn">Sign In</button>\
-          <div style="display:flex;gap:0.5rem;margin-top:0.25rem">\
-            <button type="button" class="flowb-auth-link" id="flowbAuthSignUpToggle">Create account</button>\
-            <button type="button" class="flowb-auth-link" id="flowbAuthForgotPw">Forgot password?</button>\
-          </div>\
-          <p class="flowb-auth-hint" id="flowbAuthPwHint"></p>\
-        </form>\
-\
+        \
+        <!-- Password view -->\
+        <div id="flowbViewPassword" style="display:none">\
+          <form id="flowbAuthPasswordForm" class="flowb-auth-form">\
+            <button type="button" class="flowb-auth-back-btn" id="flowbPwBack">\
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>\
+              Back\
+            </button>\
+            <input type="email" id="flowbAuthEmailPw" placeholder="Enter your email" required autocomplete="email">\
+            <input type="password" id="flowbAuthPassword" placeholder="Password" required autocomplete="current-password">\
+            <button type="submit" class="flowb-auth-submit" id="flowbAuthPwBtn">Sign in</button>\
+            <p class="flowb-auth-hint" id="flowbAuthPwHint"></p>\
+            <div style="display:flex;justify-content:center;gap:1rem">\
+              <button type="button" class="flowb-auth-link" id="flowbAuthSignUpToggle">Create account</button>\
+              <button type="button" class="flowb-auth-link" id="flowbAuthForgotPw">Forgot password?</button>\
+            </div>\
+          </form>\
+        </div>\
+        \
+        <div class="flowb-auth-footer">\
+          <p>By continuing, you agree to FlowB\'s terms of service</p>\
+        </div>\
       </div>\
     ';
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 
-    // Event handlers
+    // --- View switching helper ---
+    var views = {
+      main: document.getElementById('flowbViewMain'),
+      otp: document.getElementById('flowbViewOtp'),
+      farcaster: document.getElementById('flowbViewFarcaster'),
+      wallet: document.getElementById('flowbViewWallet'),
+      password: document.getElementById('flowbViewPassword'),
+    };
+
+    function switchView(name) {
+      authViewState = name;
+      Object.keys(views).forEach(function (k) {
+        views[k].style.display = k === name ? '' : 'none';
+      });
+      if (name !== 'farcaster') stopSiwfPolling();
+    }
+
+    // --- Close ---
     var close = function () {
       stopSiwfPolling();
       modal.remove();
@@ -640,46 +702,46 @@
       if (e.target === modal) close();
     });
 
-    // Tab switching
-    var otpEmail = null;
-    modal.querySelectorAll('.flowb-auth-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        modal.querySelectorAll('.flowb-auth-tab').forEach(function (t) { t.classList.remove('active'); });
-        tab.classList.add('active');
-        var target = tab.dataset.tab;
-        document.getElementById('flowbAuthFarcasterForm').style.display = target === 'farcaster' ? '' : 'none';
-        document.getElementById('flowbAuthMagicForm').style.display = target === 'magic' && !otpEmail ? '' : 'none';
-        document.getElementById('flowbAuthOtpForm').style.display = target === 'magic' && otpEmail ? '' : 'none';
-        document.getElementById('flowbAuthWalletForm').style.display = target === 'wallet' ? '' : 'none';
-        document.getElementById('flowbAuthPasswordForm').style.display = target === 'password' ? '' : 'none';
-        if (target !== 'farcaster') stopSiwfPolling();
-      });
+    // --- Provider buttons → switch views ---
+    modal.querySelector('#flowbProvFarcaster').addEventListener('click', function () {
+      switchView('farcaster');
+    });
+    modal.querySelector('#flowbProvWallet').addEventListener('click', function () {
+      switchView('wallet');
+    });
+    modal.querySelector('#flowbProvPassword').addEventListener('click', function () {
+      switchView('password');
     });
 
-    // Farcaster SIWF
+    // --- Back buttons ---
+    modal.querySelector('#flowbFcBack').addEventListener('click', function () { switchView('main'); });
+    modal.querySelector('#flowbWalletBack').addEventListener('click', function () { switchView('main'); });
+    modal.querySelector('#flowbPwBack').addEventListener('click', function () { switchView('main'); });
+
+    // --- Farcaster SIWF ---
     modal.querySelector('#flowbSiwfStart').addEventListener('click', function () {
       startFarcasterSiwf(document.getElementById('siwfContainer'));
     });
 
-    // Magic Code (OTP)
-    var isSignUp = false;
+    // --- Email OTP (Magic Code) ---
+    var otpEmail = null;
+
     modal.querySelector('#flowbAuthMagicForm').addEventListener('submit', function (e) {
       e.preventDefault();
       var email = document.getElementById('flowbAuthEmail').value.trim();
       if (!email) return;
       var btn = document.getElementById('flowbAuthMagicBtn');
-      btn.textContent = 'Sending...';
+      btn.textContent = 'Sending code...';
       btn.disabled = true;
       loginWithEmail(email).then(function () {
         otpEmail = email;
-        document.getElementById('flowbAuthMagicForm').style.display = 'none';
-        document.getElementById('flowbAuthOtpForm').style.display = '';
         document.getElementById('flowbOtpEmailDisplay').textContent = email;
+        switchView('otp');
         document.getElementById('flowbAuthOtpCode').focus();
       }).catch(function (err) {
         document.getElementById('flowbAuthMagicHint').textContent = err.message || 'Failed to send';
         document.getElementById('flowbAuthMagicHint').style.color = '#ef4444';
-        btn.textContent = 'Send Code';
+        btn.textContent = 'Continue with email';
         btn.disabled = false;
       });
     });
@@ -698,19 +760,19 @@
       }).catch(function (err) {
         hint.textContent = err.message || 'Invalid code';
         hint.style.color = '#ef4444';
-        btn.textContent = 'Verify';
+        btn.textContent = 'Verify code';
         btn.disabled = false;
       });
     });
 
-    // Back to email from OTP
+    // Back from OTP
     modal.querySelector('#flowbOtpBack').addEventListener('click', function () {
-      document.getElementById('flowbAuthOtpForm').style.display = 'none';
-      document.getElementById('flowbAuthMagicForm').style.display = '';
-      document.getElementById('flowbAuthMagicBtn').textContent = 'Send Code';
-      document.getElementById('flowbAuthMagicBtn').disabled = false;
+      var btn = document.getElementById('flowbAuthMagicBtn');
+      btn.textContent = 'Continue with email';
+      btn.disabled = false;
       document.getElementById('flowbAuthMagicHint').textContent = '';
       otpEmail = null;
+      switchView('main');
     });
 
     // Resend code
@@ -718,30 +780,20 @@
       if (!otpEmail) return;
       var hint = document.getElementById('flowbAuthOtpHint');
       hint.textContent = 'Sending new code...';
-      hint.style.color = 'var(--text-dim, #9ca3af)';
+      hint.style.color = 'var(--text-muted, #8888a0)';
       loginWithEmail(otpEmail).then(function () {
         hint.textContent = 'New code sent!';
-        hint.style.color = 'var(--accent, #6366f1)';
+        hint.style.color = 'var(--accent, #2563eb)';
       }).catch(function (err) {
         hint.textContent = err.message || 'Failed to resend';
         hint.style.color = '#ef4444';
       });
     });
 
-    // Web3 wallet detection
-    var detectEl = document.getElementById('flowbWalletDetect');
+    // --- Wallet sign-in ---
     var hasEth = typeof window.ethereum !== 'undefined';
     var hasSol = typeof window.solana !== 'undefined' || typeof window.phantom !== 'undefined';
-    if (!hasEth && !hasSol) {
-      detectEl.textContent = 'No wallet detected. Install MetaMask or Phantom to use wallet sign-in.';
-    } else {
-      var detected = [];
-      if (hasEth) detected.push('Ethereum');
-      if (hasSol) detected.push('Solana');
-      detectEl.textContent = 'Detected: ' + detected.join(', ');
-    }
 
-    // Ethereum wallet sign-in
     modal.querySelector('#flowbWalletEth').addEventListener('click', function () {
       var btn = this;
       var hint = document.getElementById('flowbAuthWalletHint');
@@ -751,7 +803,7 @@
         return;
       }
       btn.disabled = true;
-      btn.textContent = 'Confirm in wallet...';
+      btn.querySelector('svg').nextSibling.textContent = ' Confirm in wallet...';
       hint.textContent = '';
       loginWithWeb3('ethereum').then(function () {
         close();
@@ -759,11 +811,9 @@
         hint.textContent = err.message || 'Wallet sign-in failed';
         hint.style.color = '#ef4444';
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 256 417" fill="none"><path d="M127.961 0l-2.795 9.5v275.668l2.795 2.79 127.962-75.638z" fill="#343434"/><path d="M127.962 0L0 212.32l127.962 75.639V154.158z" fill="#8C8C8C"/><path d="M127.961 312.187l-1.575 1.92v98.199l1.575 4.601L256 236.587z" fill="#3C3C3B"/><path d="M127.962 416.905v-104.72L0 236.585z" fill="#8C8C8C"/></svg> Ethereum';
       });
     });
 
-    // Solana wallet sign-in
     modal.querySelector('#flowbWalletSol').addEventListener('click', function () {
       var btn = this;
       var hint = document.getElementById('flowbAuthWalletHint');
@@ -773,7 +823,7 @@
         return;
       }
       btn.disabled = true;
-      btn.textContent = 'Confirm in wallet...';
+      btn.querySelector('svg').nextSibling.textContent = ' Confirm in wallet...';
       hint.textContent = '';
       loginWithWeb3('solana').then(function () {
         close();
@@ -781,11 +831,12 @@
         hint.textContent = err.message || 'Wallet sign-in failed';
         hint.style.color = '#ef4444';
         btn.disabled = false;
-        btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 397 311" fill="white"><path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z"/><path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z"/><path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z"/></svg> Solana';
       });
     });
 
-    // Password sign in / sign up
+    // --- Password sign in / sign up ---
+    var isSignUp = false;
+
     modal.querySelector('#flowbAuthPasswordForm').addEventListener('submit', function (e) {
       e.preventDefault();
       var email = document.getElementById('flowbAuthEmailPw').value.trim();
@@ -793,7 +844,7 @@
       if (!email || !password) return;
       var btn = document.getElementById('flowbAuthPwBtn');
       var hint = document.getElementById('flowbAuthPwHint');
-      btn.textContent = isSignUp ? 'Creating...' : 'Signing in...';
+      btn.textContent = isSignUp ? 'Creating account...' : 'Signing in...';
       btn.disabled = true;
 
       var promise = isSignUp
@@ -804,27 +855,25 @@
         if (result.error) throw result.error;
         if (isSignUp && !result.data.session) {
           hint.textContent = 'Check your email to confirm your account!';
-          hint.style.color = 'var(--accent, #6366f1)';
-          btn.textContent = 'Confirmation Sent';
+          hint.style.color = 'var(--accent, #2563eb)';
+          btn.textContent = 'Confirmation sent';
         } else {
           close();
         }
       }).catch(function (err) {
         hint.textContent = err.message || 'Authentication failed';
         hint.style.color = '#ef4444';
-        btn.textContent = isSignUp ? 'Create Account' : 'Sign In';
+        btn.textContent = isSignUp ? 'Create account' : 'Sign in';
         btn.disabled = false;
       });
     });
 
-    // Sign up toggle
     modal.querySelector('#flowbAuthSignUpToggle').addEventListener('click', function () {
       isSignUp = !isSignUp;
-      document.getElementById('flowbAuthPwBtn').textContent = isSignUp ? 'Create Account' : 'Sign In';
+      document.getElementById('flowbAuthPwBtn').textContent = isSignUp ? 'Create account' : 'Sign in';
       this.textContent = isSignUp ? 'Have an account? Sign in' : 'Create account';
     });
 
-    // Forgot password
     modal.querySelector('#flowbAuthForgotPw').addEventListener('click', function () {
       var email = document.getElementById('flowbAuthEmailPw').value.trim();
       if (!email) {
@@ -836,13 +885,17 @@
         redirectTo: window.location.origin + '/auth/callback',
       }).then(function () {
         document.getElementById('flowbAuthPwHint').textContent = 'Password reset email sent!';
-        document.getElementById('flowbAuthPwHint').style.color = 'var(--accent, #6366f1)';
+        document.getElementById('flowbAuthPwHint').style.color = 'var(--accent, #2563eb)';
       }).catch(function (err) {
         document.getElementById('flowbAuthPwHint').textContent = err.message || 'Failed';
         document.getElementById('flowbAuthPwHint').style.color = '#ef4444';
       });
     });
 
+    // Auto-focus email input
+    setTimeout(function () {
+      document.getElementById('flowbAuthEmail')?.focus();
+    }, 100);
   }
 
   function loginWithEmail(email) {
