@@ -14,6 +14,7 @@ Backend services that power FlowB's cross-platform features.
 | biz notifications | `src/services/biz-notifications.ts` | `notifyBizChannel` |
 | cdp | `src/services/cdp.ts` | — |
 | chat tools biz | `src/services/chat-tools-biz.ts` | `createLead`, `listLeads`, `updateLead`, `getPipeline`, `getLeadTimeline`, `createTodo`, `listTodos`, `createMeeting`, `listMeetings`, `completeMeeting`, `getMySettings`, `updateMySettings`, `getCrewSettings`, `updateCrewSettings`, `adminCrewAction`, `listAutomations`, `createAutomation`, `toggleAutomation`, `getMyPlan`, `grantFlowmium`, `requestCityScan`, `fetchUserBizContext`, `manageGroupIntelligence`, `getGroupSignalsTool`, `routeSignalTool` |
+| chat tools cuflow | `src/services/chat-tools-cuflow.ts` | `cuflowBrief`, `cuflowFeature`, `cuflowSearch`, `cuflowHotspots`, `cuflowVelocity`, `cuflowContributors`, `cuflowWhatsNew`, `cuflowReport` |
 | chat tools websites | `src/services/chat-tools-websites.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
@@ -23,6 +24,7 @@ Backend services that power FlowB's cross-platform features.
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
 | farcaster poster | `src/services/farcaster-poster.ts` | `postCrewCast`, `processEventQueue` |
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
+| group intelligence | `src/services/group-intelligence.ts` | `shouldAnalyzeForSignals`, `extractBusinessSignals`, `routeSignal`, `getGroupIntelConfig`, `enableGroupIntel`, `disableGroupIntel`, `updateGroupIntelSettings`, `storeGroupSignal`, `buildSignalDigest`, `listActiveGroups`, `getGroupSignals`, `manualRouteSignal`, `processGroupMessage` |
 | guest session | `src/services/guest-session.ts` | `createGuestSession`, `createGuestToken`, `getGuestSession`, `joinCrewAsGuest`, `convertGuestToUser`, `getGuestCrews`, `getCrewByJoinCode` |
 | identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds`, `ensureIdentityRow` |
 | keyword alerts | `src/services/keyword-alerts.ts` | `processKeywordAlerts` |
@@ -31,7 +33,9 @@ Backend services that power FlowB's cross-platform features.
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
 | socialb repost | `src/services/socialb-repost.ts` | `handleNewCast`, `adaptContent` |
+| stripe manager | `src/services/stripe-manager.ts` | `listStripeProducts`, `createStripeCheckout`, `listStripeOrders`, `refundPayment`, `getRevenueSummary`, `createStripeProduct` |
 | supabase auth | `src/services/supabase-auth.ts` | `getOrCreateSupabaseUser`, `verifySupabaseToken`, `linkPlatformIdentity` |
+| support | `src/services/support.ts` | `handleInboundEmail`, `generateDraftReply`, `sendReply`, `updateTicketStatus`, `getTicket`, `listTickets` |
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
@@ -81,6 +85,14 @@ Business Chat Tool Executors
 **Source**: `src/services/chat-tools-biz.ts`
 
 **Exports**: `createLead()`, `listLeads()`, `updateLead()`, `getPipeline()`, `getLeadTimeline()`, `createTodo()`, `listTodos()`, `createMeeting()`, `listMeetings()`, `completeMeeting()`, `getMySettings()`, `updateMySettings()`, `getCrewSettings()`, `updateCrewSettings()`, `adminCrewAction()`, `listAutomations()`, `createAutomation()`, `toggleAutomation()`, `getMyPlan()`, `grantFlowmium()`, `requestCityScan()`, `fetchUserBizContext()`, `manageGroupIntelligence()`, `getGroupSignalsTool()`, `routeSignalTool()`
+
+### chat tools cuflow
+
+Cu.Flow Chat Tool Executors
+
+**Source**: `src/services/chat-tools-cuflow.ts`
+
+**Exports**: `cuflowBrief()`, `cuflowFeature()`, `cuflowSearch()`, `cuflowHotspots()`, `cuflowVelocity()`, `cuflowContributors()`, `cuflowWhatsNew()`, `cuflowReport()`
 
 ### chat tools websites
 
@@ -152,6 +164,14 @@ Farcaster Responder Service
 
 **Exports**: `handleMention()`
 
+### group intelligence
+
+Group Intelligence Service
+
+**Source**: `src/services/group-intelligence.ts`
+
+**Exports**: `shouldAnalyzeForSignals()`, `extractBusinessSignals()`, `routeSignal()`, `getGroupIntelConfig()`, `enableGroupIntel()`, `disableGroupIntel()`, `updateGroupIntelSettings()`, `storeGroupSignal()`, `buildSignalDigest()`, `listActiveGroups()`, `getGroupSignals()`, `manualRouteSignal()`, `processGroupMessage()`
+
 ### guest session
 
 Guest session management — allows unauthenticated users to join crews
@@ -214,6 +234,14 @@ SocialB Repost Engine
 
 **Exports**: `handleNewCast()`, `adaptContent()`
 
+### stripe manager
+
+Stripe Manager — Handles Stripe operations for managed biz sites.
+
+**Source**: `src/services/stripe-manager.ts`
+
+**Exports**: `listStripeProducts()`, `createStripeCheckout()`, `listStripeOrders()`, `refundPayment()`, `getRevenueSummary()`, `createStripeProduct()`
+
 ### supabase auth
 
 Supabase Auth Admin Service
@@ -221,6 +249,14 @@ Supabase Auth Admin Service
 **Source**: `src/services/supabase-auth.ts`
 
 **Exports**: `getOrCreateSupabaseUser()`, `verifySupabaseToken()`, `linkPlatformIdentity()`
+
+### support
+
+FlowB Support Service
+
+**Source**: `src/services/support.ts`
+
+**Exports**: `handleInboundEmail()`, `generateDraftReply()`, `sendReply()`, `updateTicketStatus()`, `getTicket()`, `listTickets()`
 
 ### telegram auth
 
@@ -232,4 +268,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-24 15:23:31 UTC*
+*Auto-generated on 2026-03-24 16:13:29 UTC*
