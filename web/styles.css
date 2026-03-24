@@ -5476,7 +5476,7 @@ a:hover { text-decoration: underline; }
   .agents-grid { grid-template-columns: 1fr; }
 }
 
-/* ===== FlowB Passport Auth Modal ===== */
+/* ===== FlowB Passport Auth Modal (Privy-style email-only) ===== */
 
 .flowb-auth-backdrop {
   position: fixed; inset: 0; z-index: 10000;
@@ -5492,6 +5492,11 @@ a:hover { text-decoration: underline; }
 @keyframes flowb-auth-slidein {
   from { opacity: 0; transform: translateY(16px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes flowb-auth-shake {
+  0%, 100% { transform: translateX(0); }
+  15%, 45%, 75% { transform: translateX(-6px); }
+  30%, 60%, 90% { transform: translateX(6px); }
 }
 
 .flowb-auth-card {
@@ -5512,117 +5517,118 @@ a:hover { text-decoration: underline; }
 }
 .flowb-auth-close:hover { color: var(--text, #e4e4ec); background: rgba(255,255,255,0.06); }
 
-.flowb-auth-header {
-  text-align: center; margin-bottom: 1.75rem;
-}
-.flowb-auth-header h3 {
-  font-size: 1.2rem; font-weight: 700; margin: 0.625rem 0 0.25rem;
-  color: var(--text, #e4e4ec); letter-spacing: -0.01em;
-}
-.flowb-auth-subtitle {
-  font-size: 0.825rem; color: var(--text-muted, #8888a0); margin: 0;
+/* Logo */
+.flowb-auth-logo {
+  display: block; margin: 0 auto 0.75rem; width: 52px; height: 52px; border-radius: 12px;
 }
 
-/* Email-first form */
-.flowb-auth-form {
-  display: flex; flex-direction: column; gap: 0.625rem;
+/* Headings */
+.flowb-auth-title {
+  font-size: 1.25rem; font-weight: 700; margin: 0 0 0.25rem;
+  color: var(--text, #e4e4ec); letter-spacing: -0.01em; text-align: center;
 }
-.flowb-auth-form input {
-  padding: 0.75rem 0.875rem; border-radius: 10px;
+.flowb-auth-subtitle {
+  font-size: 0.85rem; color: var(--text-muted, #8888a0); margin: 0 0 1.5rem;
+  text-align: center; line-height: 1.4;
+}
+
+/* Form elements */
+.flowb-auth-label {
+  font-size: 0.8rem; font-weight: 500; color: var(--text-muted, #8888a0);
+  margin-bottom: 0.375rem; display: block;
+}
+.flowb-auth-input {
+  width: 100%; padding: 0.75rem 0.875rem; border-radius: 10px;
   border: 1px solid var(--border, #2a2a2a);
   background: var(--bg, #0a0a0a); color: var(--text, #e4e4ec);
   font-size: 0.9rem; font-family: var(--font); outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
+  box-sizing: border-box;
 }
-.flowb-auth-form input::placeholder {
-  color: var(--text-dim, #555568);
-}
-.flowb-auth-form input:focus {
+.flowb-auth-input::placeholder { color: var(--text-dim, #555568); }
+.flowb-auth-input:focus {
   border-color: var(--accent, #2563eb);
   box-shadow: 0 0 0 3px var(--accent-glow, rgba(37,99,235,0.15));
 }
 
 .flowb-auth-submit {
-  padding: 0.75rem; border-radius: 10px; border: none;
+  width: 100%; padding: 0.75rem; border-radius: 10px; border: none;
   background: var(--accent, #2563eb); color: white;
   font-weight: 600; font-size: 0.9rem; font-family: var(--font);
-  cursor: pointer; transition: all 0.15s;
+  cursor: pointer; transition: all 0.15s; margin-top: 0.5rem;
 }
 .flowb-auth-submit:hover { background: var(--accent-light, #3b82f6); }
 .flowb-auth-submit:active { transform: scale(0.98); }
 .flowb-auth-submit:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
 
-/* Divider */
-.flowb-auth-divider {
-  display: flex; align-items: center; gap: 0.75rem;
-  margin: 0.375rem 0;
-}
-.flowb-auth-divider::before,
-.flowb-auth-divider::after {
-  content: ''; flex: 1; height: 1px;
-  background: var(--border, #2a2a2a);
-}
-.flowb-auth-divider span {
-  font-size: 0.75rem; color: var(--text-dim, #555568);
-  text-transform: uppercase; letter-spacing: 0.05em; font-weight: 500;
+/* Icon circle (OTP view) */
+.flowb-auth-icon-circle {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-glow, rgba(37,99,235,0.12));
+  color: var(--accent, #2563eb);
 }
 
-/* Provider buttons row */
-.flowb-auth-providers {
-  display: flex; gap: 0.5rem;
+/* OTP digit boxes */
+.flowb-auth-otp-group {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin: 1rem 0 0.75rem;
 }
-.flowb-auth-provider-btn {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  gap: 6px; padding: 0.625rem 0.5rem; border-radius: 10px;
-  border: 1px solid var(--border, #2a2a2a);
-  background: transparent; color: var(--text-muted, #8888a0);
-  font-size: 0.78rem; font-weight: 500; font-family: var(--font);
-  cursor: pointer; transition: all 0.15s;
+.flowb-auth-otp-digit {
+  width: 44px; height: 52px; border-radius: 10px; border: 1px solid var(--border, #2a2a2a);
+  background: var(--bg, #0a0a0a); color: var(--text, #e4e4ec);
+  font-size: 1.35rem; font-weight: 600; font-family: var(--font);
+  text-align: center; outline: none; caret-color: var(--accent, #2563eb);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.flowb-auth-provider-btn:hover {
-  border-color: var(--border-hover, #3a3a3a);
-  background: rgba(255,255,255,0.03);
-  color: var(--text, #e4e4ec);
+.flowb-auth-otp-digit:focus {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 3px var(--accent-glow, rgba(37,99,235,0.15));
 }
-.flowb-auth-provider-btn:active { transform: scale(0.97); }
-.flowb-auth-provider-btn svg { flex-shrink: 0; }
+.flowb-auth-otp-digit.shake {
+  animation: flowb-auth-shake 0.4s ease-in-out;
+}
+.flowb-auth-otp-sep {
+  width: 10px; height: 2px; border-radius: 1px;
+  background: var(--border, #2a2a2a); flex-shrink: 0;
+}
 
-/* Expanded provider section (wallet sub-buttons, password form) */
-.flowb-auth-expanded {
-  display: flex; flex-direction: column; gap: 0.5rem;
-  padding-top: 0.25rem;
+/* OTP action links */
+.flowb-auth-otp-actions {
+  display: flex; align-items: center; justify-content: center;
+  gap: 1rem; margin-top: 1rem;
 }
-.flowb-auth-back-btn {
-  background: none; border: none; color: var(--accent, #2563eb);
-  font-size: 0.8rem; font-family: var(--font); cursor: pointer;
-  padding: 0.25rem 0; display: flex; align-items: center; gap: 4px;
-  transition: opacity 0.15s;
-}
-.flowb-auth-back-btn:hover { opacity: 0.8; }
 
+/* Hint text */
 .flowb-auth-hint {
   font-size: 0.78rem; color: var(--text-dim, #555568);
   margin: 0; text-align: center; min-height: 1.1em;
 }
 
+/* Action links */
 .flowb-auth-link {
   background: none; border: none; color: var(--accent, #2563eb);
   font-size: 0.8rem; font-family: var(--font); cursor: pointer; padding: 0;
 }
 .flowb-auth-link:hover { text-decoration: underline; }
+.flowb-auth-link:disabled { color: var(--text-dim, #555568); cursor: not-allowed; text-decoration: none; }
 
 /* Footer / terms */
 .flowb-auth-footer {
-  text-align: center; margin-top: 1.25rem; padding-top: 1rem;
+  text-align: center; margin-top: 1.5rem; padding-top: 1rem;
   border-top: 1px solid var(--border, #2a2a2a);
 }
 .flowb-auth-footer p {
   font-size: 0.7rem; color: var(--text-dim, #555568); margin: 0; line-height: 1.5;
 }
 
+/* View transition */
+.flowb-auth-view-hidden { display: none; }
+
 @media (max-width: 480px) {
   .flowb-auth-card { padding: 1.5rem 1.25rem 1.25rem; border-radius: 16px; }
-  .flowb-auth-provider-btn { padding: 0.575rem 0.375rem; font-size: 0.72rem; }
+  .flowb-auth-otp-digit { width: 40px; height: 48px; font-size: 1.2rem; }
+  .flowb-auth-otp-group { gap: 6px; }
 }
 
 /* ===== Mobile Bottom Navigation ===== */

@@ -208,7 +208,7 @@ function showSignInPrompt(actionLabel) {
       <h3 class="signin-prompt-title">Sign in to continue</h3>
       <p class="signin-prompt-msg">Sign in to ${actionLabel || 'use this feature'}. Your points and activity will be saved to your account.</p>
       <button class="signin-prompt-btn" id="signInPromptBtn">Sign In</button>
-      <p class="signin-prompt-sub">Sign in with email, wallet, or Farcaster</p>
+      <p class="signin-prompt-sub">Sign in with email</p>
     </div>
   `;
   document.body.appendChild(prompt);
