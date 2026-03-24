@@ -1,0 +1,108 @@
+{
+  "name": "FlowB EC - Weekly SEO Trend Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 10,
+              "triggerAtDay": [1]
+            }
+          ]
+        }
+      },
+      "name": "Mondays 10am MST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://noredfarms.com/api/content-seo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Fetch SEO Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "noredFarms API Key",
+          "id": "CONFIGURE_ME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nconst articles = data.all || [];\nconst avg = data.average_score || 0;\nconst critical = data.critical_count || 0;\nconst good = articles.filter(a => a.score >= 80).length;\nconst needs_work = articles.filter(a => a.score >= 50 && a.score < 80).length;\nconst poor = articles.filter(a => a.score < 50).length;\n\nconst report = {\n  total: articles.length,\n  average_score: avg,\n  breakdown: { good, needs_work, poor },\n  critical_count: critical,\n  top_issues: [],\n};\n\n// Aggregate top issues\nconst issueCounts = {};\narticles.forEach(a => {\n  (a.issues || []).forEach(issue => {\n    issueCounts[issue] = (issueCounts[issue] || 0) + 1;\n  });\n});\nreport.top_issues = Object.entries(issueCounts)\n  .sort((a, b) => b[1] - a[1])\n  .slice(0, 5)\n  .map(([issue, count]) => `${issue} (${count} articles)`);\n\nreturn [{ json: report }];"
+      },
+      "name": "Build Trend Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flowb.fly.dev/api/v1/biz/inbound-webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_slug",
+              "value": "nored-farms"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.CONTENT_API_KEY }}"
+            },
+            {
+              "name": "event",
+              "value": "seo_weekly_report"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send to FlowB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300]
+    }
+  ],
+  "connections": {
+    "Mondays 10am MST": {
+      "main": [
+        [{ "node": "Fetch SEO Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch SEO Data": {
+      "main": [
+        [{ "node": "Build Trend Report", "type": "main", "index": 0 }]
+      ]
+    },
+    "Build Trend Report": {
+      "main": [
+        [{ "node": "Send to FlowB", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Denver"
+  },
+  "tags": [
+    { "name": "flowb-ec" },
+    { "name": "seo" }
+  ]
+}

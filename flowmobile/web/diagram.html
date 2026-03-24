@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowMobile Sovereign Quad - Vehicle Systems Diagram</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0d0d1a;
+    color: #c8c8d8;
+    font-family: 'Courier New', 'Consolas', monospace;
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 24px 16px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: linear-gradient(180deg, #12122a 0%, #0d0d1a 100%);
+  }
+  .header h1 {
+    font-size: 1.5rem;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: #e0e0f0;
+    font-weight: 400;
+  }
+  .header .subtitle {
+    font-size: 0.7rem;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #555570;
+    margin-top: 4px;
+  }
+
+  /* Layout */
+  .main-layout {
+    display: flex;
+    min-height: calc(100vh - 80px);
+  }
+
+  /* Legend / Controls Panel */
+  .controls-panel {
+    width: 260px;
+    min-width: 260px;
+    background: #101020;
+    border-right: 1px solid rgba(255,255,255,0.06);
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow-y: auto;
+  }
+  .controls-panel h3 {
+    font-size: 0.65rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #555570;
+    margin-bottom: 4px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .subsystem-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+    user-select: none;
+    border: 1px solid transparent;
+  }
+  .subsystem-toggle:hover {
+    background: rgba(255,255,255,0.04);
+  }
+  .subsystem-toggle.active {
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.03);
+  }
+  .subsystem-toggle.dimmed {
+    opacity: 0.35;
+  }
+  .subsystem-toggle.hidden-subsystem {
+    opacity: 0.25;
+  }
+  .subsystem-toggle.hidden-subsystem .toggle-indicator {
+    background: transparent !important;
+  }
+
+  .color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .toggle-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    flex-grow: 1;
+  }
+  .toggle-indicator {
+    width: 16px;
+    height: 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.2);
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  .controls-panel .stats {
+    margin-top: auto;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.6rem;
+    padding: 2px 0;
+    color: #555570;
+  }
+  .stat-row .val {
+    color: #888;
+  }
+
+  /* SVG Container */
+  .diagram-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 20px;
+  }
+
+  #vehicle-svg {
+    width: 100%;
+    max-width: 900px;
+    height: auto;
+  }
+
+  /* SVG subsystem group transitions */
+  .subsystem-group {
+    transition: opacity 0.4s ease, filter 0.4s ease;
+    cursor: pointer;
+  }
+  .subsystem-group.dimmed {
+    opacity: 0.12;
+    filter: saturate(0.2);
+  }
+  .subsystem-group.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .subsystem-group:hover .hover-glow {
+    opacity: 1;
+  }
+
+  /* Tooltip / Info Card */
+  .info-card {
+    position: fixed;
+    width: 300px;
+    background: #14142a;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px;
+    padding: 0;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 1000;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    overflow: hidden;
+  }
+  .info-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .info-card-header {
+    padding: 12px 14px 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .info-card-header .ic-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .info-card-header h4 {
+    font-size: 0.75rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-weight: 400;
+    color: #e0e0f0;
+  }
+  .info-card-body {
+    padding: 10px 14px 14px;
+  }
+  .info-card-body .ic-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.65rem;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .info-card-body .ic-row:last-child {
+    border-bottom: none;
+  }
+  .ic-row .ic-label {
+    color: #555570;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .ic-row .ic-value {
+    color: #b0b0c8;
+    text-align: right;
+  }
+  .info-card-body .ic-components {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .ic-components h5 {
+    font-size: 0.6rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #555570;
+    margin-bottom: 4px;
+    font-weight: 400;
+  }
+  .ic-component-item {
+    font-size: 0.6rem;
+    color: #777;
+    padding: 2px 0 2px 8px;
+    border-left: 2px solid rgba(255,255,255,0.08);
+    margin-bottom: 2px;
+  }
+
+  /* Component labels in SVG */
+  .component-label {
+    font-family: 'Courier New', monospace;
+    font-size: 7px;
+    fill: rgba(255,255,255,0.7);
+    pointer-events: none;
+  }
+  .component-label-bg {
+    fill: rgba(10, 10, 26, 0.85);
+    rx: 2;
+  }
+  .system-label {
+    font-family: 'Courier New', monospace;
+    font-size: 6px;
+    fill: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    pointer-events: none;
+  }
+
+  /* Dashed connection lines */
+  .connection-line {
+    stroke-dasharray: 4 3;
+    stroke-width: 0.7;
+    fill: none;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .main-layout { flex-direction: column; }
+    .controls-panel {
+      width: 100%;
+      min-width: unset;
+      flex-direction: row;
+      flex-wrap: wrap;
+      border-right: none;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 4px;
+      padding: 10px;
+    }
+    .controls-panel h3 { width: 100%; }
+    .controls-panel .stats { width: 100%; margin-top: 8px; }
+    .subsystem-toggle { flex: 1 1 calc(50% - 4px); min-width: 140px; }
+  }
+</style>
+</head>
+<body>
+<script>if(sessionStorage.getItem('flowmobile_auth')!=='true'){window.location.href='gate.html';}</script>
+
+<div class="header">
+  <h1>FlowMobile Sovereign Quad</h1>
+  <div class="subtitle">Integrated Vehicle Systems Diagram &mdash; Tier 3 Configuration</div>
+</div>
+
+<div class="main-layout">
+  <!-- Controls / Legend -->
+  <div class="controls-panel" id="controls">
+    <h3>Subsystem Layers</h3>
+    <!-- Dynamically populated -->
+    <div class="stats">
+      <div class="stat-row"><span>GVWR</span><span class="val">1,900 lb</span></div>
+      <div class="stat-row"><span>Peak Power</span><span class="val">40 kW</span></div>
+      <div class="stat-row"><span>Battery</span><span class="val">19.2 kWh</span></div>
+      <div class="stat-row"><span>Range (Road)</span><span class="val">80-140 mi</span></div>
+      <div class="stat-row"><span>Solar</span><span class="val">1,200W</span></div>
+      <div class="stat-row"><span>V2H Export</span><span class="val">5-10 kW</span></div>
+      <div class="stat-row"><span>BOM Cost</span><span class="val">$25-35K</span></div>
+    </div>
+  </div>
+
+  <!-- Diagram -->
+  <div class="diagram-container">
+    <svg id="vehicle-svg" viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <!-- Grid pattern -->
+        <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+          <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255,255,255,0.025)" stroke-width="0.5"/>
+        </pattern>
+        <!-- Glow filters per color -->
+        <filter id="glow-green"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-yellow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-blue"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-cyan"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-brown"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-purple"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-earthgreen"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <filter id="glow-gray"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        <!-- Wheel tire pattern -->
+        <pattern id="tire-tread" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="4" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+
+      <!-- Background grid -->
+      <rect width="800" height="600" fill="url(#grid)"/>
+
+      <!-- Compass / orientation marker -->
+      <g transform="translate(750, 40)" opacity="0.3">
+        <line x1="0" y1="-15" x2="0" y2="15" stroke="#555" stroke-width="0.5"/>
+        <line x1="-15" y1="0" x2="15" y2="0" stroke="#555" stroke-width="0.5"/>
+        <text x="0" y="-18" text-anchor="middle" font-size="7" fill="#555" font-family="Courier New">FWD</text>
+        <polygon points="0,-12 -3,-8 3,-8" fill="#666"/>
+      </g>
+
+      <!-- Scale bar -->
+      <g transform="translate(40, 570)" opacity="0.25">
+        <line x1="0" y1="0" x2="80" y2="0" stroke="#888" stroke-width="0.8"/>
+        <line x1="0" y1="-3" x2="0" y2="3" stroke="#888" stroke-width="0.8"/>
+        <line x1="80" y1="-3" x2="80" y2="3" stroke="#888" stroke-width="0.8"/>
+        <text x="40" y="10" text-anchor="middle" font-size="6" fill="#888" font-family="Courier New">~48 in</text>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- FRAME & PROTECTION (Gray #95a5a6) - Base layer -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="frame">
+        <!-- Main body outline - Top-down ATV shape -->
+        <!-- Front narrower, rear wider with cargo platform -->
+        <path d="
+          M 350,110
+          C 380,100 420,100 450,110
+          L 490,135
+          L 520,160
+          L 540,200
+          L 548,250
+          L 550,300
+          L 548,360
+          L 540,410
+          L 530,440
+          L 510,465
+          L 480,485
+          L 400,495
+          L 320,485
+          L 290,465
+          L 270,440
+          L 260,410
+          L 252,360
+          L 250,300
+          L 252,250
+          L 260,200
+          L 280,160
+          L 310,135
+          Z
+        " fill="rgba(149,165,166,0.06)" stroke="#95a5a6" stroke-width="1.5" stroke-opacity="0.5"/>
+
+        <!-- Chromoly space frame cross-members (dashed) -->
+        <line x1="280" y1="180" x2="520" y2="180" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+        <line x1="265" y1="260" x2="535" y2="260" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+        <line x1="260" y1="340" x2="540" y2="340" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+        <line x1="275" y1="420" x2="525" y2="420" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+        <!-- Longitudinal members -->
+        <line x1="320" y1="130" x2="310" y2="480" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+        <line x1="480" y1="130" x2="490" y2="480" stroke="#95a5a6" stroke-width="0.6" stroke-opacity="0.25" stroke-dasharray="6 4"/>
+
+        <!-- Skid plate areas -->
+        <rect x="290" y="200" width="220" height="30" rx="4" fill="none" stroke="#95a5a6" stroke-width="0.8" stroke-opacity="0.3" stroke-dasharray="3 2"/>
+        <rect x="285" y="380" width="230" height="30" rx="4" fill="none" stroke="#95a5a6" stroke-width="0.8" stroke-opacity="0.3" stroke-dasharray="3 2"/>
+
+        <!-- Hemp composite panel zones -->
+        <path d="M 340,120 L 460,120 L 500,150 L 300,150 Z" fill="rgba(149,165,166,0.04)" stroke="#95a5a6" stroke-width="0.5" stroke-opacity="0.2"/>
+        <path d="M 290,460 L 510,460 L 480,485 L 320,485 Z" fill="rgba(149,165,166,0.04)" stroke="#95a5a6" stroke-width="0.5" stroke-opacity="0.2"/>
+
+        <!-- Labels -->
+        <text x="400" y="100" class="system-label" text-anchor="middle" fill="#95a5a6" opacity="0.6">4130 Chromoly Space Frame</text>
+        <text x="400" y="220" class="component-label" text-anchor="middle" fill="#95a5a6" opacity="0.5">UHMWPE Skid Plates</text>
+        <text x="400" y="472" class="component-label" text-anchor="middle" fill="#95a5a6" opacity="0.5">Hemp Fiber Bio-Composite Panels</text>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- POWERTRAIN (Green #2ecc71) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="powertrain">
+        <!-- Front Left Wheel / Hub Motor -->
+        <g transform="translate(230,165)">
+          <ellipse cx="0" cy="0" rx="32" ry="28" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1.2" stroke-opacity="0.6"/>
+          <circle cx="0" cy="0" r="14" fill="none" stroke="#2ecc71" stroke-width="0.8" stroke-opacity="0.4"/>
+          <circle cx="0" cy="0" r="4" fill="#2ecc71" fill-opacity="0.5"/>
+          <!-- Regen indicator arc -->
+          <path d="M -10,-18 A 20,20 0 0,1 10,-18" fill="none" stroke="#2ecc71" stroke-width="1.5" stroke-opacity="0.8" stroke-linecap="round"/>
+          <text x="0" y="42" class="component-label" text-anchor="middle" fill="#2ecc71">5kW BLDC</text>
+          <text x="0" y="50" class="component-label" text-anchor="middle" fill="#2ecc71">Hub Motor</text>
+        </g>
+
+        <!-- Front Right Wheel / Hub Motor -->
+        <g transform="translate(570,165)">
+          <ellipse cx="0" cy="0" rx="32" ry="28" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1.2" stroke-opacity="0.6"/>
+          <circle cx="0" cy="0" r="14" fill="none" stroke="#2ecc71" stroke-width="0.8" stroke-opacity="0.4"/>
+          <circle cx="0" cy="0" r="4" fill="#2ecc71" fill-opacity="0.5"/>
+          <path d="M -10,-18 A 20,20 0 0,1 10,-18" fill="none" stroke="#2ecc71" stroke-width="1.5" stroke-opacity="0.8" stroke-linecap="round"/>
+          <text x="0" y="42" class="component-label" text-anchor="middle" fill="#2ecc71">5kW BLDC</text>
+          <text x="0" y="50" class="component-label" text-anchor="middle" fill="#2ecc71">Hub Motor</text>
+        </g>
+
+        <!-- Rear Left Wheel / Hub Motor -->
+        <g transform="translate(225,435)">
+          <ellipse cx="0" cy="0" rx="34" ry="30" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1.2" stroke-opacity="0.6"/>
+          <circle cx="0" cy="0" r="15" fill="none" stroke="#2ecc71" stroke-width="0.8" stroke-opacity="0.4"/>
+          <circle cx="0" cy="0" r="4" fill="#2ecc71" fill-opacity="0.5"/>
+          <path d="M -12,-20 A 22,22 0 0,1 12,-20" fill="none" stroke="#2ecc71" stroke-width="1.5" stroke-opacity="0.8" stroke-linecap="round"/>
+          <text x="0" y="44" class="component-label" text-anchor="middle" fill="#2ecc71">5kW BLDC</text>
+          <text x="0" y="52" class="component-label" text-anchor="middle" fill="#2ecc71">Hub Motor</text>
+        </g>
+
+        <!-- Rear Right Wheel / Hub Motor -->
+        <g transform="translate(575,435)">
+          <ellipse cx="0" cy="0" rx="34" ry="30" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1.2" stroke-opacity="0.6"/>
+          <circle cx="0" cy="0" r="15" fill="none" stroke="#2ecc71" stroke-width="0.8" stroke-opacity="0.4"/>
+          <circle cx="0" cy="0" r="4" fill="#2ecc71" fill-opacity="0.5"/>
+          <path d="M -12,-20 A 22,22 0 0,1 12,-20" fill="none" stroke="#2ecc71" stroke-width="1.5" stroke-opacity="0.8" stroke-linecap="round"/>
+          <text x="0" y="44" class="component-label" text-anchor="middle" fill="#2ecc71">5kW BLDC</text>
+          <text x="0" y="52" class="component-label" text-anchor="middle" fill="#2ecc71">Hub Motor</text>
+        </g>
+
+        <!-- VESC Controllers (center) -->
+        <g transform="translate(400,240)">
+          <rect x="-50" y="-14" width="100" height="28" rx="3" fill="rgba(46,204,113,0.1)" stroke="#2ecc71" stroke-width="1" stroke-opacity="0.7"/>
+          <!-- chip detail -->
+          <rect x="-35" y="-6" width="18" height="12" rx="1" fill="none" stroke="#2ecc71" stroke-width="0.5" stroke-opacity="0.4"/>
+          <rect x="-10" y="-6" width="18" height="12" rx="1" fill="none" stroke="#2ecc71" stroke-width="0.5" stroke-opacity="0.4"/>
+          <rect x="15" y="-6" width="18" height="12" rx="1" fill="none" stroke="#2ecc71" stroke-width="0.5" stroke-opacity="0.4"/>
+          <text x="0" y="-20" class="component-label" text-anchor="middle" fill="#2ecc71">VESC 6.9 FOC Controller x4</text>
+        </g>
+
+        <!-- Battery Modules (center chassis) -->
+        <g transform="translate(400,310)">
+          <!-- Module 1 -->
+          <rect x="-90" y="-25" width="40" height="50" rx="3" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1" stroke-opacity="0.6"/>
+          <text x="-70" y="0" class="component-label" text-anchor="middle" fill="#2ecc71" font-size="5">M1</text>
+          <!-- Module 2 -->
+          <rect x="-42" y="-25" width="40" height="50" rx="3" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1" stroke-opacity="0.6"/>
+          <text x="-22" y="0" class="component-label" text-anchor="middle" fill="#2ecc71" font-size="5">M2</text>
+          <!-- Module 3 -->
+          <rect x="2" y="-25" width="40" height="50" rx="3" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1" stroke-opacity="0.6"/>
+          <text x="22" y="0" class="component-label" text-anchor="middle" fill="#2ecc71" font-size="5">M3</text>
+          <!-- Module 4 -->
+          <rect x="50" y="-25" width="40" height="50" rx="3" fill="rgba(46,204,113,0.08)" stroke="#2ecc71" stroke-width="1" stroke-opacity="0.6"/>
+          <text x="70" y="0" class="component-label" text-anchor="middle" fill="#2ecc71" font-size="5">M4</text>
+          <text x="0" y="38" class="component-label" text-anchor="middle" fill="#2ecc71">48V 100Ah LiFePO4 Module x4</text>
+          <text x="0" y="47" class="component-label" text-anchor="middle" fill="#2ecc71" font-size="5.5">19.2 kWh Total | Hot-Swappable</text>
+        </g>
+
+        <!-- Connection lines from VESC to motors -->
+        <line x1="350" y1="240" x2="252" y2="185" class="connection-line" stroke="#2ecc71"/>
+        <line x1="450" y1="240" x2="548" y2="185" class="connection-line" stroke="#2ecc71"/>
+        <line x1="350" y1="250" x2="247" y2="415" class="connection-line" stroke="#2ecc71"/>
+        <line x1="450" y1="250" x2="553" y2="415" class="connection-line" stroke="#2ecc71"/>
+        <!-- Batteries to VESC -->
+        <line x1="400" y1="285" x2="400" y2="260" class="connection-line" stroke="#2ecc71"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- ENERGY HARVESTING (Yellow/Gold #f1c40f) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="energy">
+        <!-- Integrated solar on top body -->
+        <g>
+          <rect x="330" y="140" width="140" height="60" rx="5" fill="rgba(241,196,15,0.06)" stroke="#f1c40f" stroke-width="0.8" stroke-opacity="0.5"/>
+          <!-- Solar cell grid lines -->
+          <line x1="360" y1="140" x2="360" y2="200" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="400" y1="140" x2="400" y2="200" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="440" y1="140" x2="440" y2="200" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="330" y1="160" x2="470" y2="160" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="330" y1="180" x2="470" y2="180" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.3"/>
+          <text x="400" y="130" class="component-label" text-anchor="middle" fill="#f1c40f">400W Flexible Solar Integrated</text>
+        </g>
+
+        <!-- Deployable solar array (folded, both sides) -->
+        <g>
+          <rect x="160" y="260" width="60" height="80" rx="2" fill="rgba(241,196,15,0.04)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.4" stroke-dasharray="4 2"/>
+          <line x1="180" y1="260" x2="180" y2="340" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="200" y1="260" x2="200" y2="340" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="160" y1="285" x2="220" y2="285" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="160" y1="310" x2="220" y2="310" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <text x="100" y="300" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="6">800W Deployable</text>
+          <text x="100" y="309" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="6">CIGS Array</text>
+          <!-- Deploy arrow -->
+          <line x1="247" y1="300" x2="222" y2="300" stroke="#f1c40f" stroke-width="0.5" stroke-opacity="0.4" marker-start="url(#arrowY)"/>
+        </g>
+        <g>
+          <rect x="580" y="260" width="60" height="80" rx="2" fill="rgba(241,196,15,0.04)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.4" stroke-dasharray="4 2"/>
+          <line x1="600" y1="260" x2="600" y2="340" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="620" y1="260" x2="620" y2="340" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="580" y1="285" x2="640" y2="285" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <line x1="580" y1="310" x2="640" y2="310" stroke="#f1c40f" stroke-width="0.3" stroke-opacity="0.2"/>
+          <text x="700" y="300" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="6">Deployable Array</text>
+          <text x="700" y="309" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="6">(Stowed)</text>
+        </g>
+
+        <!-- MPPT Controller -->
+        <g transform="translate(400,275)">
+          <rect x="-28" y="-10" width="56" height="20" rx="2" fill="rgba(241,196,15,0.08)" stroke="#f1c40f" stroke-width="0.8" stroke-opacity="0.6"/>
+          <text x="0" y="3" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="5.5">MPPT</text>
+          <text x="0" y="-15" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="6">MPPT 48V Charge Controller</text>
+        </g>
+
+        <!-- Regen Suspension dampers at each corner -->
+        <g>
+          <!-- FL -->
+          <rect x="261" y="155" width="8" height="20" rx="1" fill="rgba(241,196,15,0.15)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.6"/>
+          <!-- FR -->
+          <rect x="531" y="155" width="8" height="20" rx="1" fill="rgba(241,196,15,0.15)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.6"/>
+          <!-- RL -->
+          <rect x="258" y="425" width="8" height="20" rx="1" fill="rgba(241,196,15,0.15)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.6"/>
+          <!-- RR -->
+          <rect x="534" y="425" width="8" height="20" rx="1" fill="rgba(241,196,15,0.15)" stroke="#f1c40f" stroke-width="0.6" stroke-opacity="0.6"/>
+          <text x="165" y="165" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="5.5">EM Regen Damper</text>
+          <text x="640" y="165" class="component-label" text-anchor="middle" fill="#f1c40f" font-size="5.5">EM Regen Damper</text>
+        </g>
+
+        <!-- Connection lines -->
+        <line x1="400" y1="200" x2="400" y2="260" class="connection-line" stroke="#f1c40f"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- COMMUNICATIONS (Blue #3498db) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="comms">
+        <!-- LoRa Meshtastic Antenna (front) -->
+        <g transform="translate(400,115)">
+          <line x1="0" y1="0" x2="0" y2="-20" stroke="#3498db" stroke-width="1" stroke-opacity="0.7"/>
+          <circle cx="0" cy="-22" r="3" fill="none" stroke="#3498db" stroke-width="0.8" stroke-opacity="0.7"/>
+          <!-- Signal waves -->
+          <path d="M -8,-28 A 10,10 0 0,1 8,-28" fill="none" stroke="#3498db" stroke-width="0.5" stroke-opacity="0.4"/>
+          <path d="M -12,-32 A 14,14 0 0,1 12,-32" fill="none" stroke="#3498db" stroke-width="0.5" stroke-opacity="0.3"/>
+          <text x="0" y="-38" class="component-label" text-anchor="middle" fill="#3498db">LoRa 915MHz Mesh Node</text>
+        </g>
+
+        <!-- Starlink Mini (rear/top) -->
+        <g transform="translate(400,460)">
+          <ellipse cx="0" cy="0" rx="18" ry="8" fill="rgba(52,152,219,0.08)" stroke="#3498db" stroke-width="0.8" stroke-opacity="0.6"/>
+          <line x1="-12" y1="-3" x2="12" y2="-3" stroke="#3498db" stroke-width="0.4" stroke-opacity="0.3"/>
+          <text x="0" y="16" class="component-label" text-anchor="middle" fill="#3498db">Starlink Mini</text>
+          <text x="0" y="24" class="component-label" text-anchor="middle" fill="#3498db" font-size="5.5">5-50 Mbps</text>
+        </g>
+
+        <!-- ATAK Tablet on dash -->
+        <g transform="translate(400,195)">
+          <rect x="-18" y="-12" width="36" height="24" rx="2" fill="rgba(52,152,219,0.1)" stroke="#3498db" stroke-width="0.8" stroke-opacity="0.7"/>
+          <!-- Screen detail -->
+          <rect x="-14" y="-8" width="28" height="16" rx="1" fill="rgba(52,152,219,0.06)" stroke="#3498db" stroke-width="0.3" stroke-opacity="0.4"/>
+          <!-- Map crosshair -->
+          <line x1="-6" y1="0" x2="6" y2="0" stroke="#3498db" stroke-width="0.3" stroke-opacity="0.5"/>
+          <line x1="0" y1="-4" x2="0" y2="4" stroke="#3498db" stroke-width="0.3" stroke-opacity="0.5"/>
+          <text x="0" y="-18" class="component-label" text-anchor="middle" fill="#3498db">ATAK-CIV Tactical Display</text>
+        </g>
+
+        <!-- Iridium Antenna (right side) -->
+        <g transform="translate(555,130)">
+          <line x1="0" y1="0" x2="0" y2="-14" stroke="#3498db" stroke-width="0.8" stroke-opacity="0.6"/>
+          <circle cx="0" cy="-16" r="2.5" fill="#3498db" fill-opacity="0.4"/>
+          <text x="28" y="-10" class="component-label" text-anchor="middle" fill="#3498db" font-size="6">Iridium GO!</text>
+          <text x="28" y="-2" class="component-label" text-anchor="middle" fill="#3498db" font-size="5">Global SOS</text>
+        </g>
+
+        <!-- goTenna (left side) -->
+        <g transform="translate(245,130)">
+          <line x1="0" y1="0" x2="0" y2="-14" stroke="#3498db" stroke-width="0.8" stroke-opacity="0.6"/>
+          <rect x="-3" y="-14" width="6" height="10" rx="1" fill="rgba(52,152,219,0.15)" stroke="#3498db" stroke-width="0.5" stroke-opacity="0.5"/>
+          <text x="-28" y="-10" class="component-label" text-anchor="middle" fill="#3498db" font-size="6">goTenna Pro X2</text>
+          <text x="-28" y="-2" class="component-label" text-anchor="middle" fill="#3498db" font-size="5">ATAK Mesh</text>
+        </g>
+
+        <!-- Connection lines -->
+        <line x1="400" y1="183" x2="400" y2="125" class="connection-line" stroke="#3498db"/>
+        <line x1="382" y1="195" x2="253" y2="135" class="connection-line" stroke="#3498db"/>
+        <line x1="418" y1="195" x2="547" y2="135" class="connection-line" stroke="#3498db"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- WATER SYSTEMS (Cyan #1abc9c) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="water">
+        <!-- Water bladder (rear area) -->
+        <g transform="translate(340,430)">
+          <path d="M -30,-18 C -32,-5 -32,5 -30,18 L 30,18 C 32,5 32,-5 30,-18 Z"
+                fill="rgba(26,188,156,0.08)" stroke="#1abc9c" stroke-width="0.8" stroke-opacity="0.6"/>
+          <!-- Water level indication -->
+          <path d="M -28,0 C -20,-4 -10,4 0,0 C 10,-4 20,4 28,0" fill="none" stroke="#1abc9c" stroke-width="0.4" stroke-opacity="0.4"/>
+          <text x="0" y="28" class="component-label" text-anchor="middle" fill="#1abc9c">50-gal Collapsible Bladder</text>
+        </g>
+
+        <!-- Sawyer Filter (inline) -->
+        <g transform="translate(310,395)">
+          <rect x="-14" y="-6" width="28" height="12" rx="6" fill="rgba(26,188,156,0.1)" stroke="#1abc9c" stroke-width="0.7" stroke-opacity="0.6"/>
+          <text x="0" y="-10" class="component-label" text-anchor="middle" fill="#1abc9c" font-size="5.5">0.1 Micron Sawyer</text>
+        </g>
+
+        <!-- UV purifier (inline) -->
+        <g transform="translate(380,395)">
+          <rect x="-12" y="-6" width="24" height="12" rx="2" fill="rgba(26,188,156,0.1)" stroke="#1abc9c" stroke-width="0.7" stroke-opacity="0.6"/>
+          <!-- UV indicator -->
+          <circle cx="0" cy="0" r="3" fill="none" stroke="#1abc9c" stroke-width="0.5" stroke-opacity="0.7"/>
+          <text x="0" y="-10" class="component-label" text-anchor="middle" fill="#1abc9c" font-size="5.5">UV-C Purification</text>
+        </g>
+
+        <!-- 12V Pump -->
+        <g transform="translate(445,395)">
+          <circle cx="0" cy="0" r="8" fill="rgba(26,188,156,0.08)" stroke="#1abc9c" stroke-width="0.7" stroke-opacity="0.6"/>
+          <!-- Impeller symbol -->
+          <line x1="-4" y1="0" x2="4" y2="0" stroke="#1abc9c" stroke-width="0.5" stroke-opacity="0.5" transform="rotate(0)"/>
+          <line x1="-4" y1="0" x2="4" y2="0" stroke="#1abc9c" stroke-width="0.5" stroke-opacity="0.5" transform="rotate(60)"/>
+          <line x1="-4" y1="0" x2="4" y2="0" stroke="#1abc9c" stroke-width="0.5" stroke-opacity="0.5" transform="rotate(120)"/>
+          <text x="0" y="-13" class="component-label" text-anchor="middle" fill="#1abc9c" font-size="5.5">Shurflo 3.5 GPM</text>
+        </g>
+
+        <!-- Rainwater channels on edges -->
+        <path d="M 350,120 C 330,130 310,150 300,170" fill="none" stroke="#1abc9c" stroke-width="0.6" stroke-opacity="0.35" stroke-dasharray="3 3"/>
+        <path d="M 450,120 C 470,130 490,150 500,170" fill="none" stroke="#1abc9c" stroke-width="0.6" stroke-opacity="0.35" stroke-dasharray="3 3"/>
+        <text x="280" y="148" class="component-label" fill="#1abc9c" font-size="5" opacity="0.5">Rain Channel</text>
+        <text x="503" y="148" class="component-label" fill="#1abc9c" font-size="5" opacity="0.5">Rain Channel</text>
+
+        <!-- Inline flow connections -->
+        <line x1="324" y1="395" x2="368" y2="395" class="connection-line" stroke="#1abc9c"/>
+        <line x1="392" y1="395" x2="437" y2="395" class="connection-line" stroke="#1abc9c"/>
+        <line x1="445" y1="403" x2="370" y2="430" class="connection-line" stroke="#1abc9c"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- SHELTER & TOOLS (Brown/Tan #d35400) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="shelter">
+        <!-- Rear cargo area -->
+        <g transform="translate(400,490)">
+          <rect x="-55" y="-10" width="110" height="20" rx="3" fill="rgba(211,84,0,0.06)" stroke="#d35400" stroke-width="0.8" stroke-opacity="0.5"/>
+          <text x="0" y="3" class="component-label" text-anchor="middle" fill="#d35400" font-size="5.5">Deployable Shelter Kit</text>
+        </g>
+
+        <!-- 3D Printer mount (right side rear) -->
+        <g transform="translate(520,500)">
+          <rect x="-15" y="-12" width="30" height="24" rx="2" fill="rgba(211,84,0,0.06)" stroke="#d35400" stroke-width="0.7" stroke-opacity="0.5"/>
+          <!-- Printer outline detail -->
+          <line x1="-10" y1="-6" x2="10" y2="-6" stroke="#d35400" stroke-width="0.3" stroke-opacity="0.4"/>
+          <line x1="-10" y1="0" x2="10" y2="0" stroke="#d35400" stroke-width="0.3" stroke-opacity="0.4"/>
+          <line x1="-10" y1="6" x2="10" y2="6" stroke="#d35400" stroke-width="0.3" stroke-opacity="0.4"/>
+          <text x="0" y="18" class="component-label" text-anchor="middle" fill="#d35400" font-size="5.5">Creality Ender 3</text>
+          <text x="0" y="25" class="component-label" text-anchor="middle" fill="#d35400" font-size="5">Field Repair</text>
+        </g>
+
+        <!-- Earthbag tools (left rear) -->
+        <g transform="translate(280,500)">
+          <rect x="-15" y="-10" width="30" height="20" rx="2" fill="rgba(211,84,0,0.06)" stroke="#d35400" stroke-width="0.7" stroke-opacity="0.5"/>
+          <text x="0" y="16" class="component-label" text-anchor="middle" fill="#d35400" font-size="5.5">Earthbag Kit</text>
+        </g>
+
+        <!-- Tool storage -->
+        <g transform="translate(400,515)">
+          <rect x="-30" y="-6" width="60" height="12" rx="2" fill="rgba(211,84,0,0.06)" stroke="#d35400" stroke-width="0.6" stroke-opacity="0.4"/>
+          <text x="0" y="12" class="component-label" text-anchor="middle" fill="#d35400" font-size="5.5">Hand Tools + Stick Welder</text>
+        </g>
+
+        <!-- Connection to cargo area -->
+        <line x1="345" y1="490" x2="295" y2="500" class="connection-line" stroke="#d35400"/>
+        <line x1="455" y1="490" x2="505" y2="500" class="connection-line" stroke="#d35400"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- DIGITAL SOVEREIGNTY (Purple #9b59b6) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="digital">
+        <!-- Pi Cluster (center, near comms) -->
+        <g transform="translate(465,210)">
+          <rect x="-20" y="-14" width="40" height="28" rx="2" fill="rgba(155,89,182,0.08)" stroke="#9b59b6" stroke-width="0.8" stroke-opacity="0.6"/>
+          <!-- Board detail -->
+          <rect x="-15" y="-9" width="12" height="8" rx="1" fill="none" stroke="#9b59b6" stroke-width="0.4" stroke-opacity="0.4"/>
+          <rect x="3" y="-9" width="12" height="8" rx="1" fill="none" stroke="#9b59b6" stroke-width="0.4" stroke-opacity="0.4"/>
+          <circle cx="-9" cy="6" r="2" fill="none" stroke="#9b59b6" stroke-width="0.3" stroke-opacity="0.4"/>
+          <circle cx="9" cy="6" r="2" fill="none" stroke="#9b59b6" stroke-width="0.3" stroke-opacity="0.4"/>
+          <text x="0" y="-20" class="component-label" text-anchor="middle" fill="#9b59b6">Pi 5 Sovereignty Stack</text>
+        </g>
+
+        <!-- Encrypted NVMe -->
+        <g transform="translate(465,250)">
+          <rect x="-22" y="-6" width="44" height="12" rx="1" fill="rgba(155,89,182,0.06)" stroke="#9b59b6" stroke-width="0.6" stroke-opacity="0.5"/>
+          <!-- Lock icon -->
+          <circle cx="-12" cy="0" r="2.5" fill="none" stroke="#9b59b6" stroke-width="0.5" stroke-opacity="0.6"/>
+          <rect x="-14" y="1" width="4" height="3" rx="0.5" fill="rgba(155,89,182,0.3)" stroke="#9b59b6" stroke-width="0.3"/>
+          <text x="0" y="13" class="component-label" text-anchor="middle" fill="#9b59b6" font-size="5.5">1TB NVMe AES-256 Encrypted</text>
+        </g>
+
+        <!-- Faraday Cage Enclosure indicator -->
+        <g transform="translate(465,230)">
+          <rect x="-30" y="-30" width="60" height="65" rx="4" fill="none" stroke="#9b59b6" stroke-width="0.5" stroke-opacity="0.25" stroke-dasharray="2 2"/>
+          <text x="32" y="-24" class="component-label" fill="#9b59b6" font-size="5" opacity="0.5">Faraday</text>
+          <text x="32" y="-17" class="component-label" fill="#9b59b6" font-size="5" opacity="0.5">Cage</text>
+        </g>
+
+        <!-- Connection -->
+        <line x1="445" y1="210" x2="420" y2="195" class="connection-line" stroke="#9b59b6"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- AGRICULTURE (Earth Green #27ae60) -->
+      <!-- ============================================================ -->
+      <g class="subsystem-group" data-subsystem="agriculture">
+        <!-- Broadcast Seeder (rear-mount) -->
+        <g transform="translate(400,540)">
+          <path d="M -20,-8 L 20,-8 L 25,4 C 15,12 -15,12 -25,4 Z"
+                fill="rgba(39,174,96,0.08)" stroke="#27ae60" stroke-width="0.8" stroke-opacity="0.6"/>
+          <!-- Spread pattern -->
+          <line x1="-15" y1="8" x2="-25" y2="20" stroke="#27ae60" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="0" y1="10" x2="0" y2="22" stroke="#27ae60" stroke-width="0.3" stroke-opacity="0.3"/>
+          <line x1="15" y1="8" x2="25" y2="20" stroke="#27ae60" stroke-width="0.3" stroke-opacity="0.3"/>
+          <text x="0" y="-14" class="component-label" text-anchor="middle" fill="#27ae60">Broadcast Seeder 50-200 lb</text>
+        </g>
+
+        <!-- Soil Sensor Probe (underside, rear) -->
+        <g transform="translate(320,540)">
+          <line x1="0" y1="0" x2="0" y2="14" stroke="#27ae60" stroke-width="1" stroke-opacity="0.6"/>
+          <circle cx="0" cy="16" r="3" fill="rgba(39,174,96,0.2)" stroke="#27ae60" stroke-width="0.6" stroke-opacity="0.6"/>
+          <text x="0" y="-6" class="component-label" text-anchor="middle" fill="#27ae60" font-size="5.5">Soil EC + Moisture</text>
+        </g>
+
+        <!-- RTK GPS Antenna (top rear) -->
+        <g transform="translate(490,125)">
+          <circle cx="0" cy="0" r="6" fill="rgba(39,174,96,0.08)" stroke="#27ae60" stroke-width="0.7" stroke-opacity="0.6"/>
+          <circle cx="0" cy="0" r="2" fill="#27ae60" fill-opacity="0.4"/>
+          <text x="0" y="-10" class="component-label" text-anchor="middle" fill="#27ae60" font-size="5.5">u-blox F9P RTK GPS</text>
+        </g>
+
+        <!-- Biochar Micro-Kiln (rear) -->
+        <g transform="translate(480,540)">
+          <rect x="-10" y="-10" width="20" height="20" rx="2" fill="rgba(39,174,96,0.06)" stroke="#27ae60" stroke-width="0.7" stroke-opacity="0.5"/>
+          <!-- Flame indicator -->
+          <path d="M 0,-5 C 3,-8 3,-2 0,-3 C -3,-2 -3,-8 0,-5" fill="#27ae60" fill-opacity="0.3"/>
+          <text x="0" y="16" class="component-label" text-anchor="middle" fill="#27ae60" font-size="5.5">TLUD Biochar Micro-Kiln</text>
+        </g>
+
+        <!-- Connections -->
+        <line x1="400" y1="527" x2="400" y2="532" class="connection-line" stroke="#27ae60"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- CENTER SEAT / RIDER POSITION (reference, not a subsystem) -->
+      <!-- ============================================================ -->
+      <g opacity="0.15">
+        <ellipse cx="400" cy="220" rx="20" ry="10" fill="none" stroke="#555" stroke-width="0.6"/>
+        <text x="400" y="225" text-anchor="middle" font-size="5" fill="#444" font-family="Courier New">RIDER</text>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- HANDLEBAR reference line -->
+      <!-- ============================================================ -->
+      <g opacity="0.12">
+        <line x1="350" y1="170" x2="450" y2="170" stroke="#444" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="350" cy="170" r="3" fill="none" stroke="#444" stroke-width="0.5"/>
+        <circle cx="450" cy="170" r="3" fill="none" stroke="#444" stroke-width="0.5"/>
+      </g>
+
+      <!-- ============================================================ -->
+      <!-- SUSPENSION ARM LINES (reference) -->
+      <!-- ============================================================ -->
+      <g opacity="0.08">
+        <!-- FL -->
+        <line x1="275" y1="175" x2="240" y2="165" stroke="#666" stroke-width="1"/>
+        <line x1="275" y1="165" x2="240" y2="165" stroke="#666" stroke-width="1"/>
+        <!-- FR -->
+        <line x1="525" y1="175" x2="560" y2="165" stroke="#666" stroke-width="1"/>
+        <line x1="525" y1="165" x2="560" y2="165" stroke="#666" stroke-width="1"/>
+        <!-- RL -->
+        <line x1="270" y1="440" x2="235" y2="435" stroke="#666" stroke-width="1"/>
+        <line x1="270" y1="430" x2="235" y2="435" stroke="#666" stroke-width="1"/>
+        <!-- RR -->
+        <line x1="530" y1="440" x2="565" y2="435" stroke="#666" stroke-width="1"/>
+        <line x1="530" y1="430" x2="565" y2="435" stroke="#666" stroke-width="1"/>
+      </g>
+
+    </svg>
+
+    <!-- Info Card (tooltip) -->
+    <div class="info-card" id="infoCard">
+      <div class="info-card-header">
+        <div class="ic-dot" id="icDot"></div>
+        <h4 id="icTitle">Subsystem</h4>
+      </div>
+      <div class="info-card-body">
+        <div class="ic-row"><span class="ic-label">Key Spec</span><span class="ic-value" id="icSpec">--</span></div>
+        <div class="ic-row"><span class="ic-label">Weight</span><span class="ic-value" id="icWeight">--</span></div>
+        <div class="ic-row"><span class="ic-label">Power</span><span class="ic-value" id="icPower">--</span></div>
+        <div class="ic-row"><span class="ic-label">Cost Range</span><span class="ic-value" id="icCost">--</span></div>
+        <div class="ic-components">
+          <h5>Key Components</h5>
+          <div id="icComponentList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  // ---- SUBSYSTEM DATA ----
+  var subsystems = {
+    powertrain: {
+      name: 'Powertrain',
+      color: '#2ecc71',
+      spec: '20kW cont / 40kW peak',
+      weight: '~200 lb',
+      power: '20kW draw (continuous)',
+      cost: '$1,500 - $3,000',
+      components: [
+        '5kW BLDC Hub Motor x4',
+        'VESC 6.9 FOC Controller x4',
+        '48V 100Ah LiFePO4 Module x4',
+        'Regen Braking (3 levels)'
+      ]
+    },
+    energy: {
+      name: 'Energy Harvesting',
+      color: '#f1c40f',
+      spec: '1,200W solar + regen suspension',
+      weight: '~80 lb',
+      power: '1,200W solar + 100-300W regen',
+      cost: '$1,000 - $3,200',
+      components: [
+        '400W Flexible Solar Integrated',
+        '800W Deployable CIGS Array',
+        'MPPT 48V Charge Controller',
+        'Electromagnetic Regen Damper x4'
+      ]
+    },
+    comms: {
+      name: 'Communications',
+      color: '#3498db',
+      spec: 'Mesh + Satellite + ATAK',
+      weight: '~15 lb',
+      power: '20-75W draw',
+      cost: '$500 - $2,000',
+      components: [
+        'LoRa 915MHz Mesh Node',
+        'Starlink Mini - 5-50 Mbps',
+        'ATAK-CIV Tactical Display',
+        'Iridium GO! - Global SOS',
+        'goTenna Pro X2 - ATAK Mesh'
+      ]
+    },
+    water: {
+      name: 'Water Systems',
+      color: '#1abc9c',
+      spec: '50 gal capacity, 3.5 GPM',
+      weight: '~30 lb (empty)',
+      power: '12V pump draw (~40W)',
+      cost: '$250 - $600',
+      components: [
+        '50-gal Collapsible Bladder',
+        '0.1 Micron Sawyer Filter',
+        'UV-C Purification Stage',
+        'Shurflo 3.5 GPM Pump',
+        'Rainwater Collection Channels'
+      ]
+    },
+    shelter: {
+      name: 'Shelter & Tools',
+      color: '#d35400',
+      spec: 'Full field kit',
+      weight: '~60 lb',
+      power: 'Variable (welder: ~2kW)',
+      cost: '$500 - $1,200',
+      components: [
+        'Deployable Shelter Kit',
+        'Creality Ender 3 - Field Repair',
+        'Earthbag Construction Kit',
+        'Hand Tools + Stick Welder'
+      ]
+    },
+    digital: {
+      name: 'Digital Sovereignty',
+      color: '#9b59b6',
+      spec: 'Full sovereignty stack',
+      weight: '~5 lb',
+      power: '15-25W draw',
+      cost: '$200 - $400',
+      components: [
+        'Pi 5 Sovereignty Stack',
+        '1TB NVMe AES-256 Encrypted',
+        'Faraday Cage Enclosure',
+        'Nextcloud / WireGuard / Pi-hole'
+      ]
+    },
+    agriculture: {
+      name: 'Agriculture',
+      color: '#27ae60',
+      spec: 'Seeder + sensors + biochar',
+      weight: '~40 lb',
+      power: '10-20W sensors',
+      cost: '$300 - $800',
+      components: [
+        'Broadcast Seeder 50-200 lb',
+        'Soil EC + Moisture Sensor',
+        'u-blox F9P RTK GPS',
+        'TLUD Biochar Micro-Kiln'
+      ]
+    },
+    frame: {
+      name: 'Frame & Protection',
+      color: '#95a5a6',
+      spec: 'MIL-STD-810H designed',
+      weight: '~300 lb',
+      power: 'N/A (structural)',
+      cost: '$2,000 - $4,000',
+      components: [
+        '4130 Chromoly Space Frame',
+        'UHMWPE Skid Plates',
+        'Hemp Fiber Bio-Composite Panels',
+        '6061-T6 Aluminum Structural Nodes'
+      ]
+    }
+  };
+
+  // ---- STATE ----
+  var visibleSubsystems = {};
+  var activeHover = null;
+  var keys = Object.keys(subsystems);
+  keys.forEach(function(k) { visibleSubsystems[k] = true; });
+
+  // ---- BUILD CONTROLS ----
+  var controlsEl = document.getElementById('controls');
+  var h3 = controlsEl.querySelector('h3');
+  var statsEl = controlsEl.querySelector('.stats');
+
+  keys.forEach(function(key) {
+    var ss = subsystems[key];
+    var div = document.createElement('div');
+    div.className = 'subsystem-toggle active';
+    div.setAttribute('data-key', key);
+    div.innerHTML =
+      '<div class="color-dot" style="background:' + ss.color + '"></div>' +
+      '<span class="toggle-label">' + ss.name + '</span>' +
+      '<div class="toggle-indicator" style="background:' + ss.color + '"></div>';
+    controlsEl.insertBefore(div, statsEl);
+
+    // Click to toggle visibility
+    div.addEventListener('click', function(e) {
+      e.stopPropagation();
+      visibleSubsystems[key] = !visibleSubsystems[key];
+      updateDiagram();
+    });
+
+    // Hover for highlighting
+    div.addEventListener('mouseenter', function() {
+      activeHover = key;
+      updateDiagram();
+      showInfoCard(key, div);
+    });
+    div.addEventListener('mouseleave', function() {
+      activeHover = null;
+      updateDiagram();
+      hideInfoCard();
+    });
+  });
+
+  // ---- SVG GROUP INTERACTIONS ----
+  var svgGroups = document.querySelectorAll('.subsystem-group');
+  svgGroups.forEach(function(g) {
+    var key = g.getAttribute('data-subsystem');
+    g.addEventListener('mouseenter', function(e) {
+      activeHover = key;
+      updateDiagram();
+      showInfoCardAtMouse(key, e);
+    });
+    g.addEventListener('mousemove', function(e) {
+      moveInfoCard(e);
+    });
+    g.addEventListener('mouseleave', function() {
+      activeHover = null;
+      updateDiagram();
+      hideInfoCard();
+    });
+    g.addEventListener('click', function(e) {
+      e.stopPropagation();
+      // Toggle on click in SVG too
+      visibleSubsystems[key] = !visibleSubsystems[key];
+      updateDiagram();
+    });
+  });
+
+  // ---- UPDATE DIAGRAM ----
+  function updateDiagram() {
+    // SVG groups
+    svgGroups.forEach(function(g) {
+      var key = g.getAttribute('data-subsystem');
+      g.classList.remove('dimmed', 'hidden');
+      if (!visibleSubsystems[key]) {
+        g.classList.add('hidden');
+      } else if (activeHover && activeHover !== key) {
+        g.classList.add('dimmed');
+      }
+    });
+
+    // Control toggles
+    var toggles = document.querySelectorAll('.subsystem-toggle');
+    toggles.forEach(function(t) {
+      var key = t.getAttribute('data-key');
+      t.classList.remove('active', 'dimmed', 'hidden-subsystem');
+      if (!visibleSubsystems[key]) {
+        t.classList.add('hidden-subsystem');
+      } else if (activeHover && activeHover !== key) {
+        t.classList.add('dimmed');
+      } else if (visibleSubsystems[key]) {
+        t.classList.add('active');
+      }
+    });
+  }
+
+  // ---- INFO CARD ----
+  var infoCard = document.getElementById('infoCard');
+  var icDot = document.getElementById('icDot');
+  var icTitle = document.getElementById('icTitle');
+  var icSpec = document.getElementById('icSpec');
+  var icWeight = document.getElementById('icWeight');
+  var icPower = document.getElementById('icPower');
+  var icCost = document.getElementById('icCost');
+  var icComponentList = document.getElementById('icComponentList');
+
+  function populateInfoCard(key) {
+    var ss = subsystems[key];
+    if (!ss) return;
+    icDot.style.background = ss.color;
+    icTitle.textContent = ss.name;
+    icSpec.textContent = ss.spec;
+    icWeight.textContent = ss.weight;
+    icPower.textContent = ss.power;
+    icCost.textContent = ss.cost;
+    icComponentList.innerHTML = '';
+    ss.components.forEach(function(c) {
+      var d = document.createElement('div');
+      d.className = 'ic-component-item';
+      d.textContent = c;
+      d.style.borderLeftColor = ss.color;
+      icComponentList.appendChild(d);
+    });
+  }
+
+  function showInfoCard(key, anchorEl) {
+    populateInfoCard(key);
+    var rect = anchorEl.getBoundingClientRect();
+    var cardW = 300;
+    var cardH = 280;
+    var x = rect.right + 12;
+    var y = rect.top;
+    // Keep on screen
+    if (x + cardW > window.innerWidth) {
+      x = rect.left - cardW - 12;
+    }
+    if (y + cardH > window.innerHeight) {
+      y = window.innerHeight - cardH - 16;
+    }
+    if (y < 8) y = 8;
+    infoCard.style.left = x + 'px';
+    infoCard.style.top = y + 'px';
+    infoCard.classList.add('visible');
+  }
+
+  function showInfoCardAtMouse(key, e) {
+    populateInfoCard(key);
+    positionInfoCard(e.clientX, e.clientY);
+    infoCard.classList.add('visible');
+  }
+
+  function moveInfoCard(e) {
+    positionInfoCard(e.clientX, e.clientY);
+  }
+
+  function positionInfoCard(mx, my) {
+    var cardW = 300;
+    var cardH = 280;
+    var x = mx + 20;
+    var y = my - 20;
+    if (x + cardW > window.innerWidth - 8) {
+      x = mx - cardW - 20;
+    }
+    if (y + cardH > window.innerHeight - 8) {
+      y = window.innerHeight - cardH - 16;
+    }
+    if (y < 8) y = 8;
+    if (x < 8) x = 8;
+    infoCard.style.left = x + 'px';
+    infoCard.style.top = y + 'px';
+  }
+
+  function hideInfoCard() {
+    infoCard.classList.remove('visible');
+  }
+
+  // Click anywhere to deselect
+  document.addEventListener('click', function() {
+    activeHover = null;
+    updateDiagram();
+  });
+
+  // Initial render
+  updateDiagram();
+
+})();
+</script>
+</body>
+</html>

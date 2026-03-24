@@ -1,0 +1,148 @@
+{
+  "name": "FlowB EC - Blog Posting Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 8,
+              "triggerAtDay": [1, 2, 3, 4, 5]
+            }
+          ]
+        }
+      },
+      "name": "Weekdays 8am MST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://noredfarms.com/api/content-articles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "1"
+            },
+            {
+              "name": "status",
+              "value": "published"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Fetch Latest Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "noredFarms API Key",
+          "id": "CONFIGURE_ME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const articles = $input.all().map(i => i.json);\nconst flat = Array.isArray(articles[0]) ? articles[0] : articles;\nconst latest = flat[0];\nif (!latest || !latest.published_at) return [{ json: { days: 999, should_remind: true } }];\nconst daysSince = Math.floor((Date.now() - new Date(latest.published_at).getTime()) / 86400000);\nreturn [{ json: { days: daysSince, should_remind: daysSince > 3, title: latest.title } }];"
+      },
+      "name": "Check Days Since Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.should_remind }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Should Remind?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [910, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flowb.fly.dev/api/v1/biz/inbound-webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_slug",
+              "value": "nored-farms"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.CONTENT_API_KEY }}"
+            },
+            {
+              "name": "event",
+              "value": "blog_reminder"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify({ days_since_post: $json.days, last_title: $json.title, message: 'It\\'s been ' + $json.days + ' days since the last blog post. Would you like me to draft one?' }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {},
+      "name": "No Reminder Needed",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [1130, 400]
+    }
+  ],
+  "connections": {
+    "Weekdays 8am MST": {
+      "main": [
+        [{ "node": "Fetch Latest Article", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Latest Article": {
+      "main": [
+        [{ "node": "Check Days Since Post", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Days Since Post": {
+      "main": [
+        [{ "node": "Should Remind?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Should Remind?": {
+      "main": [
+        [{ "node": "Send Reminder", "type": "main", "index": 0 }],
+        [{ "node": "No Reminder Needed", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Denver"
+  },
+  "tags": [
+    { "name": "flowb-ec" },
+    { "name": "content" }
+  ]
+}

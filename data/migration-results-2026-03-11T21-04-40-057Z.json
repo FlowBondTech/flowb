@@ -1,0 +1,855 @@
+{
+  "summary": {
+    "total": 80,
+    "created": 80,
+    "existing": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "results": [
+    {
+      "privyId": "did:privy:cmei8nagj00dwkz0cojwlqah8",
+      "supabaseUid": "eec59473-c8b8-41a0-b0de-9a78101f7cbe",
+      "status": "created",
+      "email": "cryptokoh@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web",
+        "farcaster"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejjp2wv00utjy0bjm79n044",
+      "supabaseUid": "3487d1cc-068b-42ab-8b63-ee17cffc360f",
+      "status": "created",
+      "email": "stepbystephbtm@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejmnbbi00vcl80bhxaq6wjd",
+      "supabaseUid": "9e4b3fdc-0411-4d7d-86ce-79079e449236",
+      "status": "created",
+      "email": "limegermaine@mechanicspedia.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejru93u004ik40b0qpwy86p",
+      "supabaseUid": "e0ed4d0b-ef96-4018-a1fd-7cd7199e6bd7",
+      "status": "created",
+      "email": "devenrathodrd@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfi3tj7f00rkjo0bri4u9x2y",
+      "supabaseUid": "d9459ade-1b74-485b-b448-85982661fc0a",
+      "status": "created",
+      "email": "devilopurity@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfog9kyo000lk00bsvonlbrk",
+      "supabaseUid": "e4602aec-c14d-4caf-8c99-f842e6a867dd",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfoghqxy000fl80cg28nzdds",
+      "supabaseUid": "22962dfb-8afd-4dfb-80ac-0c0dc058ba4a",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfsltee8000ekv0c44dwom6e",
+      "supabaseUid": "38c50ecb-f020-4392-85dc-0e28c708acbb",
+      "status": "created",
+      "email": "lifesizebox@icloud.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmftp3go200kml20czfm5v4d8",
+      "supabaseUid": "7ebc82f1-4b5a-4f48-b20f-1c92dbf5c119",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfuyyknc00dbji0cbbpjswjq",
+      "supabaseUid": "ef9d1060-2d7b-4996-9f16-cbd0d2c50d76",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmg2jjy1q00i0l80ce2ftwqyy",
+      "supabaseUid": "9a975856-7840-4bf8-9704-cebf84f33282",
+      "status": "created",
+      "email": "willy@ogorzaly.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgh6ovqc001li50d1t89hfwl",
+      "supabaseUid": "7f4322cc-095b-4f0e-8974-db6a2e8a8a0d",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgiculez00gfjs0cip7kgrmo",
+      "supabaseUid": "a5a258b8-7f5f-4e1d-a188-b12e10d7b6c8",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgj2nndc0004lb0dov99jzow",
+      "supabaseUid": "faee8795-d60f-405e-9003-68cf6d5cda08",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgjfjhhj01s6js0cfofmzkab",
+      "supabaseUid": "2aebc545-a5e3-41bb-8f4c-030557c20492",
+      "status": "created",
+      "email": "wolfi@me.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgqix0g1002vlb0crohfk28i",
+      "supabaseUid": "c3e50a81-a7e1-4b53-82a4-89a59f3b3b1c",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgrikvan005pib0cxfj7bzdi",
+      "supabaseUid": "b5ced2f5-c482-48c7-a16f-0574a419ef72",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgripkf7005hle0dfq4wdtxc",
+      "supabaseUid": "78c13c04-dcab-4970-b8f1-3c98a3a01a1e",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgs26r4y00tjld0cr120zve8",
+      "supabaseUid": "5e20e844-65e1-4f0f-b555-fc0a983ed241",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmguhdwyy01q9jy0czpxqojyg",
+      "supabaseUid": "0d6bb34d-0821-4a90-a78d-6d08953b399f",
+      "status": "created",
+      "email": "victoria.giannakis@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgumg33a011ckw0cxrvjife0",
+      "supabaseUid": "f2300e58-71a6-494d-9295-f8ce26b1c530",
+      "status": "created",
+      "email": "critics.sunup7s@icloud.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmguuk2qa01fyl80ckywkb31s",
+      "supabaseUid": "e8d110ae-cbd2-4c81-b231-1039aa724afe",
+      "status": "created",
+      "email": "cleopatraboumans@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgv0yatq01b7l50c4p87byfi",
+      "supabaseUid": "437b7353-550b-4aad-a1fe-a75fccd966f4",
+      "status": "created",
+      "email": "tetsuya0119tanaka@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh18pvx901ytl70cqv0carx6",
+      "supabaseUid": "072eb441-66b9-43d4-939b-227f34880c0b",
+      "status": "created",
+      "email": "mileesamek@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh2p7crd00s3l40dk4b5lz70",
+      "supabaseUid": "4d3d96af-f513-4093-999d-268907ff292e",
+      "status": "created",
+      "email": "guidosustento@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh2rlojd048dla0cj8yal3tq",
+      "supabaseUid": "923f145c-6bc8-4903-b860-5df56eef566c",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh7m83tw01aljl0ceenuaoik",
+      "supabaseUid": "eb675a36-8900-40d6-be39-438f4afbbf54",
+      "status": "created",
+      "email": "tanaka@atcast.com.sg",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmharn1js00vhkw0ba9qrh4to",
+      "supabaseUid": "242af117-63fc-4501-a885-f0b3515f7b95",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhhk654y0093kz0chun07a6j",
+      "supabaseUid": "77a2eca0-44b1-40ff-87ef-351186c178f5",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhi68jo402pbky0ce4panhex",
+      "supabaseUid": "c73748b4-c1e4-489f-85db-f2d7330cd858",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhirfdrr00u8l50c6wd058tc",
+      "supabaseUid": "e4625362-6ed9-4469-9f2a-b70eab036340",
+      "status": "created",
+      "email": "alizahinthemetaverse@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhpmfr4b005nk00dz0ggkfkp",
+      "supabaseUid": "6760f454-abb7-4691-a958-a8ded1e59820",
+      "status": "created",
+      "email": "revolucionredox@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhshid4700xnky0cyczfgccg",
+      "supabaseUid": "7aab775a-c2a6-4ad5-807b-2a139ae477ad",
+      "status": "created",
+      "email": "decime.natee@hotmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhumqt18003slh0d3q343phh",
+      "supabaseUid": "73c02fd2-a6a3-4ee6-9287-2ae1a17b2cb6",
+      "status": "created",
+      "email": "manuelce73@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhw7w9nh00d2jr0cmj8e4ajj",
+      "supabaseUid": "34d16fb0-3f66-4593-ab10-7c326636cb95",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhx3svh200anjj0cp7nhnmb5",
+      "supabaseUid": "f80ec0ae-f29b-4858-94e9-cf0d2ceb8990",
+      "status": "created",
+      "email": "modal.developer@modal.me",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi3lzsye0099l50cinfufmsi",
+      "supabaseUid": "98a5fb98-c9d7-44e4-8ab0-bf2071a2fe7d",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4i7pb000fgl50dvvhlda9l",
+      "supabaseUid": "39f948d3-dd8e-496b-a039-f7dd26d7444a",
+      "status": "created",
+      "email": "monikessayan@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4jwou50077ii0cr6obfdpc",
+      "supabaseUid": "41c74065-ab83-4dd4-94a6-6c20ed597120",
+      "status": "created",
+      "email": "malevichfilm@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4pph6i02ttl50c0nxi4230",
+      "supabaseUid": "49599911-0413-4575-b85f-14198dcab157",
+      "status": "created",
+      "email": "16catalo16@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5c6r45002ll70cdfb0k9ld",
+      "supabaseUid": "42b78508-730d-420f-a641-b998d1b520c5",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5cn4sf0017ji0d68bieb9y",
+      "supabaseUid": "e9792e4d-9296-40a2-9168-c4968d1295ff",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5ua1mw008vi60cjy30ns63",
+      "supabaseUid": "1f1f8080-dea9-4b1c-990d-476373195509",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi6gi1wo009vjo0cd3rs3w7h",
+      "supabaseUid": "ac7507ab-eb4a-4a9b-8650-8e9a20142115",
+      "status": "created",
+      "email": "celhabenicolas@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi6k43ko002nld0cmf9hwm1l",
+      "supabaseUid": "55186fdd-162c-462c-b645-914c7c9e5ee4",
+      "status": "created",
+      "email": "juanifernandezz33@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7bk9rh0497la0cmbia2rsn",
+      "supabaseUid": "2f9b119a-c5c4-4caf-8d90-06414aa8eeed",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7ctloj01bvl50ceojhkcqx",
+      "supabaseUid": "46d540a3-e4d5-4213-aab3-c352bd49240d",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7dpfyt01bdju0c2rp2vqmk",
+      "supabaseUid": "ce09fe9b-e419-44d5-b01c-2e04867ea1f8",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7ji51f00q4jj0cpjrj3i2a",
+      "supabaseUid": "1fcacc05-bed5-477c-8e00-ffc39bfe4f71",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7kv86903k7jr0cenuojsgo",
+      "supabaseUid": "dde9b55d-497f-4d57-ae89-001870ed2df5",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7xj00x00m7jv0c4lfqtlwa",
+      "supabaseUid": "c26cacc8-5097-4a6b-aace-18015d58f576",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi82lzvj00o7jv0e9lqp8y84",
+      "supabaseUid": "121ac687-8dde-4db0-9bd1-970758adf29e",
+      "status": "created",
+      "email": "russell.herod@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi9botko00xxk00cijcs25l1",
+      "supabaseUid": "2614a59b-4c1a-4bab-bcf7-cdcf030178c7",
+      "status": "created",
+      "email": "kohx.biz@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiajh5hw02aol20chx8cfle3",
+      "supabaseUid": "878368aa-7994-4c77-a670-9f447eded962",
+      "status": "created",
+      "email": "lili.di.blasi@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmib2nchw0089kw0c3la6btyt",
+      "supabaseUid": "32a74a7b-554f-4eb5-9869-9d75127fe2d2",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmicag9cq00tlld0cnzhp0iow",
+      "supabaseUid": "ec5fcac5-a7db-438a-881b-291380123a87",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiq0ikbz00velb0cy1os0s6a",
+      "supabaseUid": "aeab8248-b44e-4ba2-8243-18c2d8093c50",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiqghjn100cijl0c0joszs06",
+      "supabaseUid": "fb208a1c-0b0b-411f-aed8-2dc6c8425e59",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizcu6xd00m6ju0caxcqsv17",
+      "supabaseUid": "b96f91e4-7bba-4f6c-a3ec-f6f99f7d2129",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizr8m9x01vqkz0bwlzezqkv",
+      "supabaseUid": "9389e0e3-eb9a-466f-98af-6cbb322f073d",
+      "status": "created",
+      "email": "ttymed2021@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizup1pb02r3gs0dak9zrs7h",
+      "supabaseUid": "0df91d39-805e-4853-b31e-057ddda2e9b2",
+      "status": "created",
+      "email": "ittechhunter513@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizuqww302znky0coura2fkf",
+      "supabaseUid": "5e780c45-85e0-4195-afae-37bcda36b274",
+      "status": "created",
+      "email": "yanikogan@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmj82239t00pck40c2uyrwi1w",
+      "supabaseUid": "67464946-31cb-4113-9f16-306441e9099a",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjckfzim00b5kz0cdj9130xu",
+      "supabaseUid": "a1677f77-e482-4f10-b9b4-1b29389ac1d3",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjfeqvwy00f7l10cxvucpdfv",
+      "supabaseUid": "f719b851-20e4-466f-ba91-7fac81794ca7",
+      "status": "created",
+      "email": "juliaskahwa01@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjqzvon3007jl10cc3539hj2",
+      "supabaseUid": "82b69ef9-c65d-4e8c-812e-d9b68e2b2e35",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjtkmgmt02p0l30ckjjnbxh7",
+      "supabaseUid": "b57e6d5e-d95a-4fa5-bda6-fa2bf472f337",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web",
+        "farcaster"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjtkt0e2007pi80cquoxccp4",
+      "supabaseUid": "3bbe05a3-6a82-41eb-8e19-0ff014ba049a",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjxg216901bcjy0d9ow22jrz",
+      "supabaseUid": "456fa4ef-b5d2-446c-99cf-5b80f8f63ba1",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjzvz7e702cejv0cswjo0hek",
+      "supabaseUid": "b7b1e4df-a99d-4908-86ee-38fbfe319fc3",
+      "status": "created",
+      "email": "strawberryquiksand@protonmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmkboh9vt03h2l80cdsbdzz30",
+      "supabaseUid": "63a18bbf-fbc2-490c-b693-8798504aa97f",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "farcaster",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cml7msur601yjju0cw6btp930",
+      "supabaseUid": "fe957742-e065-476e-a6a8-cff01174bd10",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmljx3ci2000q0clbumpv8f7l",
+      "supabaseUid": "198335da-a0ea-4ebd-a00d-bf95b088b897",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlmtyj4e00150cjum4vhygk0",
+      "supabaseUid": "ea08650f-2df7-46c0-bcac-e4f3682b643d",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlp9kamm005j0cl1654c3iuo",
+      "supabaseUid": "39322849-358d-4823-8c54-4faa4d1388fb",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlw7qh99020z0bkyut5do87n",
+      "supabaseUid": "c5a14e65-2790-477c-bf94-11039941b68c",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlwv5gtm02mg0cl7n3rcarat",
+      "supabaseUid": "d16cb15b-e789-4719-a1d3-791eb94bcee3",
+      "status": "created",
+      "email": "jeffemmett@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmm7fflyp01dy0cl5jcc3xtsv",
+      "supabaseUid": "7e90f2da-92b4-472f-a835-60541875fac2",
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmm9wc5xo02vk0dkz0ie53ew0",
+      "supabaseUid": "47b4b548-22a7-4dfc-9931-27329ac6f926",
+      "status": "created",
+      "email": "alijaimes0@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmmjuxtun005t0cjod8gp7crf",
+      "supabaseUid": "f20401d8-3ce1-44bc-beab-a6225760b217",
+      "status": "created",
+      "email": "support@kingfishersmedia.io",
+      "platforms": [
+        "farcaster",
+        "web",
+        "web",
+        "web"
+      ]
+    }
+  ]
+}

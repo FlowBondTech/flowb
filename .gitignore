@@ -14,3 +14,18 @@ supabase/.temp/
 .netlify
 config.bat
 .gstack/
+
+# Local env/secrets
+.env
+*.env.backup
+credentials.json
+
+# IDE/tool local state
+.claude/
+.planning/
+
+# Temp files
+nohup.out
+
+# Large media
+*.mp4

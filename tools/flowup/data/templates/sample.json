@@ -1,0 +1,9 @@
+{
+  "title": "FlowUp Test Event",
+  "description": "A sample event created by FlowUp automation tool. This is a test.",
+  "date": "2026-04-15",
+  "startTime": "19:00",
+  "endTime": "22:00",
+  "location": "Brooklyn, NY",
+  "visibility": "private"
+}

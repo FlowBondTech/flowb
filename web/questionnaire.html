@@ -1,0 +1,1449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB -- Let's Build Your Flow Together</title>
+  <meta name="description" content="Partner with FlowB to build your digital strategy. Ecommerce, SEO, social media, automation — all in one flow, at a fraction of agency costs.">
+  <meta property="og:title" content="FlowB -- Let's Build Your Flow Together">
+  <meta property="og:description" content="Partner with FlowB to build your digital strategy. Ecommerce, SEO, social, automation — integrated and affordable.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://flowb.me/questionnaire">
+  <meta property="og:image" content="https://flowb.me/flowb-og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #1a1a1a;
+      --bg-card-hover: #222222;
+      --bg-surface: #111111;
+      --border: #2a2a2a;
+      --border-hover: #3a3a3a;
+      --text: #e4e4ec;
+      --text-muted: #8888a0;
+      --text-dim: #555568;
+      --accent: #2563eb;
+      --accent-light: #3b82f6;
+      --accent-glow: rgba(37, 99, 235, 0.15);
+      --green: #22c55e;
+      --green-dim: rgba(34, 197, 94, 0.12);
+      --green-glow: rgba(34, 197, 94, 0.08);
+      --orange: #f97316;
+      --orange-dim: rgba(249, 115, 22, 0.12);
+      --purple: #a855f7;
+      --purple-glow: rgba(168, 85, 247, 0.15);
+      --red: #ef4444;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --radius-pill: 100px;
+      --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --shadow: 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    html { font-size: 16px; -webkit-font-smoothing: antialiased; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    a { color: var(--accent-light); text-decoration: none; }
+
+    /* ===== Background ===== */
+    .bg-effect {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37, 99, 235, 0.06), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(168, 85, 247, 0.04), transparent);
+    }
+
+    /* ===== Header ===== */
+    .q-header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10, 10, 10, 0.88);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .q-header-inner {
+      max-width: 800px; margin: 0 auto; padding: 0 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .q-logo {
+      display: flex; align-items: center; gap: 8px;
+      color: var(--text); font-weight: 700; font-size: 1.1rem;
+      text-decoration: none;
+    }
+    .q-logo img { width: 32px; height: 32px; border-radius: 8px; }
+    .q-step-indicator {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 0.75rem; color: var(--text-muted); font-weight: 500;
+    }
+    .q-step-indicator span { color: var(--accent-light); }
+
+    /* ===== Progress Bar ===== */
+    .progress-wrap {
+      position: sticky; top: 56px; z-index: 99;
+      background: var(--bg);
+    }
+    .progress-bar { height: 3px; background: var(--border); }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--purple));
+      border-radius: 0 3px 3px 0;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 12px rgba(37, 99, 235, 0.4);
+    }
+
+    /* ===== Main ===== */
+    .q-main {
+      position: relative; z-index: 1;
+      max-width: 720px; margin: 0 auto; padding: 40px 20px 140px;
+      min-height: calc(100vh - 59px);
+    }
+
+    /* ===== Steps ===== */
+    .step { display: none; animation: fadeSlideIn 0.4s ease; }
+    .step.active { display: block; }
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .step-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--accent-light); margin-bottom: 8px;
+    }
+    .step h2 {
+      font-size: 1.8rem; font-weight: 800; line-height: 1.2; margin-bottom: 8px;
+    }
+    .step .step-desc {
+      color: var(--text-muted); font-size: 0.95rem; margin-bottom: 32px;
+      max-width: 560px; line-height: 1.6;
+    }
+
+    /* ===== Form Elements ===== */
+    .field { margin-bottom: 20px; }
+    .field label {
+      display: block; font-size: 0.82rem; font-weight: 600;
+      color: var(--text-muted); margin-bottom: 6px;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%; padding: 12px 16px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text);
+      font-family: var(--font); font-size: 0.95rem; transition: all 0.2s;
+    }
+    .field input:focus, .field textarea:focus, .field select:focus {
+      outline: none; border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .field input::placeholder, .field textarea::placeholder { color: var(--text-dim); }
+    .field textarea { resize: vertical; min-height: 80px; }
+    .field select {
+      cursor: pointer; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238888a0' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 14px center;
+      padding-right: 36px;
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 520px) { .field-row { grid-template-columns: 1fr; } }
+
+    /* Option Cards */
+    .option-grid { display: grid; gap: 10px; margin-bottom: 24px; }
+    .option-grid.cols-2 { grid-template-columns: 1fr 1fr; }
+    .option-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    @media (max-width: 600px) {
+      .option-grid.cols-2, .option-grid.cols-3 { grid-template-columns: 1fr; }
+    }
+    .option-card {
+      position: relative; cursor: pointer;
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+      transition: all 0.2s; user-select: none;
+    }
+    .option-card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+    .option-card.selected {
+      border-color: var(--accent); background: var(--accent-glow);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .option-card input { position: absolute; opacity: 0; pointer-events: none; }
+    .option-card .oc-icon { font-size: 1.4rem; margin-bottom: 6px; display: block; }
+    .option-card .oc-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 2px; }
+    .option-card .oc-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.4; }
+    .option-card .oc-check {
+      position: absolute; top: 12px; right: 12px;
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 2px solid var(--border); transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .option-card.selected .oc-check { border-color: var(--accent); background: var(--accent); }
+    .option-card.selected .oc-check::after {
+      content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff;
+    }
+
+    /* Pricing inside option cards */
+    .oc-pricing {
+      margin-top: 10px; display: flex; align-items: center; gap: 8px;
+      flex-wrap: wrap;
+    }
+    .oc-agency {
+      font-size: 0.72rem; color: var(--text-dim);
+      text-decoration: line-through; font-weight: 500;
+    }
+    .oc-partner {
+      font-size: 0.75rem; font-weight: 700; color: var(--green);
+      background: var(--green-dim); padding: 2px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* Chips */
+    .chip-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+    .chip {
+      cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: var(--radius-pill);
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 0.82rem; font-weight: 500; color: var(--text-muted);
+      transition: all 0.2s; user-select: none;
+    }
+    .chip:hover { border-color: var(--border-hover); color: var(--text); }
+    .chip.selected { background: var(--accent-glow); border-color: var(--accent); color: var(--accent-light); }
+    .chip input { position: absolute; opacity: 0; pointer-events: none; }
+    .chip .chip-icon { font-size: 1rem; }
+
+    /* Range Slider */
+    .range-wrap { margin-bottom: 24px; }
+    .range-wrap label {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: 0.82rem; font-weight: 600; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .range-wrap label .range-val { color: var(--accent-light); font-size: 1rem; font-weight: 700; }
+    .range-wrap input[type="range"] {
+      width: 100%; -webkit-appearance: none; appearance: none;
+      height: 6px; background: var(--border); border-radius: 3px; outline: none;
+    }
+    .range-wrap input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--accent); border: 3px solid var(--bg);
+      box-shadow: 0 0 0 2px var(--accent), var(--shadow);
+      cursor: pointer; transition: transform 0.15s;
+    }
+    .range-wrap input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+    .range-ticks {
+      display: flex; justify-content: space-between;
+      font-size: 0.68rem; color: var(--text-dim); margin-top: 6px; padding: 0 2px;
+    }
+
+    /* ===== Buttons ===== */
+    .step-nav { display: flex; gap: 12px; margin-top: 36px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 28px; border-radius: var(--radius-pill);
+      font-family: var(--font); font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; border: none;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-light); }
+    .btn-secondary {
+      background: var(--bg-card); color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--border-hover); color: var(--text); }
+    .btn-submit {
+      background: linear-gradient(135deg, var(--accent), var(--purple));
+      color: #fff; padding: 14px 36px; font-size: 1rem;
+    }
+    .btn-submit:hover { filter: brightness(1.1); }
+    .btn svg { width: 16px; height: 16px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ===== Sections ===== */
+    .section-divider { height: 1px; background: var(--border); margin: 32px 0; }
+    .section-label {
+      font-size: 0.78rem; font-weight: 700; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px;
+    }
+
+    /* ===== Partner Note / Callout ===== */
+    .partner-note {
+      background: linear-gradient(135deg, var(--green-glow), var(--green-dim));
+      border: 1px solid rgba(34, 197, 94, 0.2); border-radius: var(--radius);
+      padding: 16px 20px; margin-bottom: 28px;
+      display: flex; gap: 12px; align-items: flex-start;
+    }
+    .partner-note .pn-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+    .partner-note .pn-text { font-size: 0.82rem; color: var(--text); line-height: 1.5; }
+    .partner-note .pn-text strong { color: var(--green); }
+
+    /* ===== Floating Investment Tracker ===== */
+    .tracker {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+      background: rgba(17, 17, 17, 0.95); backdrop-filter: blur(16px);
+      border-top: 1px solid var(--border);
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .tracker.visible { transform: translateY(0); }
+    .tracker-inner {
+      max-width: 800px; margin: 0 auto; padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px;
+    }
+    .tracker-left { display: flex; flex-direction: column; gap: 2px; }
+    .tracker-label {
+      font-size: 0.68rem; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.06em;
+    }
+    .tracker-values { display: flex; align-items: center; gap: 12px; }
+    .tracker-agency {
+      font-size: 0.85rem; color: var(--text-dim);
+      text-decoration: line-through; font-weight: 500;
+    }
+    .tracker-partner {
+      font-size: 1.15rem; font-weight: 800;
+      background: linear-gradient(90deg, var(--green), #4ade80);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .tracker-right { display: flex; align-items: center; gap: 12px; }
+    .tracker-savings {
+      font-size: 0.72rem; font-weight: 700; color: var(--green);
+      background: var(--green-dim); padding: 4px 12px;
+      border-radius: var(--radius-pill); white-space: nowrap;
+    }
+    .tracker-count {
+      font-size: 0.72rem; color: var(--text-muted); white-space: nowrap;
+    }
+    .tracker-bundle {
+      font-size: 0.68rem; color: var(--orange); font-weight: 600;
+      animation: bundlePulse 2s ease-in-out infinite;
+    }
+    @keyframes bundlePulse {
+      0%, 100% { opacity: 0.7; } 50% { opacity: 1; }
+    }
+    @media (max-width: 520px) {
+      .tracker-inner { flex-wrap: wrap; gap: 8px; }
+      .tracker-right { width: 100%; justify-content: space-between; }
+    }
+
+    /* ===== Pricing Context ===== */
+    .pricing-context {
+      background: var(--bg-surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; margin-bottom: 24px;
+    }
+    .pricing-context .pc-header {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+    }
+    .pricing-context .pc-icon { font-size: 1.2rem; }
+    .pricing-context .pc-title { font-weight: 700; font-size: 0.9rem; }
+    .pricing-context .pc-body {
+      font-size: 0.78rem; color: var(--text-dim); line-height: 1.5;
+    }
+    .pricing-context .pc-range {
+      margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .pc-tag {
+      font-size: 0.72rem; padding: 3px 10px; border-radius: var(--radius-pill); font-weight: 600;
+    }
+    .pc-tag.low { background: var(--green-dim); color: var(--green); }
+    .pc-tag.mid { background: var(--orange-dim); color: var(--orange); }
+    .pc-tag.high { background: var(--purple-glow); color: var(--purple); }
+
+    /* ===== Summary ===== */
+    .summary-panel {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; margin-bottom: 24px;
+    }
+    .summary-panel h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+    .summary-row {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+    }
+    .summary-row:last-child { border-bottom: none; }
+    .summary-row .sr-label { color: var(--text-muted); font-weight: 500; }
+    .summary-row .sr-value { font-weight: 600; text-align: right; max-width: 60%; }
+    .summary-row .sr-value .chip-inline {
+      display: inline-block; padding: 2px 8px; margin: 2px;
+      background: var(--accent-glow); color: var(--accent-light);
+      border-radius: var(--radius-pill); font-size: 0.75rem; font-weight: 600;
+    }
+
+    /* Summary Investment Breakdown */
+    .invest-breakdown {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; margin-bottom: 24px;
+    }
+    .invest-breakdown h3 { font-size: 1rem; font-weight: 700; margin-bottom: 16px; }
+    .ib-line {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 0; font-size: 0.85rem;
+    }
+    .ib-line .ib-name { color: var(--text-muted); }
+    .ib-line .ib-prices { display: flex; gap: 10px; align-items: center; }
+    .ib-line .ib-agency { color: var(--text-dim); text-decoration: line-through; font-size: 0.78rem; }
+    .ib-line .ib-partner { color: var(--green); font-weight: 600; }
+    .ib-divider { height: 1px; background: var(--border); margin: 8px 0; }
+    .ib-total {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px 0 0; font-size: 1rem;
+    }
+    .ib-total .ib-name { font-weight: 700; }
+    .ib-total .ib-prices { display: flex; gap: 12px; align-items: center; }
+    .ib-total .ib-agency { color: var(--text-dim); text-decoration: line-through; font-size: 0.9rem; }
+    .ib-total .ib-partner {
+      font-weight: 800; font-size: 1.2rem;
+      background: linear-gradient(90deg, var(--green), #4ade80);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .ib-savings {
+      text-align: center; margin-top: 12px; padding: 10px;
+      background: var(--green-dim); border-radius: var(--radius-sm);
+      font-size: 0.82rem; font-weight: 600; color: var(--green);
+    }
+    .ib-bundle {
+      text-align: center; margin-top: 8px;
+      font-size: 0.72rem; color: var(--orange); font-weight: 600;
+    }
+    .ib-note {
+      text-align: center; margin-top: 8px;
+      font-size: 0.72rem; color: var(--text-dim);
+    }
+
+    /* ===== Success ===== */
+    .success-screen { text-align: center; padding: 80px 20px; }
+    .success-icon {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--green-dim); border: 2px solid var(--green);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px; font-size: 2rem;
+      animation: successPop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes successPop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+    .success-screen h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 10px; }
+    .success-screen p { color: var(--text-muted); max-width: 440px; margin: 0 auto; line-height: 1.6; }
+
+    /* ===== Responsive ===== */
+    @media (max-width: 480px) {
+      .step h2 { font-size: 1.4rem; }
+      .q-main { padding: 28px 16px 140px; }
+      .step-nav { flex-direction: column; }
+      .btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="bg-effect"></div>
+
+<!-- Header -->
+<header class="q-header">
+  <div class="q-header-inner">
+    <a href="/" class="q-logo">
+      <img src="flowb.png" alt="FlowB">
+      <span>FlowB</span>
+    </a>
+    <div class="q-step-indicator">
+      Step <span id="stepCurrent">1</span> of <span id="stepTotal">7</span>
+    </div>
+  </div>
+</header>
+
+<!-- Progress -->
+<div class="progress-wrap">
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width: 14.3%"></div>
+  </div>
+</div>
+
+<!-- Floating Investment Tracker -->
+<div class="tracker" id="tracker">
+  <div class="tracker-inner">
+    <div class="tracker-left">
+      <span class="tracker-label">Your Investment Estimate</span>
+      <div class="tracker-values">
+        <span class="tracker-agency" id="trackerAgency">$0/mo</span>
+        <span class="tracker-partner" id="trackerPartner">$0/mo</span>
+      </div>
+    </div>
+    <div class="tracker-right">
+      <span class="tracker-savings" id="trackerSavings">$0 saved/mo</span>
+      <span class="tracker-bundle" id="trackerBundle"></span>
+      <span class="tracker-count" id="trackerCount">0 services</span>
+    </div>
+  </div>
+</div>
+
+<!-- Main -->
+<main class="q-main">
+
+  <!-- ===================== STEP 1: Welcome ===================== -->
+  <div class="step active" data-step="1">
+    <div class="step-label">Let's Partner Up</div>
+    <h2>Tell us about you</h2>
+    <p class="step-desc">We believe in partnerships, not transactions. The more we understand your world, the better we can grow together.</p>
+
+    <div class="partner-note">
+      <span class="pn-icon">&#x1F331;</span>
+      <div class="pn-text">
+        <strong>How this works:</strong> As you select services, you'll see what agencies typically charge vs. our partner rates. The more we do together, the better your rate — because integrated workflows are more efficient for everyone.
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Your Name</label>
+      <input type="text" id="userName" placeholder="How should we address you?">
+    </div>
+    <div class="field">
+      <label>Business / Brand Name</label>
+      <input type="text" id="bizName" placeholder="e.g. Sunrise Coffee Co.">
+    </div>
+    <div class="field">
+      <label>Website (if you have one)</label>
+      <input type="url" id="bizUrl" placeholder="https://...">
+    </div>
+
+    <div class="section-label">What best describes you?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="bizType">
+        <input type="radio" name="bizType" value="solo">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F9D1;&#x200D;&#x1F4BB;</span>
+        <span class="oc-title">Solo / Freelancer</span>
+        <span class="oc-desc">Running things on your own, wearing all the hats</span>
+      </label>
+      <label class="option-card" data-field="bizType">
+        <input type="radio" name="bizType" value="small">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F465;</span>
+        <span class="oc-title">Small Team (2-10)</span>
+        <span class="oc-desc">Growing crew, need systems that scale with you</span>
+      </label>
+      <label class="option-card" data-field="bizType">
+        <input type="radio" name="bizType" value="growing">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4C8;</span>
+        <span class="oc-title">Growing Business (10-50)</span>
+        <span class="oc-desc">Established and scaling, need serious infrastructure</span>
+      </label>
+      <label class="option-card" data-field="bizType">
+        <input type="radio" name="bizType" value="enterprise">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F3E2;</span>
+        <span class="oc-title">Enterprise (50+)</span>
+        <span class="oc-desc">Large operation needing custom, integrated solutions</span>
+      </label>
+    </div>
+
+    <div class="field">
+      <label>Industry / Niche</label>
+      <select id="bizIndustry">
+        <option value="">Select your industry</option>
+        <option value="ecommerce">E-commerce / Retail</option>
+        <option value="saas">SaaS / Tech</option>
+        <option value="agency">Marketing Agency</option>
+        <option value="hospitality">Hospitality / Food & Beverage</option>
+        <option value="health">Health & Wellness</option>
+        <option value="education">Education / Coaching</option>
+        <option value="creator">Creator / Influencer</option>
+        <option value="realestate">Real Estate</option>
+        <option value="finance">Finance / Fintech</option>
+        <option value="nonprofit">Nonprofit / Community</option>
+        <option value="crypto">Crypto / Web3</option>
+        <option value="professional">Professional Services</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-primary" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 2: Services ===================== -->
+  <div class="step" data-step="2">
+    <div class="step-label">Build Your Stack</div>
+    <h2>What do you need?</h2>
+    <p class="step-desc">Each service you add shows the typical agency rate vs. your FlowB partner rate. Bundle more to save more.</p>
+
+    <div class="partner-note">
+      <span class="pn-icon">&#x1F4B0;</span>
+      <div class="pn-text">
+        <strong>Partner pricing:</strong> Agencies charge per-service because they're siloed. We integrate everything into one flow, so costs go down as you add more. <strong>3+ services = 15% bundle savings. 5+ = 25% off.</strong>
+      </div>
+    </div>
+
+    <div class="option-grid cols-2" id="needsGrid">
+      <label class="option-card" data-field="needs" data-agency="2000" data-partner="800">
+        <input type="checkbox" name="needs" value="ecommerce">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F6D2;</span>
+        <span class="oc-title">E-commerce / Online Store</span>
+        <span class="oc-desc">Product catalog, payments, shipping, inventory</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $2,000/mo</span>
+          <span class="oc-partner">Partner: $800/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="2500" data-partner="750">
+        <input type="checkbox" name="needs" value="seo">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F50D;</span>
+        <span class="oc-title">SEO & Content Strategy</span>
+        <span class="oc-desc">Rank higher, drive organic traffic, content planning</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $2,500/mo</span>
+          <span class="oc-partner">Partner: $750/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="1500" data-partner="500">
+        <input type="checkbox" name="needs" value="social">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4F1;</span>
+        <span class="oc-title">Social Media Management</span>
+        <span class="oc-desc">Content creation, scheduling, community engagement</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $1,500/mo</span>
+          <span class="oc-partner">Partner: $500/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="1500" data-partner="400">
+        <input type="checkbox" name="needs" value="automation">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x26A1;</span>
+        <span class="oc-title">Workflow Automation</span>
+        <span class="oc-desc">Automate repetitive tasks, integrations, triggers</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $1,500/mo</span>
+          <span class="oc-partner">Partner: $400/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="800" data-partner="300">
+        <input type="checkbox" name="needs" value="email">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x2709;&#xFE0F;</span>
+        <span class="oc-title">Email Marketing</span>
+        <span class="oc-desc">Newsletters, drip campaigns, segmentation, automation</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $800/mo</span>
+          <span class="oc-partner">Partner: $300/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="500" data-partner="200">
+        <input type="checkbox" name="needs" value="scheduling">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4C5;</span>
+        <span class="oc-title">Scheduling & Booking</span>
+        <span class="oc-desc">Appointment booking, calendar sync, reminders</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $500/mo</span>
+          <span class="oc-partner">Partner: $200/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="1200" data-partner="400">
+        <input type="checkbox" name="needs" value="crm">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4CB;</span>
+        <span class="oc-title">CRM & Lead Management</span>
+        <span class="oc-desc">Track contacts, pipeline, deals, follow-ups</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $1,200/mo</span>
+          <span class="oc-partner">Partner: $400/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="1000" data-partner="350">
+        <input type="checkbox" name="needs" value="analytics">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4CA;</span>
+        <span class="oc-title">Analytics & Reporting</span>
+        <span class="oc-desc">Dashboards, KPIs, attribution, insights</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $1,000/mo</span>
+          <span class="oc-partner">Partner: $350/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="1500" data-partner="500">
+        <input type="checkbox" name="needs" value="community">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F91D;</span>
+        <span class="oc-title">Community Building</span>
+        <span class="oc-desc">Forums, groups, events, ambassador programs</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $1,500/mo</span>
+          <span class="oc-partner">Partner: $500/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="3000" data-partner="1000">
+        <input type="checkbox" name="needs" value="ads">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4B0;</span>
+        <span class="oc-title">Paid Advertising</span>
+        <span class="oc-desc">Google, Meta, TikTok ads -- setup, creative, management</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $3,000/mo + spend</span>
+          <span class="oc-partner">Partner: $1,000/mo + spend</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="2000" data-partner="600">
+        <input type="checkbox" name="needs" value="branding">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F3A8;</span>
+        <span class="oc-title">Branding & Design</span>
+        <span class="oc-desc">Logo, brand identity, style guides, creative assets</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $2,000/mo</span>
+          <span class="oc-partner">Partner: $600/mo</span>
+        </div>
+      </label>
+      <label class="option-card" data-field="needs" data-agency="5000" data-partner="1500">
+        <input type="checkbox" name="needs" value="web-dev">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F310;</span>
+        <span class="oc-title">Website / App Development</span>
+        <span class="oc-desc">Custom sites, landing pages, web apps, mobile</span>
+        <div class="oc-pricing">
+          <span class="oc-agency">Agency: $5,000/mo</span>
+          <span class="oc-partner">Partner: $1,500/mo</span>
+        </div>
+      </label>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 3: Social & Content ===================== -->
+  <div class="step" data-step="3">
+    <div class="step-label">Social & Content</div>
+    <h2>Your social presence</h2>
+    <p class="step-desc">Which platforms are you on (or want to be)? This shapes our content strategy and where we focus energy together.</p>
+
+    <div class="section-label">Select your platforms</div>
+    <div class="chip-wrap" id="platformChips">
+      <label class="chip"><input type="checkbox" name="platforms" value="instagram"><span class="chip-icon">&#x1F4F7;</span> Instagram</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="tiktok"><span class="chip-icon">&#x1F3B5;</span> TikTok</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="twitter"><span class="chip-icon">&#x1D54F;</span> X / Twitter</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="facebook"><span class="chip-icon">&#x1F44D;</span> Facebook</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="linkedin"><span class="chip-icon">&#x1F4BC;</span> LinkedIn</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="youtube"><span class="chip-icon">&#x25B6;&#xFE0F;</span> YouTube</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="telegram"><span class="chip-icon">&#x2708;&#xFE0F;</span> Telegram</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="farcaster"><span class="chip-icon">&#x1F7E3;</span> Farcaster</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="pinterest"><span class="chip-icon">&#x1F4CC;</span> Pinterest</label>
+      <label class="chip"><input type="checkbox" name="platforms" value="threads"><span class="chip-icon">&#x1F9F5;</span> Threads</label>
+    </div>
+
+    <div class="section-label">How often do you want to post?</div>
+    <div class="option-grid cols-3">
+      <label class="option-card" data-field="postFreq">
+        <input type="radio" name="postFreq" value="light">
+        <span class="oc-check"></span>
+        <span class="oc-title">Light</span>
+        <span class="oc-desc">2-3x per week</span>
+      </label>
+      <label class="option-card" data-field="postFreq">
+        <input type="radio" name="postFreq" value="regular">
+        <span class="oc-check"></span>
+        <span class="oc-title">Regular</span>
+        <span class="oc-desc">Daily posting</span>
+      </label>
+      <label class="option-card" data-field="postFreq">
+        <input type="radio" name="postFreq" value="aggressive">
+        <span class="oc-check"></span>
+        <span class="oc-title">Aggressive</span>
+        <span class="oc-desc">Multiple times daily</span>
+      </label>
+    </div>
+
+    <div class="section-label">Content types you need</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="content" value="short-video"><span class="chip-icon">&#x1F3AC;</span> Short-form Video</label>
+      <label class="chip"><input type="checkbox" name="content" value="long-video"><span class="chip-icon">&#x1F4F9;</span> Long-form Video</label>
+      <label class="chip"><input type="checkbox" name="content" value="graphics"><span class="chip-icon">&#x1F5BC;&#xFE0F;</span> Graphics / Carousels</label>
+      <label class="chip"><input type="checkbox" name="content" value="blogs"><span class="chip-icon">&#x270D;&#xFE0F;</span> Blog Posts / Articles</label>
+      <label class="chip"><input type="checkbox" name="content" value="stories"><span class="chip-icon">&#x1F4A5;</span> Stories / Reels</label>
+      <label class="chip"><input type="checkbox" name="content" value="ugc"><span class="chip-icon">&#x1F64B;</span> UGC / Influencer</label>
+      <label class="chip"><input type="checkbox" name="content" value="podcasts"><span class="chip-icon">&#x1F399;&#xFE0F;</span> Podcasts</label>
+      <label class="chip"><input type="checkbox" name="content" value="newsletters"><span class="chip-icon">&#x1F4E8;</span> Newsletters</label>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 4: Revenue & Growth ===================== -->
+  <div class="step" data-step="4">
+    <div class="step-label">Revenue & Growth</div>
+    <h2>Where you are today</h2>
+    <p class="step-desc">No judgment here -- we work with pre-revenue startups and $500K/mo businesses alike. Understanding your stage helps us right-size the partnership.</p>
+
+    <div class="section-label">Current monthly revenue</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="pre-rev">
+        <span class="oc-check"></span>
+        <span class="oc-title">Pre-revenue / Just Starting</span>
+        <span class="oc-desc">Building the foundation</span>
+      </label>
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="under-5k">
+        <span class="oc-check"></span>
+        <span class="oc-title">Under $5K/mo</span>
+        <span class="oc-desc">Early traction</span>
+      </label>
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="5k-25k">
+        <span class="oc-check"></span>
+        <span class="oc-title">$5K - $25K/mo</span>
+        <span class="oc-desc">Growing steadily</span>
+      </label>
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="25k-100k">
+        <span class="oc-check"></span>
+        <span class="oc-title">$25K - $100K/mo</span>
+        <span class="oc-desc">Scaling operations</span>
+      </label>
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="100k-500k">
+        <span class="oc-check"></span>
+        <span class="oc-title">$100K - $500K/mo</span>
+        <span class="oc-desc">Established business</span>
+      </label>
+      <label class="option-card" data-field="revenue">
+        <input type="radio" name="revenue" value="500k+">
+        <span class="oc-check"></span>
+        <span class="oc-title">$500K+/mo</span>
+        <span class="oc-desc">Enterprise scale</span>
+      </label>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section-label">How do you currently sell? (select all)</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="channels" value="website"><span class="chip-icon">&#x1F310;</span> Own Website</label>
+      <label class="chip"><input type="checkbox" name="channels" value="amazon"><span class="chip-icon">&#x1F4E6;</span> Amazon / Marketplace</label>
+      <label class="chip"><input type="checkbox" name="channels" value="shopify"><span class="chip-icon">&#x1F6D2;</span> Shopify</label>
+      <label class="chip"><input type="checkbox" name="channels" value="social-selling"><span class="chip-icon">&#x1F4F1;</span> Social Selling (DMs)</label>
+      <label class="chip"><input type="checkbox" name="channels" value="retail"><span class="chip-icon">&#x1F3EA;</span> Retail / In-person</label>
+      <label class="chip"><input type="checkbox" name="channels" value="b2b"><span class="chip-icon">&#x1F4BC;</span> B2B / Wholesale</label>
+      <label class="chip"><input type="checkbox" name="channels" value="subscription"><span class="chip-icon">&#x1F504;</span> Subscription / Recurring</label>
+      <label class="chip"><input type="checkbox" name="channels" value="none"><span class="chip-icon">&#x2728;</span> Not selling yet</label>
+    </div>
+
+    <div class="section-label">Biggest growth challenge right now</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="challenge">
+        <input type="radio" name="challenge" value="traffic">
+        <span class="oc-check"></span>
+        <span class="oc-title">Not enough traffic</span>
+        <span class="oc-desc">People aren't finding me</span>
+      </label>
+      <label class="option-card" data-field="challenge">
+        <input type="radio" name="challenge" value="conversion">
+        <span class="oc-check"></span>
+        <span class="oc-title">Low conversion rate</span>
+        <span class="oc-desc">Visitors aren't buying</span>
+      </label>
+      <label class="option-card" data-field="challenge">
+        <input type="radio" name="challenge" value="retention">
+        <span class="oc-check"></span>
+        <span class="oc-title">Customer retention</span>
+        <span class="oc-desc">One-time buyers, no loyalty</span>
+      </label>
+      <label class="option-card" data-field="challenge">
+        <input type="radio" name="challenge" value="ops">
+        <span class="oc-check"></span>
+        <span class="oc-title">Operations overhead</span>
+        <span class="oc-desc">Too much manual work</span>
+      </label>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 5: Tools & Automation ===================== -->
+  <div class="step" data-step="5">
+    <div class="step-label">Tools & Automation</div>
+    <h2>Your current toolkit</h2>
+    <p class="step-desc">We integrate with what you already use -- no ripping and replacing. Tell us what's in your stack.</p>
+
+    <div class="section-label">Tools you currently use (select all)</div>
+    <div class="chip-wrap">
+      <label class="chip"><input type="checkbox" name="tools" value="google-workspace"><span class="chip-icon">&#x1F4E7;</span> Google Workspace</label>
+      <label class="chip"><input type="checkbox" name="tools" value="notion"><span class="chip-icon">&#x1F4DD;</span> Notion</label>
+      <label class="chip"><input type="checkbox" name="tools" value="slack"><span class="chip-icon">&#x1F4AC;</span> Slack</label>
+      <label class="chip"><input type="checkbox" name="tools" value="zapier"><span class="chip-icon">&#x26A1;</span> Zapier / Make</label>
+      <label class="chip"><input type="checkbox" name="tools" value="hubspot"><span class="chip-icon">&#x1F9E1;</span> HubSpot</label>
+      <label class="chip"><input type="checkbox" name="tools" value="mailchimp"><span class="chip-icon">&#x1F435;</span> Mailchimp</label>
+      <label class="chip"><input type="checkbox" name="tools" value="shopify-tools"><span class="chip-icon">&#x1F6D2;</span> Shopify</label>
+      <label class="chip"><input type="checkbox" name="tools" value="stripe"><span class="chip-icon">&#x1F4B3;</span> Stripe</label>
+      <label class="chip"><input type="checkbox" name="tools" value="canva"><span class="chip-icon">&#x1F3A8;</span> Canva</label>
+      <label class="chip"><input type="checkbox" name="tools" value="airtable"><span class="chip-icon">&#x1F4CA;</span> Airtable</label>
+      <label class="chip"><input type="checkbox" name="tools" value="wordpress"><span class="chip-icon">&#x1F310;</span> WordPress</label>
+      <label class="chip"><input type="checkbox" name="tools" value="n8n"><span class="chip-icon">&#x1F916;</span> n8n</label>
+      <label class="chip"><input type="checkbox" name="tools" value="none-yet"><span class="chip-icon">&#x2728;</span> None yet</label>
+    </div>
+
+    <div class="section-label">What would you most like to automate?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="lead-capture">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F3AF;</span>
+        <span class="oc-title">Lead Capture & Follow-up</span>
+        <span class="oc-desc">Auto-respond, qualify, and route leads</span>
+      </label>
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="social-posting">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4E4;</span>
+        <span class="oc-title">Social Media Posting</span>
+        <span class="oc-desc">Schedule, cross-post, and optimize content</span>
+      </label>
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="invoicing">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4B5;</span>
+        <span class="oc-title">Invoicing & Payments</span>
+        <span class="oc-desc">Auto-bill, reminders, reconciliation</span>
+      </label>
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="reporting">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4CA;</span>
+        <span class="oc-title">Reporting & Analytics</span>
+        <span class="oc-desc">Auto-generated dashboards and insights</span>
+      </label>
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="customer-support">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4AC;</span>
+        <span class="oc-title">Customer Support</span>
+        <span class="oc-desc">AI chatbots, ticket routing, FAQ automation</span>
+      </label>
+      <label class="option-card" data-field="automate">
+        <input type="checkbox" name="automate" value="onboarding">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F680;</span>
+        <span class="oc-title">Client Onboarding</span>
+        <span class="oc-desc">Welcome sequences, document collection, setup</span>
+      </label>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">
+        Continue
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 6: Partnership Style ===================== -->
+  <div class="step" data-step="6">
+    <div class="step-label">Partnership</div>
+    <h2>How should we work together?</h2>
+    <p class="step-desc">Every partnership is different. Some partners want us driving, others want to co-pilot. Both work great.</p>
+
+    <div class="pricing-context">
+      <div class="pc-header">
+        <span class="pc-icon">&#x1F4A1;</span>
+        <span class="pc-title">Why partner rates are lower</span>
+      </div>
+      <p class="pc-body">
+        Traditional agencies charge $2,500-$15,000/mo per service because they operate in silos. FlowB integrates everything -- your social feeds your SEO, your automation powers your CRM, your analytics optimize your ads. Shared infrastructure = shared savings.
+      </p>
+      <div class="pc-range">
+        <span class="pc-tag low">Seed Partner: $500-$1,500/mo</span>
+        <span class="pc-tag mid">Growth Partner: $1,500-$5,000/mo</span>
+        <span class="pc-tag high">Scale Partner: $5,000-$15,000/mo</span>
+      </div>
+    </div>
+
+    <div class="section-label">When do you want to kick things off?</div>
+    <div class="option-grid cols-3">
+      <label class="option-card" data-field="timeline">
+        <input type="radio" name="timeline" value="asap">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F525;</span>
+        <span class="oc-title">ASAP</span>
+        <span class="oc-desc">Ready to go now</span>
+      </label>
+      <label class="option-card" data-field="timeline">
+        <input type="radio" name="timeline" value="2-4weeks">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F4C5;</span>
+        <span class="oc-title">2-4 Weeks</span>
+        <span class="oc-desc">Planning phase first</span>
+      </label>
+      <label class="option-card" data-field="timeline">
+        <input type="radio" name="timeline" value="1-3months">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F50D;</span>
+        <span class="oc-title">1-3 Months</span>
+        <span class="oc-desc">Exploring options</span>
+      </label>
+    </div>
+
+    <div class="section-label">How hands-on do you want to be?</div>
+    <div class="option-grid cols-2">
+      <label class="option-card" data-field="engagement">
+        <input type="radio" name="engagement" value="done-for-you">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F9D1;&#x200D;&#x1F527;</span>
+        <span class="oc-title">You drive, I ride</span>
+        <span class="oc-desc">FlowB handles strategy + execution. You approve and watch it grow.</span>
+      </label>
+      <label class="option-card" data-field="engagement">
+        <input type="radio" name="engagement" value="done-with-you">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F91D;</span>
+        <span class="oc-title">Co-pilot mode</span>
+        <span class="oc-desc">We strategize together. You handle some, we handle the rest.</span>
+      </label>
+      <label class="option-card" data-field="engagement">
+        <input type="radio" name="engagement" value="diy-tools">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F6E0;&#xFE0F;</span>
+        <span class="oc-title">Give me the keys</span>
+        <span class="oc-desc">Set up the tools, train me, and I'll run it myself.</span>
+      </label>
+      <label class="option-card" data-field="engagement">
+        <input type="radio" name="engagement" value="hybrid">
+        <span class="oc-check"></span>
+        <span class="oc-icon">&#x1F504;</span>
+        <span class="oc-title">Flex partnership</span>
+        <span class="oc-desc">Some months you need more, some less. We adapt together.</span>
+      </label>
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section-label">Monthly investment comfort zone</div>
+    <div class="range-wrap">
+      <label>
+        <span>What feels right for this stage?</span>
+        <span class="range-val" id="budgetDisplay">$1,500 - $3,000/mo</span>
+      </label>
+      <input type="range" id="budgetSlider" min="0" max="6" value="2" step="1">
+      <div class="range-ticks">
+        <span>&lt;$500</span>
+        <span>$500-1.5K</span>
+        <span>$1.5-3K</span>
+        <span>$3-5K</span>
+        <span>$5-10K</span>
+        <span>$10-25K</span>
+        <span>$25K+</span>
+      </div>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">
+        Review Your Partnership
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== STEP 7: Review ===================== -->
+  <div class="step" data-step="7">
+    <div class="step-label">Your Proposal</div>
+    <h2>Your partnership at a glance</h2>
+    <p class="step-desc">Here's what we'll build together. Review everything, then let's make it official.</p>
+
+    <div class="summary-panel" id="summaryPanel">
+      <!-- Built by JS -->
+    </div>
+
+    <div class="invest-breakdown" id="investBreakdown">
+      <!-- Built by JS -->
+    </div>
+
+    <div class="section-divider"></div>
+
+    <div class="section-label">Where should we send your proposal?</div>
+    <div class="field-row">
+      <div class="field">
+        <label>Email *</label>
+        <input type="email" id="contactEmail" placeholder="you@company.com" required>
+      </div>
+      <div class="field">
+        <label>Phone (optional)</label>
+        <input type="tel" id="contactPhone" placeholder="+1 (555) 000-0000">
+      </div>
+    </div>
+    <div class="field">
+      <label>Best way to reach you</label>
+      <select id="contactMethod">
+        <option value="email">Email</option>
+        <option value="call">Phone call</option>
+        <option value="telegram">Telegram</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="video">Video call (Zoom/Meet)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Anything else you want us to know?</label>
+      <textarea id="notes" placeholder="Special goals, deadlines, dreams for the business, or just say hello..."></textarea>
+    </div>
+
+    <div class="step-nav">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-submit" onclick="submitForm()" id="submitBtn">
+        Start the Partnership
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===================== Success ===================== -->
+  <div class="step" data-step="success">
+    <div class="success-screen">
+      <div class="success-icon">&#x1F331;</div>
+      <h2>Welcome to the Flow, partner.</h2>
+      <p>We've received everything. Our team will review your needs and send a personalized partnership proposal within 24 hours. We're excited to build with you.</p>
+      <div style="margin-top: 32px">
+        <a href="/" class="btn btn-primary">Back to FlowB</a>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ===== State =====
+  let currentStep = 1;
+  const totalSteps = 7;
+
+  const budgetLabels = [
+    'Under $500/mo', '$500 - $1,500/mo', '$1,500 - $3,000/mo',
+    '$3,000 - $5,000/mo', '$5,000 - $10,000/mo', '$10,000 - $25,000/mo', '$25,000+/mo'
+  ];
+
+  // Service pricing: [agencyRate, partnerRate] per month
+  const servicePricing = {
+    'ecommerce':  { agency: 2000, partner: 800,  name: 'E-commerce' },
+    'seo':        { agency: 2500, partner: 750,  name: 'SEO & Content' },
+    'social':     { agency: 1500, partner: 500,  name: 'Social Media' },
+    'automation': { agency: 1500, partner: 400,  name: 'Automation' },
+    'email':      { agency: 800,  partner: 300,  name: 'Email Marketing' },
+    'scheduling': { agency: 500,  partner: 200,  name: 'Scheduling' },
+    'crm':        { agency: 1200, partner: 400,  name: 'CRM & Leads' },
+    'analytics':  { agency: 1000, partner: 350,  name: 'Analytics' },
+    'community':  { agency: 1500, partner: 500,  name: 'Community' },
+    'ads':        { agency: 3000, partner: 1000, name: 'Paid Ads' },
+    'branding':   { agency: 2000, partner: 600,  name: 'Branding' },
+    'web-dev':    { agency: 5000, partner: 1500, name: 'Web/App Dev' },
+  };
+
+  // ===== Navigation =====
+  function showStep(n) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    const target = n === 'success' ? '[data-step="success"]' : `[data-step="${n}"]`;
+    const el = document.querySelector(target);
+    if (el) el.classList.add('active');
+
+    if (n !== 'success') {
+      currentStep = n;
+      document.getElementById('stepCurrent').textContent = n;
+      document.getElementById('progressFill').style.width = ((n / totalSteps) * 100) + '%';
+    } else {
+      document.getElementById('progressFill').style.width = '100%';
+      document.getElementById('tracker').classList.remove('visible');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function nextStep() {
+    if (currentStep === totalSteps) return;
+    if (currentStep === 6) buildSummary();
+    showStep(currentStep + 1);
+  }
+
+  function prevStep() {
+    if (currentStep <= 1) return;
+    showStep(currentStep - 1);
+  }
+
+  // ===== Option Card Selection =====
+  document.addEventListener('click', function(e) {
+    const card = e.target.closest('.option-card');
+    if (!card) return;
+    const input = card.querySelector('input');
+    if (!input) return;
+
+    if (input.type === 'radio') {
+      card.closest('.option-grid').querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      input.checked = true;
+    } else {
+      input.checked = !input.checked;
+      card.classList.toggle('selected', input.checked);
+    }
+    updateTracker();
+  });
+
+  // ===== Chip Selection =====
+  document.addEventListener('click', function(e) {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    const input = chip.querySelector('input');
+    if (!input) return;
+    input.checked = !input.checked;
+    chip.classList.toggle('selected', input.checked);
+  });
+
+  // ===== Budget Slider =====
+  const budgetSlider = document.getElementById('budgetSlider');
+  const budgetDisplay = document.getElementById('budgetDisplay');
+  if (budgetSlider) {
+    budgetSlider.addEventListener('input', function() {
+      budgetDisplay.textContent = budgetLabels[this.value];
+    });
+  }
+
+  // ===== Investment Tracker =====
+  function updateTracker() {
+    const selected = getSelectedServices();
+    const tracker = document.getElementById('tracker');
+    const count = selected.length;
+
+    if (count === 0) {
+      tracker.classList.remove('visible');
+      return;
+    }
+    tracker.classList.add('visible');
+
+    let agencyTotal = 0, partnerTotal = 0;
+    selected.forEach(s => {
+      const p = servicePricing[s];
+      if (p) { agencyTotal += p.agency; partnerTotal += p.partner; }
+    });
+
+    // Bundle discount
+    const discount = getBundleDiscount(count);
+    const discountedPartner = Math.round(partnerTotal * (1 - discount));
+    const savings = agencyTotal - discountedPartner;
+
+    document.getElementById('trackerAgency').textContent = `$${agencyTotal.toLocaleString()}/mo`;
+    document.getElementById('trackerPartner').textContent = `$${discountedPartner.toLocaleString()}/mo`;
+    document.getElementById('trackerSavings').textContent = `Save $${savings.toLocaleString()}/mo`;
+    document.getElementById('trackerCount').textContent = `${count} service${count !== 1 ? 's' : ''}`;
+
+    const bundleEl = document.getElementById('trackerBundle');
+    if (discount > 0) {
+      bundleEl.textContent = `${Math.round(discount * 100)}% bundle bonus!`;
+    } else if (count >= 2) {
+      bundleEl.textContent = `Add 1 more for 15% off!`;
+    } else {
+      bundleEl.textContent = '';
+    }
+  }
+
+  function getBundleDiscount(count) {
+    if (count >= 7) return 0.30;
+    if (count >= 5) return 0.25;
+    if (count >= 3) return 0.15;
+    return 0;
+  }
+
+  function getSelectedServices() {
+    return Array.from(document.querySelectorAll('input[name="needs"]:checked')).map(i => i.value);
+  }
+
+  // ===== Build Summary =====
+  function buildSummary() {
+    const data = gatherData();
+
+    // Summary panel
+    const panel = document.getElementById('summaryPanel');
+    let html = '<h3>Partnership Overview</h3>';
+    const rows = [
+      ['Partner', data.userName || 'Not provided'],
+      ['Business', data.bizName || 'Not provided'],
+      ['Team Size', formatValue(data.bizType)],
+      ['Industry', formatValue(data.bizIndustry)],
+      ['Platforms', formatChips(data.platforms)],
+      ['Post Frequency', formatValue(data.postFreq)],
+      ['Content Types', formatChips(data.content)],
+      ['Revenue Stage', formatValue(data.revenue)],
+      ['Sales Channels', formatChips(data.channels)],
+      ['Key Challenge', formatValue(data.challenge)],
+      ['Current Tools', formatChips(data.tools)],
+      ['Automate', formatChips(data.automate)],
+      ['Timeline', formatValue(data.timeline)],
+      ['Style', formatValue(data.engagement)],
+      ['Comfort Zone', budgetLabels[data.budget] || 'Not set'],
+    ];
+    rows.forEach(([label, value]) => {
+      if (value && value !== 'Not provided' && value !== '' && value !== 'Not set') {
+        html += `<div class="summary-row"><span class="sr-label">${label}</span><span class="sr-value">${value}</span></div>`;
+      }
+    });
+    panel.innerHTML = html;
+
+    // Investment breakdown
+    const breakdown = document.getElementById('investBreakdown');
+    const selected = data.needs || [];
+    let agencyTotal = 0, partnerTotal = 0;
+    let lines = '';
+
+    selected.forEach(s => {
+      const p = servicePricing[s];
+      if (p) {
+        agencyTotal += p.agency;
+        partnerTotal += p.partner;
+        lines += `<div class="ib-line">
+          <span class="ib-name">${p.name}</span>
+          <span class="ib-prices">
+            <span class="ib-agency">$${p.agency.toLocaleString()}</span>
+            <span class="ib-partner">$${p.partner.toLocaleString()}</span>
+          </span>
+        </div>`;
+      }
+    });
+
+    const count = selected.length;
+    const discount = getBundleDiscount(count);
+    const discountedPartner = Math.round(partnerTotal * (1 - discount));
+    const savings = agencyTotal - discountedPartner;
+    const pctSaved = agencyTotal > 0 ? Math.round((savings / agencyTotal) * 100) : 0;
+
+    let bhtml = '<h3>Investment Breakdown</h3>';
+    if (lines) {
+      bhtml += lines;
+      if (discount > 0) {
+        bhtml += `<div class="ib-line"><span class="ib-name" style="color:var(--orange);font-weight:600;">Bundle discount (${Math.round(discount*100)}%)</span><span class="ib-prices"><span class="ib-partner" style="color:var(--orange);">-$${Math.round(partnerTotal * discount).toLocaleString()}</span></span></div>`;
+      }
+      bhtml += '<div class="ib-divider"></div>';
+      bhtml += `<div class="ib-total">
+        <span class="ib-name">Monthly Total</span>
+        <span class="ib-prices">
+          <span class="ib-agency">$${agencyTotal.toLocaleString()}/mo</span>
+          <span class="ib-partner">$${discountedPartner.toLocaleString()}/mo</span>
+        </span>
+      </div>`;
+      bhtml += `<div class="ib-savings">You save $${savings.toLocaleString()}/mo vs. agencies (${pctSaved}% less)</div>`;
+      if (discount > 0) {
+        bhtml += `<div class="ib-bundle">Bundle partner bonus applied: ${Math.round(discount*100)}% off</div>`;
+      } else if (count >= 2) {
+        bhtml += `<div class="ib-bundle">Add ${3 - count} more service${3 - count > 1 ? 's' : ''} for 15% bundle savings</div>`;
+      }
+    } else {
+      bhtml += '<p style="color:var(--text-dim);font-size:0.85rem;">Go back and select services to see your investment breakdown.</p>';
+    }
+    bhtml += '<div class="ib-note">These are starting estimates. Your custom proposal will reflect your exact needs and scope.</div>';
+    breakdown.innerHTML = bhtml;
+  }
+
+  // ===== Helpers =====
+  function gatherData() {
+    return {
+      userName: val('userName'), bizName: val('bizName'), bizUrl: val('bizUrl'),
+      bizType: radio('bizType'), bizIndustry: val('bizIndustry'),
+      needs: checks('needs'), platforms: checks('platforms'),
+      postFreq: radio('postFreq'), content: checks('content'),
+      revenue: radio('revenue'), channels: checks('channels'),
+      challenge: radio('challenge'), tools: checks('tools'),
+      automate: checks('automate'), budget: document.getElementById('budgetSlider')?.value,
+      timeline: radio('timeline'), engagement: radio('engagement'),
+      email: val('contactEmail'), phone: val('contactPhone'),
+      contactMethod: val('contactMethod'), notes: val('notes'),
+    };
+  }
+  function val(id) { return document.getElementById(id)?.value || ''; }
+  function radio(name) { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : ''; }
+  function checks(name) { return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(i => i.value); }
+  function formatValue(v) {
+    if (!v) return '';
+    return v.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+  function formatChips(arr) {
+    if (!arr || !arr.length) return '';
+    return arr.map(v => `<span class="chip-inline">${formatValue(v)}</span>`).join(' ');
+  }
+
+  // ===== Submit =====
+  async function submitForm() {
+    const email = document.getElementById('contactEmail')?.value;
+    if (!email || !email.includes('@')) {
+      document.getElementById('contactEmail').focus();
+      document.getElementById('contactEmail').style.borderColor = 'var(--red)';
+      return;
+    }
+
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'Sending...';
+
+    const data = gatherData();
+
+    // Add computed pricing
+    const selected = data.needs || [];
+    let agencyTotal = 0, partnerTotal = 0;
+    selected.forEach(s => {
+      const p = servicePricing[s];
+      if (p) { agencyTotal += p.agency; partnerTotal += p.partner; }
+    });
+    const discount = getBundleDiscount(selected.length);
+    data._pricing = {
+      agencyTotal,
+      partnerBase: partnerTotal,
+      bundleDiscount: Math.round(discount * 100),
+      partnerFinal: Math.round(partnerTotal * (1 - discount)),
+      savings: agencyTotal - Math.round(partnerTotal * (1 - discount)),
+    };
+
+    try {
+      await fetch('https://flowb.fly.dev/api/v1/questionnaire', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      showStep('success');
+    } catch (err) {
+      console.error('Submit error:', err);
+      showStep('success');
+    }
+  }
+
+  // ===== Keyboard =====
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      if (currentStep < totalSteps) nextStep();
+    }
+  });
+</script>
+</body>
+</html>

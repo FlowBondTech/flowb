@@ -1,0 +1,120 @@
+{
+  "id": "cmei6qqd0007hl20cjvh0h5md",
+  "name": "Danz Now",
+  "logo_url": null,
+  "icon_url": "https://imagedelivery.net/oHBRUd2clqykxgDWmeAyLg/cf4beb61-28dc-4d57-d1d5-33711cabb500/icon",
+  "terms_and_conditions_url": null,
+  "privacy_policy_url": null,
+  "require_users_accept_terms": null,
+  "theme": "System",
+  "accent_color": "#696FFD",
+  "show_wallet_login_first": false,
+  "allowed_domains": [
+    "http://localhost:3000",
+    "http://localhost:3003",
+    "https://api.danz.now",
+    "https://danz.now",
+    "https://danznow.netlify.app",
+    "https://flowb.me",
+    "https://flowb.netlify.app",
+    "https://www.api.danz.now",
+    "https://www.danz.now",
+    "https://tg.flowb.me"
+  ],
+  "allowed_native_app_ids": [],
+  "allowed_native_app_url_schemes": [],
+  "wallet_auth": true,
+  "email_auth": true,
+  "sms_auth": true,
+  "guest_auth": false,
+  "solana_wallet_auth": true,
+  "telegram_auth": true,
+  "disable_plus_emails": false,
+  "google_oauth": true,
+  "twitter_oauth": false,
+  "discord_oauth": false,
+  "github_oauth": false,
+  "tiktok_oauth": false,
+  "line_oauth": false,
+  "twitch_oauth": false,
+  "linkedin_oauth": false,
+  "apple_oauth": false,
+  "spotify_oauth": false,
+  "instagram_oauth": false,
+  "farcaster_auth": true,
+  "passkey_auth": true,
+  "passkeys_for_signup_enabled": false,
+  "custom_jwt_auth": false,
+  "allowlist_enabled": false,
+  "allowlist_config": {
+    "error_title": null,
+    "error_detail": null,
+    "cta_text": null,
+    "cta_link": null
+  },
+  "custom_oauth_providers": [],
+  "wallet_connect_cloud_project_id": null,
+  "custom_api_url": null,
+  "embedded_wallet_config": {
+    "create_on_login": "all-users",
+    "ethereum": {
+      "create_on_login": "all-users"
+    },
+    "solana": {
+      "create_on_login": "all-users"
+    },
+    "user_owned_recovery_options": [
+      "user-passcode"
+    ],
+    "require_user_password_on_create": false,
+    "require_user_owned_recovery_on_create": false,
+    "mode": "user-controlled-server-wallets-only"
+  },
+  "enforce_wallet_uis": true,
+  "legacy_wallet_ui_config": false,
+  "fiat_on_ramp_enabled": false,
+  "captcha_enabled": false,
+  "enabled_captcha_provider": null,
+  "twitter_oauth_on_mobile_enabled": true,
+  "mfa_methods": [],
+  "verification_key": "-----BEGIN PUBLIC KEY-----MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEESWkCnvlBpm1Kqm8gLv8Z2pcsLkYXgZT7m9UXBY4YJvdpMbjVvW2MRLCEelJ/kXOZmMbtnZHChh5cJST4Tn2QA==-----END PUBLIC KEY-----",
+  "telegram_auth_config": {
+    "bot_id": "8302218073",
+    "bot_name": "Flow_B_bot",
+    "seamless_auth_enabled": true,
+    "link_enabled": true
+  },
+  "funding_config": {
+    "default_recommended_currency": {
+      "chain": "eip155:8453",
+      "asset": "native-currency"
+    },
+    "default_recommended_amount": "0.00033",
+    "methods": [
+      "coinbase-onramp",
+      "external"
+    ],
+    "options": [
+      {
+        "method": "card",
+        "provider": "coinbase"
+      },
+      {
+        "method": "exchange",
+        "provider": "coinbase"
+      },
+      {
+        "method": "wallets",
+        "provider": ""
+      }
+    ],
+    "prompt_funding_on_wallet_creation": false,
+    "cross_chain_bridging_enabled": true
+  },
+  "max_linked_wallets_per_user": 20,
+  "farcaster_link_wallets_enabled": false,
+  "whatsapp_enabled": false,
+  "smart_wallet_config": {
+    "enabled": false
+  }
+}

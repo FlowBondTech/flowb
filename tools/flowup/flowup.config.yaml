@@ -1,0 +1,38 @@
+# FlowUp Configuration
+# Partiful web automation tool
+
+# Cities to discover events in (Partiful slugs)
+cities:
+  - nyc
+  - sf
+  - la
+
+# Default RSVP status (going | maybe)
+defaultRsvpStatus: going
+
+# Browser profile name (for session isolation)
+profile: default
+
+# Run headless by default
+headless: true
+
+# Keywords to filter discovered events
+keywords: []
+  # - tech
+  # - ai
+  # - community
+  # - wellness
+  # - networking
+
+# Default batch size for invite operations
+inviteBatchSize: 10
+
+# Timing configuration (ms) - all ranges are [min, max]
+# Uses Gaussian distribution for natural variance
+timing:
+  pageLoad: [2000, 5000]
+  betweenActions: [800, 2500]
+  typing: [50, 150]
+  rsvpCooldown: [5000, 15000]
+  inviteBatchCooldown: [10000, 20000]
+  scroll: [300, 800]

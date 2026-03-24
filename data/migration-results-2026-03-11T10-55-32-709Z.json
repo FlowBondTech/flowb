@@ -1,0 +1,855 @@
+{
+  "summary": {
+    "total": 80,
+    "created": 80,
+    "existing": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "results": [
+    {
+      "privyId": "did:privy:cmei8nagj00dwkz0cojwlqah8",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "cryptokoh@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web",
+        "farcaster"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejjp2wv00utjy0bjm79n044",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "stepbystephbtm@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejmnbbi00vcl80bhxaq6wjd",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "limegermaine@mechanicspedia.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmejru93u004ik40b0qpwy86p",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "devenrathodrd@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfi3tj7f00rkjo0bri4u9x2y",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "devilopurity@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfog9kyo000lk00bsvonlbrk",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfoghqxy000fl80cg28nzdds",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfsltee8000ekv0c44dwom6e",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "lifesizebox@icloud.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmftp3go200kml20czfm5v4d8",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmfuyyknc00dbji0cbbpjswjq",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmg2jjy1q00i0l80ce2ftwqyy",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "willy@ogorzaly.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgh6ovqc001li50d1t89hfwl",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgiculez00gfjs0cip7kgrmo",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgj2nndc0004lb0dov99jzow",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgjfjhhj01s6js0cfofmzkab",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "wolfi@me.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgqix0g1002vlb0crohfk28i",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgrikvan005pib0cxfj7bzdi",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgripkf7005hle0dfq4wdtxc",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgs26r4y00tjld0cr120zve8",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmguhdwyy01q9jy0czpxqojyg",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "victoria.giannakis@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgumg33a011ckw0cxrvjife0",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "critics.sunup7s@icloud.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmguuk2qa01fyl80ckywkb31s",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "cleopatraboumans@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmgv0yatq01b7l50c4p87byfi",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "tetsuya0119tanaka@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh18pvx901ytl70cqv0carx6",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "mileesamek@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh2p7crd00s3l40dk4b5lz70",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "guidosustento@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh2rlojd048dla0cj8yal3tq",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmh7m83tw01aljl0ceenuaoik",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "tanaka@atcast.com.sg",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmharn1js00vhkw0ba9qrh4to",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhhk654y0093kz0chun07a6j",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhi68jo402pbky0ce4panhex",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhirfdrr00u8l50c6wd058tc",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "alizahinthemetaverse@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhpmfr4b005nk00dz0ggkfkp",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "revolucionredox@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhshid4700xnky0cyczfgccg",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "decime.natee@hotmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhumqt18003slh0d3q343phh",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "manuelce73@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhw7w9nh00d2jr0cmj8e4ajj",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmhx3svh200anjj0cp7nhnmb5",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "modal.developer@modal.me",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi3lzsye0099l50cinfufmsi",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4i7pb000fgl50dvvhlda9l",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "monikessayan@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4jwou50077ii0cr6obfdpc",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "malevichfilm@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi4pph6i02ttl50c0nxi4230",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "16catalo16@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5c6r45002ll70cdfb0k9ld",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5cn4sf0017ji0d68bieb9y",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi5ua1mw008vi60cjy30ns63",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi6gi1wo009vjo0cd3rs3w7h",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "celhabenicolas@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi6k43ko002nld0cmf9hwm1l",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "juanifernandezz33@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7bk9rh0497la0cmbia2rsn",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7ctloj01bvl50ceojhkcqx",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7dpfyt01bdju0c2rp2vqmk",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7ji51f00q4jj0cpjrj3i2a",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7kv86903k7jr0cenuojsgo",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi7xj00x00m7jv0c4lfqtlwa",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi82lzvj00o7jv0e9lqp8y84",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "russell.herod@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmi9botko00xxk00cijcs25l1",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "kohx.biz@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiajh5hw02aol20chx8cfle3",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "lili.di.blasi@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmib2nchw0089kw0c3la6btyt",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmicag9cq00tlld0cnzhp0iow",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiq0ikbz00velb0cy1os0s6a",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmiqghjn100cijl0c0joszs06",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizcu6xd00m6ju0caxcqsv17",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizr8m9x01vqkz0bwlzezqkv",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "ttymed2021@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizup1pb02r3gs0dak9zrs7h",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "ittechhunter513@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmizuqww302znky0coura2fkf",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "yanikogan@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmj82239t00pck40c2uyrwi1w",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjckfzim00b5kz0cdj9130xu",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjfeqvwy00f7l10cxvucpdfv",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "juliaskahwa01@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjqzvon3007jl10cc3539hj2",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjtkmgmt02p0l30ckjjnbxh7",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web",
+        "farcaster"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjtkt0e2007pi80cquoxccp4",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjxg216901bcjy0d9ow22jrz",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmjzvz7e702cejv0cswjo0hek",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "strawberryquiksand@protonmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmkboh9vt03h2l80cdsbdzz30",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "farcaster",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cml7msur601yjju0cw6btp930",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmljx3ci2000q0clbumpv8f7l",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlmtyj4e00150cjum4vhygk0",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlp9kamm005j0cl1654c3iuo",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlw7qh99020z0bkyut5do87n",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmlwv5gtm02mg0cl7n3rcarat",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "jeffemmett@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmm7fflyp01dy0cl5jcc3xtsv",
+      "supabaseUid": null,
+      "status": "created",
+      "email": null,
+      "platforms": [
+        "farcaster",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmm9wc5xo02vk0dkz0ie53ew0",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "alijaimes0@gmail.com",
+      "platforms": [
+        "web",
+        "web",
+        "web"
+      ]
+    },
+    {
+      "privyId": "did:privy:cmmjuxtun005t0cjod8gp7crf",
+      "supabaseUid": null,
+      "status": "created",
+      "email": "support@kingfishersmedia.io",
+      "platforms": [
+        "farcaster",
+        "web",
+        "web",
+        "web"
+      ]
+    }
+  ]
+}

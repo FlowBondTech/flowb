@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB Technical Documentation</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #06000f;
+      --bg-card: rgba(99,102,241,0.05);
+      --bg-card-hover: rgba(99,102,241,0.1);
+      --border: rgba(99,102,241,0.12);
+      --border-hover: rgba(99,102,241,0.3);
+      --text: #f0e8ff;
+      --text-muted: #9a8ab8;
+      --text-dim: #6a5a80;
+      --indigo: #6366f1;
+      --purple: #8b5cf6;
+      --purple-light: #c084fc;
+      --pink: #ec4899;
+      --blue: #60a5fa;
+      --green: #22c55e;
+      --gold: #eab308;
+      --red: #ef4444;
+      --font: 'Inter', -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; min-height: 100vh; overflow-x: hidden; }
+
+    /* ===== Animated Background ===== */
+    .bg-orbs { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+    .bg-orb {
+      position: absolute; border-radius: 50%; filter: blur(120px); opacity: 0.15;
+      animation: float 20s ease-in-out infinite;
+    }
+    .bg-orb-1 { width: 600px; height: 600px; background: var(--indigo); top: -200px; left: -100px; animation-delay: 0s; }
+    .bg-orb-2 { width: 500px; height: 500px; background: var(--purple); bottom: -150px; right: -100px; animation-delay: -7s; }
+    .bg-orb-3 { width: 400px; height: 400px; background: var(--pink); top: 50%; left: 50%; transform: translate(-50%, -50%); animation-delay: -14s; }
+    @keyframes float {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -30px) scale(1.05); }
+      66% { transform: translate(-20px, 20px) scale(0.95); }
+    }
+
+    /* ===== Back Button ===== */
+    .back-btn {
+      position: fixed; top: 20px; left: 20px; z-index: 200;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 18px; border-radius: 100px;
+      background: rgba(10,0,20,0.7); backdrop-filter: blur(16px);
+      border: 1px solid var(--border); color: var(--text-muted);
+      font-size: 0.82rem; font-weight: 600; font-family: var(--font);
+      text-decoration: none; cursor: pointer; transition: all 0.3s;
+    }
+    .back-btn:hover { color: var(--text); border-color: var(--border-hover); background: rgba(10,0,20,0.9); }
+    .back-btn svg { width: 14px; height: 14px; }
+
+    /* ===== Content Layer ===== */
+    .content { position: relative; z-index: 1; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 0 24px; }
+    section { padding: 80px 0; position: relative; }
+    section + section { border-top: 1px solid rgba(99,102,241,0.06); }
+    section::before { content: ''; position: absolute; top: -1px; left: 50%; transform: translateX(-50%); width: 200px; height: 1px; background: radial-gradient(ellipse, rgba(99,102,241,0.4) 0%, transparent 70%); }
+
+    /* Scroll reveal */
+    .reveal { opacity: 0; transform: translateY(32px); transition: opacity 0.8s cubic-bezier(0.16,1,0.3,1), transform 0.8s cubic-bezier(0.16,1,0.3,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+
+    /* Typography */
+    h1 { font-size: 3.2rem; font-weight: 900; line-height: 1.05; letter-spacing: -0.035em; }
+    h2 { font-size: 2rem; font-weight: 800; line-height: 1.1; letter-spacing: -0.025em; margin-bottom: 16px; }
+    h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; }
+    p { line-height: 1.65; }
+    .lead { font-size: 1.1rem; color: var(--text-muted); max-width: 600px; margin-top: 12px; }
+    .grad-indigo { background: linear-gradient(135deg, var(--indigo), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-blue { background: linear-gradient(135deg, var(--blue), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .grad-pink { background: linear-gradient(135deg, var(--pink), var(--purple-light)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* Cards grid */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 24px 20px; transition: all 0.4s cubic-bezier(0.16,1,0.3,1);
+      position: relative; overflow: hidden;
+    }
+    .card::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 70%); opacity: 0; transition: opacity 0.4s; }
+    .card:hover { border-color: var(--border-hover); transform: translateY(-3px); }
+    .card:hover::before { opacity: 1; }
+    .card-icon { font-size: 1.8rem; margin-bottom: 10px; display: block; position: relative; }
+    .card h3 { font-size: 1rem; position: relative; }
+    .card p { font-size: 0.85rem; color: var(--text-muted); margin-top: 4px; position: relative; line-height: 1.5; }
+
+    /* Status badges */
+    .badge {
+      display: inline-flex; padding: 3px 10px; border-radius: 100px;
+      font-size: 0.68rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+    }
+    .badge-live { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
+    .badge-building { background: rgba(99,102,241,0.12); color: var(--purple-light); border: 1px solid rgba(99,102,241,0.2); }
+    .badge-next { background: rgba(234,179,8,0.12); color: var(--gold); border: 1px solid rgba(234,179,8,0.2); }
+
+    /* Tables */
+    .api-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.85rem; }
+    .api-table th {
+      text-align: left; padding: 10px 12px; font-size: 0.7rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .api-table td { padding: 10px 12px; border-bottom: 1px solid rgba(99,102,241,0.04); vertical-align: top; }
+    .api-table tr:hover td { background: rgba(99,102,241,0.03); }
+    .method { font-family: var(--mono); font-size: 0.75rem; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .method-get { background: rgba(34,197,94,0.12); color: var(--green); }
+    .method-post { background: rgba(99,102,241,0.12); color: var(--indigo); }
+    .method-patch { background: rgba(234,179,8,0.12); color: var(--gold); }
+    .method-delete { background: rgba(239,68,68,0.12); color: var(--red); }
+    .api-path { font-family: var(--mono); font-size: 0.8rem; color: var(--purple-light); }
+    .api-auth { font-size: 0.75rem; color: var(--text-dim); }
+
+    /* Code blocks */
+    .code-block {
+      background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px;
+      padding: 16px 20px; margin-top: 12px; overflow-x: auto;
+      font-family: var(--mono); font-size: 0.82rem; line-height: 1.6; color: var(--text-muted);
+    }
+    .code-block .kw { color: var(--purple-light); }
+    .code-block .str { color: var(--green); }
+    .code-block .cmt { color: var(--text-dim); }
+
+    /* Architecture diagram */
+    .arch-diagram {
+      display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 24px;
+      padding: 24px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 16px;
+    }
+    .arch-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .arch-node {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 18px; text-align: center; min-width: 120px; transition: all 0.3s;
+    }
+    .arch-node:hover { border-color: var(--border-hover); transform: translateY(-2px); }
+    .arch-node-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+    .arch-node-sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 2px; }
+    .arch-arrow { text-align: center; color: var(--indigo); opacity: 0.4; font-size: 1.2rem; padding: 4px 0; }
+
+    /* Section nav (TOC) */
+    .toc { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; }
+    .toc a {
+      display: inline-flex; padding: 6px 14px; border-radius: 100px; font-size: 0.78rem; font-weight: 500;
+      text-decoration: none; color: var(--text-muted); border: 1px solid var(--border);
+      background: rgba(99,102,241,0.03); transition: all 0.3s;
+    }
+    .toc a:hover { color: var(--text); border-color: var(--border-hover); background: rgba(99,102,241,0.08); }
+
+    /* DB schema table */
+    .schema-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.82rem; }
+    .schema-table th {
+      text-align: left; padding: 8px 12px; font-size: 0.68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .schema-table td { padding: 8px 12px; border-bottom: 1px solid rgba(99,102,241,0.04); }
+    .schema-table .tbl-name { font-family: var(--mono); font-size: 0.78rem; color: var(--purple-light); font-weight: 500; }
+
+    /* Section subtitle */
+    .section-sub { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px; max-width: 700px; }
+
+    /* Footer */
+    .footer { text-align: center; padding: 48px 0; color: var(--text-dim); font-size: 0.82rem; position: relative; z-index: 1; }
+
+    /* ===== EMAIL GATE ===== */
+    .gate-overlay {
+      position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+      background: var(--bg);
+    }
+    .gate-card {
+      max-width: 440px; width: 90%; padding: 40px 32px; border-radius: 24px;
+      background: rgba(20,10,40,0.6); backdrop-filter: blur(24px);
+      border: 1px solid var(--border); text-align: center;
+      box-shadow: 0 24px 80px rgba(99,102,241,0.12);
+    }
+    .gate-logo { font-size: 28px; font-weight: 900; margin-bottom: 24px; }
+    .gate-logo span { color: var(--indigo); }
+    .gate-card h2 { font-size: 1.4rem; margin-bottom: 8px; }
+    .gate-card .gate-sub { font-size: 0.88rem; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
+    .gate-input {
+      width: 100%; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(0,0,0,0.3); color: var(--text); font-family: var(--font); font-size: 0.95rem;
+      outline: none; transition: border-color 0.3s;
+    }
+    .gate-input:focus { border-color: var(--indigo); }
+    .gate-input::placeholder { color: var(--text-dim); }
+    .gate-btn {
+      width: 100%; padding: 14px 24px; border-radius: 12px; border: none; margin-top: 14px;
+      background: linear-gradient(135deg, var(--indigo), var(--purple)); color: #fff;
+      font-family: var(--font); font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: all 0.3s; box-shadow: 0 4px 20px rgba(99,102,241,0.25);
+    }
+    .gate-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 28px rgba(99,102,241,0.4); }
+    .gate-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .gate-msg { margin-top: 16px; font-size: 0.85rem; min-height: 20px; }
+    .gate-msg.success { color: var(--green); }
+    .gate-msg.error { color: var(--red); }
+    .gate-msg.sending { color: var(--text-muted); }
+    .gate-link { background: none; border: none; color: var(--text-dim); font-size: 0.8rem; font-family: var(--font); cursor: pointer; padding: 4px 0; transition: color 0.3s; }
+    .gate-link:hover { color: var(--indigo); }
+    .gate-features { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0 0; }
+    .gate-feat { font-size: 0.72rem; color: var(--text-dim); padding: 4px 10px; border-radius: 100px; border: 1px solid rgba(99,102,241,0.08); background: rgba(99,102,241,0.03); }
+
+    /* Hide doc content by default */
+    .doc-content { display: none; }
+    .doc-content.visible { display: block; }
+
+    /* API group header */
+    .api-group { margin-top: 24px; }
+    .api-group-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--indigo); margin-bottom: 8px; padding-top: 16px; border-top: 1px solid rgba(99,102,241,0.06); }
+    .api-group:first-child .api-group-title { border-top: none; padding-top: 0; }
+
+    /* Tech stack list */
+    .stack-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+    .stack-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; font-size: 0.85rem; }
+    .stack-item .stack-name { font-weight: 600; }
+    .stack-item .stack-ver { font-family: var(--mono); font-size: 0.75rem; color: var(--text-dim); }
+
+    @media (max-width: 768px) {
+      h1 { font-size: 2rem; }
+      h2 { font-size: 1.4rem; }
+      section { padding: 48px 0; }
+      .cards { grid-template-columns: 1fr; }
+      .back-btn { top: 12px; left: 12px; padding: 8px 14px; font-size: 0.75rem; }
+      .api-table { font-size: 0.78rem; }
+      .api-table th, .api-table td { padding: 8px 6px; }
+      .arch-node { min-width: 90px; padding: 10px 12px; }
+      .gate-card { padding: 28px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="bg-orb bg-orb-1"></div>
+    <div class="bg-orb bg-orb-2"></div>
+    <div class="bg-orb bg-orb-3"></div>
+  </div>
+
+  <!-- ===== EMAIL GATE (State A) ===== -->
+  <div class="gate-overlay" id="gate">
+    <div class="gate-card">
+      <div class="gate-logo">Flow<span>B</span></div>
+      <h2>Technical Documentation</h2>
+      <p class="gate-sub">System architecture, API reference, plugin system, deployment guide, and developer resources. Enter your email to receive a one-time access code.</p>
+      <!-- Step 1: Email -->
+      <form id="gateEmailForm">
+        <input type="email" class="gate-input" id="gateEmail" placeholder="your@email.com" required autocomplete="email">
+        <button type="submit" class="gate-btn" id="gateBtn">Send Code</button>
+      </form>
+      <!-- Step 2: OTP -->
+      <form id="gateOtpForm" style="display:none">
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:14px;">Enter the 6-digit code sent to <strong id="gateOtpEmail"></strong></p>
+        <input type="text" class="gate-input" id="gateOtp" placeholder="000000" required autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" style="text-align:center;font-size:1.5rem;letter-spacing:0.4rem;font-family:var(--mono);">
+        <button type="submit" class="gate-btn" id="gateOtpBtn">Verify</button>
+        <div style="display:flex;gap:12px;justify-content:center;margin-top:12px;">
+          <button type="button" class="gate-link" id="gateBack">Different email</button>
+          <button type="button" class="gate-link" id="gateResend">Resend code</button>
+        </div>
+      </form>
+      <div class="gate-msg" id="gateMsg"></div>
+      <div class="gate-features">
+        <span class="gate-feat">Architecture</span>
+        <span class="gate-feat">API Reference</span>
+        <span class="gate-feat">Plugin System</span>
+        <span class="gate-feat">Database Schema</span>
+        <span class="gate-feat">Dev Guide</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== DOCUMENTATION CONTENT (State B) ===== -->
+  <div class="doc-content" id="docContent">
+
+    <!-- Back button -->
+    <a href="/" class="back-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+      flowb.me
+    </a>
+
+    <div class="content">
+
+      <!-- ===== HERO ===== -->
+      <section class="hero" style="padding:120px 0 60px;text-align:center;">
+        <div class="container">
+          <div class="reveal">
+            <div style="font-size:28px;font-weight:900;margin-bottom:20px;">Flow<span style="color:var(--indigo);">B</span></div>
+          </div>
+          <h1 class="reveal reveal-delay-1"><span class="grad-indigo">Technical Architecture</span></h1>
+          <p class="lead reveal reveal-delay-2" style="margin:16px auto 0;text-align:center;">Comprehensive technical documentation for the FlowB platform. Multi-platform coordination infrastructure for real-world events.</p>
+          <div class="reveal reveal-delay-3" style="display:flex;gap:8px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+            <span class="badge badge-live">Live</span>
+            <span class="badge badge-building">Building</span>
+            <span class="badge badge-next">Next</span>
+          </div>
+          <nav class="toc reveal reveal-delay-3">
+            <a href="#overview">Overview</a>
+            <a href="#backend">Backend</a>
+            <a href="#plugins">Plugins</a>
+            <a href="#api">API Reference</a>
+            <a href="#database">Database</a>
+            <a href="#platforms">Platforms</a>
+            <a href="#notifications">Notifications</a>
+            <a href="#services">Services</a>
+            <a href="#devguide">Dev Guide</a>
+            <a href="#stack">Tech Stack</a>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ===== 1. SYSTEM OVERVIEW ===== -->
+      <section id="overview" data-section="overview">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">System Overview</span></h2>
+          <p class="section-sub reveal reveal-delay-1">High-level architecture and deployment topology of the FlowB platform.</p>
+
+          <div class="arch-diagram reveal reveal-delay-2">
+            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;">Client Layer</div>
+            <div class="arch-row">
+              <div class="arch-node"><div class="arch-node-label">TG Bot</div><div class="arch-node-sub">Grammy</div></div>
+              <div class="arch-node"><div class="arch-node-label">FC Mini App</div><div class="arch-node-sub">Next.js</div></div>
+              <div class="arch-node"><div class="arch-node-label">Web App</div><div class="arch-node-sub">Static + JS</div></div>
+              <div class="arch-node"><div class="arch-node-label">Mobile</div><div class="arch-node-sub">Expo</div></div>
+              <div class="arch-node"><div class="arch-node-label">WhatsApp</div><div class="arch-node-sub">Cloud API</div></div>
+              <div class="arch-node"><div class="arch-node-label">Signal</div><div class="arch-node-sub">REST API</div></div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;">API Layer</div>
+            <div class="arch-row">
+              <div class="arch-node" style="border-color:rgba(99,102,241,0.3);min-width:280px;">
+                <div class="arch-node-label">Fastify Server</div>
+                <div class="arch-node-sub">flowb.fly.dev &middot; All Routes</div>
+              </div>
+            </div>
+            <div class="arch-arrow">&darr;</div>
+            <div style="font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin-bottom:8px;">Data &amp; Services Layer</div>
+            <div class="arch-row">
+              <div class="arch-node"><div class="arch-node-label">Supabase</div><div class="arch-node-sub">PostgreSQL + Auth</div></div>
+              <div class="arch-node"><div class="arch-node-label">Neynar</div><div class="arch-node-sub">Farcaster API</div></div>
+              <div class="arch-node"><div class="arch-node-label">Resend</div><div class="arch-node-sub">Email</div></div>
+              <div class="arch-node"><div class="arch-node-label">Grok / AI</div><div class="arch-node-sub">Chat Intelligence</div></div>
+            </div>
+          </div>
+
+          <div class="cards reveal reveal-delay-3">
+            <div class="card">
+              <span class="card-icon">&#x2601;&#xFE0F;</span>
+              <h3>Fly.io</h3>
+              <p>Backend API server. Single consolidated Fastify instance handling all routes, webhooks, and scheduled tasks.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F310;</span>
+              <h3>Netlify</h3>
+              <p>Static sites: flowb.me (web), fc.flowb.me (Farcaster), tg.flowb.me (Telegram), docs.flowb.me, and more.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4F1;</span>
+              <h3>Expo / EAS</h3>
+              <p>Native mobile app (me.flowb.app). iOS and Android builds via EAS. React Native with shared API layer.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 2. BACKEND ARCHITECTURE ===== -->
+      <section id="backend" data-section="backend">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Backend Architecture</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Fastify-based API server with a modular plugin system, scheduled tasks, and multi-platform webhook handlers.</p>
+
+          <div class="reveal reveal-delay-2">
+            <h3>Server Structure</h3>
+            <div class="code-block">
+<span class="cmt">// Entry: src/server/app.ts</span>
+<span class="kw">Fastify</span> + <span class="kw">CORS</span> + <span class="kw">Rate Limiting</span> (100 req/min/IP)
+
+<span class="cmt">// Route files:</span>
+routes.ts        <span class="cmt">// Main API (~10K lines): auth, events, flow, crews, social, agents, payments</span>
+boost-routes.ts  <span class="cmt">// Featured event auction system</span>
+support-routes.ts <span class="cmt">// Inbound email webhook + support ticket API</span>
+doc-access-routes.ts <span class="cmt">// Tech docs magic link access</span>
+
+<span class="cmt">// Webhook handlers:</span>
+whatsapp/bot.ts  <span class="cmt">// WhatsApp Cloud API webhooks</span>
+signal/bot.ts    <span class="cmt">// Signal REST API webhooks</span>
+            </div>
+          </div>
+
+          <div class="reveal reveal-delay-3" style="margin-top:24px;">
+            <h3>Scheduled Tasks</h3>
+            <table class="api-table">
+              <thead><tr><th>Task</th><th>Interval</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>Event Scanner</td><td>2 hours</td><td>Scans DB-configured cities for new events from Luma, Eventbrite, RA, etc.</td></tr>
+                <tr><td>Farcaster Poster</td><td>5 min check</td><td>Time-slot based posting at 9am, 1pm, 4pm, 7pm MST</td></tr>
+                <tr><td>SocialB Poller</td><td>2 minutes</td><td>Monitors Farcaster casts for social activity points</td></tr>
+                <tr><td>Context Notifications</td><td>30 minutes</td><td>Proactive push notifications based on user context</td></tr>
+                <tr><td>Daily Admin Summary</td><td>Daily 9am MST</td><td>Stats: new users, feedback, crews, points</td></tr>
+                <tr><td>Email Digest</td><td>Daily 8am MST</td><td>Personalized digest to opted-in users</td></tr>
+                <tr><td>Onboarding Reminders</td><td>Daily 10am MST</td><td>Nudges for incomplete onboarding</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Auth System</h3>
+            <p style="font-size:0.88rem;color:var(--text-muted);">Zero-dependency HS256 JWT implementation (<code style="font-family:var(--mono);font-size:0.82rem;color:var(--purple-light);">src/server/auth.ts</code>). Supports Telegram initData HMAC validation, Farcaster SIWF via Neynar, and standard Bearer token auth. JWTs contain <code style="font-family:var(--mono);font-size:0.82rem;">sub</code> (user ID), <code style="font-family:var(--mono);font-size:0.82rem;">platform</code>, and platform-specific fields.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 3. PLUGIN SYSTEM ===== -->
+      <section id="plugins" data-section="plugins">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Plugin System</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Modular plugin architecture. Each plugin encapsulates domain logic, database operations, and API tools.</p>
+
+          <div class="cards reveal reveal-delay-2">
+            <div class="card">
+              <span class="card-icon">&#x1F30A;</span>
+              <h3>flow</h3>
+              <p>Connection management: flow links between users, invite codes, accept/decline logic, relationship graph.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x2B50;</span>
+              <h3>points</h3>
+              <p>Gamification engine: action-based points, streak tracking, leaderboards, milestone alerts, crew rankings.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4E1;</span>
+              <h3>neynar</h3>
+              <p>Farcaster integration via Neynar API: cast posting, user lookup, channel monitoring, SIWF authentication.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F50D;</span>
+              <h3>egator</h3>
+              <p>Event discovery aggregation: Luma, Eventbrite, Resident Advisor, Google Places, Brave Search. 25+ categories.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F465;</span>
+              <h3>social</h3>
+              <p>Social features: cross-platform profiles, linked accounts, identity resolution, display names.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F916;</span>
+              <h3>agents</h3>
+              <p>AI-powered chat tools: Grok integration, 12+ tools, natural language event search and crew coordination.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4B3;</span>
+              <h3>billing</h3>
+              <p>Payment processing: Stripe integration, subscription management, crew billing, revenue tracking.</p>
+              <span class="badge badge-building" style="margin-top:8px;">Building</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F517;</span>
+              <h3>referral</h3>
+              <p>Referral tracking: invite codes, attribution, click tracking, conversion funnels, reward distribution.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4C5;</span>
+              <h3>meeting</h3>
+              <p>Meeting coordination: scheduling, location sharing, RSVP, share links, crew meetup planning.</p>
+              <span class="badge badge-live" style="margin-top:8px;">Live</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4CA;</span>
+              <h3>fiflow</h3>
+              <p>Financial intelligence: crew treasury, expense tracking, CFO analytics, revenue dashboards.</p>
+              <span class="badge badge-building" style="margin-top:8px;">Building</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F3AD;</span>
+              <h3>danz</h3>
+              <p>FlowBond wearable integration: presence attestation, movement data, on-chain proof.</p>
+              <span class="badge badge-next" style="margin-top:8px;">Next</span>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x2699;&#xFE0F;</span>
+              <h3>automation</h3>
+              <p>Workflow automation: n8n integration, scheduled actions, event-driven triggers, custom pipelines.</p>
+              <span class="badge badge-building" style="margin-top:8px;">Building</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 4. API REFERENCE ===== -->
+      <section id="api" data-section="api">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">API Reference</span></h2>
+          <p class="section-sub reveal reveal-delay-1">All endpoints served from <code style="font-family:var(--mono);font-size:0.85rem;color:var(--purple-light);">flowb.fly.dev</code>. JWT Bearer auth unless noted.</p>
+
+          <div class="reveal reveal-delay-2">
+
+            <!-- Auth -->
+            <div class="api-group">
+              <div class="api-group-title">Authentication</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/telegram</td><td class="api-auth">initData</td><td>Validate TG Mini App, issue JWT</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/farcaster</td><td class="api-auth">SIWF</td><td>Validate Farcaster sign-in, issue JWT</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/auth/guest</td><td class="api-auth">None</td><td>Create guest session (limited access)</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/auth/telegram</td><td class="api-auth">Widget</td><td>Telegram Login Widget callback</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Events -->
+            <div class="api-group">
+              <div class="api-group-title">Events</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/events</td><td class="api-auth">None</td><td>Search events (limit, categories, q, from, to, free, city)</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/categories</td><td class="api-auth">None</td><td>List event categories (slug, name, icon, color)</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/events/checkin</td><td class="api-auth">JWT</td><td>Check in at event (awards points)</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/events/rsvp</td><td class="api-auth">JWT</td><td>RSVP to event</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Flow -->
+            <div class="api-group">
+              <div class="api-group-title">Flow (Connections)</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/flow/invite</td><td class="api-auth">JWT</td><td>Create flow invite link</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/flow/accept</td><td class="api-auth">JWT</td><td>Accept flow connection</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/flow/connections</td><td class="api-auth">JWT</td><td>List user's flow connections</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Crews -->
+            <div class="api-group">
+              <div class="api-group-title">Crews</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/crews/create</td><td class="api-auth">JWT</td><td>Create new crew</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/crews/:id</td><td class="api-auth">JWT</td><td>Get crew details + members</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/crews/:id/join</td><td class="api-auth">JWT</td><td>Join crew via invite code</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/leaderboard</td><td class="api-auth">None</td><td>Global crew rankings</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Social -->
+            <div class="api-group">
+              <div class="api-group-title">Social &amp; Identity</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/user/profile</td><td class="api-auth">JWT</td><td>Get user profile + linked accounts</td></tr>
+                  <tr><td><span class="method method-patch">PATCH</span></td><td class="api-path">/api/v1/user/settings</td><td class="api-auth">JWT</td><td>Update notification preferences</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/user/link</td><td class="api-auth">JWT</td><td>Link cross-platform identity</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Agents -->
+            <div class="api-group">
+              <div class="api-group-title">AI Agents</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/chat</td><td class="api-auth">JWT</td><td>Send message to AI agent (streaming)</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/chat/history</td><td class="api-auth">JWT</td><td>Get conversation history</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Payments -->
+            <div class="api-group">
+              <div class="api-group-title">Payments &amp; Boost</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/boost/status</td><td class="api-auth">None</td><td>Current boost auction cycle status</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/boost/bid</td><td class="api-auth">JWT</td><td>Place boost bid (Stripe or crypto)</td></tr>
+                  <tr><td><span class="method method-post">POST</span></td><td class="api-path">/api/v1/boost/verify-crypto</td><td class="api-auth">JWT</td><td>Verify on-chain USDC payment</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- System -->
+            <div class="api-group">
+              <div class="api-group-title">System</div>
+              <table class="api-table">
+                <thead><tr><th>Method</th><th>Path</th><th>Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/health</td><td class="api-auth">None</td><td>Health check + plugin status + uptime</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/stats</td><td class="api-auth">None</td><td>Live stats (crews, points, checkins)</td></tr>
+                  <tr><td><span class="method method-get">GET</span></td><td class="api-path">/api/v1/plugins</td><td class="api-auth">None</td><td>List loaded plugins and status</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 5. DATABASE SCHEMA ===== -->
+      <section id="database" data-section="database">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Database Schema</span></h2>
+          <p class="section-sub reveal reveal-delay-1">All tables prefixed <code style="font-family:var(--mono);font-size:0.85rem;color:var(--purple-light);">flowb_</code>. PostgreSQL on Supabase with PostgREST access layer and RLS enabled.</p>
+
+          <div class="reveal reveal-delay-2">
+            <h3>Core Tables</h3>
+            <table class="schema-table">
+              <thead><tr><th>Table</th><th>Description</th><th>Key Fields</th></tr></thead>
+              <tbody>
+                <tr><td class="tbl-name">flowb_sessions</td><td>User sessions + profiles</td><td>user_id, platform, display_name, email, onboarding</td></tr>
+                <tr><td class="tbl-name">flowb_user_points</td><td>Aggregated point totals</td><td>user_id, total_points, streak_days</td></tr>
+                <tr><td class="tbl-name">flowb_points_log</td><td>Point award history</td><td>user_id, points, action, platform</td></tr>
+                <tr><td class="tbl-name">flowb_events</td><td>Master event store (deduplicated)</td><td>id, title, source, city, start_time, categories</td></tr>
+                <tr><td class="tbl-name">flowb_checkins</td><td>Event check-in records</td><td>user_id, event_id, group_id, location</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Crew &amp; Social Tables</h3>
+            <table class="schema-table">
+              <thead><tr><th>Table</th><th>Description</th><th>Key Fields</th></tr></thead>
+              <tbody>
+                <tr><td class="tbl-name">flowb_groups</td><td>Crews (groups)</td><td>id, name, invite_code, owner_id, type</td></tr>
+                <tr><td class="tbl-name">flowb_group_members</td><td>Crew membership</td><td>group_id, user_id, role, joined_at</td></tr>
+                <tr><td class="tbl-name">flowb_flow_connections</td><td>User-to-user flow links</td><td>from_user, to_user, status, invite_code</td></tr>
+                <tr><td class="tbl-name">flowb_linked_accounts</td><td>Cross-platform identities</td><td>user_id, platform, platform_user_id</td></tr>
+                <tr><td class="tbl-name">flowb_socialb_profiles</td><td>Farcaster social profiles</td><td>fid, username, casts_count, followers</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Feature Tables</h3>
+            <table class="schema-table">
+              <thead><tr><th>Table</th><th>Description</th><th>Key Fields</th></tr></thead>
+              <tbody>
+                <tr><td class="tbl-name">flowb_meetings</td><td>Scheduled meetups</td><td>id, crew_id, location, scheduled_at, rsvps</td></tr>
+                <tr><td class="tbl-name">flowb_feedback</td><td>Bug reports + feature requests</td><td>user_id, type, message, status</td></tr>
+                <tr><td class="tbl-name">flowb_notifications_sent</td><td>Notification dedup log</td><td>user_id, notification_type, sent_at</td></tr>
+                <tr><td class="tbl-name">flowb_agents</td><td>AI agent configurations</td><td>id, name, model, tools, system_prompt</td></tr>
+                <tr><td class="tbl-name">flowb_agent_memory</td><td>RAG memory for agents</td><td>agent_id, content, embedding, metadata</td></tr>
+                <tr><td class="tbl-name">flowb_referrals</td><td>Referral tracking</td><td>code, referrer_id, clicks, conversions</td></tr>
+                <tr><td class="tbl-name">flowb_scan_cities</td><td>Event scanner city config</td><td>city, enabled, last_scan_at, last_scan_status</td></tr>
+                <tr><td class="tbl-name">flowb_tasklists</td><td>Kanban task boards</td><td>id, crew_id, tasks (jsonb), shared</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Conventions</h3>
+            <div class="code-block">
+<span class="cmt">// User IDs follow platform prefix convention:</span>
+<span class="str">"telegram_{tgId}"</span>     <span class="cmt">// Telegram users</span>
+<span class="str">"farcaster_{fid}"</span>     <span class="cmt">// Farcaster users</span>
+<span class="str">"web_{privyUserId}"</span>   <span class="cmt">// Web users (Privy legacy)</span>
+<span class="str">"whatsapp_{waId}"</span>     <span class="cmt">// WhatsApp users</span>
+<span class="str">"signal_{signalId}"</span>   <span class="cmt">// Signal users</span>
+
+<span class="cmt">// All tables: flowb_ prefix, uuid PKs, timestamptz created_at</span>
+<span class="cmt">// PostgREST helpers: sbQuery, sbInsert, sbPatch, sbUpsert, sbDelete</span>
+<span class="cmt">// Points: core.awardPoints(userId, platform, action)</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 6. MULTI-PLATFORM ARCHITECTURE ===== -->
+      <section id="platforms" data-section="platforms">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Multi-Platform Architecture</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Six platform frontends, all backed by the same API. Identity resolution unifies users across platforms.</p>
+
+          <div class="cards reveal reveal-delay-2">
+            <div class="card">
+              <span class="card-icon">&#x1F916;</span>
+              <h3>Telegram Bot</h3>
+              <p>Grammy framework. Inline keyboards, mini app launcher, deep links. Primary interaction channel. Bot: @Flow_b_bot</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: initData HMAC &rarr; JWT</div>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F7E3;</span>
+              <h3>Farcaster Mini App</h3>
+              <p>Next.js static export at fc.flowb.me. Farcaster SDK for frames and actions. SIWF authentication.</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: SIWF signature &rarr; Neynar verify &rarr; JWT</div>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F310;</span>
+              <h3>Web App</h3>
+              <p>Static HTML/CSS/JS at flowb.me. Vanilla JavaScript, no framework. Farcaster native SIWF login.</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: SIWF or guest session</div>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4F1;</span>
+              <h3>Mobile App</h3>
+              <p>Expo / React Native at me.flowb.app. EAS builds for iOS and Android. Shared API layer with web.</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: Supabase Auth + JWT</div>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4AC;</span>
+              <h3>WhatsApp</h3>
+              <p>Cloud API integration. Natural language commands, event search, crew coordination via chat.</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: WhatsApp user ID &rarr; JWT</div>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F512;</span>
+              <h3>Signal</h3>
+              <p>Signal REST API integration. Privacy-focused messaging with event and crew commands.</p>
+              <div style="margin-top:8px;font-size:0.75rem;color:var(--text-dim);">Auth: Signal user ID &rarr; JWT</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 7. NOTIFICATION SYSTEM ===== -->
+      <section id="notifications" data-section="notifications">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Notification System</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Six notification channels with priority-based routing, deduplication, and user preference controls.</p>
+
+          <div class="cards reveal reveal-delay-2">
+            <div class="card">
+              <span class="card-icon">&#x1F4E8;</span>
+              <h3>Telegram DM</h3>
+              <p>Primary channel. Rich formatting with HTML. Inline keyboards for actions. Rate limited per user.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F514;</span>
+              <h3>Farcaster Push</h3>
+              <p>Farcaster notification API. Fallback when TG unavailable. Frame-based interactive notifications.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4E7;</span>
+              <h3>Email (Resend)</h3>
+              <p>Transactional emails: welcome, verification, digest, event reminders. FlowB branded templates.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4F2;</span>
+              <h3>Expo Push</h3>
+              <p>Native push for mobile app. Event reminders, crew updates, point milestones.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F4AC;</span>
+              <h3>WhatsApp</h3>
+              <p>Cloud API messages. Template-based for marketing, free-form for user-initiated conversations.</p>
+            </div>
+            <div class="card">
+              <span class="card-icon">&#x1F512;</span>
+              <h3>Signal</h3>
+              <p>Privacy-focused notifications via Signal REST API. Text-only, no tracking pixels.</p>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Routing Logic</h3>
+            <div class="code-block">
+<span class="cmt">// Priority tiers:</span>
+<span class="kw">urgent</span>    <span class="cmt">// All channels simultaneously (security, account)</span>
+<span class="kw">important</span> <span class="cmt">// Primary + fallback (crew updates, events)</span>
+<span class="kw">info</span>      <span class="cmt">// Primary channel only (points, streaks)</span>
+
+<span class="cmt">// Channel priority (per user, based on most-active platform):</span>
+<span class="cmt">// 1. Telegram DM (if TG user)</span>
+<span class="cmt">// 2. Farcaster push (if FC user)</span>
+<span class="cmt">// 3. Email (always available)</span>
+<span class="cmt">// 4. Expo Push (if mobile app installed)</span>
+<span class="cmt">// Dedup: flowb_notifications_sent table prevents double-sends</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 8. SERVICES LAYER ===== -->
+      <section id="services" data-section="services">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Services Layer</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Standalone service modules in <code style="font-family:var(--mono);font-size:0.85rem;color:var(--purple-light);">src/services/</code>. Each handles a specific domain concern.</p>
+
+          <table class="api-table reveal reveal-delay-2">
+            <thead><tr><th>Service</th><th>File</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Admin Alerts</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">admin-alerts.ts</td><td>Real-time TG DMs to admins: new users, milestones, errors, daily summary</td></tr>
+              <tr><td><strong>Email</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">email.ts</td><td>Resend API wrapper: welcome, verification, digest, notification emails</td></tr>
+              <tr><td><strong>Email Digest</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">email-digest.ts</td><td>Daily personalized digest: events, crew activity, points</td></tr>
+              <tr><td><strong>Event Scanner</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">event-scanner.ts</td><td>Multi-source event discovery, dedup, and storage</td></tr>
+              <tr><td><strong>Notifications</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">notifications.ts</td><td>Cross-platform notification router with dedup</td></tr>
+              <tr><td><strong>Context Notifications</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">context-notifications.ts</td><td>Proactive push based on user context (location, time, events)</td></tr>
+              <tr><td><strong>Farcaster Poster</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">farcaster-poster.ts</td><td>Time-slot based Farcaster casting via Neynar</td></tr>
+              <tr><td><strong>Farcaster Notify</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">farcaster-notify.ts</td><td>Farcaster notification API for mini app push</td></tr>
+              <tr><td><strong>SocialB Poller</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">socialb-poller.ts</td><td>Monitor Farcaster casts, award social activity points</td></tr>
+              <tr><td><strong>AI Chat</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">ai-chat.ts</td><td>Grok-powered conversation with 12+ tool integrations</td></tr>
+              <tr><td><strong>Agent Memory</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">agent-memory.ts</td><td>RAG-based memory for AI agents (pgvector embeddings)</td></tr>
+              <tr><td><strong>Identity</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">identity.ts</td><td>Cross-platform identity resolution and account linking</td></tr>
+              <tr><td><strong>Expo Push</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">expo-push.ts</td><td>Native mobile push notifications via Expo</td></tr>
+              <tr><td><strong>Supabase Auth</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">supabase-auth.ts</td><td>FlowB Passport: Supabase Auth integration</td></tr>
+              <tr><td><strong>Guest Session</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">guest-session.ts</td><td>Anonymous guest access with limited permissions</td></tr>
+              <tr><td><strong>Telegram Auth</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">telegram-auth.ts</td><td>Telegram Login Widget HMAC verification</td></tr>
+              <tr><td><strong>Support</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">support.ts</td><td>Support ticket system: inbound email processing, replies</td></tr>
+              <tr><td><strong>Biz Notifications</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">biz-notifications.ts</td><td>Business feature notifications: leads, projects, revenue</td></tr>
+              <tr><td><strong>Group Intelligence</strong></td><td style="font-family:var(--mono);font-size:0.78rem;color:var(--text-dim);">group-intelligence.ts</td><td>AI-powered crew insights and recommendations</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ===== 9. DEVELOPER GUIDE ===== -->
+      <section id="devguide" data-section="devguide">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Developer Guide</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Setup instructions, environment configuration, and development conventions.</p>
+
+          <div class="reveal reveal-delay-2">
+            <h3>Quick Start</h3>
+            <div class="code-block">
+<span class="cmt"># Clone and install</span>
+git clone https://github.com/flowb-app/flowb.git
+cd flowb && npm install
+
+<span class="cmt"># Configure environment</span>
+cp .env.example .env
+<span class="cmt"># Edit .env with your keys (see below)</span>
+
+<span class="cmt"># Run development server</span>
+npm run dev          <span class="cmt"># Fastify server with hot reload</span>
+npm run bot          <span class="cmt"># Telegram bot (Grammy)</span>
+npm run web          <span class="cmt"># Web app (static server)</span>
+
+<span class="cmt"># Mini apps</span>
+cd miniapp/farcaster && npm run dev   <span class="cmt"># Next.js at :3000</span>
+cd miniapp/telegram && npm run dev    <span class="cmt"># Vite at :5173</span>
+
+<span class="cmt"># Mobile</span>
+cd mobile && npx expo start           <span class="cmt"># Expo dev server</span>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Required Environment Variables</h3>
+            <table class="api-table">
+              <thead><tr><th>Variable</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">SUPABASE_URL</td><td>Yes</td><td>Supabase project URL</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">SUPABASE_KEY</td><td>Yes</td><td>Supabase anon or service role key</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">FLOWB_TELEGRAM_BOT_TOKEN</td><td>Yes</td><td>Telegram bot token from BotFather</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">NEYNAR_API_KEY</td><td>For FC</td><td>Neynar API key for Farcaster integration</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">RESEND_API_KEY</td><td>For email</td><td>Resend API key for transactional emails</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">FLOWB_JWT_SECRET</td><td>No*</td><td>JWT secret (derived from bot token if absent)</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">FLOWB_ADMIN_ALERT_IDS</td><td>No</td><td>Comma-separated TG chat IDs for admin alerts</td></tr>
+                <tr><td style="font-family:var(--mono);font-size:0.8rem;">FLOWB_ADMIN_KEY</td><td>No</td><td>Admin API key for protected endpoints</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Project Conventions</h3>
+            <div class="code-block">
+<span class="cmt">// File organization:</span>
+src/server/     <span class="cmt">// Fastify routes and middleware</span>
+src/telegram/   <span class="cmt">// Grammy bot handlers</span>
+src/plugins/    <span class="cmt">// Modular domain plugins</span>
+src/services/   <span class="cmt">// Standalone service modules</span>
+src/utils/      <span class="cmt">// Shared utilities (supabase, logger, etc.)</span>
+src/core/       <span class="cmt">// FlowBCore orchestrator</span>
+web/            <span class="cmt">// Static web app (flowb.me)</span>
+miniapp/        <span class="cmt">// Platform mini apps</span>
+mobile/         <span class="cmt">// Expo mobile app</span>
+supabase/       <span class="cmt">// DB migrations</span>
+
+<span class="cmt">// Code style:</span>
+<span class="cmt">// - TypeScript throughout</span>
+<span class="cmt">// - 2-space indent, no semicolons (auto-formatted)</span>
+<span class="cmt">// - fireAndForget() for non-blocking side effects</span>
+<span class="cmt">// - sbQuery/sbInsert/sbPatch/sbUpsert for all DB ops</span>
+<span class="cmt">// - alertAdmins() for real-time admin notifications</span>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:24px;">
+            <h3>Deployment</h3>
+            <div class="code-block">
+<span class="cmt"># Backend (Fly.io)</span>
+fly deploy                 <span class="cmt"># Deploy to flowb.fly.dev</span>
+
+<span class="cmt"># Web app (Netlify)</span>
+netlify deploy --prod --dir=web --site 77294928-e5a5-495a-96cd-ab5530c1cfd7
+
+<span class="cmt"># Farcaster mini app (Netlify)</span>
+cd miniapp/farcaster && npm run build
+netlify deploy --prod --dir=out --no-build --site 67ccf00b-6b89-4980-930f-00e8ccc1fc39
+
+<span class="cmt"># Mobile (EAS)</span>
+cd mobile && eas build --platform ios --profile production
+eas submit --platform ios
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 10. TECH STACK ===== -->
+      <section id="stack" data-section="stack">
+        <div class="container">
+          <h2 class="reveal"><span class="grad-indigo">Tech Stack</span></h2>
+          <p class="section-sub reveal reveal-delay-1">Core technologies and dependencies powering the FlowB platform.</p>
+
+          <div class="reveal reveal-delay-2">
+            <h3>Runtime &amp; Framework</h3>
+            <div class="stack-grid">
+              <div class="stack-item"><span class="stack-name">Node.js</span><span class="stack-ver">20 LTS</span></div>
+              <div class="stack-item"><span class="stack-name">TypeScript</span><span class="stack-ver">5.x</span></div>
+              <div class="stack-item"><span class="stack-name">Fastify</span><span class="stack-ver">4.x</span></div>
+              <div class="stack-item"><span class="stack-name">Grammy</span><span class="stack-ver">1.x</span></div>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:20px;">
+            <h3>Frontend</h3>
+            <div class="stack-grid">
+              <div class="stack-item"><span class="stack-name">Next.js</span><span class="stack-ver">14 (FC miniapp)</span></div>
+              <div class="stack-item"><span class="stack-name">Vite</span><span class="stack-ver">5.x (TG miniapp)</span></div>
+              <div class="stack-item"><span class="stack-name">React Native</span><span class="stack-ver">Expo SDK 52</span></div>
+              <div class="stack-item"><span class="stack-name">Vanilla JS</span><span class="stack-ver">Web app</span></div>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:20px;">
+            <h3>Data &amp; Infrastructure</h3>
+            <div class="stack-grid">
+              <div class="stack-item"><span class="stack-name">Supabase</span><span class="stack-ver">PostgreSQL + Auth</span></div>
+              <div class="stack-item"><span class="stack-name">Fly.io</span><span class="stack-ver">Backend hosting</span></div>
+              <div class="stack-item"><span class="stack-name">Netlify</span><span class="stack-ver">Static hosting + DNS</span></div>
+              <div class="stack-item"><span class="stack-name">Resend</span><span class="stack-ver">Transactional email</span></div>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:20px;">
+            <h3>Integrations</h3>
+            <div class="stack-grid">
+              <div class="stack-item"><span class="stack-name">Neynar</span><span class="stack-ver">Farcaster API</span></div>
+              <div class="stack-item"><span class="stack-name">Stripe</span><span class="stack-ver">Payments</span></div>
+              <div class="stack-item"><span class="stack-name">Grok / xAI</span><span class="stack-ver">AI chat</span></div>
+              <div class="stack-item"><span class="stack-name">Luma</span><span class="stack-ver">Event discovery</span></div>
+              <div class="stack-item"><span class="stack-name">Eventbrite</span><span class="stack-ver">Event discovery</span></div>
+              <div class="stack-item"><span class="stack-name">WhatsApp Cloud API</span><span class="stack-ver">Messaging</span></div>
+            </div>
+          </div>
+
+          <div class="reveal" style="margin-top:20px;">
+            <h3>DevOps &amp; Tooling</h3>
+            <div class="stack-grid">
+              <div class="stack-item"><span class="stack-name">Docker</span><span class="stack-ver">OVH VPS stack</span></div>
+              <div class="stack-item"><span class="stack-name">Caddy</span><span class="stack-ver">Reverse proxy + auto-SSL</span></div>
+              <div class="stack-item"><span class="stack-name">n8n</span><span class="stack-ver">Workflow automation</span></div>
+              <div class="stack-item"><span class="stack-name">SOPS + age</span><span class="stack-ver">Secrets management</span></div>
+              <div class="stack-item"><span class="stack-name">EAS</span><span class="stack-ver">Mobile builds</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== FOOTER ===== -->
+      <div class="footer">
+        <p>FlowB Technical Documentation &middot; Confidential</p>
+        <p style="margin-top:8px;"><a href="https://flowb.me">flowb.me</a></p>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    (function() {
+      'use strict';
+
+      var SUPABASE_URL = 'https://eoajujwpdkfuicnoxetk.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvYWp1andwZGtmdWljbm94ZXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NDQzMzQsImV4cCI6MjA3MDIyMDMzNH0.NpMiRO22b-y-7zHo-RhA0ZX8tHkSZiTk9jlWcF-UZEg';
+      var API = 'https://flowb.fly.dev';
+      var sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      var gate = document.getElementById('gate');
+      var docContent = document.getElementById('docContent');
+      var pendingEmail = null;
+
+      // ====================================================================
+      // UI Helpers
+      // ====================================================================
+
+      function showDocs() {
+        gate.style.display = 'none';
+        docContent.classList.add('visible');
+        initRevealObserver();
+        initSectionTracking();
+      }
+
+      function showGate() {
+        gate.style.display = 'flex';
+        docContent.classList.remove('visible');
+      }
+
+      function setMsg(text, type) {
+        var msg = document.getElementById('gateMsg');
+        msg.textContent = text;
+        msg.className = 'gate-msg ' + (type || '');
+      }
+
+      // ====================================================================
+      // Init: check existing Supabase session
+      // ====================================================================
+
+      sb.auth.getSession().then(function(result) {
+        if (result.data.session) {
+          onAuthenticated(result.data.session.user.email);
+        } else {
+          showGate();
+        }
+      });
+
+      function onAuthenticated(email) {
+        showDocs();
+        // Fire admin alert (fire-and-forget)
+        fetch(API + '/api/v1/doc-access/track-view', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ section: '_auth', email: email || 'unknown' })
+        }).catch(function() {});
+      }
+
+      // ====================================================================
+      // Step 1: Email form — send OTP
+      // ====================================================================
+
+      document.getElementById('gateEmailForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var email = document.getElementById('gateEmail').value.trim();
+        if (!email) return;
+
+        var btn = document.getElementById('gateBtn');
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+        setMsg('', '');
+
+        sb.auth.signInWithOtp({ email: email }).then(function(result) {
+          if (result.error) throw result.error;
+          pendingEmail = email;
+          document.getElementById('gateEmailForm').style.display = 'none';
+          document.getElementById('gateOtpForm').style.display = '';
+          document.getElementById('gateOtpEmail').textContent = email;
+          document.getElementById('gateOtp').focus();
+          setMsg('Code sent! Check your inbox.', 'success');
+        }).catch(function(err) {
+          setMsg(err.message || 'Failed to send code. Try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Send Code';
+        });
+      });
+
+      // ====================================================================
+      // Step 2: OTP form — verify code
+      // ====================================================================
+
+      document.getElementById('gateOtpForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        var code = document.getElementById('gateOtp').value.trim();
+        if (!code || !pendingEmail) return;
+
+        var btn = document.getElementById('gateOtpBtn');
+        btn.disabled = true;
+        btn.textContent = 'Verifying...';
+        setMsg('', '');
+
+        sb.auth.verifyOtp({ email: pendingEmail, token: code, type: 'email' }).then(function(result) {
+          if (result.error) throw result.error;
+          onAuthenticated(pendingEmail);
+        }).catch(function(err) {
+          setMsg(err.message || 'Invalid code. Try again.', 'error');
+          btn.disabled = false;
+          btn.textContent = 'Verify';
+        });
+      });
+
+      // ====================================================================
+      // OTP helpers: back + resend
+      // ====================================================================
+
+      document.getElementById('gateBack').addEventListener('click', function() {
+        document.getElementById('gateOtpForm').style.display = 'none';
+        document.getElementById('gateEmailForm').style.display = '';
+        document.getElementById('gateBtn').disabled = false;
+        document.getElementById('gateBtn').textContent = 'Send Code';
+        document.getElementById('gateOtp').value = '';
+        pendingEmail = null;
+        setMsg('', '');
+      });
+
+      document.getElementById('gateResend').addEventListener('click', function() {
+        if (!pendingEmail) return;
+        setMsg('Sending new code...', 'sending');
+        sb.auth.signInWithOtp({ email: pendingEmail }).then(function(result) {
+          if (result.error) throw result.error;
+          setMsg('New code sent!', 'success');
+        }).catch(function(err) {
+          setMsg(err.message || 'Failed to resend.', 'error');
+        });
+      });
+
+      // ====================================================================
+      // Scroll Reveal
+      // ====================================================================
+
+      function initRevealObserver() {
+        var reveals = document.querySelectorAll('.reveal');
+        if (!('IntersectionObserver' in window)) {
+          reveals.forEach(function(el) { el.classList.add('visible'); });
+          return;
+        }
+        var observer = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('visible');
+              observer.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+        reveals.forEach(function(el) { observer.observe(el); });
+      }
+
+      // ====================================================================
+      // Section View Tracking (fire-and-forget, no auth header needed)
+      // ====================================================================
+
+      function initSectionTracking() {
+        var sections = document.querySelectorAll('[data-section]');
+        var tracked = {};
+        if (!('IntersectionObserver' in window)) return;
+
+        var observer = new IntersectionObserver(function(entries) {
+          entries.forEach(function(entry) {
+            if (entry.isIntersecting) {
+              var section = entry.target.getAttribute('data-section');
+              if (section && !tracked[section]) {
+                tracked[section] = true;
+                fetch(API + '/api/v1/doc-access/track-view', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ section: section, email: pendingEmail || 'unknown' })
+                }).catch(function() {});
+              }
+            }
+          });
+        }, { threshold: 0.3 });
+
+        sections.forEach(function(el) { observer.observe(el); });
+      }
+
+    })();
+  </script>
+</body>
+</html>

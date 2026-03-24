@@ -1,0 +1,154 @@
+{
+  "name": "FlowB EC - Scheduled Article Publisher",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://noredfarms.com/api/content-articles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "status",
+              "value": "draft"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "Fetch Draft Articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "noredFarms API Key",
+          "id": "CONFIGURE_ME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date().toISOString();\nconst articles = $input.all().map(i => i.json);\nconst flat = Array.isArray(articles[0]) ? articles[0] : articles;\nconst due = flat.filter(a => a.scheduled_at && a.scheduled_at <= now && !a.is_published);\nreturn due.map(a => ({ json: a }));"
+      },
+      "name": "Filter Scheduled Due",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://noredfarms.com/api/content-articles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "is_published",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Publish Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "noredFarms API Key",
+          "id": "CONFIGURE_ME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flowb.fly.dev/api/v1/biz/inbound-webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_slug",
+              "value": "nored-farms"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.CONTENT_API_KEY }}"
+            },
+            {
+              "name": "event",
+              "value": "article_published"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify({ entity_type: 'article', entity_id: $json.id, title: $json.title, slug: $json.slug, actor: 'n8n-scheduler' }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify FlowB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1130, 300]
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [{ "node": "Fetch Draft Articles", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch Draft Articles": {
+      "main": [
+        [{ "node": "Filter Scheduled Due", "type": "main", "index": 0 }]
+      ]
+    },
+    "Filter Scheduled Due": {
+      "main": [
+        [{ "node": "Publish Article", "type": "main", "index": 0 }]
+      ]
+    },
+    "Publish Article": {
+      "main": [
+        [{ "node": "Notify FlowB", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Denver"
+  },
+  "tags": [
+    { "name": "flowb-ec" },
+    { "name": "content" }
+  ]
+}

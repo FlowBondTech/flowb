@@ -1,0 +1,123 @@
+{
+  "name": "FlowB EC - Daily SEO Health Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "name": "Daily 9am MST",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://noredfarms.com/api/content-seo",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "Fetch SEO Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "noredFarms API Key",
+          "id": "CONFIGURE_ME"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.critical_count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "name": "Has Critical Articles?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://flowb.fly.dev/api/v1/biz/inbound-webhook",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "project_slug",
+              "value": "nored-farms"
+            },
+            {
+              "name": "api_key",
+              "value": "={{ $env.CONTENT_API_KEY }}"
+            },
+            {
+              "name": "event",
+              "value": "seo_alert"
+            },
+            {
+              "name": "data",
+              "value": "={{ JSON.stringify({ critical_count: $json.critical_count, critical: $json.critical, average_score: $json.average_score }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Notify FlowB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [910, 200]
+    },
+    {
+      "parameters": {},
+      "name": "No Action",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [910, 400]
+    }
+  ],
+  "connections": {
+    "Daily 9am MST": {
+      "main": [
+        [{ "node": "Fetch SEO Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch SEO Status": {
+      "main": [
+        [{ "node": "Has Critical Articles?", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Critical Articles?": {
+      "main": [
+        [{ "node": "Notify FlowB", "type": "main", "index": 0 }],
+        [{ "node": "No Action", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Denver"
+  },
+  "tags": [
+    { "name": "flowb-ec" },
+    { "name": "seo" }
+  ]
+}

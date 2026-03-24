@@ -1,0 +1,2290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowMobile Sovereign Quad | Regenerative. Sovereign. Unstoppable.</title>
+<meta name="description" content="The world's first fully open-source, community-manufactured sovereign vehicle platform. Regenerative electric quad with military-grade durability, off-grid sovereignty, and open hardware.">
+<style>
+/* ========================================
+   CSS RESET & BASE
+   ======================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* Color System */
+  --bg-primary: #0a0d0a;
+  --bg-secondary: #111611;
+  --bg-card: #161b16;
+  --bg-card-hover: #1c221c;
+  --bg-accent: #1a1f1a;
+
+  --text-primary: #e8e6e1;
+  --text-secondary: #a8a599;
+  --text-muted: #6b6960;
+  --text-dim: #4a4840;
+
+  --green-dark: #1a2e1a;
+  --green-mid: #2d4a2d;
+  --green-bright: #4a7c4a;
+  --green-accent: #6db86d;
+  --green-glow: #7dd87d;
+
+  --amber: #c8a84e;
+  --amber-bright: #e0c060;
+  --amber-dim: #8a7030;
+  --amber-glow: #f0d878;
+
+  --earth-dark: #2a2218;
+  --earth-mid: #4a3828;
+
+  --red-alert: #c44040;
+  --red-dim: #8a2020;
+
+  --border-subtle: rgba(74, 124, 74, 0.15);
+  --border-medium: rgba(74, 124, 74, 0.25);
+  --border-bright: rgba(109, 184, 109, 0.4);
+
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
+  --shadow-glow: 0 0 20px rgba(74, 124, 74, 0.15);
+
+  /* Typography */
+  --font-mono: 'Courier New', 'Consolas', 'Liberation Mono', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Liberation Sans', sans-serif;
+
+  /* Spacing */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4rem;
+  --space-4xl: 6rem;
+
+  /* Layout */
+  --max-width: 1200px;
+  --nav-height: 60px;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ========================================
+   SCROLL ANIMATIONS
+   ======================================== */
+.fade-in {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fade-in-delay-1 { transition-delay: 0.1s; }
+.fade-in-delay-2 { transition-delay: 0.2s; }
+.fade-in-delay-3 { transition-delay: 0.3s; }
+.fade-in-delay-4 { transition-delay: 0.4s; }
+
+/* ========================================
+   NAVIGATION
+   ======================================== */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  background: rgba(10, 13, 10, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-lg);
+}
+
+.nav-brand {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--green-accent);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-lg);
+  list-style: none;
+}
+
+.nav-links a {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  text-decoration: none;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  transition: color 0.25s ease;
+  position: relative;
+}
+
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--green-accent);
+  transition: width 0.25s ease;
+}
+
+.nav-links a:hover {
+  color: var(--green-accent);
+}
+
+.nav-links a:hover::after {
+  width: 100%;
+}
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 8px;
+}
+
+.nav-toggle span {
+  display: block;
+  width: 20px;
+  height: 2px;
+  background: var(--text-secondary);
+  transition: all 0.3s ease;
+}
+
+.nav-toggle.active span:nth-child(1) {
+  transform: rotate(45deg) translate(4px, 4px);
+}
+
+.nav-toggle.active span:nth-child(2) {
+  opacity: 0;
+}
+
+.nav-toggle.active span:nth-child(3) {
+  transform: rotate(-45deg) translate(4px, -4px);
+}
+
+@media (max-width: 768px) {
+  .nav-toggle {
+    display: flex;
+  }
+
+  .nav-links {
+    position: fixed;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    background: rgba(10, 13, 10, 0.97);
+    flex-direction: column;
+    padding: var(--space-lg);
+    gap: var(--space-md);
+    transform: translateY(-110%);
+    transition: transform 0.3s ease;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .nav-links.open {
+    transform: translateY(0);
+  }
+
+  .nav-links a {
+    font-size: 0.85rem;
+    padding: var(--space-sm) 0;
+  }
+}
+
+/* ========================================
+   LAYOUT UTILITIES
+   ======================================== */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+section {
+  padding: var(--space-4xl) 0;
+}
+
+/* ========================================
+   SECTION HEADERS
+   ======================================== */
+.section-header {
+  margin-bottom: var(--space-2xl);
+  text-align: center;
+}
+
+.section-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: var(--space-sm);
+  display: block;
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-md);
+}
+
+.section-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+  margin-top: var(--space-md);
+}
+
+.section-rule::before,
+.section-rule::after {
+  content: '';
+  height: 1px;
+  width: 60px;
+  background: linear-gradient(90deg, transparent, var(--green-mid), transparent);
+}
+
+.section-rule-diamond {
+  width: 6px;
+  height: 6px;
+  background: var(--amber);
+  transform: rotate(45deg);
+}
+
+.section-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin: var(--space-lg) auto 0;
+  line-height: 1.7;
+}
+
+/* ========================================
+   HERO SECTION
+   ======================================== */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding-top: var(--nav-height);
+  position: relative;
+  overflow: hidden;
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(45, 74, 45, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, rgba(200, 168, 78, 0.06) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  padding: var(--space-xl);
+}
+
+.hero-classification {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--amber-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.3em;
+  margin-bottom: var(--space-xl);
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid var(--amber-dim);
+  display: inline-block;
+}
+
+.hero-title {
+  font-family: var(--font-mono);
+  font-size: clamp(2rem, 5.5vw, 3.6rem);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-lg);
+}
+
+.hero-title .flow {
+  color: var(--green-accent);
+}
+
+.hero-title .sovereign {
+  color: var(--amber);
+}
+
+.hero-tagline {
+  font-family: var(--font-mono);
+  font-size: clamp(0.85rem, 2vw, 1.15rem);
+  color: var(--text-secondary);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-2xl);
+}
+
+.hero-tagline span {
+  color: var(--amber);
+}
+
+.hero-desc {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin: 0 auto var(--space-2xl);
+  line-height: 1.8;
+}
+
+/* CSS Quad Art */
+.quad-art {
+  font-family: var(--font-mono);
+  font-size: clamp(0.35rem, 0.9vw, 0.6rem);
+  line-height: 1.3;
+  color: var(--green-mid);
+  white-space: pre;
+  margin: var(--space-2xl) auto;
+  text-align: left;
+  display: inline-block;
+  position: relative;
+}
+
+.quad-art .highlight {
+  color: var(--green-accent);
+}
+
+.quad-art .amber {
+  color: var(--amber-dim);
+}
+
+.quad-art-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(ellipse, rgba(74, 124, 74, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.hero-cta-group {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: var(--space-xl);
+}
+
+.btn {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: var(--space-sm) var(--space-xl);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary {
+  background: var(--green-bright);
+  color: var(--bg-primary);
+  border: 1px solid var(--green-accent);
+}
+
+.btn-primary:hover {
+  background: var(--green-accent);
+  box-shadow: 0 0 20px rgba(109, 184, 109, 0.25);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--amber);
+  border: 1px solid var(--amber-dim);
+}
+
+.btn-secondary:hover {
+  background: rgba(200, 168, 78, 0.08);
+  border-color: var(--amber);
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: var(--space-xl);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  animation: float 2.5s ease-in-out infinite;
+}
+
+.hero-scroll-line {
+  width: 1px;
+  height: 30px;
+  background: linear-gradient(to bottom, var(--green-mid), transparent);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8px); }
+}
+
+/* ========================================
+   STATS GRID
+   ======================================== */
+#specs {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.stat-cell {
+  background: var(--bg-primary);
+  padding: var(--space-lg);
+  text-align: center;
+  transition: background 0.3s ease, transform 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-cell::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--green-bright);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.stat-cell:hover {
+  background: var(--bg-card);
+}
+
+.stat-cell:hover::before {
+  opacity: 1;
+}
+
+.stat-label {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: var(--space-sm);
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  color: var(--green-accent);
+  line-height: 1.2;
+}
+
+.stat-value.amber {
+  color: var(--amber);
+}
+
+.stat-sub {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-top: var(--space-xs);
+}
+
+/* ========================================
+   CORE SYSTEMS
+   ======================================== */
+.systems-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-lg);
+}
+
+.system-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-xl);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.35s ease;
+}
+
+.system-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--green-bright);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.system-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.system-card:hover::before {
+  opacity: 1;
+}
+
+.system-icon {
+  font-size: 1.6rem;
+  margin-bottom: var(--space-md);
+  display: block;
+}
+
+.system-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-sm);
+}
+
+.system-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.system-tag {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--amber);
+  background: rgba(200, 168, 78, 0.08);
+  border: 1px solid rgba(200, 168, 78, 0.15);
+  padding: 2px 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.system-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ========================================
+   BUILD TIERS
+   ======================================== */
+#tiers {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: var(--space-lg);
+}
+
+.tier-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.35s ease;
+  position: relative;
+}
+
+.tier-card:hover {
+  border-color: var(--border-medium);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-2px);
+}
+
+.tier-card.featured {
+  border-color: var(--amber-dim);
+}
+
+.tier-card.featured::after {
+  content: 'RECOMMENDED';
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  color: var(--bg-primary);
+  background: var(--amber);
+  padding: 3px 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tier-number {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--green-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  margin-bottom: var(--space-xs);
+}
+
+.tier-price {
+  font-family: var(--font-mono);
+  font-size: clamp(1.6rem, 3vw, 2rem);
+  font-weight: 700;
+  color: var(--amber);
+  margin-bottom: var(--space-xs);
+}
+
+.tier-name {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: var(--space-md);
+}
+
+.tier-tagline {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-lg);
+  line-height: 1.6;
+}
+
+.tier-specs {
+  list-style: none;
+  flex: 1;
+}
+
+.tier-specs li {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.tier-specs li::before {
+  content: '+';
+  color: var(--green-accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.tier-meta {
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.tier-meta-item {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.tier-meta-item span {
+  color: var(--text-muted);
+}
+
+/* ========================================
+   COMPARISON TABLE
+   ======================================== */
+.comparison-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border-subtle);
+}
+
+.comparison-table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.comparison-table thead {
+  background: var(--bg-card);
+}
+
+.comparison-table th {
+  padding: var(--space-md) var(--space-lg);
+  text-align: left;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-medium);
+  white-space: nowrap;
+}
+
+.comparison-table th:first-child {
+  color: var(--text-muted);
+}
+
+.comparison-table th.highlight {
+  color: var(--green-accent);
+  background: rgba(74, 124, 74, 0.06);
+}
+
+.comparison-table td {
+  padding: var(--space-sm) var(--space-lg);
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  vertical-align: middle;
+}
+
+.comparison-table tr:hover td {
+  background: rgba(74, 124, 74, 0.03);
+}
+
+.comparison-table td:first-child {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comparison-table td.highlight {
+  color: var(--green-accent);
+  font-weight: 700;
+  background: rgba(74, 124, 74, 0.04);
+}
+
+.check {
+  color: var(--green-accent);
+  font-weight: 700;
+}
+
+.cross {
+  color: var(--red-dim);
+}
+
+.comp-price {
+  font-weight: 700;
+}
+
+.comp-price.good {
+  color: var(--green-accent);
+}
+
+.comp-price.bad {
+  color: var(--text-dim);
+}
+
+.comparison-scroll-hint {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-align: center;
+  margin-top: var(--space-sm);
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .comparison-scroll-hint {
+    display: block;
+  }
+}
+
+/* ========================================
+   BOM EXPLORER
+   ======================================== */
+#bom {
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.bom-explorer {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.bom-category {
+  background: var(--bg-primary);
+}
+
+.bom-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--space-lg);
+  cursor: pointer;
+  transition: background 0.2s ease;
+  user-select: none;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+}
+
+.bom-header:hover {
+  background: var(--bg-card);
+}
+
+.bom-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.bom-header-icon {
+  font-size: 1.1rem;
+  width: 28px;
+  text-align: center;
+}
+
+.bom-header-name {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-primary);
+}
+
+.bom-header-count {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-left: var(--space-sm);
+}
+
+.bom-chevron {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  transition: transform 0.3s ease;
+  width: 20px;
+  text-align: center;
+}
+
+.bom-category.open .bom-chevron {
+  transform: rotate(90deg);
+}
+
+.bom-items {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.bom-category.open .bom-items {
+  max-height: 2000px;
+}
+
+.bom-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-lg);
+  padding-left: calc(var(--space-lg) + 28px + var(--space-md));
+  border-top: 1px solid rgba(255,255,255,0.02);
+  align-items: baseline;
+}
+
+.bom-item:hover {
+  background: rgba(74, 124, 74, 0.03);
+}
+
+.bom-item-name {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.bom-item-price {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--amber);
+  white-space: nowrap;
+  text-align: right;
+}
+
+.bom-item-source {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-align: right;
+  min-width: 80px;
+}
+
+@media (max-width: 600px) {
+  .bom-item {
+    grid-template-columns: 1fr auto;
+    padding-left: var(--space-lg);
+  }
+  .bom-item-source {
+    display: none;
+  }
+}
+
+/* ========================================
+   OPEN SOURCE CTA
+   ======================================== */
+.cta-section {
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, rgba(45, 74, 45, 0.1) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.cta-content {
+  position: relative;
+  z-index: 1;
+}
+
+.cta-title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 4vw, 2.4rem);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+  margin-bottom: var(--space-md);
+}
+
+.cta-title .accent {
+  color: var(--green-accent);
+}
+
+.cta-desc {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  max-width: 560px;
+  margin: 0 auto var(--space-2xl);
+  line-height: 1.8;
+}
+
+.cta-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-md);
+  max-width: 800px;
+  margin: 0 auto var(--space-2xl);
+}
+
+.cta-link {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  padding: var(--space-lg);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.cta-link:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.cta-link-icon {
+  font-size: 1.4rem;
+}
+
+.cta-link-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.cta-link-desc {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+/* ========================================
+   LICENSE BADGES
+   ======================================== */
+.license-badges {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-lg);
+  flex-wrap: wrap;
+  margin-top: var(--space-2xl);
+}
+
+.license-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: var(--space-xs) var(--space-md);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* ========================================
+   FOOTER
+   ======================================== */
+.footer {
+  padding: var(--space-2xl) 0;
+  border-top: 1px solid var(--border-subtle);
+  text-align: center;
+}
+
+.footer-license {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin-bottom: var(--space-md);
+}
+
+.footer-license span {
+  color: var(--text-muted);
+}
+
+.footer-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  max-width: 500px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* ========================================
+   BACKGROUND GRID TEXTURE
+   ======================================== */
+.bg-grid {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-image:
+    linear-gradient(rgba(74, 124, 74, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(74, 124, 74, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ========================================
+   SCANLINE EFFECT
+   ======================================== */
+.scanlines {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.015) 2px,
+    rgba(0, 0, 0, 0.015) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ========================================
+   RESPONSIVE ADJUSTMENTS
+   ======================================== */
+@media (max-width: 480px) {
+  :root {
+    --space-lg: 1rem;
+    --space-xl: 1.5rem;
+    --space-2xl: 2rem;
+    --space-3xl: 3rem;
+    --space-4xl: 4rem;
+  }
+
+  section {
+    padding: var(--space-3xl) 0;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .systems-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tiers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quad-art {
+    font-size: 0.28rem;
+  }
+
+  .bom-item {
+    gap: var(--space-sm);
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+@media print {
+  .nav, .scanlines, .bg-grid, .hero-scroll { display: none; }
+  body { background: white; color: black; }
+  .fade-in { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+<script>if(sessionStorage.getItem('flowmobile_auth')!=='true'){window.location.href='gate.html';}</script>
+
+<!-- Background textures -->
+<div class="bg-grid" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+
+<!-- Navigation -->
+<nav class="nav" role="navigation" aria-label="Main navigation">
+  <a href="#hero" class="nav-brand">FlowMobile</a>
+  <button class="nav-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+  <ul class="nav-links">
+    <li><a href="#specs">Specs</a></li>
+    <li><a href="#systems">Systems</a></li>
+    <li><a href="#tiers">Build Tiers</a></li>
+    <li><a href="#compare">Compare</a></li>
+    <li><a href="#bom">BOM</a></li>
+    <li><a href="#build">Build</a></li>
+  </ul>
+</nav>
+
+<!-- Hero Section -->
+<section class="hero" id="hero">
+  <div class="hero-content">
+    <div class="hero-classification fade-in">Open Source Sovereign Vehicle Platform</div>
+
+    <h1 class="hero-title fade-in fade-in-delay-1">
+      <span class="flow">FlowMobile</span><br>
+      <span class="sovereign">Sovereign Quad</span>
+    </h1>
+
+    <p class="hero-tagline fade-in fade-in-delay-2">
+      Regenerative <span>/</span> Sovereign <span>/</span> Unstoppable
+    </p>
+
+    <p class="hero-desc fade-in fade-in-delay-3">
+      The world's first fully open-source, community-manufactured sovereign vehicle platform.
+      Electric drivetrain, solar harvesting, encrypted mesh comms, water purification, EMP hardening,
+      and regenerative agriculture tools -- all in a single quad motorcycle you can build yourself.
+    </p>
+
+    <div class="quad-art fade-in fade-in-delay-3" role="img" aria-label="Stylized illustration of the Sovereign Quad vehicle">
+      <div class="quad-art-glow"></div><span class="amber">            ____[SOLAR ARRAY]____</span>
+<span class="amber">           /  |||  1200W  |||  \</span>
+<span class="amber">          /___|||________|||___\</span>
+           |                   |
+<span class="highlight">     [COMMS]   ___________   [WATER]</span>
+<span class="highlight">     MESH  |  /           \  |  PURE</span>
+<span class="highlight">     ATAK  | |  SOVEREIGN  | |  UV</span>
+<span class="highlight">     SAT   | |   DIGITAL   | |  FILTER</span>
+<span class="highlight">           |  \___________/  |</span>
+           |   |    |    |   |
+     ======|===|====|====|===|======
+    ||  <span class="highlight">VESC</span> |  <span class="amber">[BATTERY]</span>  | <span class="highlight">VESC</span>  ||
+    || <span class="highlight">CTRL</span> | <span class="amber"> LiFePO4 </span> | <span class="highlight">CTRL</span>  ||
+    ||  <span class="highlight">FOC</span>  | <span class="amber"> 19.2kWh</span>  |  <span class="highlight">FOC</span>  ||
+    ||   |   |<span class="amber">HOT-SWAP </span>|   |   ||
+    =====|===|==========|===|======
+    |    |   |          |   |    |
+   <span class="highlight">[HUB]</span> |  <span class="amber">[V2H: 5-10kW]</span>  | <span class="highlight">[HUB]</span>
+   <span class="highlight">[MOT]</span> |               | <span class="highlight">[MOT]</span>
+    _|___|_             _|___|_
+   / <span class="highlight">QS 5kW</span> \           / <span class="highlight">QS 5kW</span> \
+  |  <span class="highlight">BLDC</span>  |           |  <span class="highlight">BLDC</span>  |
+   \_<span class="highlight">REGEN</span>_/             \_<span class="highlight">REGEN</span>_/</div>
+
+    <div class="hero-cta-group fade-in fade-in-delay-4">
+      <a href="#bom" class="btn btn-primary">Explore BOM</a>
+      <a href="#tiers" class="btn btn-secondary">View Build Tiers</a>
+    </div>
+  </div>
+
+  <div class="hero-scroll" aria-hidden="true">
+    <div class="hero-scroll-line"></div>
+    Scroll
+  </div>
+</section>
+
+<!-- Key Stats Grid -->
+<section id="specs">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Technical Specifications</span>
+      <h2 class="section-title">Key Stats</h2>
+      <div class="section-rule">
+        <div class="section-rule-diamond"></div>
+      </div>
+      <p class="section-desc">Tier 3 Expeditionary platform specifications. Every number backed by component-level BOM and open-source designs.</p>
+    </div>
+
+    <div class="stats-grid fade-in">
+      <div class="stat-cell">
+        <div class="stat-label">Range</div>
+        <div class="stat-value">80-140 mi</div>
+        <div class="stat-sub">Road / 50-90 off-road</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Power</div>
+        <div class="stat-value">20 kW</div>
+        <div class="stat-sub">40 kW peak / 53.6 hp</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Battery</div>
+        <div class="stat-value">19.2 kWh</div>
+        <div class="stat-sub">Modular / Hot-swappable</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Solar</div>
+        <div class="stat-value amber">1,200W</div>
+        <div class="stat-sub">Integrated + Deployable</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">V2H Export</div>
+        <div class="stat-value">5-10 kW</div>
+        <div class="stat-sub">Bidirectional / 120/240V AC</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Water</div>
+        <div class="stat-value amber">Purified</div>
+        <div class="stat-sub">0.1 micron + UV-C</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Comms</div>
+        <div class="stat-value">Mesh+Sat</div>
+        <div class="stat-sub">AES-256 Encrypted</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">EMP</div>
+        <div class="stat-value amber">Hardened</div>
+        <div class="stat-sub">MIL-STD-188-125</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Curb Weight</div>
+        <div class="stat-value">1,100 lb</div>
+        <div class="stat-sub">500 kg / Chromoly frame</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Payload</div>
+        <div class="stat-value">800 lb</div>
+        <div class="stat-sub">363 kg capacity</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-label">Open Source</div>
+        <div class="stat-value amber">100%</div>
+        <div class="stat-sub">Hardware + Software</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Core Systems -->
+<section id="systems">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Architecture</span>
+      <h2 class="section-title">Core Systems</h2>
+      <div class="section-rule">
+        <div class="section-rule-diamond"></div>
+      </div>
+      <p class="section-desc">Eight integrated subsystems built entirely from open-source components. Each module is independently upgradeable and field-replaceable.</p>
+    </div>
+
+    <div class="systems-grid">
+      <div class="system-card fade-in">
+        <span class="system-icon" aria-hidden="true">&gt;_</span>
+        <h3 class="system-name">Powertrain</h3>
+        <div class="system-tags">
+          <span class="system-tag">VESC 6.9</span>
+          <span class="system-tag">QS Hub Motors</span>
+          <span class="system-tag">LiFePO4</span>
+        </div>
+        <p class="system-desc">
+          Open-source VESC motor controllers with Field-Oriented Control driving QS 5kW BLDC hub motors.
+          Three-level regenerative braking recovers 10-33% energy. 48V LiFePO4 modules with 2,000-5,000 cycle life,
+          hot-swappable in under 2 minutes via Anderson SB350 connectors.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-1">
+        <span class="system-icon" aria-hidden="true">~*~</span>
+        <h3 class="system-name">Energy Harvesting</h3>
+        <div class="system-tags">
+          <span class="system-tag">Solar 1.2kW</span>
+          <span class="system-tag">Regen Braking</span>
+          <span class="system-tag">Regen Suspension</span>
+        </div>
+        <p class="system-desc">
+          Triple energy recovery: 400W integrated + 800W deployable solar panels, VESC regenerative braking,
+          and electromagnetic regenerative suspension harvesting 100-300W on rough terrain.
+          Combined solar output: 1,800-3,500 Wh/day in good conditions.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-2">
+        <span class="system-icon" aria-hidden="true">[=]</span>
+        <h3 class="system-name">Ruggedization</h3>
+        <div class="system-tags">
+          <span class="system-tag">MIL-STD-810H</span>
+          <span class="system-tag">IP67</span>
+          <span class="system-tag">EMP Shielded</span>
+        </div>
+        <p class="system-desc">
+          Designed to MIL-STD-810H for vibration, shock, sand, dust, and extreme temperature (-32C to +49C).
+          IP67/IP68 sealed electronics, Faraday cage enclosures on all critical systems,
+          multi-layer surge protection, and shielded twisted-pair cabling throughout.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-3">
+        <span class="system-icon" aria-hidden="true">~O~</span>
+        <h3 class="system-name">Water Systems</h3>
+        <div class="system-tags">
+          <span class="system-tag">Sawyer 0.1um</span>
+          <span class="system-tag">UV-C</span>
+          <span class="system-tag">Rainwater</span>
+        </div>
+        <p class="system-desc">
+          On-board water independence: Sawyer Squeeze 0.1 micron filtration (99.99999% bacteria removal),
+          UV-C purification for viruses, 12V diaphragm pump at 3.5 GPM, 50-gallon collapsible bladder storage,
+          and rainwater collection integrated into the solar canopy.
+        </p>
+      </div>
+
+      <div class="system-card fade-in">
+        <span class="system-icon" aria-hidden="true">((.))</span>
+        <h3 class="system-name">Communications</h3>
+        <div class="system-tags">
+          <span class="system-tag">Meshtastic</span>
+          <span class="system-tag">ATAK</span>
+          <span class="system-tag">Starlink</span>
+          <span class="system-tag">Iridium</span>
+        </div>
+        <p class="system-desc">
+          Multi-layer encrypted comms: Meshtastic LoRa mesh (AES-256, 10+ km per node, infinite relay),
+          ATAK tactical awareness, goTenna Pro X2 (100+ mi aerial relay),
+          Starlink Mini broadband, and Iridium GO! exec for true global satellite coverage.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-1">
+        <span class="system-icon" aria-hidden="true">{0}</span>
+        <h3 class="system-name">Digital Sovereignty</h3>
+        <div class="system-tags">
+          <span class="system-tag">Raspberry Pi 5</span>
+          <span class="system-tag">Nextcloud</span>
+          <span class="system-tag">AES-256</span>
+        </div>
+        <p class="system-desc">
+          Self-hosted digital infrastructure: Raspberry Pi 5 running Nextcloud, Vaultwarden, WireGuard VPN,
+          Pi-hole, and Grafana dashboards. 1TB encrypted NVMe storage (LUKS + VeraCrypt).
+          Offline maps, offline crypto wallets. No cloud dependency. You own all data.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-2">
+        <span class="system-icon" aria-hidden="true">/|\</span>
+        <h3 class="system-name">Shelter & Tools</h3>
+        <div class="system-tags">
+          <span class="system-tag">Deploy Shelter</span>
+          <span class="system-tag">3D Printer</span>
+          <span class="system-tag">Earthbag</span>
+        </div>
+        <p class="system-desc">
+          Field-deployable shelter system: tarp, hammock, bivy, and pop-up canopy with solar mount points.
+          Creality Ender 3 for printing replacement parts in the field.
+          Battery-powered stick welder and earthbag construction tools for semi-permanent structures.
+        </p>
+      </div>
+
+      <div class="system-card fade-in fade-in-delay-3">
+        <span class="system-icon" aria-hidden="true">.*.</span>
+        <h3 class="system-name">Regenerative Agriculture</h3>
+        <div class="system-tags">
+          <span class="system-tag">Seed Dispersal</span>
+          <span class="system-tag">Soil Sensing</span>
+          <span class="system-tag">Biochar</span>
+        </div>
+        <p class="system-desc">
+          Leave the land better: ATV-mount broadcast seeder for cover crops, on-the-go soil EC sensor
+          with RTK GPS field mapping, and a mobile TLUD biochar micro-kiln producing carbon-negative
+          soil amendment. Inoculant system for activated biochar application.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Build Tiers -->
+<section id="tiers">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Scalable Complexity</span>
+      <h2 class="section-title">Build Tiers</h2>
+      <div class="section-rule">
+        <div class="section-rule-diamond"></div>
+      </div>
+      <p class="section-desc">Start with a rideable electric quad for $5K. Scale up to a full sovereign platform. Every tier is community-buildable in a makerspace.</p>
+    </div>
+
+    <div class="tiers-grid">
+      <!-- Tier 1 -->
+      <div class="tier-card fade-in">
+        <span class="tier-number">Tier 1</span>
+        <div class="tier-price">$5K - $8K</div>
+        <h3 class="tier-name">The Starter</h3>
+        <p class="tier-tagline">A rideable electric quad with basic sovereignty features. The entry point for makers and homesteaders.</p>
+        <ul class="tier-specs">
+          <li>Single 5kW QS hub motor, 25 mph</li>
+          <li>VESC 6.9 controller with regen braking</li>
+          <li>1x 48V/100Ah LiFePO4 module (4.8 kWh)</li>
+          <li>25-40 mile road range</li>
+          <li>100W flexible solar panel</li>
+          <li>2x Meshtastic mesh nodes</li>
+          <li>Raspberry Pi Zero 2W + encrypted storage</li>
+          <li>Sawyer Squeeze water filter</li>
+          <li>Chromoly tube frame, basic suspension</li>
+          <li>Basic tarp shelter</li>
+        </ul>
+        <div class="tier-meta">
+          <span class="tier-meta-item">Build time: <span>2-4 weeks</span></span>
+          <span class="tier-meta-item">Skill level: <span>Intermediate</span></span>
+          <span class="tier-meta-item">Tools: <span>MIG welder, hand tools, soldering iron</span></span>
+        </div>
+      </div>
+
+      <!-- Tier 2 -->
+      <div class="tier-card featured fade-in fade-in-delay-1">
+        <span class="tier-number">Tier 2</span>
+        <div class="tier-price">$12K - $18K</div>
+        <h3 class="tier-name">The Homesteader</h3>
+        <p class="tier-tagline">Full sovereignty stack with regenerative capabilities. Energy, water, comms, and digital independence.</p>
+        <ul class="tier-specs">
+          <li>2x 5kW hub motors, AWD, 40 mph</li>
+          <li>2x VESC 6.9 + three-level regen braking</li>
+          <li>2x 48V modules (9.6 kWh), hot-swappable</li>
+          <li>50-80 mile road range</li>
+          <li>300W integrated + 400W deployable solar, MPPT</li>
+          <li>V2H power export: 3 kW bidirectional</li>
+          <li>Meshtastic + ATAK tablet + Garmin inReach</li>
+          <li>Raspberry Pi 5 + Nextcloud sovereignty stack</li>
+          <li>Sawyer + UV purifier + pump + 20-gal bladder</li>
+          <li>Hemp composite body, UHMWPE skid plates</li>
+          <li>Broadcast seeder + soil moisture sensor</li>
+          <li>Faraday enclosures on critical electronics</li>
+        </ul>
+        <div class="tier-meta">
+          <span class="tier-meta-item">Build time: <span>4-8 weeks</span></span>
+          <span class="tier-meta-item">Skill level: <span>Advanced</span></span>
+          <span class="tier-meta-item">Tools: <span>TIG/MIG welder, composite layup, electronics bench</span></span>
+        </div>
+      </div>
+
+      <!-- Tier 3 -->
+      <div class="tier-card fade-in fade-in-delay-2">
+        <span class="tier-number">Tier 3</span>
+        <div class="tier-price">$25K - $35K</div>
+        <h3 class="tier-name">The Expeditionary</h3>
+        <p class="tier-tagline">Military-grade sovereign platform with full regenerative integration. Maximum capability and resilience.</p>
+        <ul class="tier-specs">
+          <li>4x 5kW hub motors, true 4WD, torque vectoring</li>
+          <li>4x VESC + Axiom backup, 55 mph</li>
+          <li>4x 48V modules (19.2 kWh), field-swappable</li>
+          <li>80-140 mile road range</li>
+          <li>1,200W solar (400W integrated + 800W deployable)</li>
+          <li>V2H: 5-10 kW bidirectional inverter</li>
+          <li>Meshtastic + ATAK + Starlink + Iridium + goTenna + Ham</li>
+          <li>Full digital sovereignty stack + backup SBC</li>
+          <li>Complete water system + 50-gal + rainwater capture</li>
+          <li>Full EMP hardening: Faraday + SPDs + shielded cabling</li>
+          <li>Regen electromagnetic suspension (100-300W)</li>
+          <li>Biochar micro-kiln + RTK GPS soil mapping</li>
+          <li>3D printer + stick welder + earthbag tools</li>
+          <li>FLIR thermal for night navigation</li>
+        </ul>
+        <div class="tier-meta">
+          <span class="tier-meta-item">Build time: <span>2-6 months</span></span>
+          <span class="tier-meta-item">Skill level: <span>Expert</span></span>
+          <span class="tier-meta-item">Tools: <span>Full fab shop, electronics lab, CNC helpful</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Comparison Table -->
+<section id="compare">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Competitive Analysis</span>
+      <h2 class="section-title">No Comparison</h2>
+      <div class="section-rule">
+        <div class="section-rule-diamond"></div>
+      </div>
+      <p class="section-desc">No production vehicle offers the Sovereign Quad's combination of capabilities. The features that matter most are the ones nobody else builds.</p>
+    </div>
+
+    <p class="comparison-scroll-hint fade-in">Scroll horizontally to view full table</p>
+    <div class="comparison-wrapper fade-in">
+      <table class="comparison-table" role="table">
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Polaris MRZR Alpha</th>
+            <th>Vanderhall Brawley</th>
+            <th>Polaris Ranger XP Kinetic</th>
+            <th class="highlight">Sovereign Quad (Tier 3)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Type</td>
+            <td>Military UTV</td>
+            <td>Luxury UTV</td>
+            <td>Utility UTV</td>
+            <td class="highlight">Sovereign Quad</td>
+          </tr>
+          <tr>
+            <td>Price</td>
+            <td class="comp-price bad">$50,000+</td>
+            <td class="comp-price bad">$35-50K</td>
+            <td class="comp-price bad">$25-37K</td>
+            <td class="highlight comp-price good">$25-35K</td>
+          </tr>
+          <tr>
+            <td>Powertrain</td>
+            <td>Turbo Diesel 118hp</td>
+            <td>Quad Electric 404hp</td>
+            <td>Electric (undisclosed)</td>
+            <td class="highlight">Electric 20kW / 40kW peak</td>
+          </tr>
+          <tr>
+            <td>Battery</td>
+            <td>N/A (diesel)</td>
+            <td>40-60 kWh</td>
+            <td>14.9-29.8 kWh</td>
+            <td class="highlight">19.2 kWh (expandable)</td>
+          </tr>
+          <tr>
+            <td>Range</td>
+            <td>225-300 mi</td>
+            <td>140-200 mi</td>
+            <td>45-80 mi</td>
+            <td class="highlight">80-140 mi + solar</td>
+          </tr>
+          <tr>
+            <td>V2H Power Export</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">5-10 kW Bidirectional</td>
+          </tr>
+          <tr>
+            <td>Integrated Solar</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">1,200W Integrated + Deploy</td>
+          </tr>
+          <tr>
+            <td>Hot-Swap Battery</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">Modular, &lt;2 min swap</td>
+          </tr>
+          <tr>
+            <td>Mesh Comms</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">Meshtastic + ATAK + Sat</td>
+          </tr>
+          <tr>
+            <td>Open Source</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">100% HW + SW</td>
+          </tr>
+          <tr>
+            <td>Water Purification</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">0.1um + UV-C</td>
+          </tr>
+          <tr>
+            <td>EMP Hardened</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">MIL-STD-188-125</td>
+          </tr>
+          <tr>
+            <td>Regen Suspension</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">100-300W Continuous</td>
+          </tr>
+          <tr>
+            <td>Agriculture Tools</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="cross">No</td>
+            <td class="highlight check">Seeder + Sensors + Biochar</td>
+          </tr>
+          <tr>
+            <td>Right to Repair</td>
+            <td class="cross">Restricted</td>
+            <td class="cross">Restricted</td>
+            <td class="cross">Restricted</td>
+            <td class="highlight check">Full / No DRM</td>
+          </tr>
+          <tr>
+            <td>Noise</td>
+            <td>Diesel engine</td>
+            <td>Silent</td>
+            <td>Silent</td>
+            <td class="highlight">Silent</td>
+          </tr>
+          <tr>
+            <td>Curb Weight</td>
+            <td>3,140 lb</td>
+            <td>~3,500 lb</td>
+            <td>~1,800 lb</td>
+            <td class="highlight">1,100 lb</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- BOM Explorer -->
+<section id="bom">
+  <div class="container">
+    <div class="section-header fade-in">
+      <span class="section-label">Bill of Materials</span>
+      <h2 class="section-title">BOM Explorer</h2>
+      <div class="section-rule">
+        <div class="section-rule-diamond"></div>
+      </div>
+      <p class="section-desc">Every component, every price, every source. Expand each subsystem to explore the full parts list. All prices are 2026 estimates for individual purchase.</p>
+    </div>
+
+    <div class="bom-explorer fade-in" role="list" aria-label="Bill of Materials categories">
+
+      <!-- Powertrain -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">&gt;_</span>
+            <span class="bom-header-name">Powertrain</span>
+            <span class="bom-header-count">5 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">QS Motor 5kW BLDC Hub Motor (x4)</span>
+            <span class="bom-item-price">$350-500 ea</span>
+            <span class="bom-item-source">QS Motor</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">VESC 6.9 Controller, 100A/200A peak, FOC (x4)</span>
+            <span class="bom-item-price">$150-300 ea</span>
+            <span class="bom-item-source">VESC Project</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Axiom VESC-Compatible Controller (backup)</span>
+            <span class="bom-item-price">$300-600</span>
+            <span class="bom-item-source">Hackaday</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Hall-Effect Throttle (twist grip)</span>
+            <span class="bom-item-price">$15-30</span>
+            <span class="bom-item-source">Generic EV</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Hydraulic Disc Brakes, 4-piston, 220mm (x4)</span>
+            <span class="bom-item-price">$80-150 ea</span>
+            <span class="bom-item-source">Various</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Battery -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">[=]</span>
+            <span class="bom-header-name">Battery System</span>
+            <span class="bom-header-count">6 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">LiFePO4 48V 100Ah Module, 16S1P (x4)</span>
+            <span class="bom-item-price">$400-500 ea</span>
+            <span class="bom-item-source">EVE / CATL</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Libre Solar BMS, 16S, 100A (x4)</span>
+            <span class="bom-item-price">$50-150 ea</span>
+            <span class="bom-item-source">LibreSolar</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">foxBMS Certified BMS (alt, road-homologated)</span>
+            <span class="bom-item-price">$200-500</span>
+            <span class="bom-item-source">foxBMS</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">IP68 Aluminum Die-Cast Enclosure (x4)</span>
+            <span class="bom-item-price">$100-300 ea</span>
+            <span class="bom-item-source">Custom</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Anderson SB350 Hot-Swap Connectors (x4 sets)</span>
+            <span class="bom-item-price">$20-40 ea</span>
+            <span class="bom-item-source">Anderson</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Bidirectional Inverter, 5-10kW, 48V DC-AC</span>
+            <span class="bom-item-price">$800-2,000</span>
+            <span class="bom-item-source">EG4 / Growatt</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Solar -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">~*~</span>
+            <span class="bom-header-name">Solar & Energy Harvesting</span>
+            <span class="bom-header-count">4 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">Flexible Monocrystalline Panels, 200-400W, ETFE</span>
+            <span class="bom-item-price">$200-600</span>
+            <span class="bom-item-source">BougeRV</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">PowerFilm CIGS Deployable Panel Kit, 400-800W</span>
+            <span class="bom-item-price">$500-2,000</span>
+            <span class="bom-item-source">PowerFilm</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">MPPT Charge Controller, 48V, 30-60A</span>
+            <span class="bom-item-price">$100-200</span>
+            <span class="bom-item-source">Victron / EPEver</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Electromagnetic Regen Suspension Dampers (x4)</span>
+            <span class="bom-item-price">$500-1,500 ea</span>
+            <span class="bom-item-source">Custom</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comms -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">((.))</span>
+            <span class="bom-header-name">Communications</span>
+            <span class="bom-header-count">7 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">Meshtastic LoRa Node, Heltec V3 / T-Beam (x8)</span>
+            <span class="bom-item-price">$20-50 ea</span>
+            <span class="bom-item-source">Heltec</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Starlink Mini</span>
+            <span class="bom-item-price">$249</span>
+            <span class="bom-item-source">Starlink</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Iridium GO! exec (global satellite)</span>
+            <span class="bom-item-price">$1,200-1,500</span>
+            <span class="bom-item-source">Iridium</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Samsung Galaxy Tab Active4 Pro (ATAK tablet)</span>
+            <span class="bom-item-price">$500-700</span>
+            <span class="bom-item-source">Samsung</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">goTenna Pro X2 Mesh Unit (x2)</span>
+            <span class="bom-item-price">$150-300 ea</span>
+            <span class="bom-item-source">goTenna</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">VHF/UHF Ham Radio, 25-50W Mobile</span>
+            <span class="bom-item-price">$200-400</span>
+            <span class="bom-item-source">Yaesu</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">915 MHz Antenna, 3-6 dBi (x8)</span>
+            <span class="bom-item-price">$10-20 ea</span>
+            <span class="bom-item-source">Various</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Water -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">~O~</span>
+            <span class="bom-header-name">Water Systems</span>
+            <span class="bom-header-count">5 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">Sawyer Squeeze, 0.1 micron, 100K gallon lifetime</span>
+            <span class="bom-item-price">$35</span>
+            <span class="bom-item-source">Sawyer</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">UV-C Purifier, inline, 12V powered</span>
+            <span class="bom-item-price">$50-150</span>
+            <span class="bom-item-source">SteriPEN</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">12V Diaphragm Pump, 3.5 GPM</span>
+            <span class="bom-item-price">$80-150</span>
+            <span class="bom-item-source">Shurflo</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Collapsible Water Bladder, 50 gal, food-grade</span>
+            <span class="bom-item-price">$50-150</span>
+            <span class="bom-item-source">Hydrapak</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Sediment Pre-Filter, 50-100 micron</span>
+            <span class="bom-item-price">$10-20</span>
+            <span class="bom-item-source">Generic</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Digital -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">{0}</span>
+            <span class="bom-header-name">Digital Sovereignty</span>
+            <span class="bom-header-count">4 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">Raspberry Pi 5, 8GB RAM</span>
+            <span class="bom-item-price">$80-100</span>
+            <span class="bom-item-source">RPi</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Raspberry Pi Zero 2 W (backup SBC)</span>
+            <span class="bom-item-price">$15-20</span>
+            <span class="bom-item-source">RPi</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">1TB NVMe SSD, hardware encrypted</span>
+            <span class="bom-item-price">$80-120</span>
+            <span class="bom-item-source">Samsung / WD</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">256GB microSD, A2 rated (backup)</span>
+            <span class="bom-item-price">$25-40</span>
+            <span class="bom-item-source">SanDisk</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- EMP -->
+      <div class="bom-category" role="listitem">
+        <button class="bom-header" aria-expanded="false">
+          <div class="bom-header-left">
+            <span class="bom-header-icon" aria-hidden="true">[=]</span>
+            <span class="bom-header-name">EMP Hardening</span>
+            <span class="bom-header-count">4 items</span>
+          </div>
+          <span class="bom-chevron" aria-hidden="true">&rsaquo;</span>
+        </button>
+        <div class="bom-items">
+          <div class="bom-item">
+            <span class="bom-item-name">Aluminum Die-Cast Faraday Enclosures</span>
+            <span class="bom-item-price">$200-2,000</span>
+            <span class="bom-item-source">Custom</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Multi-Layer Surge Protection Devices (SPDs)</span>
+            <span class="bom-item-price">$200-1,000</span>
+            <span class="bom-item-source">Various</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">TitanRF Faraday Fabric Vehicle Cover</span>
+            <span class="bom-item-price">$200-500</span>
+            <span class="bom-item-source">TitanRF</span>
+          </div>
+          <div class="bom-item">
+            <span class="bom-item-name">Shielded Twisted-Pair Cabling (full harness)</span>
+            <span class="bom-item-price">$300-800</span>
+            <span class="bom-item-source">MIL-SPEC</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Open Source CTA -->
+<section id="build" class="cta-section">
+  <div class="container">
+    <div class="cta-content fade-in">
+      <span class="section-label">Join the Movement</span>
+      <h2 class="cta-title">Build <span class="accent">Your Own</span></h2>
+      <p class="cta-desc">
+        The Sovereign Quad is 100% open-source. Hardware designs, firmware, build guides, and BOM data
+        are all freely available. No gatekeepers. No proprietary locks. Your vehicle, your sovereignty.
+      </p>
+
+      <div class="cta-links">
+        <a href="#" class="cta-link">
+          <span class="cta-link-icon" aria-hidden="true">[CAD]</span>
+          <span class="cta-link-label">Hardware Designs</span>
+          <span class="cta-link-desc">FreeCAD / KiCad files</span>
+        </a>
+        <a href="#" class="cta-link">
+          <span class="cta-link-icon" aria-hidden="true">&gt;_</span>
+          <span class="cta-link-label">Firmware</span>
+          <span class="cta-link-desc">VESC / BMS / Meshtastic</span>
+        </a>
+        <a href="#" class="cta-link">
+          <span class="cta-link-icon" aria-hidden="true">[?]</span>
+          <span class="cta-link-label">Build Guide</span>
+          <span class="cta-link-desc">Step-by-step assembly</span>
+        </a>
+        <a href="#" class="cta-link">
+          <span class="cta-link-icon" aria-hidden="true">[$]</span>
+          <span class="cta-link-label">Full BOM</span>
+          <span class="cta-link-desc">Every part, every price</span>
+        </a>
+      </div>
+
+      <div class="cta-buttons">
+        <a href="#" class="btn btn-primary">View on GitHub</a>
+        <a href="#" class="btn btn-secondary">Join Community</a>
+      </div>
+
+      <div class="license-badges">
+        <span class="license-badge">CERN-OHL-S v2</span>
+        <span class="license-badge">GPL v3</span>
+        <span class="license-badge">CC-BY-SA 4.0</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="container">
+    <p class="footer-license">
+      100% Open Source <span>|</span> CERN-OHL-S v2 <span>|</span> GPL v3 <span>|</span> CC-BY-SA 4.0
+    </p>
+    <p class="footer-note">
+      The FlowMobile Sovereign Quad is an open-source community project.
+      Build at your own risk. No warranty expressed or implied.
+    </p>
+  </div>
+</footer>
+
+<script>
+/* ========================================
+   SCROLL FADE-IN OBSERVER
+   ======================================== */
+(function() {
+  'use strict';
+
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, {
+    threshold: 0.08,
+    rootMargin: '0px 0px -40px 0px'
+  });
+
+  document.querySelectorAll('.fade-in').forEach(function(el) {
+    observer.observe(el);
+  });
+
+  /* ========================================
+     MOBILE NAV TOGGLE
+     ======================================== */
+  var navToggle = document.querySelector('.nav-toggle');
+  var navLinks = document.querySelector('.nav-links');
+
+  navToggle.addEventListener('click', function() {
+    var isOpen = navLinks.classList.toggle('open');
+    navToggle.classList.toggle('active');
+    navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  // Close nav when clicking a link
+  navLinks.querySelectorAll('a').forEach(function(link) {
+    link.addEventListener('click', function() {
+      navLinks.classList.remove('open');
+      navToggle.classList.remove('active');
+      navToggle.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  /* ========================================
+     BOM EXPLORER ACCORDION
+     ======================================== */
+  document.querySelectorAll('.bom-header').forEach(function(header) {
+    header.addEventListener('click', function() {
+      var category = this.closest('.bom-category');
+      var isOpen = category.classList.contains('open');
+      var expanded = !isOpen;
+
+      // Close all other categories
+      document.querySelectorAll('.bom-category.open').forEach(function(openCat) {
+        if (openCat !== category) {
+          openCat.classList.remove('open');
+          openCat.querySelector('.bom-header').setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      category.classList.toggle('open');
+      this.setAttribute('aria-expanded', String(expanded));
+    });
+  });
+
+  /* ========================================
+     ACTIVE NAV LINK ON SCROLL
+     ======================================== */
+  var sections = document.querySelectorAll('section[id]');
+  var navAnchors = document.querySelectorAll('.nav-links a');
+
+  var navObserver = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var id = entry.target.getAttribute('id');
+        navAnchors.forEach(function(a) {
+          if (a.getAttribute('href') === '#' + id) {
+            a.style.color = 'var(--green-accent)';
+          } else {
+            a.style.color = '';
+          }
+        });
+      }
+    });
+  }, {
+    threshold: 0.3,
+    rootMargin: '-60px 0px -40% 0px'
+  });
+
+  sections.forEach(function(section) {
+    navObserver.observe(section);
+  });
+
+  /* ========================================
+     SMOOTH SCROLL OFFSET FOR FIXED NAV
+     ======================================== */
+  document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
+    anchor.addEventListener('click', function(e) {
+      var href = this.getAttribute('href');
+      if (href === '#') return;
+
+      var target = document.querySelector(href);
+      if (target) {
+        e.preventDefault();
+        var navHeight = document.querySelector('.nav').offsetHeight;
+        var targetPosition = target.getBoundingClientRect().top + window.pageYOffset - navHeight - 16;
+        window.scrollTo({
+          top: targetPosition,
+          behavior: 'smooth'
+        });
+      }
+    });
+  });
+
+  /* ========================================
+     HERO PARALLAX-LIKE FADE ON SCROLL
+     ======================================== */
+  var heroContent = document.querySelector('.hero-content');
+  var heroScroll = document.querySelector('.hero-scroll');
+  var ticking = false;
+
+  window.addEventListener('scroll', function() {
+    if (!ticking) {
+      window.requestAnimationFrame(function() {
+        var scrollY = window.pageYOffset;
+        var windowH = window.innerHeight;
+        if (scrollY < windowH) {
+          var progress = scrollY / windowH;
+          heroContent.style.opacity = 1 - progress * 1.2;
+          heroContent.style.transform = 'translateY(' + (scrollY * 0.15) + 'px)';
+          if (heroScroll) {
+            heroScroll.style.opacity = 1 - progress * 3;
+          }
+        }
+        ticking = false;
+      });
+      ticking = true;
+    }
+  });
+
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlowB on Base</title>
+  <meta name="description" content="FlowB is getting in the flow on Base. Join us onchain.">
+  <meta property="og:title" content="FlowB on Base">
+  <meta property="og:description" content="Ready to get in the flow on Base?">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://base.flowb.me">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --base-blue: #0052FF;
+      --base-blue-deep: #0033cc;
+      --base-blue-bright: #3377ff;
+      --base-black: #0a0a0a;
+      --base-white: #ffffff;
+      --glow: rgba(0, 82, 255, 0.4);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--base-black);
+      color: var(--base-white);
+      overflow: hidden;
+    }
+
+    /* ── Animated background ── */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,82,255,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,82,255,0.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: gridDrift 20s linear infinite;
+    }
+
+    @keyframes gridDrift {
+      0% { transform: translate(0, 0); }
+      100% { transform: translate(48px, 48px); }
+    }
+
+    .bg-glow {
+      position: absolute;
+      width: 600px;
+      height: 600px;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.35;
+      animation: glowFloat 12s ease-in-out infinite;
+    }
+
+    .bg-glow-1 {
+      background: var(--base-blue);
+      top: -200px;
+      right: -100px;
+    }
+
+    .bg-glow-2 {
+      background: var(--base-blue-deep);
+      bottom: -200px;
+      left: -150px;
+      animation-delay: -6s;
+    }
+
+    @keyframes glowFloat {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33% { transform: translate(30px, -20px) scale(1.1); }
+      66% { transform: translate(-20px, 15px) scale(0.95); }
+    }
+
+    /* ── Particles ── */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .particle {
+      position: absolute;
+      background: var(--base-blue);
+      border-radius: 50%;
+      animation: rise linear infinite;
+    }
+
+    @keyframes rise {
+      0% { transform: translateY(100vh) scale(0); opacity: 0; }
+      15% { opacity: 1; transform: translateY(85vh) scale(1); }
+      85% { opacity: 0.6; }
+      100% { transform: translateY(-5vh) scale(0.3); opacity: 0; }
+    }
+
+    /* ── Main container ── */
+    .container {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 2rem;
+      max-width: 520px;
+      width: 100%;
+    }
+
+    /* ── Base logo (the rounded square) ── */
+    .base-logo {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 1.5rem;
+      opacity: 0;
+      animation: logoIn 0.8s ease forwards;
+    }
+
+    @keyframes logoIn {
+      0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+      60% { transform: scale(1.1) rotate(2deg); }
+      100% { opacity: 1; transform: scale(1) rotate(0); }
+    }
+
+    .base-logo svg {
+      width: 100%;
+      height: 100%;
+      filter: drop-shadow(0 0 24px var(--glow));
+    }
+
+    /* ── Typewriter ── */
+    .typewriter-line {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 1.5rem;
+      min-height: 1.4em;
+      opacity: 0;
+      animation: fadeUp 0.4s ease forwards;
+      animation-delay: 0.6s;
+    }
+
+    .typewriter-line .cursor {
+      display: inline-block;
+      width: 2px;
+      height: 1em;
+      background: var(--base-blue);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: blink 0.8s step-end infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* ── Greeting ── */
+    .greeting {
+      opacity: 0;
+      animation: fadeUp 0.6s ease forwards;
+      animation-delay: 0.3s;
+    }
+
+    @keyframes fadeUp {
+      0% { opacity: 0; transform: translateY(16px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.02em;
+    }
+
+    h1 .highlight {
+      color: var(--base-blue-bright);
+      position: relative;
+    }
+
+    .subtitle {
+      font-size: 1.15rem;
+      color: rgba(255,255,255,0.65);
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+
+    /* ── Ecosystem ticker ── */
+    .ecosystem {
+      overflow: hidden;
+      margin: 1.5rem -2rem;
+      opacity: 0;
+      animation: fadeUp 0.5s ease forwards;
+      animation-delay: 1.2s;
+    }
+
+    .ticker-track {
+      display: flex;
+      gap: 2rem;
+      animation: scroll 25s linear infinite;
+      width: max-content;
+    }
+
+    .ticker-track:hover { animation-play-state: paused; }
+
+    @keyframes scroll {
+      0% { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    .ticker-item {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.35);
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .ticker-dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--base-blue);
+      opacity: 0.5;
+    }
+
+    /* ── Countdown ring ── */
+    .countdown-wrap {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin: 1.5rem auto;
+      opacity: 0;
+      animation: fadeUp 0.5s ease forwards;
+      animation-delay: 0.8s;
+    }
+
+    .countdown-ring {
+      position: absolute;
+      inset: 0;
+      transform: rotate(-90deg);
+    }
+
+    .countdown-ring circle {
+      fill: none;
+      stroke-width: 3;
+    }
+
+    .countdown-ring .ring-bg {
+      stroke: rgba(255,255,255,0.08);
+    }
+
+    .countdown-ring .ring-fill {
+      stroke: var(--base-blue);
+      stroke-dasharray: 283;
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 1s linear;
+      filter: drop-shadow(0 0 6px var(--glow));
+    }
+
+    .countdown-num {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .countdown-num.go {
+      font-size: 1.2rem;
+      color: var(--base-blue-bright);
+      animation: popIn 0.3s ease;
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.2); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    /* ── Buttons ── */
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      align-items: center;
+      opacity: 0;
+      animation: fadeUp 0.5s ease forwards;
+      animation-delay: 1s;
+    }
+
+    .btn-base {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--base-blue);
+      color: var(--base-white);
+      border: none;
+      padding: 0.9rem 2.5rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+      max-width: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-base::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-base:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px var(--glow), 0 0 0 1px rgba(0,82,255,0.3);
+    }
+
+    .btn-base:hover::before { opacity: 1; }
+    .btn-base:active { transform: translateY(0) scale(0.98); }
+
+    .btn-base svg { width: 18px; height: 18px; }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.7);
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 0.7rem 2rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      max-width: 320px;
+      width: 100%;
+      text-decoration: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      border-color: rgba(255,255,255,0.2);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary svg { width: 16px; height: 16px; opacity: 0.7; }
+
+    .btn-no {
+      background: transparent;
+      color: rgba(255,255,255,0.3);
+      border: none;
+      padding: 0.6rem 1.5rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.8rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-no:hover { color: rgba(255,255,255,0.6); }
+
+    /* ── Download section ── */
+    .download-hint {
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.3);
+      opacity: 0;
+      animation: fadeUp 0.4s ease forwards;
+      animation-delay: 1.4s;
+    }
+
+    .download-hint a {
+      color: var(--base-blue-bright);
+      text-decoration: none;
+    }
+
+    .download-hint a:hover { text-decoration: underline; }
+
+    /* ── Sad screen ── */
+    .screen { transition: opacity 0.4s, transform 0.4s; }
+    .screen.hidden {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+      pointer-events: none;
+      position: absolute;
+    }
+
+    .sad-emoji {
+      font-size: 4.5rem;
+      margin-bottom: 1rem;
+      animation: sadBounce 2s ease infinite;
+    }
+
+    @keyframes sadBounce {
+      0%, 100% { transform: translateY(0) rotate(0); }
+      25% { transform: translateY(-5px) rotate(-3deg); }
+      75% { transform: translateY(-5px) rotate(3deg); }
+    }
+
+    .sad-text {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,0.6);
+      line-height: 1.6;
+      margin-bottom: 0.5rem;
+    }
+
+    .sad-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 2rem;
+    }
+
+    .btn-jk {
+      background: transparent;
+      color: var(--base-blue-bright);
+      border: 1px solid var(--base-blue);
+      padding: 0.8rem 2rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-jk:hover {
+      background: var(--base-blue);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px var(--glow);
+    }
+
+    /* ── Footer ── */
+    .footer {
+      position: fixed;
+      bottom: 1rem;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 2;
+      opacity: 0;
+      animation: fadeUp 0.4s ease forwards;
+      animation-delay: 1.8s;
+    }
+
+    .footer-inner {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.2);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .footer-inner a {
+      color: rgba(255,255,255,0.3);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+
+    .footer-inner a:hover { color: var(--base-blue-bright); }
+
+    .footer-dot {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+    }
+
+    /* ── Mobile tweaks ── */
+    @media (max-width: 480px) {
+      h1 { font-size: 1.8rem; }
+      .subtitle { font-size: 1rem; }
+      .base-logo { width: 56px; height: 56px; }
+      .countdown-wrap { width: 80px; height: 80px; }
+      .countdown-num { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Background -->
+<div class="bg">
+  <div class="bg-grid"></div>
+  <div class="bg-glow bg-glow-1"></div>
+  <div class="bg-glow bg-glow-2"></div>
+</div>
+
+<div class="particles" id="particles"></div>
+
+<!-- Content -->
+<div class="container">
+
+  <!-- Main screen -->
+  <div class="screen" id="main-screen">
+
+    <!-- Base logo - the rounded square -->
+    <div class="base-logo">
+      <svg viewBox="0 0 111 111" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="white"/>
+      </svg>
+    </div>
+
+    <div class="greeting">
+      <h1>Hi, I'm <span class="highlight">FlowB</span></h1>
+      <p class="subtitle">Ready to get in the flow on Base?</p>
+    </div>
+
+    <!-- Typewriter terminal line -->
+    <div class="typewriter-line" id="typewriter">
+      <span id="typewriter-text"></span><span class="cursor"></span>
+    </div>
+
+    <!-- Countdown ring -->
+    <div class="countdown-wrap" id="countdown-wrap">
+      <svg class="countdown-ring" viewBox="0 0 100 100">
+        <circle class="ring-bg" cx="50" cy="50" r="45"/>
+        <circle class="ring-fill" id="ring-fill" cx="50" cy="50" r="45"/>
+      </svg>
+      <div class="countdown-num" id="countdown-num">5</div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="buttons">
+      <button class="btn-base" id="btn-yes" onclick="goBase()">
+        <svg viewBox="0 0 111 111" fill="none"><path d="M54.921 110.034C85.359 110.034 110.034 85.402 110.034 55.017C110.034 24.6319 85.359 0 54.921 0C26.0432 0 2.35281 22.1714 0 50.3923H72.8467V59.6416H0C2.35281 87.8625 26.0432 110.034 54.921 110.034Z" fill="currentColor"/></svg>
+        <span id="btn-yes-text">Yes, let's get based</span>
+      </button>
+
+      <a class="btn-secondary" id="btn-farcaster" href="https://warpcast.com/flowb" target="_blank" rel="noopener">
+        <svg viewBox="0 0 1000 1000" fill="currentColor"><path d="M257.778 155.556H742.222V844.444H671.111V528.889H670.414C662.554 441.677 589.258 373.333 500 373.333C410.742 373.333 337.446 441.677 329.586 528.889H328.889V844.444H257.778V155.556Z"/><path d="M128.889 253.333L157.778 351.111H182.222V746.667C169.949 746.667 160 756.616 160 768.889V795.556H155.556C143.283 795.556 133.333 805.505 133.333 817.778V844.444H382.222V817.778C382.222 805.505 372.273 795.556 360 795.556H355.556V768.889C355.556 756.616 345.606 746.667 333.333 746.667H306.667V253.333H128.889Z"/><path d="M675.556 746.667C663.283 746.667 653.333 756.616 653.333 768.889V795.556H648.889C636.616 795.556 626.667 805.505 626.667 817.778V844.444H875.556V817.778C875.556 805.505 865.606 795.556 853.333 795.556H848.889V768.889C848.889 756.616 838.94 746.667 826.667 746.667V351.111H851.111L880 253.333H702.222V746.667H675.556Z"/></svg>
+        Open FlowB on Farcaster
+      </a>
+
+      <button class="btn-no" onclick="showSad()">No, I'm not based :(</button>
+    </div>
+
+    <div class="download-hint" id="download-hint">
+      Don't have the Base app? <a href="https://base.app/invite/friends/JP2JBHFV" target="_blank" rel="noopener">Download with referral</a>
+    </div>
+  </div>
+
+  <!-- Sad screen -->
+  <div class="screen hidden" id="sad-screen">
+    <div class="sad-emoji">:_(</div>
+    <p class="sad-text">That's okay... not everyone<br>can be based.</p>
+    <p class="sad-sub">// but flowb still loves you</p>
+    <button class="btn-jk" onclick="comeback()">jk I'm totally based</button>
+  </div>
+
+</div>
+
+<!-- Ecosystem ticker -->
+<div class="ecosystem" id="ecosystem">
+  <div class="ticker-track" id="ticker">
+    <!-- doubled for seamless loop -->
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <div class="footer-inner">
+    <a href="https://flowb.me">flowb.me</a>
+    <span class="footer-dot"></span>
+    <span>onchain on base</span>
+    <span class="footer-dot"></span>
+    <a href="https://base.org" target="_blank" rel="noopener">base.org</a>
+  </div>
+</div>
+
+<script>
+  // ── Config ──
+  const BASE_APP_URL = 'https://base.app/invite/friends/JP2JBHFV';
+  const FARCASTER_URL = 'https://warpcast.com/flowb';
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // ── Typewriter ──
+  const phrases = [
+    'bringing the world onchain...',
+    'powered by base + farcaster',
+    'build something you believe in',
+    'a global economy, built by all of us',
+    'gm. let\'s flow.',
+  ];
+  let phraseIdx = 0;
+  let charIdx = 0;
+  let isDeleting = false;
+  let typeDelay = 60;
+  const typeEl = document.getElementById('typewriter-text');
+
+  function typewrite() {
+    const phrase = phrases[phraseIdx];
+    if (!isDeleting) {
+      typeEl.textContent = phrase.substring(0, charIdx + 1);
+      charIdx++;
+      if (charIdx === phrase.length) {
+        isDeleting = true;
+        typeDelay = 2000; // pause before deleting
+      } else {
+        typeDelay = 40 + Math.random() * 40;
+      }
+    } else {
+      typeEl.textContent = phrase.substring(0, charIdx - 1);
+      charIdx--;
+      if (charIdx === 0) {
+        isDeleting = false;
+        phraseIdx = (phraseIdx + 1) % phrases.length;
+        typeDelay = 400;
+      } else {
+        typeDelay = 20;
+      }
+    }
+    setTimeout(typewrite, typeDelay);
+  }
+  setTimeout(typewrite, 1200);
+
+  // ── Countdown ──
+  let countdown = 5;
+  let timer = null;
+  const CIRCUMFERENCE = 2 * Math.PI * 45; // ~283
+  const ringFill = document.getElementById('ring-fill');
+  const countNum = document.getElementById('countdown-num');
+  ringFill.style.strokeDasharray = CIRCUMFERENCE;
+  ringFill.style.strokeDashoffset = 0;
+
+  function updateRing() {
+    const progress = countdown / 5;
+    ringFill.style.strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+  }
+
+  function startCountdown() {
+    updateRing();
+    timer = setInterval(() => {
+      countdown--;
+      if (countdown > 0) {
+        countNum.textContent = countdown;
+        updateRing();
+      } else {
+        clearInterval(timer);
+        countNum.textContent = 'GO';
+        countNum.classList.add('go');
+        ringFill.style.strokeDashoffset = CIRCUMFERENCE;
+        setTimeout(goBase, 400);
+      }
+    }, 1000);
+  }
+
+  function goBase() {
+    if (timer) clearInterval(timer);
+    window.location.href = BASE_APP_URL;
+  }
+
+  // ── Adjust buttons based on device ──
+  const btnFarcaster = document.getElementById('btn-farcaster');
+  const btnYes = document.getElementById('btn-yes');
+  const btnYesText = document.getElementById('btn-yes-text');
+
+  if (isMobile) {
+    btnYesText.textContent = 'Open Base app';
+    btnFarcaster.style.display = 'none';
+  } else {
+    btnYesText.textContent = 'Get the Base app';
+    // On desktop, show farcaster prominently
+  }
+
+  // ── Sad screen ──
+  function showSad() {
+    if (timer) clearInterval(timer);
+    document.getElementById('main-screen').classList.add('hidden');
+    document.getElementById('sad-screen').classList.remove('hidden');
+    document.getElementById('ecosystem').style.opacity = '0';
+  }
+
+  function comeback() {
+    document.getElementById('sad-screen').classList.add('hidden');
+    document.getElementById('main-screen').classList.remove('hidden');
+    document.getElementById('ecosystem').style.opacity = '';
+    countdown = 3;
+    countNum.textContent = '3';
+    countNum.classList.remove('go');
+    updateRing();
+    startCountdown();
+  }
+
+  // ── Ecosystem ticker ──
+  const ecosystem = [
+    'Aerodrome', 'Farcaster', 'Zora', 'Uniswap', 'Aave',
+    'OpenSea', 'Moonwell', 'FlowB', 'Warpcast', 'Beefy',
+    'PancakeSwap', 'Stargate', 'SushiSwap', 'Curve',
+  ];
+
+  const tickerEl = document.getElementById('ticker');
+  const items = [...ecosystem, ...ecosystem]; // double for loop
+  tickerEl.innerHTML = items.map(name =>
+    `<span class="ticker-item"><span class="ticker-dot"></span>${name}</span>`
+  ).join('');
+
+  // ── Particles ──
+  const particlesEl = document.getElementById('particles');
+  for (let i = 0; i < 20; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 14) + 's';
+    p.style.animationDelay = Math.random() * 10 + 's';
+    const size = 2 + Math.random() * 3;
+    p.style.width = size + 'px';
+    p.style.height = size + 'px';
+    p.style.opacity = 0.1 + Math.random() * 0.15;
+    particlesEl.appendChild(p);
+  }
+
+  // ── Start ──
+  setTimeout(startCountdown, 1000);
+</script>
+
+</body>
+</html>
