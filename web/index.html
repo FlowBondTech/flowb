@@ -15,6 +15,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -205,6 +206,15 @@
             <button class="platform-option" data-platform="google-places"><span class="platform-dot" style="background:#4285F4"></span>Google Places</button>
           </div>
         </div>
+        <!-- View Toggle: Grid / Map -->
+        <div class="view-toggle">
+          <button class="view-toggle-btn active" id="viewGridBtn" title="Grid view">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          </button>
+          <button class="view-toggle-btn" id="viewMapBtn" title="Map view">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          </button>
+        </div>
       </div>
       <div class="results-meta" id="resultsMeta"></div>
     </div>
@@ -314,6 +324,30 @@
       </div>
       </div><!-- /.event-modal-details -->
     </div>
+  </div>
+
+  <!-- Map View -->
+  <div class="map-wrap hidden" id="mapWrap">
+    <div class="map-controls">
+      <div class="map-controls-left">
+        <button class="map-ctrl-btn" id="mapGpsBtn" title="My location">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/><circle cx="12" cy="12" r="8" stroke-dasharray="2 3"/></svg>
+          <span>GPS</span>
+        </button>
+        <button class="map-ctrl-btn hidden" id="mapClearRef" title="Clear reference pin">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          <span>Clear Pin</span>
+        </button>
+        <span class="map-stats-badge" id="mapStatsBadge"></span>
+      </div>
+      <div class="map-search-wrap">
+        <svg class="map-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="mapSearchInput" class="map-search-input" placeholder="Search location for pin..." autocomplete="off">
+        <div class="map-search-results hidden" id="mapSearchResults"></div>
+      </div>
+    </div>
+    <div id="mapContainer" class="map-container"></div>
+    <div class="map-hint">Click anywhere on the map to drop a reference pin</div>
   </div>
 
   <!-- Events Grid -->
@@ -570,9 +604,11 @@
   <!-- FlowB Passport Auth -->
   <script src="supabase-auth.js"></script>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="points.js"></script>
   <script src="auth.js"></script>
   <script src="app.js"></script>
+  <script src="map.js"></script>
   <!-- Sign In click triggers FlowB Passport modal -->
   <script>
     (function() {

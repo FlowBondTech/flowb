@@ -8,6 +8,7 @@ import { getPendingActions, clearPendingActions } from "../lib/pendingPoints";
 
 import type { EventResult, ScheduleEntry, FeedItem, CrewInfo, CrewMember, CrewCheckin as CrewCheckinType } from "../api/types";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
+import { EventMap } from "../components/EventMap";
 import { BottomNav } from "../components/BottomNav";
 import { CrewScreen } from "../components/CrewScreen";
 import { PointsScreen } from "../components/PointsScreen";
@@ -177,6 +178,7 @@ export default function FarcasterApp() {
   // Filters
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeDate, setActiveDate] = useState<string>("any");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Share feedback
   const [linkCopied, setLinkCopied] = useState(false);
@@ -782,7 +784,32 @@ export default function FarcasterApp() {
                 List Your Event
               </button>
 
-              {eventsLoading ? (
+              {/* View Toggle: List / Map */}
+              <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 10, background: "var(--bg-card, #1a1a1a)", border: "1px solid var(--border, #2a2a2a)", borderRadius: 8, overflow: "hidden", width: "fit-content" }}>
+                <button
+                  onClick={() => setViewMode("list")}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 30, background: viewMode === "list" ? "rgba(37,99,235,0.15)" : "none", border: "none", color: viewMode === "list" ? "#3b82f6" : "#888", cursor: "pointer" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                </button>
+                <button
+                  onClick={() => setViewMode("map")}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 30, background: viewMode === "map" ? "rgba(37,99,235,0.15)" : "none", border: "none", borderLeft: "1px solid var(--border, #2a2a2a)", color: viewMode === "map" ? "#3b82f6" : "#888", cursor: "pointer" }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </button>
+              </div>
+
+              {/* Map View */}
+              {viewMode === "map" && !eventsLoading && (
+                <EventMap
+                  events={dateFiltered}
+                  onEventClick={(id) => openEvent(id)}
+                />
+              )}
+
+              {/* List View */}
+              {viewMode === "list" && (eventsLoading ? (
                 <>
                   <EventCardSkeleton />
                   <EventCardSkeleton />
@@ -861,7 +888,7 @@ export default function FarcasterApp() {
                     </>
                   )}
                 </>
-              )}
+              ))}
             </>
           )}
 

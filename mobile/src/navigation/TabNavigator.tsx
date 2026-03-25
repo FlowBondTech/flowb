@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { GlassTabBar } from "../components/glass/GlassTabBar";
 import { HomeScreen } from "../screens/home/HomeScreen";
+import { EventMapScreen } from "../screens/home/EventMapScreen";
 import { ScheduleScreen } from "../screens/schedule/ScheduleScreen";
 import { ChatScreen } from "../screens/chat/ChatScreen";
 import { BizDashboardScreen } from "../screens/biz/BizDashboardScreen";
@@ -33,6 +34,20 @@ export function TabNavigator() {
           tabBarIcon: ({ focused, color }) => (
             <Ionicons
               name={focused ? "compass" : "compass-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="MapTab"
+        component={EventMapScreen}
+        options={{
+          tabBarLabel: "Map",
+          tabBarIcon: ({ focused, color }) => (
+            <Ionicons
+              name={focused ? "map" : "map-outline"}
               size={24}
               color={color}
             />

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build && cp auth.js supabase-auth.js app.js points.js mobile-menu.js styles.css *.html favicon.ico favicon-16.png favicon-32.png favicon-192.png apple-touch-icon.png dist/ && cp *.png *.jpg *.glb dist/ 2>/dev/null; true",
+    "build": "vite build && cp auth.js supabase-auth.js app.js points.js mobile-menu.js map.js styles.css *.html favicon.ico favicon-16.png favicon-32.png favicon-192.png apple-touch-icon.png dist/ && cp *.png *.jpg *.glb dist/ 2>/dev/null; true",
     "preview": "vite preview"
   },
   "devDependencies": {

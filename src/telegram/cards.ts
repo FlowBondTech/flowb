@@ -250,6 +250,11 @@ export function formatEventCardHtml(
     lines.push(`<i>${escapeHtml(snippet)}</i>`);
   }
 
+  if (event.url) {
+    lines.push("");
+    lines.push(`\ud83d\udd17 <a href="${event.url}">Event link</a>`);
+  }
+
   // Footer
   const filters: string[] = [];
   if (activeFilter && activeFilter !== "all") filters.push(activeFilter);
@@ -282,7 +287,11 @@ export function buildEventCardKeyboard(
   // Row 2: Actions
   kb.row();
   kb.text("\u2b50 Save", `ec:save:${short}`);
-  kb.text("\ud83d\udcdd Details", `ec:luma:${short}`);
+  if (eventUrl) {
+    kb.url("\ud83d\udd17 Open", eventUrl);
+  } else {
+    kb.text("\ud83d\udcdd Details", `ec:luma:${short}`);
+  }
   kb.text("\ud83d\udce4 Share", `ec:share:${short}`);
 
   // Row 3: Navigation

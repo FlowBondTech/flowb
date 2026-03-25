@@ -3,6 +3,7 @@ import type { Screen } from "../App";
 import type { EventResult, FeedItem, CrewInfo, CrewCheckin, CrewMember, RankedLocation, FeaturedEventBoost } from "../api/types";
 import { getEvents, getCrews, getCrewMembers, getRankedLocations, getFeaturedEventBoost } from "../api/client";
 import { EventCard, EventCardSkeleton } from "../components/EventCard";
+import { EventMap } from "../components/EventMap";
 import { FeaturedSponsorModal } from "../components/FeaturedSponsorModal";
 import { FeedbackModal } from "../components/FeedbackModal";
 
@@ -147,6 +148,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
   const [activeDate, setActiveDate] = useState("any");
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Feed state
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
@@ -508,7 +510,43 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
             List Your Event
           </button>
 
-          {loading ? (
+          {/* View Toggle: List / Map */}
+          <div style={{ display: "flex", alignItems: "center", gap: 0, marginBottom: 10, background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: "var(--radius-sm)", overflow: "hidden", width: "fit-content" }}>
+            <button
+              onClick={() => setViewMode("list")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 30, background: viewMode === "list" ? "var(--accent-glow)" : "none",
+                border: "none", color: viewMode === "list" ? "var(--accent-light)" : "var(--text-muted)", cursor: "pointer",
+              }}
+              title="List view"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </button>
+            <button
+              onClick={() => setViewMode("map")}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                width: 36, height: 30, background: viewMode === "map" ? "var(--accent-glow)" : "none",
+                border: "none", borderLeft: "1px solid var(--border)",
+                color: viewMode === "map" ? "var(--accent-light)" : "var(--text-muted)", cursor: "pointer",
+              }}
+              title="Map view"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </button>
+          </div>
+
+          {/* Map View */}
+          {viewMode === "map" && !loading && (
+            <EventMap
+              events={dateFiltered}
+              onEventClick={(id) => onNavigate({ name: "event", id })}
+            />
+          )}
+
+          {/* List View */}
+          {viewMode === "list" && (loading ? (
             <>
               <EventCardSkeleton />
               <EventCardSkeleton />
@@ -604,7 +642,7 @@ export function Home({ onNavigate, initialTab = "discover" }: Props) {
                 </>
               )}
             </>
-          )}
+          ))}
         </>
       )}
 

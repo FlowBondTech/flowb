@@ -353,6 +353,11 @@ function renderEvents(events) {
   const platformSuffix = activePlatform !== 'all' ? ` from ${getSourceMeta(activePlatform).label}` : '';
   const kwSuffix = activeKeywords.size > 0 ? ` matching "${[...activeKeywords].join(', ')}"` : '';
   resultsMeta.textContent = `${filtered.length} events${searchQuery ? ` matching "${searchQuery}"` : ''}${activeCategory !== 'all' ? ` in ${getCatLabel(activeCategory)}` : ''}${platformSuffix}${kwSuffix}`;
+
+  // Sync filtered events to map view
+  if (typeof window.updateMapEvents === 'function') {
+    window.updateMapEvents(filtered);
+  }
 }
 
 function getCatLabel(catId) {
@@ -1491,7 +1496,7 @@ const advToggle = document.getElementById('advFilterToggle');
 const advPanel = document.getElementById('advFilters');
 const advActiveCount = document.getElementById('advActiveCount');
 
-advToggle.addEventListener('click', () => {
+if (advToggle) advToggle.addEventListener('click', () => {
   const isHidden = advPanel.classList.toggle('hidden');
   advToggle.classList.toggle('active', !isHidden);
 });
@@ -1511,12 +1516,12 @@ document.querySelectorAll('.adv-chip').forEach(chip => {
     }
     // Update count badge
     if (activeKeywords.size > 0) {
-      advActiveCount.textContent = `${activeKeywords.size} keyword filter${activeKeywords.size > 1 ? 's' : ''} active`;
-      advActiveCount.classList.remove('hidden');
-      advToggle.classList.add('active');
+      if (advActiveCount) advActiveCount.textContent = `${activeKeywords.size} keyword filter${activeKeywords.size > 1 ? 's' : ''} active`;
+      if (advActiveCount) advActiveCount.classList.remove('hidden');
+      if (advToggle) advToggle.classList.add('active');
     } else {
-      advActiveCount.classList.add('hidden');
-      if (advPanel.classList.contains('hidden')) advToggle.classList.remove('active');
+      if (advActiveCount) advActiveCount.classList.add('hidden');
+      if (advPanel?.classList.contains('hidden') && advToggle) advToggle.classList.remove('active');
     }
     displayCount = 18;
     renderEvents(allEvents);
