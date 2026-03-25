@@ -496,6 +496,33 @@ export async function proximityCheckin(
   return post("/api/v1/flow/checkin/proximity", { latitude, longitude, crewId });
 }
 
+export async function universalCheckin(params: {
+  venue: string;
+  status?: string;
+  message?: string;
+  eventId?: string;
+  latitude?: number;
+  longitude?: number;
+}): Promise<any> {
+  // If we have GPS coords, use proximity checkin first
+  if (params.latitude && params.longitude) {
+    return post("/api/v1/flow/checkin/proximity", {
+      latitude: params.latitude,
+      longitude: params.longitude,
+    });
+  }
+  // Fallback: post to schedule checkin if eventId provided
+  if (params.eventId) {
+    return post(`/api/v1/me/schedule/${params.eventId}/checkin`, {
+      venue: params.venue,
+      status: params.status,
+      message: params.message,
+    });
+  }
+  // Generic: use proximity with 0,0 as fallback (server handles gracefully)
+  return post("/api/v1/flow/checkin/proximity", { latitude: 0, longitude: 0 });
+}
+
 // ============================================================================
 // Agents
 // ============================================================================

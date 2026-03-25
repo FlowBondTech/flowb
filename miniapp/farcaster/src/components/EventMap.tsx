@@ -55,10 +55,14 @@ export function EventMap({ events, onEventClick }: Props) {
   // Dynamic import of Leaflet
   useEffect(() => {
     if (L) { setReady(true); return; }
-    Promise.all([
-      import("leaflet"),
-      import("leaflet/dist/leaflet.css"),
-    ]).then(([leaflet]) => {
+    // Load Leaflet CSS via link tag (avoids TS module resolution issues)
+    if (!document.querySelector('link[href*="leaflet"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(link);
+    }
+    import("leaflet").then((leaflet) => {
       L = leaflet.default || leaflet;
       setReady(true);
     });
