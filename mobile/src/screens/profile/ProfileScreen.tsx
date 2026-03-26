@@ -345,7 +345,14 @@ export function ProfileScreen() {
                   }}
                 />
                 <View style={styles.divider} />
-                <SettingsRow icon="link-outline" label="Linked Accounts" disabled />
+                <SettingsRow
+                  icon="link-outline"
+                  label="Linked Accounts"
+                  onPress={() => {
+                    haptics.tap();
+                    navigation.navigate('LinkedAccounts');
+                  }}
+                />
                 <View style={styles.divider} />
                 <SettingsRow
                   icon="information-circle-outline"

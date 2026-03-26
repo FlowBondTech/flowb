@@ -21,8 +21,9 @@ import { fireAndForget } from "../utils/logger.js";
 import { sbFetch, sbPatchRaw } from "../utils/supabase.js";
 import { registerWhatsAppWebhook } from "../whatsapp/bot.js";
 import { registerSignalWebhook } from "../signal/bot.js";
-import { resolveCanonicalId, ensureIdentityRow } from "../services/identity.js";
+import { resolveCanonicalId, ensureIdentityRow, determineMergeDirection, mergeIdentities } from "../services/identity.js";
 import { linkTokens, LINK_TOKEN_TTL } from "./link-tokens.js";
+import { consumeOidcState, exchangeCodeForToken, verifyTelegramIdToken } from "./telegram-oidc.js";
 
 export async function buildApp(core: FlowBCore) {
   const app = Fastify({ logger: true });
@@ -292,40 +293,6 @@ export async function buildApp(core: FlowBCore) {
 
     console.log("[scheduler] Email digest scheduled (8am MST)");
 
-    // ========================================================================
-    // Onboarding Reminders: once per day at ~10am MST
-    // Nudges users who skipped onboarding to come back and complete it.
-    // ========================================================================
-    const onboardReminderFired: Record<string, boolean> = {};
-
-    setInterval(() => {
-      try {
-        const now = new Date();
-        const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
-        const parts = mstStr.split(",")[1]?.trim().split(":");
-        if (!parts) return;
-
-        const hour = parseInt(parts[0], 10);
-        const dateKey = now.toISOString().slice(0, 10);
-
-        if (hour === 10 && !onboardReminderFired[dateKey]) {
-          onboardReminderFired[dateKey] = true;
-          import("../services/notifications.js").then(({ sendOnboardingReminders }) =>
-            sendOnboardingReminders({ supabase: { supabaseUrl, supabaseKey } }).catch(
-              (err) => console.error("[scheduler] Onboarding reminder error:", err),
-            ),
-          );
-
-          for (const key of Object.keys(onboardReminderFired)) {
-            if (key !== dateKey) delete onboardReminderFired[key];
-          }
-        }
-      } catch (err) {
-        console.error("[scheduler] Onboarding reminder check error:", err);
-      }
-    }, CTX_NOTIFY_INTERVAL);
-
-    console.log("[scheduler] Onboarding reminders scheduled (10am MST)");
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
@@ -652,6 +619,74 @@ export async function buildApp(core: FlowBCore) {
     let callbackUrl = process.env.FLOWB_AUTH_CALLBACK_URL || `${request.protocol}://${request.hostname}/auth/telegram`;
     return reply.type("text/html").send(connectPage(botUsername, callbackUrl, linkToken));
   });
+
+  // ==========================================================================
+  // Telegram OIDC Link Callback
+  //
+  // Handles the redirect from Telegram's OAuth flow. Exchanges the authorization
+  // code for an id_token, verifies it, merges identities, then redirects back
+  // to the mobile app via deep link with success/error params.
+  // ==========================================================================
+  app.get<{ Querystring: { code?: string; state?: string } }>(
+    "/auth/telegram-link-callback",
+    async (request, reply) => {
+      const { code, state } = request.query;
+      const appScheme = "flowb://link-result";
+
+      if (!code || !state) {
+        return reply.redirect(`${appScheme}?success=false&error=${encodeURIComponent("Missing code or state")}`);
+      }
+
+      // 1. Consume state (validates TTL, returns userId + codeVerifier)
+      const stateData = consumeOidcState(state);
+      if (!stateData) {
+        return reply.redirect(`${appScheme}?success=false&error=${encodeURIComponent("Invalid or expired state")}`);
+      }
+
+      const { userId, codeVerifier } = stateData;
+      const baseUrl = process.env.BASE_URL || "https://flowb.fly.dev";
+      const redirectUri = `${baseUrl}/auth/telegram-link-callback`;
+
+      try {
+        // 2. Exchange authorization code for id_token
+        const idToken = await exchangeCodeForToken(code, codeVerifier, redirectUri);
+
+        // 3. Verify id_token JWT via JWKS
+        const claims = await verifyTelegramIdToken(idToken);
+        const telegramUserId = `telegram_${claims.sub}`;
+
+        app.log.info(`[telegram-oidc] Linking ${userId} <-> ${telegramUserId} (tg: ${claims.username || claims.first_name})`);
+
+        // 4. Perform identity merge
+        const supabaseUrl = process.env.SUPABASE_URL;
+        const supabaseKey = process.env.SUPABASE_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+          return reply.redirect(`${appScheme}?success=false&error=${encodeURIComponent("Database not configured")}`);
+        }
+
+        const cfg = { supabaseUrl, supabaseKey };
+
+        // Ensure both identity rows exist before merge
+        await ensureIdentityRow(cfg, userId, userId, "web");
+        await ensureIdentityRow(cfg, telegramUserId, telegramUserId, "telegram", undefined, {
+          displayName: claims.username || claims.first_name,
+          avatarUrl: claims.photo_url,
+        });
+
+        // Determine merge direction and merge
+        const { keepId, mergeId } = await determineMergeDirection(cfg, userId, telegramUserId);
+        const result = await mergeIdentities(cfg, keepId, mergeId);
+
+        app.log.info(`[telegram-oidc] Merge complete: keep=${keepId} merge=${mergeId} rows=${result.rowsUpdated}`);
+
+        return reply.redirect(`${appScheme}?success=true&rows=${result.rowsUpdated}`);
+      } catch (err: any) {
+        app.log.error(`[telegram-oidc] Callback error: ${err.message}`);
+        return reply.redirect(`${appScheme}?success=false&error=${encodeURIComponent(err.message || "Unknown error")}`);
+      }
+    },
+  );
 
   // ==========================================================================
   // Smart Event Short Links (flowb.me/e/{id})

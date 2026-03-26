@@ -106,6 +106,89 @@ export async function getLinkedIds(cfg: SbConfig, canonicalId: string): Promise<
   return (rows || []).map(r => r.platform_user_id);
 }
 
+/**
+ * Merge two identities: move all data from mergeId into keepId.
+ * Calls the SQL function flowb_merge_identities which handles all tables.
+ *
+ * Merge direction: the ID with more crew memberships is kept.
+ * If equal, the older account (earlier created_at) is kept.
+ */
+export async function mergeIdentities(
+  cfg: SbConfig,
+  keepId: string,
+  mergeId: string,
+): Promise<{ ok: boolean; rowsUpdated: number; keepId: string; mergeId: string }> {
+  if (keepId === mergeId) {
+    return { ok: true, rowsUpdated: 0, keepId, mergeId };
+  }
+
+  // Call the Postgres function via RPC
+  const res = await fetch(`${cfg.supabaseUrl}/rest/v1/rpc/flowb_merge_identities`, {
+    method: "POST",
+    headers: {
+      apikey: cfg.supabaseKey,
+      Authorization: `Bearer ${cfg.supabaseKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ p_keep_id: keepId, p_merge_id: mergeId }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Merge failed (${res.status}): ${text}`);
+  }
+
+  const rowsUpdated = await res.json() as number;
+  return { ok: true, rowsUpdated, keepId, mergeId };
+}
+
+/**
+ * Determine which ID should be the "keeper" (canonical) in a merge.
+ * Prefers the ID with more crew memberships; ties broken by older created_at.
+ */
+export async function determineMergeDirection(
+  cfg: SbConfig,
+  idA: string,
+  idB: string,
+): Promise<{ keepId: string; mergeId: string }> {
+  // Count crew memberships for each
+  const [membersA, membersB] = await Promise.all([
+    sbFetch<{ count: number }[]>(
+      cfg,
+      `flowb_group_members?user_id=eq.${encodeURIComponent(idA)}&select=count`,
+    ),
+    sbFetch<{ count: number }[]>(
+      cfg,
+      `flowb_group_members?user_id=eq.${encodeURIComponent(idB)}&select=count`,
+    ),
+  ]);
+
+  const countA = membersA?.[0]?.count ?? 0;
+  const countB = membersB?.[0]?.count ?? 0;
+
+  if (countA > countB) return { keepId: idA, mergeId: idB };
+  if (countB > countA) return { keepId: idB, mergeId: idA };
+
+  // Tie-break: keep the older account
+  const [sessionA, sessionB] = await Promise.all([
+    sbFetch<{ created_at: string }[]>(
+      cfg,
+      `flowb_sessions?user_id=eq.${encodeURIComponent(idA)}&select=created_at&limit=1`,
+    ),
+    sbFetch<{ created_at: string }[]>(
+      cfg,
+      `flowb_sessions?user_id=eq.${encodeURIComponent(idB)}&select=created_at&limit=1`,
+    ),
+  ]);
+
+  const dateA = sessionA?.[0]?.created_at ? new Date(sessionA[0].created_at).getTime() : Infinity;
+  const dateB = sessionB?.[0]?.created_at ? new Date(sessionB[0].created_at).getTime() : Infinity;
+
+  // Older (smaller timestamp) is the keeper
+  if (dateA <= dateB) return { keepId: idA, mergeId: idB };
+  return { keepId: idB, mergeId: idA };
+}
+
 // ============================================================================
 // Internal helpers
 // ============================================================================

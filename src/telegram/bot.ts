@@ -125,6 +125,8 @@ import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
 import { isFlowBAdmin } from "../utils/admin.js";
 import { handleChat, type ChatConfig, type ChatMessage, type ChatPersona } from "../services/ai-chat.js";
 import { generateDraftReply, sendReply, updateTicketStatus, getTicket, type SupportTicket } from "../services/support.js";
+import { mergeIdentities, determineMergeDirection } from "../services/identity.js";
+import { linkTokens, linkResults, LINK_TOKEN_TTL } from "../server/link-tokens.js";
 // TEMPORARILY DISABLED: Group intelligence feature not fully implemented
 // import { ... } from "../services/group-intelligence.js";
 
@@ -994,14 +996,58 @@ export function startTelegramBot(
       return;
     }
 
-    // --- Account link token: link_{token} (from web "Connect Telegram" flow) ---
+    // --- Account link token: link_{token} (from mobile "Connect Telegram" flow) ---
     if (args?.startsWith("link_")) {
       const token = args.slice(5);
-      const tokenConnectUrl = `${connectUrl}${connectUrl.includes('?') ? '&' : '?'}lt=${token}`;
-      await ctx.reply(formatConnectPromptHtml(), {
-        parse_mode: "HTML",
-        reply_markup: buildConnectKeyboard(tokenConnectUrl),
-      });
+      const tokenData = linkTokens.get(token);
+
+      // Validate token
+      if (!tokenData || Date.now() - tokenData.createdAt > LINK_TOKEN_TTL) {
+        linkTokens.delete(token);
+        await ctx.reply("This link token has expired or is invalid. Please try again from the app.");
+        return;
+      }
+
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (!sbUrl || !sbKey) {
+        await ctx.reply("Account linking is temporarily unavailable. Please try again later.");
+        return;
+      }
+
+      const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+      const webUserId = tokenData.webUserId;          // e.g. web_abc123
+      const telegramId = userId(tgId);                // e.g. telegram_456
+
+      try {
+        // Determine merge direction (keep the account with more data)
+        const { keepId, mergeId } = await determineMergeDirection(cfg, telegramId, webUserId);
+
+        // Perform the merge
+        const result = await mergeIdentities(cfg, keepId, mergeId);
+
+        // Store result so mobile app can poll for completion
+        linkResults.set(token, {
+          keepId,
+          mergeId,
+          rowsUpdated: result.rowsUpdated,
+          completedAt: Date.now(),
+        });
+
+        // Consume the token
+        linkTokens.delete(token);
+
+        await ctx.reply(
+          `<b>Accounts linked!</b>\n\n` +
+          `Your Telegram and app accounts are now connected. ` +
+          `All your crews, points, and friends have been merged.\n\n` +
+          `<i>${result.rowsUpdated} records updated.</i>`,
+          { parse_mode: "HTML" },
+        );
+      } catch (err: any) {
+        console.error("[start] link_ merge error:", err);
+        await ctx.reply("Something went wrong linking your accounts. Please try again.");
+      }
       return;
     }
 

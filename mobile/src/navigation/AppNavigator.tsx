@@ -26,6 +26,7 @@ import { SettingsEditor } from "../screens/admin/SettingsEditor";
 import { PreferencesScreen } from "../screens/profile/PreferencesScreen";
 import { FriendsScreen } from "../screens/profile/FriendsScreen";
 import { AboutScreen } from "../screens/profile/AboutScreen";
+import { LinkedAccountsScreen } from "../screens/profile/LinkedAccountsScreen";
 import { MeetingListScreen } from "../screens/meetings/MeetingListScreen";
 import { MeetingDetailScreen } from "../screens/meetings/MeetingDetailScreen";
 import { CreateMeetingScreen } from "../screens/meetings/CreateMeetingScreen";
@@ -147,6 +148,7 @@ export function AppNavigator() {
             <Stack.Screen name="Preferences" component={PreferencesScreen} />
             <Stack.Screen name="Friends" component={FriendsScreen} />
             <Stack.Screen name="About" component={AboutScreen} />
+            <Stack.Screen name="LinkedAccounts" component={LinkedAccountsScreen} />
             <Stack.Screen name="AdminDashboard" component={AdminDashboard} />
             <Stack.Screen name="PluginManager" component={PluginManager} />
             <Stack.Screen name="EventCurator" component={EventCurator} />

@@ -30,6 +30,8 @@ export type RootStackParamList = {
   CreateLead: undefined;
   EditLead: { leadId: string };
   Kanban: undefined;
+  // Account linking
+  LinkedAccounts: undefined;
   // Checkout & payments
   Products: undefined;
   Checkout: { productSlug: string; eventId?: string; eventTitle?: string };
