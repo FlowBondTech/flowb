@@ -682,3 +682,34 @@ export async function getPaymentNetworks(): Promise<PaymentNetworkInfo[]> {
   const data = await get<{ networks: PaymentNetworkInfo[] }>("/api/v1/payment/networks");
   return data.networks;
 }
+
+// ── Identity Linking ─────────────────────────────────────────────────
+
+export interface LinkStatus {
+  has_telegram: boolean;
+  has_farcaster: boolean;
+  has_web: boolean;
+  total_linked: number;
+  merged_points: number;
+  linked?: boolean;
+  pending?: boolean;
+  canonical_id?: string;
+  rows_updated?: number;
+}
+
+export async function getLinkStatus(linkToken?: string): Promise<LinkStatus> {
+  const params = linkToken ? `?linkToken=${encodeURIComponent(linkToken)}` : "";
+  return get<LinkStatus>(`/api/v1/me/link-status${params}`);
+}
+
+export async function getLinkToken(): Promise<{
+  token: string;
+  telegramDeepLink: string;
+  connectUrl: string;
+}> {
+  return post("/api/v1/me/link-token");
+}
+
+export async function initTelegramLink(): Promise<{ authUrl: string }> {
+  return post("/api/v1/me/link-telegram/init");
+}

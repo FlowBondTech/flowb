@@ -56,7 +56,8 @@ import { scanForNewEvents, type ScanResult } from "../services/event-scanner.js"
 import { registerAgentRoutes } from "./agent-routes.js";
 import { registerFiFlowRoutes } from "./fiflow-routes.js";
 import { registerPaymentRoutes } from "./payment-routes.js";
-import { linkTokens, generateLinkToken } from "./link-tokens.js";
+import { linkTokens, linkResults, generateLinkToken } from "./link-tokens.js";
+import { createOidcState } from "./telegram-oidc.js";
 // TEMPORARILY DISABLED: websites plugin not fully implemented
 // import {
 //   createProject, listProjects, getProject, updateProject, deleteProject,
@@ -1718,8 +1719,81 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
   );
 
   // ------------------------------------------------------------------
+  // HELPERS: OG metadata scraper (reusable)
+  // ------------------------------------------------------------------
+  async function fetchOgMetadata(targetUrl: string): Promise<{
+    title?: string; description?: string; image?: string;
+    venue?: string; city?: string; startsAt?: string; endsAt?: string;
+    isFree?: boolean; source: "db" | "og";
+  }> {
+    const cfg = getSupabaseConfig();
+    // First check our events DB for a match
+    if (cfg) {
+      const dbRows = await sbFetch<any[]>(
+        cfg,
+        `flowb_events?or=(url.eq.${encodeURIComponent(targetUrl)},source_url.eq.${encodeURIComponent(targetUrl)})&limit=1`,
+      );
+      if (dbRows?.length) {
+        const ev = dbRows[0];
+        return {
+          title: ev.title || undefined,
+          description: ev.description || undefined,
+          image: ev.image_url || ev.cover_url || undefined,
+          venue: ev.venue_name || undefined,
+          city: ev.city || undefined,
+          startsAt: ev.starts_at || undefined,
+          endsAt: ev.ends_at || undefined,
+          isFree: ev.is_free ?? undefined,
+          source: "db",
+        };
+      }
+    }
+    // Fallback: fetch OG tags from the URL
+    try {
+      const ogRes = await fetch(targetUrl, {
+        headers: { "User-Agent": "FlowB/1.0 (og-scraper)" },
+        signal: AbortSignal.timeout(5000),
+      });
+      const html = await ogRes.text();
+      const getOg = (prop: string) => {
+        const m = html.match(new RegExp(`property=["']og:${prop}["'][^>]*content=["']([^"']+)["']`, "i"))
+          || html.match(new RegExp(`content=["']([^"']+)["'][^>]*property=["']og:${prop}["']`, "i"));
+        return m?.[1]?.replace(/&amp;/g, "&") || undefined;
+      };
+      return {
+        title: getOg("title"),
+        description: getOg("description"),
+        image: getOg("image"),
+        source: "og",
+      };
+    } catch {
+      return { source: "og" };
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // EVENTS: Preview URL (fetch metadata for auto-fill)
+  // ------------------------------------------------------------------
+  app.post<{ Body: { url?: string } }>(
+    "/api/v1/events/preview-url",
+    async (request, reply) => {
+      const { url } = request.body || {};
+      if (!url) return reply.status(400).send({ error: "URL is required" });
+      try {
+        new URL(url);
+      } catch {
+        return reply.status(400).send({ error: "Invalid URL" });
+      }
+      const meta = await fetchOgMetadata(url);
+      return meta;
+    },
+  );
+
+  // ------------------------------------------------------------------
   // EVENTS: Community submit (anyone can add an event link)
   // ------------------------------------------------------------------
+  const VALID_EVENT_TYPES = ["main_stage", "side_event", "party", "workshop", "hackathon", "meetup", "activation"] as const;
+
   app.post<{
     Body: {
       url?: string;
@@ -1731,6 +1805,9 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       description?: string;
       isFree?: boolean;
       submitterName?: string;
+      imageUrl?: string;
+      eventType?: string;
+      categories?: string[];
     };
   }>(
     "/api/v1/events/submit",
@@ -1738,12 +1815,15 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const cfg = getSupabaseConfig();
       if (!cfg) return reply.status(500).send({ error: "Not configured" });
 
-      const { url, title, startTime, endTime, venue, city, description, isFree, submitterName } = request.body || {};
+      const { url, title, startTime, endTime, venue, city, description, isFree, submitterName, imageUrl, eventType, categories } = request.body || {};
 
       // Require at least a title or URL
       if (!title && !url) {
         return reply.status(400).send({ error: "Please provide an event title or URL" });
       }
+
+      // Validate eventType if provided
+      const validatedEventType = eventType && VALID_EVENT_TYPES.includes(eventType as any) ? eventType : "side_event";
 
       const eventTitle = title || url || "Community Event";
       const titleSlug = eventTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 200);
@@ -1772,8 +1852,10 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
         starts_at: startTime || null,
         ends_at: endTime || null,
         venue_name: venue || null,
-        city: city || "Austin",
+        city: city || null,
         is_free: isFree ?? null,
+        image_url: imageUrl || null,
+        event_type: validatedEventType,
         organizer_name: submitter,
         quality_score: isAuthenticated ? 0.5 : 0.3,
         stale: false,
@@ -1784,6 +1866,28 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
       if (!inserted?.id) {
         return reply.status(500).send({ error: "Failed to save event" });
+      }
+
+      // Write category map entries if categories provided
+      if (categories?.length && inserted.id) {
+        const catSlugs = categories.slice(0, 3); // max 3
+        const catRows = await sbFetch<any[]>(
+          cfg,
+          `flowb_event_categories?slug=in.(${catSlugs.map(s => encodeURIComponent(s)).join(",")})&select=id,slug`,
+        );
+        if (catRows?.length) {
+          for (const cat of catRows) {
+            fireAndForget(
+              sbInsert(cfg, "flowb_event_category_map", {
+                event_id: inserted.id,
+                category_id: cat.id,
+                confidence: 1.0,
+                source: "admin",
+              }),
+              `map category ${cat.slug}`,
+            );
+          }
+        }
       }
 
       // Award points if authenticated
@@ -5610,12 +5714,43 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
   // ------------------------------------------------------------------
   // LINK STATUS: Lightweight check for frontend linking prompt
+  // Supports ?linkToken=XXX param to poll for merge completion
   // ------------------------------------------------------------------
-  app.get(
+  app.get<{ Querystring: { linkToken?: string } }>(
     "/api/v1/me/link-status",
     { preHandler: authMiddleware },
     async (request) => {
       const jwt = request.jwtPayload!;
+      const { linkToken } = request.query || {};
+
+      // If polling for a specific link token result
+      if (linkToken) {
+        const result = linkResults.get(linkToken);
+        if (result) {
+          return {
+            linked: true,
+            canonical_id: result.keepId,
+            rows_updated: result.rowsUpdated,
+            has_telegram: true,
+            has_farcaster: false,
+            has_web: true,
+            total_linked: 2,
+            merged_points: 0,
+          };
+        }
+        // Token not yet consumed — still pending
+        const pending = linkTokens.has(linkToken);
+        return {
+          linked: false,
+          pending,
+          has_telegram: false,
+          has_farcaster: false,
+          has_web: false,
+          total_linked: 0,
+          merged_points: 0,
+        };
+      }
+
       const cfg = getSupabaseConfig();
       if (!cfg) return { has_telegram: false, has_farcaster: false, has_web: false, total_linked: 0, merged_points: 0 };
 
@@ -5651,8 +5786,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
 
   // ------------------------------------------------------------------
   // LINK TOKEN: Generate a short-lived token for cross-platform linking
-  // Web user calls this, gets a URL to /connect?lt=TOKEN which carries
-  // their identity through the Telegram Login Widget callback.
+  // Mobile/web user calls this, gets a Telegram deep link that triggers
+  // the merge when the user opens it in Telegram.
   // ------------------------------------------------------------------
   app.post(
     "/api/v1/me/link-token",
@@ -5661,8 +5796,44 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const jwt = request.jwtPayload!;
       const token = generateLinkToken();
       linkTokens.set(token, { webUserId: jwt.sub, createdAt: Date.now() });
+      const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
+      const telegramDeepLink = `https://t.me/${botUsername}?start=link_${token}`;
+      // Keep legacy connectUrl for web flow
       const connectUrl = `https://flowb.fly.dev/connect?lt=${encodeURIComponent(token)}`;
-      return { token, connectUrl };
+      return { token, telegramDeepLink, connectUrl };
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // LINK TELEGRAM (OIDC): Start browser-based Telegram OAuth + PKCE flow
+  // Returns an auth URL the mobile app opens via WebBrowser.openAuthSessionAsync
+  // ------------------------------------------------------------------
+  app.post(
+    "/api/v1/me/link-telegram/init",
+    { preHandler: authMiddleware },
+    async (request) => {
+      const jwt = request.jwtPayload!;
+      const clientId = process.env.TELEGRAM_OIDC_CLIENT_ID;
+      const botId = process.env.TELEGRAM_BOT_ID || clientId;
+      if (!clientId) {
+        return { error: "Telegram OIDC not configured" };
+      }
+
+      const { state, codeChallenge } = createOidcState(jwt.sub);
+      const baseUrl = process.env.BASE_URL || "https://flowb.fly.dev";
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        response_type: "code",
+        redirect_uri: `${baseUrl}/auth/telegram-link-callback`,
+        scope: "openid",
+        state,
+        code_challenge: codeChallenge,
+        code_challenge_method: "S256",
+        bot_id: botId!,
+      });
+
+      return { authUrl: `https://oauth.telegram.org/auth?${params}` };
     },
   );
 
@@ -6875,31 +7046,8 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       let ogMeta: { title?: string; image?: string; description?: string } = {};
       const effectiveUrl = current?.target_id;
       if (effectiveUrl) {
-        // First check our own events DB
-        const dbEvents = await sbFetch<any[]>(
-          cfg,
-          `flowb_events?or=(url.eq.${encodeURIComponent(effectiveUrl)},source_url.eq.${encodeURIComponent(effectiveUrl)})&limit=1`,
-        );
-        if (dbEvents?.length) {
-          const ev = dbEvents[0];
-          ogMeta = { title: ev.title, image: ev.image_url || ev.cover_url, description: ev.description };
-        }
-        // Fallback: fetch OG tags from the URL
-        if (!ogMeta.title) {
-          try {
-            const ogRes = await fetch(effectiveUrl, {
-              headers: { "User-Agent": "FlowB/1.0 (og-scraper)" },
-              signal: AbortSignal.timeout(4000),
-            });
-            const html = await ogRes.text();
-            const getOg = (prop: string) => {
-              const m = html.match(new RegExp(`property=["']og:${prop}["'][^>]*content=["']([^"']+)["']`, "i"))
-                || html.match(new RegExp(`content=["']([^"']+)["'][^>]*property=["']og:${prop}["']`, "i"));
-              return m?.[1]?.replace(/&amp;/g, "&") || "";
-            };
-            ogMeta = { title: getOg("title"), image: getOg("image"), description: getOg("description") };
-          } catch {}
-        }
+        const meta = await fetchOgMetadata(effectiveUrl);
+        ogMeta = { title: meta.title, image: meta.image, description: meta.description };
       }
 
       return {

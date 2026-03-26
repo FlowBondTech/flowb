@@ -198,6 +198,34 @@ export async function claimPendingPoints(
 // Event Submission
 // ============================================================================
 
+export interface UrlPreview {
+  title?: string;
+  description?: string;
+  image?: string;
+  venue?: string;
+  city?: string;
+  startsAt?: string;
+  endsAt?: string;
+  isFree?: boolean;
+  source: "db" | "og";
+}
+
+export async function previewUrl(url: string): Promise<UrlPreview> {
+  return post<UrlPreview>("/api/v1/events/preview-url", { url });
+}
+
+export interface CategoryItem {
+  slug: string;
+  name: string;
+  icon?: string;
+  color?: string;
+}
+
+export async function getCategories(): Promise<CategoryItem[]> {
+  const res = await get<{ categories: CategoryItem[] }>("/api/v1/categories");
+  return res.categories || [];
+}
+
 export async function submitEvent(data: {
   title?: string;
   url?: string;
@@ -207,6 +235,10 @@ export async function submitEvent(data: {
   city?: string;
   description?: string;
   isFree?: boolean;
+  submitterName?: string;
+  imageUrl?: string;
+  eventType?: string;
+  categories?: string[];
 }): Promise<{ ok: boolean; message: string; eventId?: string }> {
   return post("/api/v1/events/submit", data);
 }
