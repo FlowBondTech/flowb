@@ -26,9 +26,9 @@ Backend services that power FlowB's cross-platform features.
 | farcaster responder | `src/services/farcaster-responder.ts` | `handleMention` |
 | group intelligence | `src/services/group-intelligence.ts` | `shouldAnalyzeForSignals`, `extractBusinessSignals`, `routeSignal`, `getGroupIntelConfig`, `enableGroupIntel`, `disableGroupIntel`, `updateGroupIntelSettings`, `storeGroupSignal`, `buildSignalDigest`, `listActiveGroups`, `getGroupSignals`, `manualRouteSignal`, `processGroupMessage` |
 | guest session | `src/services/guest-session.ts` | `createGuestSession`, `createGuestToken`, `getGuestSession`, `joinCrewAsGuest`, `convertGuestToUser`, `getGuestCrews`, `getCrewByJoinCode` |
-| identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds`, `ensureIdentityRow` |
+| identity | `src/services/identity.ts` | `resolveCanonicalId`, `getLinkedIds`, `mergeIdentities`, `determineMergeDirection`, `ensureIdentityRow` |
 | keyword alerts | `src/services/keyword-alerts.ts` | `processKeywordAlerts` |
-| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `getUserNotifyPrefs`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewJoinRequest`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendToUser`, `isAlreadyNotified`, `logNotification`, `hasReachedDailyLimit`, `isUserQuietHours`, `sendOnboardingReminders` |
+| notifications | `src/services/notifications.ts` | `sendBizNotification`, `processDigestQueue`, `notifyMeetingReminder`, `notifyLeadStageChange`, `notifyCommissionEarned`, `notifyAutomationExecuted`, `notifyCrewCheckin`, `notifyFriendRsvp`, `sendEventReminders`, `getUserNotifyPrefs`, `notifyCrewJoin`, `notifyCrewMemberRsvp`, `notifyCrewJoinRequest`, `notifyCrewLocate`, `notifyCrewMessage`, `notifyRoleChange`, `notifyMeetingInvite`, `notifyMeetingChat`, `sendToUser`, `isAlreadyNotified`, `logNotification`, `hasReachedDailyLimit`, `isUserQuietHours` |
 | privy | `src/services/privy.ts` | — |
 | socialb chat | `src/services/socialb-chat.ts` | `handleSocialBChat` |
 | socialb poller | `src/services/socialb-poller.ts` | `startSocialBPoller`, `stopSocialBPoller` |
@@ -186,7 +186,7 @@ Cross-Platform Identity Resolution Service
 
 **Source**: `src/services/identity.ts`
 
-**Exports**: `resolveCanonicalId()`, `getLinkedIds()`, `ensureIdentityRow()`
+**Exports**: `resolveCanonicalId()`, `getLinkedIds()`, `mergeIdentities()`, `determineMergeDirection()`, `ensureIdentityRow()`
 
 ### keyword alerts
 
@@ -202,7 +202,7 @@ FlowB Notification Service
 
 **Source**: `src/services/notifications.ts`
 
-**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `getUserNotifyPrefs()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewJoinRequest()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`, `sendToUser()`, `isAlreadyNotified()`, `logNotification()`, `hasReachedDailyLimit()`, `isUserQuietHours()`, `sendOnboardingReminders()`
+**Exports**: `sendBizNotification()`, `processDigestQueue()`, `notifyMeetingReminder()`, `notifyLeadStageChange()`, `notifyCommissionEarned()`, `notifyAutomationExecuted()`, `notifyCrewCheckin()`, `notifyFriendRsvp()`, `sendEventReminders()`, `getUserNotifyPrefs()`, `notifyCrewJoin()`, `notifyCrewMemberRsvp()`, `notifyCrewJoinRequest()`, `notifyCrewLocate()`, `notifyCrewMessage()`, `notifyRoleChange()`, `notifyMeetingInvite()`, `notifyMeetingChat()`, `sendToUser()`, `isAlreadyNotified()`, `logNotification()`, `hasReachedDailyLimit()`, `isUserQuietHours()`
 
 ### privy
 
@@ -268,4 +268,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-26 16:24:33 UTC*
+*Auto-generated on 2026-03-26 17:02:55 UTC*

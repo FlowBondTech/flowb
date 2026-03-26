@@ -68,6 +68,7 @@ FlowB exposes two backend servers:
 | `GET` | `/api/v1/me/linked-accounts` | Yes |  |
 | `GET` | `/api/v1/me/link-status` | Yes |  |
 | `POST` | `/api/v1/me/link-token` | Yes |  |
+| `POST` | `/api/v1/me/link-telegram/init` | Yes |  |
 | `POST` | `/api/v1/me/sync-linked-accounts` | Yes |  |
 | `GET` | `/api/v1/me/privacy` | Yes |  |
 | `PATCH` | `unknown` | Yes |  |
@@ -161,6 +162,7 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/api/v1/events` | No | DB-first discovery |
 | `GET` | `/api/v1/events/cities` | No | Distinct cities (for city picker UI) |
+| `POST` | `/api/v1/events/preview-url` | No | Preview URL (fetch metadata for auto-fill) |
 | `POST` | `unknown` | No | Community submit (anyone can add an event link) |
 | `GET` | `/api/v1/events/:id` | No | Single event detail (DB-first) |
 | `POST` | `unknown` | Yes | RSVP (requires auth) |
@@ -493,6 +495,12 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `GET` | `/connect` | No |  |
 
+## to the mobile app via deep link with success/error params.
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/auth/telegram-link-callback` | No |  |
+
 ## - Otherwise               -> redirect to flowb.me web with event context
 
 | Method | Path | Auth | Description |
@@ -519,4 +527,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-26 16:24:33 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-03-26 17:02:55 UTC*
