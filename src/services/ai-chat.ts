@@ -512,7 +512,7 @@ const BIZ_TOOLS = [
     type: "function" as const,
     function: {
       name: "create_meeting",
-      description: "Schedule a meeting. Use when user says 'schedule coffee with [name]', 'meet with [name]', 'book a meeting'. Parses natural language for time, type, and attendees.",
+      description: "Schedule a meeting. Extract ALL details from the user's message (name, time, type, location) and call immediately. Do NOT ask follow-up questions for optional fields — use sensible defaults (type: coffee, duration: 30min, time: 1 hour from now). Only ask a follow-up if the user gave NO title/topic at all.",
       parameters: {
         type: "object",
         properties: {
@@ -2236,9 +2236,13 @@ TODOS & TASKS:
 - When someone asks you to "set a reminder", create a todo as the reminder (we don't have push reminders yet, but tracking the task is the first step).
 
 MEETINGS:
-- When someone says "schedule coffee with [name]" or "meet with [name]", call create_meeting.
+- When someone says "schedule coffee with [name]", "meet with [name]", or similar, call create_meeting IMMEDIATELY with everything you can extract.
+- Extract the person's name as both attendee_name AND include it in the title (e.g. "Coffee with Sarah").
+- Parse times from the message: "tomorrow 10am", "friday at 3pm", "next week" → convert to ISO and pass as starts_at.
+- DO NOT ask follow-up questions for optional fields. Use defaults: type=coffee, duration=30, no location needed.
+- Only ask a clarifying question if the user gave literally no indication of who or what the meeting is about.
 - When someone says "my meetings" or "upcoming meetings", call list_meetings.
-- Parse relative dates: "tomorrow 10am", "friday at 3pm", "next week".
+- When a user follows up on a meeting they just mentioned (e.g. "make it at 3pm", "add location: Blue Bottle"), understand they mean the meeting from the conversation above and create/update accordingly.
 
 SETTINGS:
 - When someone asks "my settings" or "what are my settings", call get_my_settings.
@@ -2329,7 +2333,8 @@ export async function handleChat(
   let featuredEventCtx = "";
   if (user.userId) {
     const memCfg: MemoryConfig = { sb, openaiKey: process.env.OPENAI_API_KEY };
-    const lastUserMsg = [...messages].reverse().find(m => m.role === "user")?.content || "";
+    const recentUserMsgs = [...messages].filter(m => m.role === "user").slice(-3).map(m => m.content).join(" | ");
+    const lastUserMsg = recentUserMsgs;
     try {
       const [sessions, bctx, memCtx, featuredRows] = await Promise.all([
         sbFetch<any[]>(sb, `flowb_sessions?user_id=eq.${user.userId}&select=current_city,destination_city&limit=1`),
