@@ -10,7 +10,8 @@ import * as SecureStore from "expo-secure-store";
 const SUPABASE_URL =
   process.env.EXPO_PUBLIC_SUPABASE_URL || "https://eoajujwpdkfuicnoxetk.supabase.co";
 const SUPABASE_ANON_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ||
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvYWp1andwZGtmdWljbm94ZXRrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NDQzMzQsImV4cCI6MjA3MDIyMDMzNH0.NpMiRO22b-y-7zHo-RhA0ZX8tHkSZiTk9jlWcF-UZEg";
 
 /** SecureStore-backed storage adapter for Supabase Auth session persistence */
 const secureStoreAdapter = {

@@ -208,6 +208,101 @@ export async function sendDigestEmail(
 }
 
 // ============================================================================
+// Meeting iCal Email
+// ============================================================================
+
+interface MeetingEmailData {
+  title: string;
+  starts_at: string;
+  duration_min: number;
+  location: string | null;
+  share_code: string;
+}
+
+/**
+ * Send a meeting iCal invite email.
+ * Attaches an .ics file so the meeting appears in the user's calendar.
+ */
+export async function sendMeetingICalEmail(
+  cfg: SbConfig,
+  userId: string,
+  meeting: MeetingEmailData,
+  icalContent: string,
+): Promise<boolean> {
+  const email = await resolveUserEmail(cfg, userId);
+  if (!email) return false;
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return false;
+
+  const from = process.env.RESEND_FROM || "FlowB <noreply@flowb.me>";
+  const date = new Date(meeting.starts_at);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const shareLink = `https://flowb.me/m/${meeting.share_code}`;
+
+  const htmlBody = `
+    <p>You're attending a meeting:</p>
+    <h3 style="color:#fff;margin:12px 0 4px;">${escHtml(meeting.title)}</h3>
+    <p style="color:#aaa;margin:4px 0;">\ud83d\udcc5 ${escHtml(dateStr)} \u00b7 ${escHtml(timeStr)}</p>
+    <p style="color:#aaa;margin:4px 0;">\u23f1 ${meeting.duration_min} min</p>
+    ${meeting.location ? `<p style="color:#aaa;margin:4px 0;">\ud83d\udccd ${escHtml(meeting.location)}</p>` : ""}
+    <div style="margin:20px 0;text-align:center;">
+      <a href="${shareLink}" style="display:inline-block;padding:12px 28px;background:#6366f1;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">View Meeting</a>
+    </div>
+    <p style="color:#666;font-size:13px;">A calendar invite (.ics) is attached.</p>
+  `;
+
+  try {
+    const icalBase64 = Buffer.from(icalContent).toString("base64");
+
+    const res = await fetch(RESEND_API, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [email],
+        subject: `Meeting: ${meeting.title} - ${dateStr}`,
+        html: wrapInTemplate("Meeting Confirmed", htmlBody),
+        attachments: [
+          {
+            filename: "meeting.ics",
+            content: icalBase64,
+            content_type: "text/calendar; method=REQUEST",
+          },
+        ],
+        tags: [
+          { name: "user_id", value: userId },
+          { name: "type", value: "meeting_ical" },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      log.error("[email]", `iCal send failed: ${res.status}`, { body, to: email });
+      return false;
+    }
+
+    log.info("[email]", `iCal sent to ${email}: ${meeting.title}`);
+    return true;
+  } catch (err) {
+    log.error("[email]", "iCal send error", { error: err instanceof Error ? err.message : String(err) });
+    return false;
+  }
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 

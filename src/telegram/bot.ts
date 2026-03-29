@@ -88,6 +88,11 @@ import {
   buildMeetingListKeyboard,
   buildMeetingRsvpKeyboard,
   buildMeetingCreateKeyboard,
+  // Group meetings
+  formatGroupMeetingHtml,
+  buildGroupMeetingKeyboard,
+  formatTimePollHtml,
+  buildTimePollKeyboard,
   // Event submission
   formatEventSubmitPromptHtml,
   formatEventSubmitConfirmHtml,
@@ -119,6 +124,7 @@ import {
   type TaskListItem,
 } from "./cards.js";
 import { sbQuery, sbFetch, sbInsert, sbDelete, sbPatch, sbPatchRaw } from "../utils/supabase.js";
+import { sendMeetingICalEmail } from "../services/email.js";
 import { log, fireAndForget } from "../utils/logger.js";
 import { signJwt } from "../server/auth.js";
 import { alertAdmins, getAdminIds } from "../services/admin-alerts.js";
@@ -200,6 +206,7 @@ interface TgSession {
   awaitingProofPhoto?: boolean;
   danceMoveForProof?: string;
   awaitingCrewName?: boolean;
+  awaitingCheckinVenue?: boolean;
   awaitingSuggestion?: boolean;
   awaitingBugReport?: boolean;
   awaitingEventStep?: "title" | "date" | "time" | "venue" | "url" | "description" | "confirm";
@@ -257,6 +264,27 @@ const eventReactedMessages = new Map<string, EventReactedMessage>();
 function eventReactKey(chatId: number, messageId: number): string {
   return `${chatId}:${messageId}`;
 }
+
+// ---- Meeting reaction tracking (group meetings) ----
+interface MeetingReactedMessage {
+  meetingId: string;
+  shareCode: string;
+  creatorTgId: number;
+  createdAt: number;
+}
+
+const MEETING_REACT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const meetingReactedMessages = new Map<string, MeetingReactedMessage>();
+
+function meetingReactKey(chatId: number, messageId: number): string {
+  return `mtg:${chatId}:${messageId}`;
+}
+
+// Users pending timezone text input
+const pendingTimezoneUsers = new Set<number>();
+
+// Module-level ref so helper functions outside startTelegramBot can access core
+let _core: FlowBCore | null = null;
 
 // Supabase client for persistent session storage (survives restarts)
 const supabase: SupabaseClient | null =
@@ -395,6 +423,7 @@ function setSession(userId: number, partial: Partial<TgSession>): TgSession {
     awaitingProofPhoto: partial.awaitingProofPhoto ?? existing?.awaitingProofPhoto,
     danceMoveForProof: partial.danceMoveForProof ?? existing?.danceMoveForProof,
     awaitingCrewName: partial.awaitingCrewName ?? existing?.awaitingCrewName,
+    awaitingCheckinVenue: partial.awaitingCheckinVenue ?? existing?.awaitingCheckinVenue,
     awaitingSuggestion: partial.awaitingSuggestion ?? existing?.awaitingSuggestion,
     awaitingBugReport: partial.awaitingBugReport ?? existing?.awaitingBugReport,
     awaitingEventStep: partial.awaitingEventStep ?? existing?.awaitingEventStep,
@@ -710,6 +739,7 @@ export function startTelegramBot(
   token: string,
   core: FlowBCore,
 ): void {
+  _core = core;
   const bot = new Bot(token);
   const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
   const miniAppUrl = process.env.FLOWB_MINIAPP_URL || "";
@@ -1880,20 +1910,78 @@ export function startTelegramBot(
     }
 
     const shareLink = meetingPlugin.getShareLink(meeting.share_code);
-    await ctx.reply(
-      formatMeetingCreatedHtml(
-        meeting.title,
-        meeting.starts_at,
-        meeting.duration_min,
-        meeting.meeting_type,
-        meeting.location,
-        shareLink,
-      ),
-      {
-        parse_mode: "HTML",
-        reply_markup: buildMeetingDetailKeyboard(meeting.id, true, meeting.share_code),
-      },
-    );
+    const isGroup = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
+
+    if (isGroup) {
+      // Set group_chat_id on the meeting
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (sbUrl && sbKey) {
+        const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+        fireAndForget(
+          sbPatch(cfg, "flowb_meetings", { id: `eq.${meeting.id}` }, { group_chat_id: ctx.chat.id }),
+          "set group_chat_id",
+        );
+      }
+
+      // Reply with group card (reaction instructions + inline buttons)
+      const sentMsg = await ctx.reply(
+        formatGroupMeetingHtml(
+          meeting.title,
+          meeting.starts_at,
+          meeting.duration_min,
+          meeting.meeting_type,
+          meeting.location,
+          shareLink,
+          1, // creator is first attendee
+        ),
+        {
+          parse_mode: "HTML",
+          reply_markup: buildGroupMeetingKeyboard(meeting.id, meeting.share_code),
+        },
+      );
+
+      // Track for emoji reactions
+      const rKey = meetingReactKey(ctx.chat.id, sentMsg.message_id);
+      meetingReactedMessages.set(rKey, {
+        meetingId: meeting.id,
+        shareCode: meeting.share_code,
+        creatorTgId: tgId,
+        createdAt: Date.now(),
+      });
+
+      // Persist tracking row for hydration on restart
+      if (sbUrl && sbKey) {
+        const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+        fireAndForget(
+          sbInsert(cfg, "flowb_meeting_group_messages", {
+            meeting_id: meeting.id,
+            chat_id: ctx.chat.id,
+            message_id: sentMsg.message_id,
+          }),
+          "persist meeting group msg",
+        );
+      }
+
+      // Prompt timezone for creator
+      fireAndForget(checkAndPromptTimezone(bot, tgId, ctx.from?.language_code), "tz prompt");
+    } else {
+      // Private chat: original behavior
+      await ctx.reply(
+        formatMeetingCreatedHtml(
+          meeting.title,
+          meeting.starts_at,
+          meeting.duration_min,
+          meeting.meeting_type,
+          meeting.location,
+          shareLink,
+        ),
+        {
+          parse_mode: "HTML",
+          reply_markup: buildMeetingDetailKeyboard(meeting.id, true, meeting.share_code),
+        },
+      );
+    }
 
     fireAndForget(core.awardPoints(userId(tgId), "telegram", "meeting_created"), "award points");
   });
@@ -1931,6 +2019,148 @@ export function startTelegramBot(
       // fallback
     }
     await ctx.reply(result);
+  });
+
+  // ==========================================================================
+  // Time Poll Command (group-only)
+  // ==========================================================================
+
+  bot.command("poll", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+    await ensureVerified(tgId);
+
+    const isGroup = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
+    if (!isGroup) {
+      await ctx.reply("Time polls work in groups. Use /meet for direct meetings.");
+      return;
+    }
+
+    const text = ctx.match?.trim();
+    if (!text) {
+      await ctx.reply(
+        "<b>Create a Time Poll</b>\n\nUsage: <code>/poll team lunch next week</code>\n\nMembers vote on time slots, and the winning time becomes the meeting.",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) {
+      await ctx.reply("Not configured.");
+      return;
+    }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+    const uid = userId(tgId);
+
+    // Create a draft meeting
+    const shareCode = generateMeetingCode();
+    const meeting = await sbInsert<any>(cfg, "flowb_meetings", {
+      creator_id: uid,
+      title: text,
+      status: "draft",
+      share_code: shareCode,
+      group_chat_id: ctx.chat.id,
+    });
+    if (!meeting) {
+      await ctx.reply("Failed to create poll. Try again.");
+      return;
+    }
+
+    // Generate time slot options: next 5 weekdays, 10am + 2pm
+    const options: { starts_at: string; label: string; sort_order: number }[] = [];
+    const now = new Date();
+    let dayOffset = 1;
+    let slotCount = 0;
+    while (slotCount < 4 && dayOffset < 14) {
+      const d = new Date(now);
+      d.setDate(d.getDate() + dayOffset);
+      const dow = d.getDay();
+      if (dow !== 0 && dow !== 6) { // skip weekends
+        const dayLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        for (const hour of [10, 14]) {
+          const slot = new Date(d);
+          slot.setHours(hour, 0, 0, 0);
+          const timeLabel = hour === 10 ? "10am" : "2pm";
+          options.push({
+            starts_at: slot.toISOString(),
+            label: `${dayLabel} ${timeLabel}`,
+            sort_order: slotCount * 2 + (hour === 14 ? 1 : 0),
+          });
+        }
+        slotCount++;
+      }
+      dayOffset++;
+    }
+
+    // Create poll + options in DB
+    const poll = await sbInsert<any>(cfg, "flowb_meeting_polls", {
+      meeting_id: meeting.id,
+      chat_id: ctx.chat.id,
+      creator_id: uid,
+      title: text,
+      status: "open",
+    });
+    if (!poll) {
+      await ctx.reply("Failed to create poll. Try again.");
+      return;
+    }
+
+    const pollOptions: { id: string; label: string; voteCount: number }[] = [];
+    for (const opt of options.slice(0, 8)) {
+      const row = await sbInsert<any>(cfg, "flowb_meeting_poll_options", {
+        poll_id: poll.id,
+        starts_at: opt.starts_at,
+        label: opt.label,
+        vote_count: 0,
+        sort_order: opt.sort_order,
+      });
+      if (row) {
+        pollOptions.push({ id: row.id, label: opt.label, voteCount: 0 });
+      }
+    }
+
+    // Post poll in group
+    const sentMsg = await ctx.reply(
+      formatTimePollHtml(text, pollOptions, 0, "open"),
+      {
+        parse_mode: "HTML",
+        reply_markup: buildTimePollKeyboard(pollOptions, poll.id, true),
+      },
+    );
+
+    // Save message_id on the poll for editing later
+    fireAndForget(
+      sbPatch(cfg, "flowb_meeting_polls", { id: `eq.${poll.id}` }, { message_id: sentMsg.message_id }),
+      "save poll message_id",
+    );
+
+    fireAndForget(core.awardPoints(uid, "telegram", "meeting_poll_created"), "award points");
+  });
+
+  // ==========================================================================
+  // Timezone Command
+  // ==========================================================================
+
+  bot.command("timezone", async (ctx) => {
+    const tgId = ctx.from?.id;
+    if (!tgId) return;
+
+    const text = ctx.match?.trim();
+    if (text) {
+      // Direct set: /timezone America/New_York
+      if (isValidTimezone(text)) {
+        await saveTimezone(tgId, text);
+        await ctx.reply(`\u2705 Timezone set to <b>${escapeHtml(text)}</b>`, { parse_mode: "HTML" });
+      } else {
+        await ctx.reply(`\u274c Invalid timezone. Try e.g. <code>America/New_York</code> or <code>Europe/London</code>`, { parse_mode: "HTML" });
+      }
+      return;
+    }
+
+    // Interactive prompt
+    await promptTimezoneSelection(bot, tgId, ctx.from?.language_code);
   });
 
   // ==========================================================================
@@ -3680,6 +3910,73 @@ export function startTelegramBot(
         console.warn(`[flowb-chatter] Could not DM ${tgId}: ${dmErr.message}`);
       }
     }
+
+    // ---- Meeting emoji RSVP ----
+    const mtgKey = meetingReactKey(chatId, messageId);
+    const mtgTracked = meetingReactedMessages.get(mtgKey);
+    if (mtgTracked && tgId !== bot.botInfo?.id) {
+      const meetingPlugin = core.getMeetingPlugin();
+      const meetingCfg = core.getMeetingConfig();
+      if (meetingPlugin && meetingCfg) {
+        // Determine added emoji from new_reaction vs old_reaction
+        const newEmojis = (ctx.messageReaction.new_reaction || [])
+          .map((r: any) => r.emoji || r.custom_emoji_id || "")
+          .filter(Boolean);
+        const oldEmojis = (ctx.messageReaction.old_reaction || [])
+          .map((r: any) => r.emoji || r.custom_emoji_id || "")
+          .filter(Boolean);
+        const addedEmoji = newEmojis.find((e: string) => !oldEmojis.includes(e));
+
+        if (addedEmoji) {
+          // Map emoji to RSVP status
+          const EMOJI_RSVP: Record<string, string> = {
+            "\ud83d\udc4d": "accepted",  // thumbs up
+            "\u2764\ufe0f": "accepted",  // heart
+            "\ud83d\udd25": "accepted",  // fire
+            "\u2764": "accepted",        // heart (no variation selector)
+            "\ud83c\udf89": "accepted",  // party
+            "\ud83e\udd14": "maybe",     // thinking
+            "\ud83d\udc4e": "declined",  // thumbs down
+          };
+          const rsvpStatus = EMOJI_RSVP[addedEmoji];
+
+          if (rsvpStatus) {
+            const uid = userId(tgId);
+            const result = await meetingPlugin.rsvpByCode(meetingCfg, uid, mtgTracked.shareCode, rsvpStatus);
+            if (result) {
+              const statusText = rsvpStatus === "accepted" ? "Going" : rsvpStatus === "maybe" ? "Maybe" : "Not going";
+              // DM user confirming RSVP
+              try {
+                await bot.api.sendMessage(tgId,
+                  `${rsvpStatus === "accepted" ? "\u2705" : rsvpStatus === "maybe" ? "\ud83e\udd14" : "\u274c"} You're <b>${statusText.toLowerCase()}</b> for <b>${escapeHtml(result.meeting.title)}</b>`,
+                  { parse_mode: "HTML" },
+                );
+              } catch {
+                // User hasn't started bot DM
+              }
+
+              // Send iCal email if accepted
+              if (rsvpStatus === "accepted") {
+                const sbUrl = process.env.SUPABASE_URL;
+                const sbKey = process.env.SUPABASE_KEY;
+                if (sbUrl && sbKey) {
+                  const ical = meetingPlugin.generateICal(result.meeting);
+                  fireAndForget(
+                    sendMeetingICalEmail({ supabaseUrl: sbUrl, supabaseKey: sbKey }, uid, result.meeting, ical),
+                    "meeting ical email",
+                  );
+                }
+              }
+
+              // Prompt timezone
+              fireAndForget(checkAndPromptTimezone(bot, tgId, undefined), "tz prompt on rsvp");
+              fireAndForget(core.awardPoints(uid, "telegram", "meeting_rsvp"), "award points");
+              console.log(`[flowb-meetings] Reaction RSVP: ${tgId} -> ${rsvpStatus} for ${mtgTracked.meetingId}`);
+            }
+          }
+        }
+      }
+    }
   });
 
   // ========================================================================
@@ -4328,9 +4625,21 @@ export function startTelegramBot(
       return;
     }
 
-    // Check-in: ci:EVENTID (first 8 chars of UUID)
+    // Check-in: ci:EVENTID (first 8 chars of UUID) or ci:freeform
     if (data.startsWith("ci:")) {
       const eventIdShort = data.slice(3);
+
+      // Freeform check-in: prompt user for location name
+      if (eventIdShort === "freeform") {
+        await ctx.answerCallbackQuery();
+        setSession(tgId, { awaitingCheckinVenue: true });
+        await ctx.reply(
+          "<b>Where are you?</b>\n\nType the name of the place you're at:",
+          { parse_mode: "HTML" },
+        );
+        return;
+      }
+
       await ctx.answerCallbackQuery({ text: "Checking in..." });
 
       // Find full event ID from recent events
@@ -4835,6 +5144,214 @@ export function startTelegramBot(
       // mt:chat:{id8} - placeholder for chat
       if (action === "chat") {
         await ctx.answerCallbackQuery({ text: "Send a message with /meet chat <meetingId> <message>" });
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    // ---- Meeting poll callbacks: mpoll:* ----
+    if (data.startsWith("mpoll:")) {
+      const parts = data.split(":");
+      const action = parts[1]; // "vote" or "close"
+      const short = parts[2];
+      const sbUrl = process.env.SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_KEY;
+      if (!sbUrl || !sbKey) { await ctx.answerCallbackQuery({ text: "Not configured" }); return; }
+      const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+      const uid = userId(tgId);
+
+      if (action === "vote") {
+        // Find option by short ID prefix
+        const options = await sbQuery<any[]>(cfg, "flowb_meeting_poll_options", {
+          select: "id,poll_id,label,vote_count",
+          id: `like.${short}%`,
+          limit: "1",
+        });
+        if (!options?.length) { await ctx.answerCallbackQuery({ text: "Option not found" }); return; }
+        const opt = options[0];
+
+        // Check if already voted on this option - toggle
+        const existing = await sbQuery<any[]>(cfg, "flowb_meeting_poll_votes", {
+          select: "id",
+          option_id: `eq.${opt.id}`,
+          user_id: `eq.${uid}`,
+          limit: "1",
+        });
+
+        if (existing?.length) {
+          // Remove vote
+          await sbDelete(cfg, "flowb_meeting_poll_votes", {
+            option_id: `eq.${opt.id}`,
+            user_id: `eq.${uid}`,
+          });
+          await sbPatch(cfg, "flowb_meeting_poll_options", { id: `eq.${opt.id}` }, {
+            vote_count: Math.max(0, opt.vote_count - 1),
+          });
+          await ctx.answerCallbackQuery({ text: `Vote removed: ${opt.label}` });
+        } else {
+          // Add vote
+          await sbInsert(cfg, "flowb_meeting_poll_votes", {
+            option_id: opt.id,
+            user_id: uid,
+          });
+          await sbPatch(cfg, "flowb_meeting_poll_options", { id: `eq.${opt.id}` }, {
+            vote_count: opt.vote_count + 1,
+          });
+          await ctx.answerCallbackQuery({ text: `Voted: ${opt.label}` });
+        }
+
+        // Refresh poll message
+        const poll = await sbQuery<any[]>(cfg, "flowb_meeting_polls", {
+          select: "id,title,creator_id,status",
+          id: `eq.${opt.poll_id}`,
+          limit: "1",
+        });
+        if (poll?.length) {
+          const allOpts = await sbQuery<any[]>(cfg, "flowb_meeting_poll_options", {
+            select: "id,label,vote_count",
+            poll_id: `eq.${poll[0].id}`,
+            order: "sort_order.asc",
+          });
+          const totalVotes = (allOpts || []).reduce((sum: number, o: any) => sum + o.vote_count, 0);
+          const isCreator = poll[0].creator_id === uid;
+          try {
+            await ctx.editMessageText(
+              formatTimePollHtml(poll[0].title, allOpts || [], totalVotes, poll[0].status),
+              {
+                parse_mode: "HTML",
+                reply_markup: buildTimePollKeyboard(allOpts || [], poll[0].id, isCreator),
+              },
+            );
+          } catch {
+            // Message not modified (same content)
+          }
+        }
+        fireAndForget(core.awardPoints(uid, "telegram", "meeting_poll_vote"), "award points");
+        return;
+      }
+
+      if (action === "close") {
+        // Find poll by short ID prefix
+        const polls = await sbQuery<any[]>(cfg, "flowb_meeting_polls", {
+          select: "id,meeting_id,chat_id,message_id,creator_id,title,status",
+          id: `like.${short}%`,
+          limit: "1",
+        });
+        if (!polls?.length) { await ctx.answerCallbackQuery({ text: "Poll not found" }); return; }
+        const poll = polls[0];
+        if (poll.creator_id !== uid) { await ctx.answerCallbackQuery({ text: "Only the creator can close the poll" }); return; }
+        if (poll.status !== "open") { await ctx.answerCallbackQuery({ text: "Poll already closed" }); return; }
+
+        // Find winning option
+        const allOpts = await sbQuery<any[]>(cfg, "flowb_meeting_poll_options", {
+          select: "id,starts_at,label,vote_count",
+          poll_id: `eq.${poll.id}`,
+          order: "vote_count.desc,sort_order.asc",
+        });
+        if (!allOpts?.length) { await ctx.answerCallbackQuery({ text: "No options" }); return; }
+        const winner = allOpts[0];
+        const totalVotes = allOpts.reduce((sum: number, o: any) => sum + o.vote_count, 0);
+
+        // Close poll
+        await sbPatch(cfg, "flowb_meeting_polls", { id: `eq.${poll.id}` }, {
+          status: "resolved",
+          winning_slot: winner.id,
+        });
+
+        // Update the meeting with the winning time
+        await sbPatch(cfg, "flowb_meetings", { id: `eq.${poll.meeting_id}` }, {
+          starts_at: winner.starts_at,
+          status: "scheduled",
+        });
+
+        // Update poll message to show results
+        try {
+          await ctx.editMessageText(
+            formatTimePollHtml(poll.title, allOpts, totalVotes, "closed"),
+            { parse_mode: "HTML" },
+          );
+        } catch { /* message not modified */ }
+
+        // Get the created meeting to post a confirmed card
+        const meetingPlugin = core.getMeetingPlugin();
+        const meetingCfg = core.getMeetingConfig();
+        if (meetingPlugin && meetingCfg) {
+          const meeting = await meetingPlugin.getById(meetingCfg, poll.meeting_id);
+          if (meeting) {
+            const shareLink = meetingPlugin.getShareLink(meeting.share_code);
+            const sentMsg = await bot.api.sendMessage(
+              poll.chat_id,
+              formatGroupMeetingHtml(
+                meeting.title,
+                winner.starts_at,
+                meeting.duration_min || 30,
+                meeting.meeting_type || "other",
+                meeting.location,
+                shareLink,
+                1,
+              ),
+              {
+                parse_mode: "HTML",
+                reply_markup: buildGroupMeetingKeyboard(meeting.id, meeting.share_code),
+              },
+            );
+
+            // Track for emoji reactions
+            const rKey = meetingReactKey(poll.chat_id, sentMsg.message_id);
+            meetingReactedMessages.set(rKey, {
+              meetingId: meeting.id,
+              shareCode: meeting.share_code,
+              creatorTgId: tgId,
+              createdAt: Date.now(),
+            });
+            fireAndForget(
+              sbInsert(cfg, "flowb_meeting_group_messages", {
+                meeting_id: meeting.id,
+                chat_id: poll.chat_id,
+                message_id: sentMsg.message_id,
+              }),
+              "persist poll resolved meeting msg",
+            );
+          }
+        }
+
+        await ctx.answerCallbackQuery({ text: `Poll closed! Meeting set for ${winner.label}` });
+        return;
+      }
+
+      await ctx.answerCallbackQuery();
+      return;
+    }
+
+    // ---- Timezone callbacks: tz:* ----
+    if (data.startsWith("tz:")) {
+      const parts = data.split(":");
+      const action = parts[1]; // "set" or "custom"
+
+      if (action === "set") {
+        const tz = parts.slice(2).join(":"); // timezone might contain colons... actually no, but rejoin to be safe
+        if (isValidTimezone(tz)) {
+          await saveTimezone(tgId, tz);
+          await ctx.answerCallbackQuery({ text: `Timezone set to ${tz}` });
+          await ctx.editMessageText(
+            `\u2705 Timezone set to <b>${escapeHtml(tz)}</b>\n\nMeeting times will be shown in your timezone.`,
+            { parse_mode: "HTML" },
+          );
+        } else {
+          await ctx.answerCallbackQuery({ text: "Invalid timezone" });
+        }
+        return;
+      }
+
+      if (action === "custom") {
+        pendingTimezoneUsers.add(tgId);
+        await ctx.answerCallbackQuery();
+        await ctx.editMessageText(
+          "Type your timezone (e.g. <code>America/New_York</code>, <code>Asia/Tokyo</code>):",
+          { parse_mode: "HTML" },
+        );
         return;
       }
 
@@ -6149,6 +6666,19 @@ export function startTelegramBot(
       fireAndForget(core.awardPoints(userId(tgId), "telegram", "message_sent"), "award points");
     }
 
+    // Handle pending timezone text input
+    if (!isGroup && pendingTimezoneUsers.has(tgId)) {
+      pendingTimezoneUsers.delete(tgId);
+      const tzInput = ctx.message.text.trim();
+      if (isValidTimezone(tzInput)) {
+        await saveTimezone(tgId, tzInput);
+        await ctx.reply(`\u2705 Timezone set to <b>${escapeHtml(tzInput)}</b>`, { parse_mode: "HTML" });
+      } else {
+        await ctx.reply(`\u274c Invalid timezone "<code>${escapeHtml(tzInput)}</code>". Try e.g. <code>America/New_York</code>`, { parse_mode: "HTML" });
+      }
+      return;
+    }
+
     // Strip leading bot mention so natural text triggers work in group chats
     // e.g. "@FlowB_bot leaderboard" → "leaderboard", "flowb leaderboard" → "leaderboard"
     const rawText = ctx.message.text.trim();
@@ -7104,6 +7634,63 @@ export function startTelegramBot(
       }
     }
 
+    // ---- Awaiting freeform check-in venue name ----
+    {
+      const session = getSession(tgId);
+      if (session?.awaitingCheckinVenue) {
+        setSession(tgId, { awaitingCheckinVenue: false });
+        const venue = text.trim();
+        if (!venue) {
+          await ctx.reply("Please send a location name.");
+          return;
+        }
+        await ctx.replyWithChatAction("typing");
+        const sbUrl = process.env.SUPABASE_URL;
+        const sbKey = process.env.SUPABASE_KEY;
+        if (sbUrl && sbKey) {
+          // Get user's crews and check in to all
+          const memRes = await fetch(`${sbUrl}/rest/v1/flowb_group_members?user_id=eq.telegram_${tgId}&select=group_id`, {
+            headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` },
+          });
+          const memberships = memRes.ok ? await memRes.json() as any[] : [];
+          const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+
+          for (const m of memberships) {
+            fireAndForget(fetch(`${sbUrl}/rest/v1/flowb_checkins`, {
+              method: "POST",
+              headers: {
+                apikey: sbKey, Authorization: `Bearer ${sbKey}`,
+                "Content-Type": "application/json", Prefer: "return=minimal",
+              },
+              body: JSON.stringify({
+                user_id: `telegram_${tgId}`,
+                platform: "telegram",
+                crew_id: m.group_id,
+                venue_name: venue,
+                status: "here",
+                expires_at: expiresAt,
+              }),
+            }), "freeform checkin upsert");
+          }
+
+          fireAndForget(core.awardPoints(userId(tgId), "telegram", "qr_checkin"), "award points");
+
+          const crewCount = memberships.length;
+          await ctx.reply(
+            `<b>\uD83D\uDCCD Checked in at ${escapeHtml(venue)}!</b>\n\n` +
+            (crewCount > 0
+              ? `Your ${crewCount} crew${crewCount !== 1 ? "s" : ""} can now see where you are.\n`
+              : "") +
+            `<i>+10 points</i>`,
+            { parse_mode: "HTML" },
+          );
+        } else {
+          await ctx.reply(`Checked in at <b>${escapeHtml(venue)}</b>!`, { parse_mode: "HTML" });
+        }
+        return;
+      }
+    }
+
     // ---- Awaiting crew name (conversational crew creation) ----
     {
       const session = getSession(tgId);
@@ -7318,6 +7905,24 @@ export function startTelegramBot(
         eventReactedMessages.delete(key);
       }
     }
+    // Clean up expired meeting reaction tracking (7d TTL)
+    for (const [key, tracked] of meetingReactedMessages) {
+      if (now - tracked.createdAt > MEETING_REACT_TTL_MS) {
+        meetingReactedMessages.delete(key);
+      }
+    }
+  }, 5 * 60 * 1000);
+
+  // Hydrate meeting reaction map from DB on startup
+  hydrateMeetingReactedMessages().catch((err) =>
+    console.error("[flowb-meetings] Hydration error:", err.message || err),
+  );
+
+  // Meeting reminder cron: check every 5 min for meetings starting in 25-35 min
+  setInterval(() => {
+    meetingReminderCron(bot).catch((err) =>
+      console.error("[flowb-meetings] Reminder cron error:", err.message || err),
+    );
   }, 5 * 60 * 1000);
 
   // Chatter digest: post event digests to active channels every 4 hours
@@ -7338,6 +7943,235 @@ export function startTelegramBot(
   }, DIGEST_INTERVAL_MS);
 
   console.log("[flowb-telegram] Bot initialized");
+}
+
+// ==========================================================================
+// Group Meeting Helpers
+// ==========================================================================
+
+const MEETING_CODE_CHARS = "abcdefghjkmnpqrstuvwxyz23456789";
+function generateMeetingCode(length = 8): string {
+  let code = "";
+  for (let i = 0; i < length; i++) {
+    code += MEETING_CODE_CHARS[Math.floor(Math.random() * MEETING_CODE_CHARS.length)];
+  }
+  return code;
+}
+
+/** Hydrate meetingReactedMessages map from DB on startup */
+async function hydrateMeetingReactedMessages(): Promise<void> {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
+  if (!sbUrl || !sbKey) return;
+  const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+  const cutoff = new Date(Date.now() - MEETING_REACT_TTL_MS).toISOString();
+  const rows = await sbQuery<any[]>(cfg, "flowb_meeting_group_messages", {
+    select: "meeting_id,chat_id,message_id,created_at",
+    created_at: `gte.${cutoff}`,
+    order: "created_at.desc",
+    limit: "500",
+  });
+  if (!rows?.length) return;
+
+  const meetingIds = [...new Set(rows.map((r: any) => r.meeting_id))];
+  const meetings = await sbQuery<any[]>(cfg, "flowb_meetings", {
+    select: "id,share_code,creator_id",
+    id: `in.(${meetingIds.join(",")})`,
+  });
+  const meetingMap = new Map((meetings || []).map((m: any) => [m.id, m]));
+
+  let count = 0;
+  for (const row of rows) {
+    const meeting = meetingMap.get(row.meeting_id);
+    if (!meeting) continue;
+
+    const creatorTgId = meeting.creator_id.startsWith("telegram_")
+      ? parseInt(meeting.creator_id.replace("telegram_", ""), 10)
+      : 0;
+
+    const key = meetingReactKey(row.chat_id, row.message_id);
+    meetingReactedMessages.set(key, {
+      meetingId: row.meeting_id,
+      shareCode: meeting.share_code,
+      creatorTgId,
+      createdAt: new Date(row.created_at).getTime(),
+    });
+    count++;
+  }
+  console.log(`[flowb-meetings] Hydrated ${count} meeting reaction trackers`);
+}
+
+/** Meeting reminder cron: DM + email attendees 30 min before */
+async function meetingReminderCron(bot: any): Promise<void> {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
+  if (!sbUrl || !sbKey) return;
+  const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+  const now = new Date();
+  const from = new Date(now.getTime() + 25 * 60 * 1000);
+  const to = new Date(now.getTime() + 35 * 60 * 1000);
+
+  const meetings = await sbQuery<any[]>(cfg, "flowb_meetings", {
+    select: "id,title,starts_at,duration_min,location,share_code,group_chat_id,meeting_type",
+    status: "eq.scheduled",
+    starts_at: `gte.${from.toISOString()}`,
+    limit: "50",
+  });
+  const upcoming = (meetings || []).filter((m: any) => {
+    const t = new Date(m.starts_at).getTime();
+    return t >= from.getTime() && t <= to.getTime();
+  });
+
+  if (!upcoming.length) return;
+
+  for (const meeting of upcoming) {
+    const attendees = await sbQuery<any[]>(cfg, "flowb_meeting_attendees", {
+      select: "user_id,rsvp_status",
+      meeting_id: `eq.${meeting.id}`,
+      rsvp_status: `in.(accepted,maybe)`,
+    });
+    if (!attendees?.length) continue;
+
+    const date = new Date(meeting.starts_at);
+    const timeStr = date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    const shareLink = `https://flowb.me/m/${meeting.share_code}`;
+
+    for (const att of attendees) {
+      if (!att.user_id) continue;
+
+      // Dedup via notification log
+      const already = await sbQuery<any[]>(cfg, "flowb_notification_log", {
+        select: "id",
+        recipient_id: `eq.${att.user_id}`,
+        notification_type: "eq.meeting_reminder",
+        reference_id: `eq.${meeting.id}`,
+        limit: "1",
+      });
+      if (already?.length) continue;
+
+      fireAndForget(
+        sbInsert(cfg, "flowb_notification_log", {
+          recipient_id: att.user_id,
+          notification_type: "meeting_reminder",
+          reference_id: meeting.id,
+          triggered_by: "cron",
+        }),
+        "log meeting reminder",
+      );
+
+      // DM via Telegram
+      if (att.user_id.startsWith("telegram_")) {
+        const chatId = parseInt(att.user_id.replace("telegram_", ""), 10);
+        try {
+          await bot.api.sendMessage(chatId,
+            `\u23f0 <b>Meeting in 30 min</b>\n\n<b>${escapeHtml(meeting.title)}</b>\n\ud83d\udcc5 ${timeStr}\n\n${shareLink}`,
+            { parse_mode: "HTML" },
+          );
+        } catch {
+          // User hasn't started bot
+        }
+      }
+
+      // Send reminder email with iCal
+      const meetingPlugin = _core?.getMeetingPlugin();
+      const meetingCfg = _core?.getMeetingConfig();
+      if (meetingPlugin && meetingCfg) {
+        const ical = meetingPlugin.generateICal(meeting);
+        fireAndForget(
+          sendMeetingICalEmail(cfg, att.user_id, meeting, ical),
+          "meeting reminder email",
+        );
+      }
+    }
+
+    // Group reminder
+    if (meeting.group_chat_id) {
+      try {
+        await bot.api.sendMessage(meeting.group_chat_id,
+          `\u23f0 <b>Starting in 30 min:</b> ${escapeHtml(meeting.title)} at ${timeStr}`,
+          { parse_mode: "HTML" },
+        );
+      } catch {
+        // Bot removed from group
+      }
+    }
+  }
+}
+
+/** Check if user has timezone set, prompt if not */
+async function checkAndPromptTimezone(bot: any, tgId: number, languageCode?: string): Promise<void> {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
+  if (!sbUrl || !sbKey) return;
+  const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+  const rows = await sbQuery<any[]>(cfg, "flowb_sessions", {
+    select: "timezone",
+    user_id: `eq.telegram_${tgId}`,
+    limit: "1",
+  });
+  if (rows?.[0]?.timezone) return;
+
+  await promptTimezoneSelection(bot, tgId, languageCode);
+}
+
+async function promptTimezoneSelection(bot: any, tgId: number, languageCode?: string): Promise<void> {
+  const LANG_TZ: Record<string, string> = {
+    en: "America/New_York", de: "Europe/Berlin", fr: "Europe/Paris",
+    es: "Europe/Madrid", pt: "America/Sao_Paulo", ja: "Asia/Tokyo",
+    ko: "Asia/Seoul", zh: "Asia/Shanghai", ru: "Europe/Moscow",
+    ar: "Asia/Riyadh", hi: "Asia/Kolkata", it: "Europe/Rome",
+    nl: "Europe/Amsterdam", tr: "Europe/Istanbul", th: "Asia/Bangkok",
+    id: "Asia/Jakarta",
+  };
+  const guessedTz = languageCode ? LANG_TZ[languageCode.split("-")[0]] : undefined;
+
+  const kb = new InlineKeyboard();
+  if (guessedTz) {
+    kb.text(`\ud83c\udf10 ${guessedTz}`, `tz:set:${guessedTz}`);
+    kb.row();
+  }
+  const common = ["America/Los_Angeles", "America/Chicago", "America/New_York", "Europe/London", "Europe/Berlin", "Asia/Tokyo"];
+  const shown = new Set(guessedTz ? [guessedTz] : []);
+  for (const tz of common) {
+    if (shown.has(tz)) continue;
+    shown.add(tz);
+    const shortLabel = tz.split("/")[1].replace(/_/g, " ");
+    kb.text(shortLabel, `tz:set:${tz}`);
+    if (shown.size % 2 === 0) kb.row();
+  }
+  kb.row();
+  kb.text("\u270d\ufe0f Type my own", "tz:custom");
+
+  try {
+    await bot.api.sendMessage(tgId,
+      "\ud83c\udf0d <b>What's your timezone?</b>\n\nThis helps show meeting times correctly for you.",
+      { parse_mode: "HTML", reply_markup: kb },
+    );
+  } catch {
+    // User hasn't started bot DM
+  }
+}
+
+function isValidTimezone(tz: string): boolean {
+  try {
+    Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function saveTimezone(tgId: number, tz: string): Promise<void> {
+  const sbUrl = process.env.SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_KEY;
+  if (!sbUrl || !sbKey) return;
+  const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+  await sbPatch(cfg, "flowb_sessions", {
+    user_id: `eq.telegram_${tgId}`,
+  }, { timezone: tz });
 }
 
 // ==========================================================================
@@ -7988,10 +8822,39 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
       await sendCoreAction(ctx, core, "my-referral");
       break;
 
-    case "checkin":
+    case "checkin": {
       await ctx.answerCallbackQuery();
-      await sendCoreAction(ctx, core, "checkin");
+      const chkSession = await ensureVerified(tgId);
+      if (!chkSession.verified) {
+        await ctx.reply(formatConnectPromptHtml(), {
+          parse_mode: "HTML",
+          reply_markup: buildConnectKeyboard(connectUrl),
+        });
+        break;
+      }
+      // Get today's events directly (skip DANZ plugin auth)
+      const chkNow = new Date();
+      const chkEvents = await core.discoverEventsRaw({
+        action: "events",
+        user_id: userId(tgId),
+        platform: "telegram",
+      });
+      const chkToday = chkEvents.filter((e) => {
+        const start = new Date(e.startTime);
+        const diff = Math.abs(start.getTime() - chkNow.getTime());
+        return diff < 24 * 60 * 60 * 1000;
+      });
+      if (chkToday.length > 0) {
+        const chkKb = buildCheckinKeyboard(
+          chkToday.slice(0, 5).map((e) => ({ id: e.id, title: e.title })),
+        );
+        await ctx.reply("<b>Check in to an event:</b>", { parse_mode: "HTML", reply_markup: chkKb });
+      } else {
+        const freeformKb = new InlineKeyboard().text("\uD83D\uDCCD Check in somewhere", "ci:freeform");
+        await ctx.reply("No events happening today, but you can still check in!", { reply_markup: freeformKb });
+      }
       break;
+    }
 
     case "moves":
       await ctx.answerCallbackQuery();

@@ -5799,7 +5799,7 @@ export function registerMiniAppRoutes(app: FastifyInstance, core: FlowBCore) {
       const botUsername = process.env.FLOWB_BOT_USERNAME || "Flow_b_bot";
       const telegramDeepLink = `https://t.me/${botUsername}?start=link_${token}`;
       // Keep legacy connectUrl for web flow
-      const connectUrl = `https://flowb.fly.dev/connect?lt=${encodeURIComponent(token)}`;
+      const connectUrl = `https://connect.flowb.me/connect?lt=${encodeURIComponent(token)}`;
       return { token, telegramDeepLink, connectUrl };
     },
   );

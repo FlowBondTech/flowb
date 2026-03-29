@@ -197,7 +197,7 @@ export class DANZPlugin implements FlowBPlugin, EventProvider {
     "link-wallet": { description: "Link your Base wallet for USDC rewards", requiresAuth: true },
     "claim-reward": { description: "Claim USDC reward for completed challenges", requiresAuth: true },
     "reward-history": { description: "View your USDC payout history", requiresAuth: true },
-    "checkin": { description: "Check in to an event happening now", requiresAuth: true },
+    "checkin": { description: "Check in to an event happening now" },
     "dance-proof": { description: "Submit photo proof of your dance move", requiresAuth: true },
     "dance-moves": { description: "View available dance move challenges" },
     "event-leaderboard": { description: "See who's checked in and dancing at an event" },
@@ -922,11 +922,6 @@ export class DANZPlugin implements FlowBPlugin, EventProvider {
     eventId?: string,
   ): Promise<string> {
     if (!userId) return "User ID is required.";
-
-    const status = await this.ensureVerified(cfg, platform, userId);
-    if (!status) {
-      return `You need to connect your DANZ.Now account first.\n\nSay "signup" to get started!`;
-    }
 
     // If no event specified, show events happening today
     if (!eventId) {

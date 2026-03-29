@@ -141,7 +141,7 @@ export const OnboardingFlow = ({ initialStep = 'username' }: OnboardingFlowProps
   useEffect(() => {
     // If user already has a username, redirect to dashboard
     if (meData?.me?.username) {
-      router.push('/dashboard')
+      router.replace('/dashboard')
     }
   }, [meData, router])
 
@@ -343,6 +343,15 @@ export const OnboardingFlow = ({ initialStep = 'username' }: OnboardingFlowProps
   }
 
   if (meLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-black via-purple-900/20 to-black flex items-center justify-center p-4">
+        <FiLoader className="w-8 h-8 text-purple-400 animate-spin" />
+      </div>
+    )
+  }
+
+  // If user already has a username, show loading while redirect fires
+  if (meData?.me?.username) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-purple-900/20 to-black flex items-center justify-center p-4">
         <FiLoader className="w-8 h-8 text-purple-400 animate-spin" />
@@ -681,7 +690,7 @@ export const OnboardingFlow = ({ initialStep = 'username' }: OnboardingFlowProps
               type="button"
               onClick={() => {
                 snoozeOnboarding()
-                router.push('/dashboard')
+                router.replace('/dashboard')
               }}
               className="text-gray-400 hover:text-purple-400 transition-colors text-sm"
             >

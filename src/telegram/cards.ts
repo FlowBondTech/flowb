@@ -493,6 +493,7 @@ export function buildCheckinKeyboard(
     kb.text(`${NUM_EMOJI[i] || `${i + 1}.`} ${label}`, `ci:${events[i].id.slice(0, 8)}`);
     if (i < events.length - 1) kb.row();
   }
+  kb.row().text("\uD83D\uDCCD Check in somewhere else", "ci:freeform");
   return kb;
 }
 
@@ -1339,6 +1340,107 @@ export function buildMeetingRsvpKeyboard(meetingId: string): InlineKeyboard {
 export function buildMeetingCreateKeyboard(): InlineKeyboard {
   return new InlineKeyboard()
     .text("\u25c0\ufe0f Menu", "mn:menu");
+}
+
+// ---------- Group meetings ----------
+
+export function formatGroupMeetingHtml(
+  title: string,
+  startsAt: string,
+  durationMin: number,
+  meetingType: string,
+  location: string | null,
+  shareLink: string,
+  attendeeCount: number,
+): string {
+  const emoji = MEETING_TYPE_EMOJI[meetingType] || "\ud83d\udcc5";
+  const date = new Date(startsAt);
+  const dateStr = date.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  const timeStr = date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const lines = [
+    `${emoji} <b>${escapeHtml(title)}</b>`,
+    "",
+    `\ud83d\udcc5  ${dateStr} \u00b7 ${timeStr}`,
+    `\u23f1  ${durationMin} min`,
+  ];
+
+  if (location) {
+    lines.push(`\ud83d\udccd  ${escapeHtml(location)}`);
+  }
+
+  lines.push("");
+  lines.push(`\ud83d\udc65  ${attendeeCount} attendee${attendeeCount !== 1 ? "s" : ""}`);
+  lines.push("");
+  lines.push("<b>RSVP with a reaction:</b>");
+  lines.push("\ud83d\udc4d = going \u00b7 \ud83e\udd14 = maybe \u00b7 \ud83d\udc4e = can't make it");
+  lines.push("");
+  lines.push(`Share: ${shareLink}`);
+
+  return lines.join("\n");
+}
+
+export function buildGroupMeetingKeyboard(meetingId: string, shareCode: string): InlineKeyboard {
+  const short = meetingId.slice(0, 8);
+  return new InlineKeyboard()
+    .text("\u2705 Going", `mt:rsvp:${short}:accepted`)
+    .text("\ud83e\udd14 Maybe", `mt:rsvp:${short}:maybe`)
+    .text("\u274c Can't", `mt:rsvp:${short}:declined`)
+    .row()
+    .text("\ud83d\udce4 Share", `mt:share:${short}`);
+}
+
+export function formatTimePollHtml(
+  title: string,
+  options: { id: string; label: string; voteCount: number }[],
+  totalVotes: number,
+  status: string,
+): string {
+  const lines = [
+    `\ud83d\uddf3 <b>When works best?</b>`,
+    `<i>${escapeHtml(title)}</i>`,
+    "",
+  ];
+
+  for (const opt of options) {
+    const bar = totalVotes > 0 ? "\u2588".repeat(Math.round((opt.voteCount / totalVotes) * 8)) : "";
+    lines.push(`${escapeHtml(opt.label)}  ${bar} ${opt.voteCount}`);
+  }
+
+  if (status === "open") {
+    lines.push("");
+    lines.push("Tap a button below to vote!");
+  } else {
+    lines.push("");
+    lines.push(`\u2705 Poll closed \u00b7 ${totalVotes} vote${totalVotes !== 1 ? "s" : ""}`);
+  }
+
+  return lines.join("\n");
+}
+
+export function buildTimePollKeyboard(
+  options: { id: string; label: string }[],
+  pollId: string,
+  isCreator: boolean,
+): InlineKeyboard {
+  const kb = new InlineKeyboard();
+  for (const opt of options) {
+    const optShort = opt.id.slice(0, 8);
+    kb.text(opt.label, `mpoll:vote:${optShort}`);
+    kb.row();
+  }
+  if (isCreator) {
+    const pollShort = pollId.slice(0, 8);
+    kb.text("\ud83d\udd12 Close Poll", `mpoll:close:${pollShort}`);
+  }
+  return kb;
 }
 
 // ==========================================================================
