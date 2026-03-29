@@ -18,7 +18,7 @@ Backend services that power FlowB's cross-platform features.
 | chat tools websites | `src/services/chat-tools-websites.ts` | — |
 | context notifications | `src/services/context-notifications.ts` | `runContextNotifications` |
 | email digest | `src/services/email-digest.ts` | `runEmailDigest` |
-| email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
+| email | `src/services/email.ts` | `sendEmail`, `sendEmailNotification`, `sendWelcomeEmail`, `sendVerificationEmail`, `sendDigestEmail`, `sendMeetingICalEmail`, `resolveUserEmail`, `wrapInTemplate`, `escHtml` |
 | event scanner | `src/services/event-scanner.ts` | `scanForNewEvents` |
 | expo push | `src/services/expo-push.ts` | `sendExpoPush`, `sendExpoPushToUser`, `deactivateToken` |
 | farcaster notify | `src/services/farcaster-notify.ts` | `sendFarcasterNotification`, `sendFarcasterNotificationBatch`, `upsertNotificationToken`, `disableNotificationToken` |
@@ -122,7 +122,7 @@ FlowB Email Notification Service
 
 **Source**: `src/services/email.ts`
 
-**Exports**: `sendEmail()`, `sendEmailNotification()`, `sendWelcomeEmail()`, `sendVerificationEmail()`, `sendDigestEmail()`, `resolveUserEmail()`, `wrapInTemplate()`, `escHtml()`
+**Exports**: `sendEmail()`, `sendEmailNotification()`, `sendWelcomeEmail()`, `sendVerificationEmail()`, `sendDigestEmail()`, `sendMeetingICalEmail()`, `resolveUserEmail()`, `wrapInTemplate()`, `escHtml()`
 
 ### event scanner
 
@@ -268,4 +268,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-03-29 00:14:29 UTC*
+*Auto-generated on 2026-03-29 00:17:34 UTC*

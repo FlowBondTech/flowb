@@ -36,6 +36,8 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/leaderboard` | — |
 | `/meet` | — |
 | `/meetings` | — |
+| `/poll` | — |
+| `/timezone` | — |
 | `/lead` | — |
 | `/leads` | — |
 | `/pipeline` | — |
@@ -113,6 +115,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **crew-members**: `crew-members`
 
+**custom**: `custom`
+
 **d**: `d`
 
 **del**: `del`
@@ -177,6 +181,8 @@ Inline keyboard callbacks used throughout the bot:
 
 **send**: `send`
 
+**set**: `set`
+
 **setcat**: `setcat`
 
 **setdate**: `setdate`
@@ -199,10 +205,12 @@ Inline keyboard callbacks used throughout the bot:
 
 **view**: `view`
 
+**vote**: `vote`
+
 **whos**: `whos`
 
 **whos-going**: `whos-going`
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-03-29 00:14:29 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-03-29 00:17:34 UTC*
