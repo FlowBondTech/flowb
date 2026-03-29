@@ -1,4 +1,4 @@
-// Polyfills for Privy
+// Polyfills for crypto/encoding
 import 'fast-text-encoding'
 import 'react-native-get-random-values'
 import '@ethersproject/shims'

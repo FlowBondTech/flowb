@@ -3,7 +3,7 @@ import { setContext } from '@apollo/client/link/context'
 import { onError } from '@apollo/client/link/error'
 import { createHttpLink } from '@apollo/client/link/http'
 import { ApolloProvider as ApolloProviderBase } from '@apollo/client/react'
-import { usePrivy } from '@privy-io/expo'
+import { useSupabaseAuth } from './SupabaseAuthProvider'
 import type React from 'react'
 import { useMemo } from 'react'
 import Toast from 'react-native-toast-message'
@@ -89,7 +89,7 @@ interface ApolloProviderProps {
 }
 
 export const ApolloProvider: React.FC<ApolloProviderProps> = ({ children }) => {
-  const { getAccessToken } = usePrivy()
+  const { getAccessToken } = useSupabaseAuth()
 
   const client = useMemo(() => {
     // HTTP link for GraphQL endpoint with 10s timeout to avoid indefinite hangs

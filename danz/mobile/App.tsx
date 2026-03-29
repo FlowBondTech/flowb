@@ -21,15 +21,13 @@ import { LinearGradientCompat as LinearGradient } from './src/utils/platformUtil
 const VideoView = Platform.OS === 'web' ? View : require('expo-video').VideoView
 const useVideoPlayer = Platform.OS === 'web' ? () => null : require('expo-video').useVideoPlayer
 
-import { usePrivy } from '@privy-io/expo'
 import { AccessibilityProvider } from './src/contexts/AccessibilityContext'
 // Context Providers
 import { AuthProvider, useAuth } from './src/contexts/AuthContext'
 import { LocationProvider } from './src/contexts/LocationContext'
 import { ThemeProvider, useTheme } from './src/contexts/ThemeContext'
 import { ApolloProvider } from './src/providers/ApolloProvider'
-// Context Providers
-import { PrivyProviderWrapper } from './src/providers/PrivyProvider'
+import { SupabaseAuthProvider, useSupabaseAuth } from './src/providers/SupabaseAuthProvider'
 
 // import { StripeProviderWrapper } from './src/config/stripe';
 
@@ -98,11 +96,11 @@ function MainTabs() {
 }
 
 function MainApp() {
-  const { user } = usePrivy()
+  const { supabaseUser } = useSupabaseAuth()
   const { user: authUser, isLoading } = useAuth()
-  const isAuthenticated = !!user
+  const isAuthenticated = !!supabaseUser
 
-  // Show login only if Privy says user is not authenticated
+  // Show login only if Supabase says user is not authenticated
   const shouldShowLogin = !isAuthenticated
   // Show onboarding if authenticated but no username (or no backend profile yet)
   const needsOnboarding = isAuthenticated && !isLoading && (!authUser || !authUser.username)
@@ -220,7 +218,7 @@ function AppContent() {
 
   React.useEffect(() => {
     const timer = setTimeout(() => setShowSplash(false), 2500)
-    // Safety timeout: don't hang on loading screen forever if backend/Privy is unreachable
+    // Safety timeout: don't hang on loading screen forever if backend is unreachable
     const loadingTimer = setTimeout(() => setLoadingTimedOut(true), 8000)
 
     return () => {
@@ -302,7 +300,7 @@ const { width: screenWidth } = Dimensions.get('window')
 export default function App() {
   return (
     <SafeAreaProvider>
-      <PrivyProviderWrapper>
+      <SupabaseAuthProvider>
         <ApolloProvider>
           <ThemeProvider>
             <AccessibilityProvider>
@@ -317,7 +315,7 @@ export default function App() {
             </AccessibilityProvider>
           </ThemeProvider>
         </ApolloProvider>
-      </PrivyProviderWrapper>
+      </SupabaseAuthProvider>
     </SafeAreaProvider>
   )
 }

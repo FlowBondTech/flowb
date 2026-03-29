@@ -1,6 +1,6 @@
 import { FontAwesome5, Ionicons } from '@expo/vector-icons'
 import { useNavigation } from '@react-navigation/native'
-import { usePrivy } from '@privy-io/expo'
+import { useSupabaseAuth } from '../providers/SupabaseAuthProvider'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
 import type React from 'react'
@@ -29,7 +29,7 @@ export const SubscriptionScreen: React.FC = () => {
   const { user } = useAuth()
   const { theme } = useTheme()
   const navigation = useNavigation()
-  const { getAccessToken } = usePrivy()
+  const { getAccessToken } = useSupabaseAuth()
   const { totalBalanceUsd, getDefaultWallet } = useWalletManager()
   const { subscribe } = useStripePayments()
   const [selectedTier, setSelectedTier] = useState<SubscriptionTier>('free')
@@ -199,7 +199,7 @@ export const SubscriptionScreen: React.FC = () => {
                 })
               }
             } else if (paymentMethod === 'wallet') {
-              // Process with Privy embedded wallet
+              // Process with embedded wallet
               // TODO: Implement wallet payment via BasePay or direct transfer
               Toast.show({
                 type: 'info',

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import { usePrivy } from '@privy-io/expo'
+import { useSupabaseAuth } from '../providers/SupabaseAuthProvider'
 import { LinearGradient } from 'expo-linear-gradient'
 import type React from 'react'
 import { useState } from 'react'
@@ -19,7 +19,7 @@ export const StripeSubscriptionScreen: React.FC<StripeSubscriptionScreenProps> =
   navigation,
 }) => {
   const { user } = useAuth()
-  const { getAccessToken } = usePrivy()
+  const { getAccessToken } = useSupabaseAuth()
   const [selectedTier, setSelectedTier] = useState<keyof typeof subscriptionTiers>('monthly')
   const [isProcessing, setIsProcessing] = useState(false)
 

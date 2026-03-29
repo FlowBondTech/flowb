@@ -49,8 +49,6 @@ module.exports = {
     eas: {
       projectId: '57c0233b-83f9-49c2-80ee-3013384b7b47',
     },
-    privyAppId: process.env.EXPO_PUBLIC_PRIVY_APP_ID,
-    privyClientId: process.env.EXPO_PUBLIC_PRIVY_CLIENT_ID,
   },
   notification: {
     icon: './assets/icon.png',

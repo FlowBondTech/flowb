@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useLoginWithEmail } from '@privy-io/expo'
+import { supabase } from '../lib/supabase'
 import { LinearGradient } from 'expo-linear-gradient'
 import type React from 'react'
 import { useEffect, useRef, useState } from 'react'
@@ -31,7 +31,7 @@ export const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ onSuccess, o
   const [isLoading, setIsLoading] = useState(false)
   const [resendTimer, setResendTimer] = useState(0)
 
-  const { sendCode, loginWithCode } = useLoginWithEmail()
+  // Supabase OTP auth replaces Privy's useLoginWithEmail
 
   const fadeAnim = useRef(new Animated.Value(0)).current
   const slideAnim = useRef(new Animated.Value(50)).current
@@ -78,7 +78,8 @@ export const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ onSuccess, o
     try {
       setIsLoading(true)
 
-      await sendCode({ email: trimmedEmail })
+      const { error } = await supabase.auth.signInWithOtp({ email: trimmedEmail })
+      if (error) throw error
 
       // Update email to trimmed version
       setEmail(trimmedEmail)
@@ -125,15 +126,15 @@ export const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ onSuccess, o
     try {
       setIsLoading(true)
 
-      await loginWithCode({
-        code: trimmedCode,
+      const { error } = await supabase.auth.verifyOtp({
         email: email.trim(),
+        token: trimmedCode,
+        type: 'email',
       })
+      if (error) throw error
 
-      // Wait for authentication to complete
-      setTimeout(() => {
-        onSuccess()
-      }, 1000)
+      // Auth state change will propagate via SupabaseAuthProvider
+      onSuccess()
     } catch (error) {
       console.error('Failed to verify code:', error)
       const errorMessage = (error as any)?.message || 'Invalid verification code. Please try again.'
@@ -160,7 +161,8 @@ export const EmailLoginScreen: React.FC<EmailLoginScreenProps> = ({ onSuccess, o
       setCode('')
 
       // Send new code
-      await sendCode({ email: email.trim() })
+      const { error } = await supabase.auth.signInWithOtp({ email: email.trim() })
+      if (error) throw error
       setResendTimer(60)
 
       Alert.alert('Success', 'A new verification code has been sent to your email')

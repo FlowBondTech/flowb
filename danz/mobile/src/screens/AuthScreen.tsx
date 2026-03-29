@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons'
-import { useLoginWithOAuth, usePrivy } from '@privy-io/expo'
+import { supabase } from '../lib/supabase'
+import { useSupabaseAuth } from '../providers/SupabaseAuthProvider'
 import { LinearGradient } from 'expo-linear-gradient'
 import type React from 'react'
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ActivityIndicator,
   Alert,
@@ -28,53 +29,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ navigation }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [showEmailLogin, setShowEmailLogin] = useState(false)
   const { isAuthenticated, user } = useAuth()
+  const { isReady } = useSupabaseAuth()
 
-  const { isReady } = usePrivy()
-
-  // OAuth login hook (Privy will handle provider selection)
-  const { login: oauthLogin } = useLoginWithOAuth()
-
-  const handlePrivyAuthentication = useCallback(async () => {
-    try {
-      setIsLoading(true)
-
-      // Privy SDK handles token management internally
-      // We just need to sync with our app state
-      // The user object from Privy is already available
-
-      if (user) {
-        // Navigate to onboarding or main app based on user state
-        if (navigation) {
-          // Check if user needs onboarding
-          if (!user || !(user as any).username) {
-            navigation.navigate('Onboarding')
-          } else {
-            navigation.navigate('TabNavigator')
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error during authentication sync:', error)
-      Alert.alert('Error', 'Failed to complete authentication. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [user, navigation])
-
-  // Auto-sync with backend when Privy auth changes
+  // Auto-navigate when auth state changes reactively via onAuthStateChange
   useEffect(() => {
-    if (user && !isAuthenticated) {
-      // Only sync if Privy user exists but app state is not authenticated
-      handlePrivyAuthentication()
-    } else if (user && isAuthenticated) {
-      if (navigation) {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: 'TabNavigator' }],
-        })
-      }
+    if (user && isAuthenticated && navigation) {
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'TabNavigator' }],
+      })
     }
-  }, [user, isAuthenticated, navigation, handlePrivyAuthentication])
+  }, [user, isAuthenticated, navigation])
 
   const handleEmailLogin = () => {
     setShowEmailLogin(true)
@@ -82,13 +47,17 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ navigation }) => {
 
   const handleEmailLoginSuccess = async () => {
     setShowEmailLogin(false)
-    // The Privy authentication will trigger the useEffect that calls handlePrivyAuthentication
+    // Auth state change propagates via SupabaseAuthProvider → AuthContext
   }
 
-  const handleOAuthLogin = async (provider: 'google' | 'twitter' | 'discord') => {
+  const handleOAuthLogin = async (provider: 'google') => {
     try {
       setIsLoading(true)
-      await oauthLogin({ provider })
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { skipBrowserRedirect: true },
+      })
+      if (error) throw error
     } catch (error) {
       console.error('OAuth login error details:', error)
       Alert.alert(

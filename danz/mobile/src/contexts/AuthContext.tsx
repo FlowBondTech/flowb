@@ -1,5 +1,5 @@
 import { useApolloClient } from '@apollo/client/react'
-import { usePrivy } from '@privy-io/expo'
+import { useSupabaseAuth } from '../providers/SupabaseAuthProvider'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import type React from 'react'
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
@@ -31,8 +31,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 // Provider Component
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const privy = usePrivy()
-  const { user: privyUser, logout: privyLogout, isReady } = privy
+  const { supabaseUser, signOut: supabaseSignOut, isReady } = useSupabaseAuth()
 
   // Use GraphQL for user profile
   const client = useApolloClient()
@@ -42,7 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     error: profileError,
     refetch: refetchProfile,
   } = useGetMyProfileQuery({
-    skip: !privyUser || !isReady,
+    skip: !supabaseUser || !isReady,
   })
 
   const [updateProfileMutation] = useUpdateProfileMutation({
@@ -71,8 +70,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Compute user object from profile data
   const user = useMemo(() => {
     if (!profileData?.me) {
-      // If no profile data but we have a Privy user, create fallback
-      if (privyUser && !profileLoading) {
+      // If no profile data but we have a Supabase user, create fallback
+      if (supabaseUser && !profileLoading) {
         // Return null - user should be created via GraphQL mutation
         return null
       }
@@ -81,11 +80,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // Directly use the user from backend without transformation
     return profileData.me
-  }, [profileData, privyUser, profileLoading])
+  }, [profileData, supabaseUser, profileLoading])
 
   const logout = async () => {
     try {
-      await privyLogout()
+      await supabaseSignOut()
       await AsyncStorage.multiRemove(['@danz_wallet', '@danz_sessions'])
       // Clear Apollo cache when logging out
       await client.clearStore()
@@ -107,7 +106,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const refreshUser = async () => {
-    if (!privyUser) return
+    if (!supabaseUser) return
 
     // Simply refetch the profile query
     await refetchProfile()
@@ -118,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const contextValue: AuthContextType = {
     user,
-    isAuthenticated: !!privyUser && isReady,
+    isAuthenticated: !!supabaseUser && isReady,
     isLoading,
     error: profileError ? profileError.message : null,
     logout,
