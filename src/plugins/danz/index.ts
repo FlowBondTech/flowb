@@ -923,6 +923,11 @@ export class DANZPlugin implements FlowBPlugin, EventProvider {
   ): Promise<string> {
     if (!userId) return "User ID is required.";
 
+    const status = await this.ensureVerified(cfg, platform, userId);
+    if (!status) {
+      return `You need to connect your DANZ.Now account first.\n\nSay "signup" to get started!`;
+    }
+
     // If no event specified, show events happening today
     if (!eventId) {
       const now = new Date();

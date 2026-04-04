@@ -8912,15 +8912,7 @@ async function handleMenu(ctx: any, core: FlowBCore, target: string): Promise<vo
 
     case "checkin": {
       await ctx.answerCallbackQuery();
-      const chkSession = await ensureVerified(tgId);
-      if (!chkSession.verified) {
-        await ctx.reply(formatConnectPromptHtml(), {
-          parse_mode: "HTML",
-          reply_markup: buildConnectKeyboard(connectUrl),
-        });
-        break;
-      }
-      // Get today's events directly (skip DANZ plugin auth)
+      // Get today's events directly
       const chkNow = new Date();
       const chkEvents = await core.discoverEventsRaw({
         action: "events",
