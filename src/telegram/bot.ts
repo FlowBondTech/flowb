@@ -3837,8 +3837,8 @@ export function startTelegramBot(
 
     const args = (ctx.match?.trim() || "").toLowerCase();
 
-    // /simulateactivity status — show current sim state
-    if (args === "status") {
+    // /simulateactivity status — show full report
+    if (args === "status" || args === "report") {
       const { sbFetch: sbF } = await import("../utils/supabase.js");
       const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
       if (!rows?.length) {
@@ -3846,15 +3846,81 @@ export function startTelegramBot(
         return;
       }
       const s = rows[0];
-      const lines = [
-        "<b>Activity Simulation Status</b>",
-        "",
-        `Step: <b>${s.step}</b>`,
-        `Crew ID: <code>${s.crew_id || "pending"}</code>`,
-        `Join code: <code>${s.join_code || "pending"}</code>`,
-        `Users: ${(s.registered_users || []).join(", ") || "none"}`,
-        `Last run: ${s.last_run || "never"}`,
+      const step = s.step || 0;
+      const users = s.registered_users || [];
+      const userNames = ["Luna", "Kai", "Mira", "Juno", "Reef", "Sage"];
+      const stepLog = [
+        "Register Luna",          // 0
+        "Luna creates crew",      // 1
+        "Register Kai",           // 2
+        "Kai joins crew",         // 3
+        "Register Mira",          // 4
+        "Mira joins crew",        // 5
+        "Luna checks in",         // 6
+        "Register Juno",          // 7
+        "Juno joins crew",        // 8
+        "Kai checks in + msg",    // 9
+        "Register Reef",          // 10
+        "Reef joins crew",        // 11
+        "Mira heading + msg",     // 12
+        "Register Sage",          // 13
+        "Sage joins crew",        // 14
+        "Juno checks in",         // 15
+        "Luna coord message",     // 16
       ];
+
+      const lines = [
+        "<b>Activity Simulation Report</b>",
+        "",
+        `<b>Phase:</b> ${step <= 16 ? "Setup" : "Ongoing"} (step ${step})`,
+        `<b>Crew:</b> ${s.join_code ? `Casa Crew (<code>${s.join_code}</code>)` : "pending"}`,
+        `<b>Users:</b> ${users.length}/6`,
+        "",
+        "<b>Timeline:</b>",
+      ];
+
+      for (let i = 0; i < stepLog.length; i++) {
+        const icon = i < step ? "\u2705" : i === step ? "\u25b6\ufe0f" : "\u2b1c";
+        lines.push(`${icon} ${stepLog[i]}`);
+      }
+
+      if (step > 16) {
+        lines.push(`\u267b\ufe0f Ongoing: ${step - 17} random activities`);
+      }
+
+      lines.push("");
+      lines.push(`<b>Registered:</b> ${users.map((u: string) => u.replace("sim_", "")).join(", ") || "none yet"}`);
+
+      // Count actual checkins and messages
+      const now = new Date();
+      const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
+      const checkins = await sbF<any[]>(cfg, `flowb_checkins?user_id=like.sim_*&created_at=gte.${cutoff}&select=user_id,venue_name,status,created_at&order=created_at.desc&limit=20`);
+      const msgs = s.crew_id
+        ? await sbF<any[]>(cfg, `flowb_crew_messages?crew_id=eq.${s.crew_id}&user_id=like.sim_*&select=user_id,message,created_at&order=created_at.desc&limit=10`)
+        : [];
+
+      if (checkins?.length) {
+        lines.push("");
+        lines.push(`<b>Recent check-ins (${checkins.length}):</b>`);
+        for (const c of checkins.slice(0, 5)) {
+          const name = c.user_id.replace("sim_", "");
+          const time = new Date(c.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" });
+          lines.push(`  ${name} \u2192 ${c.venue_name} (${c.status}) ${time}`);
+        }
+      }
+
+      if (msgs?.length) {
+        lines.push("");
+        lines.push(`<b>Recent messages (${msgs.length}):</b>`);
+        for (const m of msgs.slice(0, 5)) {
+          const name = m.user_id.replace("sim_", "");
+          lines.push(`  <b>${name}:</b> ${m.message.slice(0, 50)}`);
+        }
+      }
+
+      lines.push("");
+      lines.push(`Last run: ${s.last_run ? new Date(s.last_run).toLocaleString("en-US", { timeZone: "America/Denver" }) : "never"}`);
+
       await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
       return;
     }
@@ -3886,15 +3952,70 @@ export function startTelegramBot(
       const { sbFetch: sbF } = await import("../utils/supabase.js");
       const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
       const s = rows?.[0];
+      const step = s?.step || 0;
+      const prevStep = step - 1;
 
-      const stepDesc = s?.step <= 16
-        ? `Step ${s.step - 1} complete, next: ${s.step}`
-        : `Ongoing activity (step ${s.step})`;
+      const stepLabels: Record<number, string> = {
+        0: "Registered Luna (seed user)",
+        1: "Luna created Casa Crew",
+        2: "Registered Kai",
+        3: "Kai joined the crew",
+        4: "Registered Mira",
+        5: "Mira joined the crew",
+        6: "Luna checked into Casa DeLuz",
+        7: "Registered Juno",
+        8: "Juno joined the crew",
+        9: "Kai checked in + messaged",
+        10: "Registered Reef",
+        11: "Reef joined the crew",
+        12: "Mira heading to Casa DeLuz",
+        13: "Registered Sage",
+        14: "Sage joined the crew",
+        15: "Juno checked into Casa DeLuz",
+        16: "Luna sent coordination message",
+      };
 
-      await ctx.reply(
-        `<b>Simulation advanced!</b>\n\n${stepDesc}\nCrew: ${s?.join_code || "pending"}\nUsers: ${(s?.registered_users || []).length}/6`,
-        { parse_mode: "HTML" },
-      );
+      const nextLabels: Record<number, string> = {
+        1: "Luna creates the crew",
+        2: "Register Kai",
+        3: "Kai joins the crew",
+        4: "Register Mira",
+        5: "Mira joins the crew",
+        6: "Luna checks into Casa DeLuz",
+        7: "Register Juno",
+        8: "Juno joins the crew",
+        9: "Kai checks in + message",
+        10: "Register Reef",
+        11: "Reef joins the crew",
+        12: "Mira heading + message",
+        13: "Register Sage",
+        14: "Sage joins the crew",
+        15: "Juno checks into Casa DeLuz",
+        16: "Luna coordination message",
+      };
+
+      const did = stepLabels[prevStep] || `Random activity (step ${prevStep})`;
+      const next = nextLabels[step] || "Random checkins & messages";
+      const done = step >= 17;
+      const users = (s?.registered_users || []).length;
+      const pct = Math.min(100, Math.round((prevStep / 16) * 100));
+
+      const lines = [
+        `<b>${done ? "Simulation complete!" : "Simulation advanced!"}</b>`,
+        "",
+        `\u2705 <b>Done:</b> ${did}`,
+        ...(done ? [] : [`\u25b6\ufe0f <b>Next:</b> ${next}`]),
+        "",
+        `Crew: ${s?.join_code ? `<code>${s.join_code}</code>` : "pending"}`,
+        `Users: ${users}/6  |  Progress: ${pct}%`,
+        `${"█".repeat(Math.round(pct / 10))}${"░".repeat(10 - Math.round(pct / 10))}`,
+        "",
+        ...(done
+          ? ["All 6 users are in the crew and active at Casa DeLuz!", "Run again for more random activity, or /simulateactivity report for full details."]
+          : ["Run again or wait 15 min for the next step."]),
+      ];
+
+      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
     } catch (err: any) {
       await ctx.reply(`Simulation error: ${err.message}`);
     }
