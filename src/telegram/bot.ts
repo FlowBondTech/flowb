@@ -3804,9 +3804,9 @@ export function startTelegramBot(
       "/admin active [1d|7d|30d] — Active users",
       "/admin stats — User/session overview",
       "",
-      "/simulateactivity — Run sim step",
-      "/simulateactivity status — View state",
-      "/simulateactivity reset — Start over",
+      "sim — Run one sim step",
+      "sim report — Full timeline + activity",
+      "sim reset — Start over",
       "",
       "Or ask naturally:",
       '<i>"flowb what\'s the chat id"</i>',
@@ -3817,209 +3817,150 @@ export function startTelegramBot(
   });
 
   // ========================================================================
-  // /simulateactivity — Admin-only: trigger activity simulation
+  // Activity simulation helper (used by natural text router: "sim", "sim report", etc.)
   // ========================================================================
 
-  bot.command("simulateactivity", async (ctx) => {
-    const tgId = ctx.from!.id;
-    const sbUrl = process.env.SUPABASE_URL;
-    const sbKey = process.env.SUPABASE_KEY;
-    if (!sbUrl || !sbKey) { await ctx.reply("Supabase not configured."); return; }
+  const SIM_STEP_LOG = [
+    "Register Luna",       "Luna creates crew",   "Register Kai",
+    "Kai joins crew",      "Register Mira",       "Mira joins crew",
+    "Luna checks in",      "Register Juno",       "Juno joins crew",
+    "Kai checks in + msg", "Register Reef",       "Reef joins crew",
+    "Mira heading + msg",  "Register Sage",       "Sage joins crew",
+    "Juno checks in",      "Luna coord message",
+  ];
+
+  const SIM_STEP_PAST: Record<number, string> = {
+    0: "Registered Luna (seed user)", 1: "Luna created Casa Crew",
+    2: "Registered Kai", 3: "Kai joined the crew",
+    4: "Registered Mira", 5: "Mira joined the crew",
+    6: "Luna checked into Casa DeLuz", 7: "Registered Juno",
+    8: "Juno joined the crew", 9: "Kai checked in + messaged",
+    10: "Registered Reef", 11: "Reef joined the crew",
+    12: "Mira heading to Casa DeLuz", 13: "Registered Sage",
+    14: "Sage joined the crew", 15: "Juno checked into Casa DeLuz",
+    16: "Luna sent coordination message",
+  };
+
+  const SIM_STEP_NEXT: Record<number, string> = {
+    1: "Luna creates the crew", 2: "Register Kai",
+    3: "Kai joins the crew", 4: "Register Mira",
+    5: "Mira joins the crew", 6: "Luna checks into Casa DeLuz",
+    7: "Register Juno", 8: "Juno joins the crew",
+    9: "Kai checks in + message", 10: "Register Reef",
+    11: "Reef joins the crew", 12: "Mira heading + message",
+    13: "Register Sage", 14: "Sage joins the crew",
+    15: "Juno checks into Casa DeLuz", 16: "Luna coordination message",
+  };
+
+  async function handleSimReport(ctx: any, cfg: { supabaseUrl: string; supabaseKey: string }) {
+    const { sbFetch: sbF } = await import("../utils/supabase.js");
+    const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
+    if (!rows?.length) {
+      await ctx.reply("No simulation state yet. Type <b>sim</b> to start.", { parse_mode: "HTML" });
+      return;
+    }
+    const s = rows[0];
+    const step = s.step || 0;
+    const users = s.registered_users || [];
+
+    const lines = [
+      "<b>Activity Simulation Report</b>",
+      "",
+      `<b>Phase:</b> ${step <= 16 ? "Setup" : "Ongoing"} (step ${step})`,
+      `<b>Crew:</b> ${s.join_code ? `Casa Crew (<code>${s.join_code}</code>)` : "pending"}`,
+      `<b>Users:</b> ${users.length}/6`,
+      "",
+      "<b>Timeline:</b>",
+    ];
+
+    for (let i = 0; i < SIM_STEP_LOG.length; i++) {
+      const icon = i < step ? "\u2705" : i === step ? "\u25b6\ufe0f" : "\u2b1c";
+      lines.push(`${icon} ${SIM_STEP_LOG[i]}`);
+    }
+    if (step > 16) {
+      lines.push(`\u267b\ufe0f Ongoing: ${step - 17} random activities`);
+    }
+
+    lines.push("");
+    lines.push(`<b>Registered:</b> ${users.map((u: string) => u.replace("sim_", "")).join(", ") || "none yet"}`);
+
+    // Query actual checkins and messages (PostgREST wildcard is % not *)
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const checkins = await sbF<any[]>(cfg,
+      `flowb_checkins?user_id=like.sim_%&created_at=gte.${cutoff}&select=user_id,venue_name,status,created_at&order=created_at.desc&limit=20`);
+    const msgs = s.crew_id
+      ? await sbF<any[]>(cfg,
+          `flowb_crew_messages?crew_id=eq.${s.crew_id}&user_id=like.sim_%&select=user_id,message,created_at&order=created_at.desc&limit=10`)
+      : [];
+
+    if (checkins?.length) {
+      lines.push("");
+      lines.push(`<b>Recent check-ins (${checkins.length}):</b>`);
+      for (const c of checkins.slice(0, 5)) {
+        const name = c.user_id.replace("sim_", "");
+        const time = new Date(c.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" });
+        lines.push(`  ${name} \u2192 ${c.venue_name} (${c.status}) ${time}`);
+      }
+    }
+    if (msgs?.length) {
+      lines.push("");
+      lines.push(`<b>Recent messages (${msgs.length}):</b>`);
+      for (const m of (msgs as any[]).slice(0, 5)) {
+        const name = m.user_id.replace("sim_", "");
+        lines.push(`  <b>${name}:</b> ${m.message.slice(0, 50)}`);
+      }
+    }
+
+    lines.push("");
+    lines.push(`Last run: ${s.last_run ? new Date(s.last_run).toLocaleString("en-US", { timeZone: "America/Denver" }) : "never"}`);
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  }
+
+  async function handleSimReset(ctx: any, cfg: { supabaseUrl: string; supabaseKey: string }) {
+    const { sbUpsert: sbU } = await import("../utils/supabase.js");
+    await sbU(cfg, "flowb_sim_state", {
+      id: 1, step: 0, crew_id: null, join_code: null,
+      registered_users: [], last_run: null,
+    }, "id");
+    await ctx.reply("Simulation reset to step 0. Type <b>sim</b> to start fresh.", { parse_mode: "HTML" });
+  }
+
+  async function handleSimRun(ctx: any, sbUrl: string, sbKey: string) {
     const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+    const { runActivitySim } = await import("../services/activity-sim.js");
+    const { sbUpsert: sbU, sbFetch: sbF } = await import("../utils/supabase.js");
 
-    const admin = await isFlowBAdmin(cfg, userId(tgId));
-    if (!admin) {
-      await ctx.reply("Admin only.");
-      return;
-    }
+    // Override 10-min guard for manual trigger
+    await sbU(cfg, "flowb_sim_state", { id: 1, last_run: "2000-01-01T00:00:00Z" }, "id");
+    await runActivitySim(sbUrl, sbKey);
 
-    await ctx.replyWithChatAction("typing");
+    const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
+    const s = rows?.[0];
+    const step = s?.step || 0;
+    const prevStep = step - 1;
 
-    const args = (ctx.match?.trim() || "").toLowerCase();
+    const did = SIM_STEP_PAST[prevStep] || `Random activity (step ${prevStep})`;
+    const next = SIM_STEP_NEXT[step] || "Random checkins & messages";
+    const done = step >= 17;
+    const users = (s?.registered_users || []).length;
+    const pct = Math.min(100, Math.round((Math.max(0, prevStep) / 16) * 100));
 
-    // /simulateactivity status — show full report
-    if (args === "status" || args === "report") {
-      const { sbFetch: sbF } = await import("../utils/supabase.js");
-      const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
-      if (!rows?.length) {
-        await ctx.reply("No simulation state found. Run /simulateactivity to start.");
-        return;
-      }
-      const s = rows[0];
-      const step = s.step || 0;
-      const users = s.registered_users || [];
-      const userNames = ["Luna", "Kai", "Mira", "Juno", "Reef", "Sage"];
-      const stepLog = [
-        "Register Luna",          // 0
-        "Luna creates crew",      // 1
-        "Register Kai",           // 2
-        "Kai joins crew",         // 3
-        "Register Mira",          // 4
-        "Mira joins crew",        // 5
-        "Luna checks in",         // 6
-        "Register Juno",          // 7
-        "Juno joins crew",        // 8
-        "Kai checks in + msg",    // 9
-        "Register Reef",          // 10
-        "Reef joins crew",        // 11
-        "Mira heading + msg",     // 12
-        "Register Sage",          // 13
-        "Sage joins crew",        // 14
-        "Juno checks in",         // 15
-        "Luna coord message",     // 16
-      ];
-
-      const lines = [
-        "<b>Activity Simulation Report</b>",
-        "",
-        `<b>Phase:</b> ${step <= 16 ? "Setup" : "Ongoing"} (step ${step})`,
-        `<b>Crew:</b> ${s.join_code ? `Casa Crew (<code>${s.join_code}</code>)` : "pending"}`,
-        `<b>Users:</b> ${users.length}/6`,
-        "",
-        "<b>Timeline:</b>",
-      ];
-
-      for (let i = 0; i < stepLog.length; i++) {
-        const icon = i < step ? "\u2705" : i === step ? "\u25b6\ufe0f" : "\u2b1c";
-        lines.push(`${icon} ${stepLog[i]}`);
-      }
-
-      if (step > 16) {
-        lines.push(`\u267b\ufe0f Ongoing: ${step - 17} random activities`);
-      }
-
-      lines.push("");
-      lines.push(`<b>Registered:</b> ${users.map((u: string) => u.replace("sim_", "")).join(", ") || "none yet"}`);
-
-      // Count actual checkins and messages
-      const now = new Date();
-      const cutoff = new Date(now.getTime() - 4 * 60 * 60 * 1000).toISOString();
-      const checkins = await sbF<any[]>(cfg, `flowb_checkins?user_id=like.sim_*&created_at=gte.${cutoff}&select=user_id,venue_name,status,created_at&order=created_at.desc&limit=20`);
-      const msgs = s.crew_id
-        ? await sbF<any[]>(cfg, `flowb_crew_messages?crew_id=eq.${s.crew_id}&user_id=like.sim_*&select=user_id,message,created_at&order=created_at.desc&limit=10`)
-        : [];
-
-      if (checkins?.length) {
-        lines.push("");
-        lines.push(`<b>Recent check-ins (${checkins.length}):</b>`);
-        for (const c of checkins.slice(0, 5)) {
-          const name = c.user_id.replace("sim_", "");
-          const time = new Date(c.created_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/Denver" });
-          lines.push(`  ${name} \u2192 ${c.venue_name} (${c.status}) ${time}`);
-        }
-      }
-
-      if (msgs?.length) {
-        lines.push("");
-        lines.push(`<b>Recent messages (${msgs.length}):</b>`);
-        for (const m of msgs.slice(0, 5)) {
-          const name = m.user_id.replace("sim_", "");
-          lines.push(`  <b>${name}:</b> ${m.message.slice(0, 50)}`);
-        }
-      }
-
-      lines.push("");
-      lines.push(`Last run: ${s.last_run ? new Date(s.last_run).toLocaleString("en-US", { timeZone: "America/Denver" }) : "never"}`);
-
-      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
-      return;
-    }
-
-    // /simulateactivity reset — reset simulation to step 0
-    if (args === "reset") {
-      const { sbUpsert: sbU } = await import("../utils/supabase.js");
-      await sbU(cfg, "flowb_sim_state", {
-        id: 1,
-        step: 0,
-        crew_id: null,
-        join_code: null,
-        registered_users: [],
-        last_run: null,
-      }, "id");
-      await ctx.reply("Simulation reset to step 0.");
-      return;
-    }
-
-    // Default: run one step
-    try {
-      const { runActivitySim } = await import("../services/activity-sim.js");
-      // Override the 10-min guard for manual trigger
-      const { sbUpsert: sbU } = await import("../utils/supabase.js");
-      await sbU(cfg, "flowb_sim_state", { id: 1, last_run: "2000-01-01T00:00:00Z" }, "id");
-
-      await runActivitySim(sbUrl, sbKey);
-
-      const { sbFetch: sbF } = await import("../utils/supabase.js");
-      const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
-      const s = rows?.[0];
-      const step = s?.step || 0;
-      const prevStep = step - 1;
-
-      const stepLabels: Record<number, string> = {
-        0: "Registered Luna (seed user)",
-        1: "Luna created Casa Crew",
-        2: "Registered Kai",
-        3: "Kai joined the crew",
-        4: "Registered Mira",
-        5: "Mira joined the crew",
-        6: "Luna checked into Casa DeLuz",
-        7: "Registered Juno",
-        8: "Juno joined the crew",
-        9: "Kai checked in + messaged",
-        10: "Registered Reef",
-        11: "Reef joined the crew",
-        12: "Mira heading to Casa DeLuz",
-        13: "Registered Sage",
-        14: "Sage joined the crew",
-        15: "Juno checked into Casa DeLuz",
-        16: "Luna sent coordination message",
-      };
-
-      const nextLabels: Record<number, string> = {
-        1: "Luna creates the crew",
-        2: "Register Kai",
-        3: "Kai joins the crew",
-        4: "Register Mira",
-        5: "Mira joins the crew",
-        6: "Luna checks into Casa DeLuz",
-        7: "Register Juno",
-        8: "Juno joins the crew",
-        9: "Kai checks in + message",
-        10: "Register Reef",
-        11: "Reef joins the crew",
-        12: "Mira heading + message",
-        13: "Register Sage",
-        14: "Sage joins the crew",
-        15: "Juno checks into Casa DeLuz",
-        16: "Luna coordination message",
-      };
-
-      const did = stepLabels[prevStep] || `Random activity (step ${prevStep})`;
-      const next = nextLabels[step] || "Random checkins & messages";
-      const done = step >= 17;
-      const users = (s?.registered_users || []).length;
-      const pct = Math.min(100, Math.round((prevStep / 16) * 100));
-
-      const lines = [
-        `<b>${done ? "Simulation complete!" : "Simulation advanced!"}</b>`,
-        "",
-        `\u2705 <b>Done:</b> ${did}`,
-        ...(done ? [] : [`\u25b6\ufe0f <b>Next:</b> ${next}`]),
-        "",
-        `Crew: ${s?.join_code ? `<code>${s.join_code}</code>` : "pending"}`,
-        `Users: ${users}/6  |  Progress: ${pct}%`,
-        `${"█".repeat(Math.round(pct / 10))}${"░".repeat(10 - Math.round(pct / 10))}`,
-        "",
-        ...(done
-          ? ["All 6 users are in the crew and active at Casa DeLuz!", "Run again for more random activity, or /simulateactivity report for full details."]
-          : ["Run again or wait 15 min for the next step."]),
-      ];
-
-      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
-    } catch (err: any) {
-      await ctx.reply(`Simulation error: ${err.message}`);
-    }
-  });
+    const lines = [
+      `<b>${done ? "Setup complete!" : "Simulation advanced!"}</b>`,
+      "",
+      `\u2705 <b>Done:</b> ${did}`,
+      ...(done ? [] : [`\u25b6\ufe0f <b>Next:</b> ${next}`]),
+      "",
+      `Crew: ${s?.join_code ? `<code>${s.join_code}</code>` : "pending"}`,
+      `Users: ${users}/6  |  Progress: ${pct}%`,
+      `${"█".repeat(Math.round(pct / 10))}${"░".repeat(10 - Math.round(pct / 10))}`,
+      "",
+      ...(done
+        ? ["All 6 users active at Casa DeLuz!", "Type <b>sim</b> for more activity, <b>sim report</b> for full details."]
+        : ["Type <b>sim</b> again or wait for the next cron tick."]),
+    ];
+    await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+  }
 
   // ========================================================================
   // New member welcome (auto-detect group joins)
@@ -7046,6 +6987,34 @@ export function startTelegramBot(
     // ---- Natural text command router ----
     // Matches plain words, phrases, and conversational triggers so users
     // never need slash commands. Order matters: more specific first.
+
+    // Simulation (admin): "sim", "sim run", "sim report", "sim status", "sim reset"
+    const simMatch = lower.match(/^sim(?:ulate)?(?:\s+(run|report|status|reset))?$/i);
+    if (simMatch) {
+      const sbUrlSim = process.env.SUPABASE_URL;
+      const sbKeySim = process.env.SUPABASE_KEY;
+      if (sbUrlSim && sbKeySim) {
+        const cfgSim = { supabaseUrl: sbUrlSim, supabaseKey: sbKeySim };
+        const isAdminSim = await isFlowBAdmin(cfgSim, userId(tgId));
+        if (isAdminSim) {
+          await ctx.replyWithChatAction("typing");
+          const sub = (simMatch[1] || "run").toLowerCase();
+          try {
+            if (sub === "report" || sub === "status") {
+              await handleSimReport(ctx, cfgSim);
+            } else if (sub === "reset") {
+              await handleSimReset(ctx, cfgSim);
+            } else {
+              await handleSimRun(ctx, sbUrlSim, sbKeySim);
+            }
+          } catch (err: any) {
+            await ctx.reply(`Sim error: ${err.message}`);
+          }
+          return;
+        }
+      }
+      // Non-admins: fall through silently
+    }
 
     // Menu
     if (/^(menu|home|start|hi|hey|hello|yo|sup)$/i.test(lower)) {
