@@ -453,6 +453,13 @@ FlowB exposes two backend servers:
 |--------|------|------|-------------|
 | `POST` | `/api/v1/admin/cast` | No |  |
 
+## Admin
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/v1/admin/notify` | No | receive cross-platform notifications (DANZ → FlowB admin alerts) |
+| `POST` | `/api/v1/admin/simulate-activity` | No | trigger activity simulation step |
+
 ## Health check + plugin status
 
 | Method | Path | Auth | Description |
@@ -527,4 +534,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-04-04 16:06:16 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-04-04 16:27:05 UTC*

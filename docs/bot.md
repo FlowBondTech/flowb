@@ -55,6 +55,7 @@ The FlowB Telegram bot (`@Flow_b_bot`) provides the primary user interface for d
 | `/reportbug` | — |
 | `/egator` | — |
 | `/admin` | — |
+| `/simulateactivity` | — |
 
 ## Deep Links
 
@@ -213,4 +214,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-04-04 16:06:16 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-04-04 16:27:05 UTC*

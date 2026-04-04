@@ -8,6 +8,7 @@ Backend services that power FlowB's cross-platform features.
 
 | Service | File | Exports |
 |---------|------|---------|
+| activity sim | `src/services/activity-sim.ts` | `runActivitySim` |
 | admin alerts | `src/services/admin-alerts.ts` | `getAdminIds`, `alertAdmins`, `alertNewEvents`, `alertDaily`, `checkMilestone`, `alertSupportChannel` |
 | agent memory | `src/services/agent-memory.ts` | `storeMemory`, `searchMemories`, `extractMemories`, `getMemoryContext`, `processConversationMemories` |
 | ai chat | `src/services/ai-chat.ts` | `handleChat` |
@@ -39,6 +40,14 @@ Backend services that power FlowB's cross-platform features.
 | telegram auth | `src/services/telegram-auth.ts` | `verifyTelegramAuth`, `parseTelegramAuthParams` |
 
 ## Details
+
+### activity sim
+
+Activity Simulation Cron
+
+**Source**: `src/services/activity-sim.ts`
+
+**Exports**: `runActivitySim()`
 
 ### admin alerts
 
@@ -268,4 +277,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-04-04 16:06:16 UTC*
+*Auto-generated on 2026-04-04 16:27:05 UTC*
