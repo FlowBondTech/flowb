@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql'
 // privyClient import removed - user lookup now via supabase
 import { supabase } from '../../config/supabase.js'
 import { discord } from '../../services/discord.js'
+import { flowbNotify } from '../../services/flowb-notify.js'
 import type { GraphQLContext } from '../context.js'
 
 const requireAuth = (context: GraphQLContext) => {
@@ -86,6 +87,15 @@ export const userResolvers = {
             wallet_address: walletAddress,
           })
           .catch(err => console.error('[Discord] User signup notification failed:', err))
+
+        // FlowB admin notification: new DANZ signup
+        flowbNotify
+          .notifyDanzSignup({
+            id: userId,
+            email,
+            wallet_address: walletAddress,
+          })
+          .catch(err => console.error('[FlowB] User signup notification failed:', err))
 
         return createdUser
       } catch (error: any) {
@@ -388,6 +398,17 @@ export const userResolvers = {
             role: data.role,
           })
           .catch(err => console.error('[Discord] User registered notification failed:', err))
+
+        // FlowB admin notification: DANZ registration complete
+        flowbNotify
+          .notifyDanzRegistered({
+            id: userId,
+            username: data.username,
+            display_name: data.display_name,
+            city: data.city,
+            role: data.role,
+          })
+          .catch(err => console.error('[FlowB] User registered notification failed:', err))
       }
 
       // Discord webhook: User became organizer

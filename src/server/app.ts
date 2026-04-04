@@ -16,6 +16,7 @@ import { runContextNotifications } from "../services/context-notifications.js";
 import { alertAdmins, alertDaily, alertNewEvents } from "../services/admin-alerts.js";
 import type { ScanResult } from "../services/event-scanner.js";
 import { runEmailDigest } from "../services/email-digest.js";
+import { runActivitySim } from "../services/activity-sim.js";
 import rateLimit from "@fastify/rate-limit";
 import { fireAndForget } from "../utils/logger.js";
 import { sbFetch, sbPatchRaw } from "../utils/supabase.js";
@@ -293,6 +294,41 @@ export async function buildApp(core: FlowBCore) {
 
     console.log("[scheduler] Email digest scheduled (8am MST)");
 
+    // ========================================================================
+    // Activity Simulation: organic demo activity every 15 min (8am-10pm MST)
+    // ========================================================================
+    if (process.env.ACTIVITY_SIM_ENABLED === "true") {
+      const SIM_INTERVAL = 15 * 60 * 1000; // 15 minutes
+
+      setInterval(() => {
+        try {
+          const now = new Date();
+          const mstStr = now.toLocaleString("en-US", { timeZone: "America/Denver", hour12: false });
+          const parts = mstStr.split(",")[1]?.trim().split(":");
+          if (!parts) return;
+
+          const hour = parseInt(parts[0], 10);
+          // Only run during active hours (8am - 10pm MST)
+          if (hour < 8 || hour >= 22) return;
+
+          runActivitySim(supabaseUrl, supabaseKey).catch(
+            (err) => console.error("[scheduler] Activity sim error:", err),
+          );
+        } catch (err) {
+          console.error("[scheduler] Activity sim check error:", err);
+        }
+      }, SIM_INTERVAL);
+
+      // Initial run after 3 minutes
+      setTimeout(() => {
+        runActivitySim(supabaseUrl, supabaseKey).catch(
+          (err) => console.error("[scheduler] Initial activity sim error:", err),
+        );
+      }, 3 * 60 * 1000);
+
+      console.log("[scheduler] Activity simulation scheduled (every 15 min, 8am-10pm MST)");
+    }
+
   } else {
     console.log("[scheduler] Supabase not configured, skipping scheduled tasks");
   }
@@ -437,6 +473,54 @@ export async function buildApp(core: FlowBCore) {
       );
 
       return { ok: true, ...result };
+    },
+  );
+
+  // Admin: receive cross-platform notifications (DANZ → FlowB admin alerts)
+  app.post<{ Body: { source?: string; event?: string; message: string; priority?: string; data?: any } }>(
+    "/api/v1/admin/notify",
+    async (request, reply) => {
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      if (!adminKey || request.headers["x-admin-key"] !== adminKey) {
+        return reply.status(403).send({ error: "Unauthorized" });
+      }
+
+      const { message, priority = "info" } = request.body || {};
+      if (!message) {
+        return reply.status(400).send({ error: "Missing message" });
+      }
+
+      const { alertAdmins: alert } = await import("../services/admin-alerts.js");
+      alert(message, priority as "info" | "important" | "urgent");
+
+      return { ok: true };
+    },
+  );
+
+  // Admin: trigger activity simulation step
+  app.post(
+    "/api/v1/admin/simulate-activity",
+    async (request, reply) => {
+      const adminKey = process.env.FLOWB_ADMIN_KEY;
+      if (!adminKey || request.headers["x-admin-key"] !== adminKey) {
+        return reply.status(403).send({ error: "Unauthorized" });
+      }
+
+      if (!supabaseUrl || !supabaseKey) {
+        return reply.status(500).send({ error: "Supabase not configured" });
+      }
+
+      try {
+        await runActivitySim(supabaseUrl, supabaseKey);
+        // Read back state for response
+        const rows = await sbFetch<any[]>(
+          { supabaseUrl, supabaseKey },
+          "flowb_sim_state?id=eq.1&limit=1",
+        );
+        return { ok: true, state: rows?.[0] || null };
+      } catch (err: any) {
+        return reply.status(500).send({ error: err.message });
+      }
     },
   );
 

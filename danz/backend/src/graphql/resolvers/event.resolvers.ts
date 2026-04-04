@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql'
 import { supabase } from '../../config/supabase.js'
 import { discord } from '../../services/discord.js'
+import { flowbNotify } from '../../services/flowb-notify.js'
 import type { GraphQLContext } from '../context.js'
 
 const requireAuth = (context: GraphQLContext) => {
@@ -1156,6 +1157,16 @@ export const eventResolvers = {
           action_data: { event_id: eventId },
         })
       }
+
+      // FlowB admin notification: DANZ event registration
+      flowbNotify
+        .notifyDanzEventRegistration({
+          userId,
+          username: user?.username,
+          eventTitle: eventDetails?.title || event?.title || 'Unknown event',
+          isWaitlisted: false,
+        })
+        .catch(err => console.error('[FlowB] Event registration notification failed:', err))
 
       // Create confirmation notification for registrant
       await supabase.from('notifications').insert({

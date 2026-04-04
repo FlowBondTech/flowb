@@ -3804,12 +3804,100 @@ export function startTelegramBot(
       "/admin active [1d|7d|30d] — Active users",
       "/admin stats — User/session overview",
       "",
+      "/simulateactivity — Run sim step",
+      "/simulateactivity status — View state",
+      "/simulateactivity reset — Start over",
+      "",
       "Or ask naturally:",
       '<i>"flowb what\'s the chat id"</i>',
       '<i>"flowb who is steph"</i>',
       '<i>"flowb active users last 7 days"</i>',
     ];
     await ctx.reply(help.join("\n"), { parse_mode: "HTML" });
+  });
+
+  // ========================================================================
+  // /simulateactivity — Admin-only: trigger activity simulation
+  // ========================================================================
+
+  bot.command("simulateactivity", async (ctx) => {
+    const tgId = ctx.from!.id;
+    const sbUrl = process.env.SUPABASE_URL;
+    const sbKey = process.env.SUPABASE_KEY;
+    if (!sbUrl || !sbKey) { await ctx.reply("Supabase not configured."); return; }
+    const cfg = { supabaseUrl: sbUrl, supabaseKey: sbKey };
+
+    const admin = await isFlowBAdmin(cfg, userId(tgId));
+    if (!admin) {
+      await ctx.reply("Admin only.");
+      return;
+    }
+
+    await ctx.replyWithChatAction("typing");
+
+    const args = (ctx.match?.trim() || "").toLowerCase();
+
+    // /simulateactivity status — show current sim state
+    if (args === "status") {
+      const { sbFetch: sbF } = await import("../utils/supabase.js");
+      const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
+      if (!rows?.length) {
+        await ctx.reply("No simulation state found. Run /simulateactivity to start.");
+        return;
+      }
+      const s = rows[0];
+      const lines = [
+        "<b>Activity Simulation Status</b>",
+        "",
+        `Step: <b>${s.step}</b>`,
+        `Crew ID: <code>${s.crew_id || "pending"}</code>`,
+        `Join code: <code>${s.join_code || "pending"}</code>`,
+        `Users: ${(s.registered_users || []).join(", ") || "none"}`,
+        `Last run: ${s.last_run || "never"}`,
+      ];
+      await ctx.reply(lines.join("\n"), { parse_mode: "HTML" });
+      return;
+    }
+
+    // /simulateactivity reset — reset simulation to step 0
+    if (args === "reset") {
+      const { sbUpsert: sbU } = await import("../utils/supabase.js");
+      await sbU(cfg, "flowb_sim_state", {
+        id: 1,
+        step: 0,
+        crew_id: null,
+        join_code: null,
+        registered_users: [],
+        last_run: null,
+      }, "id");
+      await ctx.reply("Simulation reset to step 0.");
+      return;
+    }
+
+    // Default: run one step
+    try {
+      const { runActivitySim } = await import("../services/activity-sim.js");
+      // Override the 10-min guard for manual trigger
+      const { sbUpsert: sbU } = await import("../utils/supabase.js");
+      await sbU(cfg, "flowb_sim_state", { id: 1, last_run: "2000-01-01T00:00:00Z" }, "id");
+
+      await runActivitySim(sbUrl, sbKey);
+
+      const { sbFetch: sbF } = await import("../utils/supabase.js");
+      const rows = await sbF<any[]>(cfg, "flowb_sim_state?id=eq.1&limit=1");
+      const s = rows?.[0];
+
+      const stepDesc = s?.step <= 16
+        ? `Step ${s.step - 1} complete, next: ${s.step}`
+        : `Ongoing activity (step ${s.step})`;
+
+      await ctx.reply(
+        `<b>Simulation advanced!</b>\n\n${stepDesc}\nCrew: ${s?.join_code || "pending"}\nUsers: ${(s?.registered_users || []).length}/6`,
+        { parse_mode: "HTML" },
+      );
+    } catch (err: any) {
+      await ctx.reply(`Simulation error: ${err.message}`);
+    }
   });
 
   // ========================================================================
