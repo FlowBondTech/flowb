@@ -1,0 +1,2 @@
+-- Intentionally minimal seed file.
+-- Keep this file present so local/CI reset workflows stay deterministic.

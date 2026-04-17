@@ -37,3 +37,10 @@ curl -X POST http://localhost:8080/api/v1/action \
 ```bash
 fly deploy
 ```
+
+## Supabase Delivery
+
+- Migrations live in `supabase/migrations`.
+- CI checks migration replay + lint in `.github/workflows/supabase-migrations-ci.yml`.
+- Staging/production deploys run through `.github/workflows/supabase-deploy.yml`.
+- Setup guide and required GitHub secrets are in `docs/supabase-github-deploy.md`.
