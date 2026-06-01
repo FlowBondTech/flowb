@@ -277,4 +277,4 @@ Telegram Login Widget - Server-side verification
 
 ---
 
-*Auto-generated on 2026-05-31 23:22:05 UTC*
+*Auto-generated on 2026-06-01 00:31:22 UTC*
