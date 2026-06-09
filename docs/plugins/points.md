@@ -16,4 +16,4 @@ title: "FlowB Points Plugin"
 
 ---
 
-*Auto-generated on 2026-06-09 09:04:01 UTC*
+*Auto-generated on 2026-06-09 11:01:15 UTC*
