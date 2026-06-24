@@ -213,4 +213,4 @@ Inline keyboard callbacks used throughout the bot:
 
 ---
 
-*Auto-generated from `src/telegram/bot.ts` on 2026-06-24 17:35:36 UTC*
+*Auto-generated from `src/telegram/bot.ts` on 2026-06-24 18:33:03 UTC*
