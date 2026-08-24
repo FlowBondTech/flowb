@@ -534,4 +534,4 @@ FlowB exposes two backend servers:
 
 ---
 
-*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-08-24 07:49:42 UTC*
+*Auto-generated from `src/server/routes.ts` and `src/server/app.ts` on 2026-08-24 08:35:56 UTC*
